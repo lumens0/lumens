@@ -2,6 +2,7 @@ import { conversas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CLEANUP_CRON, CLEANUP_TZ, registerCleanupJob } from '../../agendador/limpeza-conversas';
+import { segredoCom } from '../../cripto';
 import { JOBS } from '../../queue';
 import {
   defaultHandlers,
@@ -25,7 +26,8 @@ let db: Db;
 let clock: Date;
 let store: ConversationStore;
 const now = () => clock;
-const send = (text: string) => handleIncoming({ phoneHmac: H, text }, { store });
+const segredo = segredoCom(CHAVE);
+const send = (text: string) => handleIncoming({ phoneHmac: H, text }, { store, db, segredo });
 const advance = (ms: number) => {
   clock = new Date(clock.getTime() + ms);
 };
@@ -72,9 +74,9 @@ describe('steps', () => {
       ...defaultHandlers,
       GREETING: () => ({ next: 'NEW_ASK_PHOTO' as const, replies: [] }),
     };
-    await expect(handleIncoming({ phoneHmac: H, text: 'oi' }, { store, handlers })).rejects.toThrow(
-      InvalidTransitionError,
-    );
+    await expect(
+      handleIncoming({ phoneHmac: H, text: 'oi' }, { store, db, segredo, handlers }),
+    ).rejects.toThrow(InvalidTransitionError);
     expect(await store.get(H)).toBeNull();
   });
 });
@@ -142,7 +144,7 @@ describe('router', () => {
       ...defaultHandlers,
       MENU: () => ({ next: 'MENU' as const, data: { remover: undefined, nova: 3 }, replies: [] }),
     };
-    await handleIncoming({ phoneHmac: H, text: 'x' }, { store, handlers });
+    await handleIncoming({ phoneHmac: H, text: 'x' }, { store, db, segredo, handlers });
     expect((await store.get(H))?.data).toEqual({ manter: 1, nova: 3 });
   });
 
@@ -230,7 +232,8 @@ describe('limpeza agendada das conversas', () => {
 
 describe('experiência da pessoa', () => {
   const foto = { id: 'midia-1', mimeType: 'image/jpeg' };
-  const sendFoto = () => handleIncoming({ phoneHmac: H, text: '', image: foto }, { store });
+  const sendFoto = () =>
+    handleIncoming({ phoneHmac: H, text: '', image: foto }, { store, db, segredo });
 
   it.each([
     ['Cancelar.', 'cancelar'],

@@ -228,9 +228,11 @@ com `pnpm --filter @lumens/backend start` (migrações: `pnpm db:migrate`).
 Pendências da parte 2:
 
 - Envio das respostas pela API da Meta: trocar o `logSender` (`src/bot/worker.ts`) por um sender
-  que decifra o telefone e chama a Cloud API.
-- Handlers das histórias 2.4, 2.5 e 2.6 são placeholders (`TODO` em
-  `src/bot/conversation/handlers.ts`).
+  que decifra o telefone e chama a Cloud API. Uma resposta é texto ou mensagem de lista
+  (`src/bot/conversation/resposta.ts`), que vira `interactive.type = "list"` com uma seção só.
+- Handlers das histórias 2.4 e 2.6 são placeholders (`TODO` em
+  `src/bot/conversation/handlers.ts`); o apoio da 2.7 entra no `TODO(2.7)` de
+  `src/bot/conversation/relato.ts`.
 - Verificar o webhook no painel da Meta e medir resposta < 5 s (critério de pronto da 2.1).
 
 ## Como contribuir

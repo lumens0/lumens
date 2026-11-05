@@ -36,6 +36,17 @@ export { interpretarResposta } from './conferencia';
 export { registrarRespostaConferencia } from './conferencia-registro';
 export type { MotivoRecusa, RegistroDeResposta, ResultadoRegistro } from './conferencia-registro';
 
+export {
+  LIMITE_PARECIDAS,
+  SIMILARIDADE_MINIMA,
+  STATUS_ABERTOS,
+  buscarPautasParecidas,
+  listarBlocos,
+  palavrasDe,
+  termosDaBusca,
+} from './pautas-parecidas';
+export type { BlocoParaRelato, BuscaDeParecidas, PautaParecida } from './pautas-parecidas';
+
 export { ORCAMENTO_SEM_VERIFICACAO, PRIORIDADE, planejarEnvio } from './envio';
 export type { Disparo, ParametrosDeEnvio, PlanoDeEnvio, TipoDisparo } from './envio';
 

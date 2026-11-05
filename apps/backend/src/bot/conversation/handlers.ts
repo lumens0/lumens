@@ -1,5 +1,11 @@
+import type { Db } from '@lumens/db';
+import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
+import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import { TRANSITIONS, type Step } from './steps';
+import { NEW_TITLE_TEXT, normalize } from './texto';
+
+export { normalize } from './texto';
 
 /** Mensagem recebida. Foto chega com `text` vazio e o `image`. */
 export interface IncomingMessage {
@@ -8,10 +14,20 @@ export interface IncomingMessage {
   image?: { id: string; mimeType: string };
 }
 
+/** Cifra o que a pessoa escreveu antes de guardar nos dados da conversa (CHAVE_CIFRA). */
+export interface Segredo {
+  cifrar(texto: string): string;
+  /** Lança se o conteúdo não decifrar (outra chave, dado alterado). */
+  decifrar(cifrado: string): string;
+}
+
 export interface StepContext {
   /** Estado atual (passo + dados). Para usuário novo, step = GREETING e data = {}. */
   state: Pick<ConversationState, 'step' | 'data'>;
   input: IncomingMessage;
+  /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
+  db: Db;
+  segredo: Segredo;
 }
 
 /** Patch raso aplicado sobre state.data: chave com undefined remove. */
@@ -20,10 +36,10 @@ export type DataPatch = { [K in keyof ConversationData]?: ConversationData[K] | 
 export interface StepResult {
   next: Step;
   data?: DataPatch;
-  replies: string[];
+  replies: Resposta[];
 }
 
-/** Pode ser síncrono; os handlers das histórias 2.4–2.6 vão consultar o banco. */
+/** Pode ser síncrono; os que consultam o banco (2.5 em diante) são assíncronos. */
 export type StepHandler = (ctx: StepContext) => StepResult | Promise<StepResult>;
 export type HandlerRegistry = Record<Step, StepHandler>;
 
@@ -35,24 +51,11 @@ export const MENU_TEXT = [
   '3 Verificar e-mail',
 ].join('\n');
 
-/**
- * Remove acentos, caixa, espaços das pontas e a pontuação do fim: "Cancelar." e "1)" valem
- * como "cancelar" e "1".
- */
-export function normalize(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[\s.!?,;:)\]-]+$/u, '');
-}
-
 const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
 
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
-  '1': { next: 'REPORT_ASK_TEXT', reply: 'Descreva o problema que você encontrou.' },
-  '2': { next: 'NEW_ASK_TITLE', reply: 'Qual o título da sua pauta?' },
+  '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
+  '2': { next: 'NEW_ASK_TITLE', reply: NEW_TITLE_TEXT },
   '3': { next: 'VERIFY_ASK_EMAIL', reply: 'Qual o seu e-mail institucional?' },
 };
 const MENU_ALIASES: Record<string, string> = {
@@ -111,10 +114,9 @@ export const defaultHandlers: HandlerRegistry = {
   VERIFY_ASK_EMAIL: placeholder('VERIFY_ASK_EMAIL', '2.4'),
   VERIFY_ASK_CODE: placeholder('VERIFY_ASK_CODE', '2.4'),
   VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
-  // TODO(2.5): relatar problema / escolher similar.
-  REPORT_ASK_TEXT: placeholder('REPORT_ASK_TEXT', '2.5'),
-  REPORT_ASK_BLOCK: placeholder('REPORT_ASK_BLOCK', '2.5'),
-  REPORT_PICK_SIMILAR: placeholder('REPORT_PICK_SIMILAR', '2.5'),
+  REPORT_ASK_TEXT: reportAskText,
+  REPORT_ASK_BLOCK: reportAskBlock,
+  REPORT_PICK_SIMILAR: reportPickSimilar,
   // TODO(2.6): nova pauta.
   NEW_ASK_TITLE: placeholder('NEW_ASK_TITLE', '2.6'),
   NEW_ASK_PLACE: placeholder('NEW_ASK_PLACE', '2.6'),
