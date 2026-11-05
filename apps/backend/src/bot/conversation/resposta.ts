@@ -39,7 +39,7 @@ export const LIMITES_DA_LISTA = {
 
 /** Corta em `maximo` caracteres, terminando em "…". Conta por code point: emoji não parte ao meio. */
 export function cortar(texto: string, maximo: number): string {
-  const caracteres = [...texto.trim()];
+  const caracteres = Array.from(texto.trim());
   if (caracteres.length <= maximo) return caracteres.join('');
   return (
     caracteres
@@ -59,7 +59,8 @@ export function lista(mensagem: Omit<MensagemDeLista, 'tipo'>): MensagemDeLista 
     corpo: cortar(mensagem.corpo, LIMITES_DA_LISTA.corpo),
     botao: cortar(mensagem.botao, LIMITES_DA_LISTA.botao),
     linhas: mensagem.linhas.map((linha) => {
-      if ([...linha.id].length > LIMITES_DA_LISTA.id) throw new Error('id da linha longo demais');
+      if (Array.from(linha.id).length > LIMITES_DA_LISTA.id)
+        throw new Error('id da linha longo demais');
       const titulo = cortar(linha.titulo, LIMITES_DA_LISTA.titulo);
       return linha.descricao === undefined
         ? { id: linha.id, titulo }
