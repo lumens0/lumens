@@ -112,8 +112,8 @@ describe('relatar (2.5)', () => {
   it('linha da pauta respeita os limites da lista: título até 24, descrição até 72', async () => {
     const [linha] = listaEm(await send('o bebedouro do bloco 18 ta quebrado')).linhas;
     expect(linha?.titulo).toBe('Bebedouros funcionando…');
-    expect([...(linha?.titulo ?? '')].length).toBeLessThanOrEqual(24);
-    expect([...(linha?.descricao ?? '')].length).toBeLessThanOrEqual(72);
+    expect(Array.from(linha?.titulo ?? '').length).toBeLessThanOrEqual(24);
+    expect(Array.from(linha?.descricao ?? '').length).toBeLessThanOrEqual(72);
     expect(linha?.descricao).toMatch(/…$/);
   });
 
@@ -277,10 +277,10 @@ describe('mensagem de lista', () => {
       botao: 'Um botão com texto longo demais',
       linhas: [{ id: 'a', titulo: 'x'.repeat(30), descricao: 'y'.repeat(100) }],
     });
-    expect([...m.botao].length).toBeLessThanOrEqual(20);
+    expect(Array.from(m.botao).length).toBeLessThanOrEqual(20);
     expect(m.botao).toMatch(/…$/);
-    expect([...(m.linhas[0]?.titulo ?? '')].length).toBe(24);
-    expect([...(m.linhas[0]?.descricao ?? '')].length).toBe(72);
+    expect(Array.from(m.linhas[0]?.titulo ?? '').length).toBe(24);
+    expect(Array.from(m.linhas[0]?.descricao ?? '').length).toBe(72);
   });
 
   it('recusa lista vazia ou com mais de 10 linhas', () => {
