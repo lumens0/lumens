@@ -1,0 +1,282 @@
+import { and, eq, eventos, isNull, pautas, promessas, propostas, type Db } from '@lumens/db';
+import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { registrarProtocolo } from './caminho-registro';
+import { abrirCaminho } from './caminhos';
+import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from './fabricas';
+import { registrarPromessa } from './promessa';
+import { registrarExecucaoProposta } from './proposta';
+
+let db: Db;
+
+beforeAll(async () => {
+  db = await criarBancoEmMemoria();
+});
+
+const lerPauta = async (id: string) => (await db.select().from(pautas).where(eq(pautas.id, id)))[0];
+const eventosDa = async (id: string) =>
+  db
+    .select({ tipo: eventos.tipo, dados: eventos.dados })
+    .from(eventos)
+    .where(eq(eventos.pautaId, id));
+
+/** Pauta com um owner ativo, no status pedido. */
+async function pautaComOwner(status: Parameters<typeof criarPauta>[1] = {}) {
+  const pauta = await criarPauta(db, status);
+  const owner = await criarEstudanteVerificado(db);
+  await tornarOwner(db, pauta.id, owner.id);
+  return { pauta, owner };
+}
+
+describe('abrirCaminho (RN07)', () => {
+  it('Fala.BR e comunidade abrem na mesma pauta, em qualquer ordem e antes da meta', async () => {
+    const { pauta, owner } = await pautaComOwner({ status: 'juntando_apoios' });
+
+    const comunidade = await db.transaction((tx) =>
+      abrirCaminho(tx, { pautaId: pauta.id, tipo: 'comunidade', porEstudanteId: owner.id }),
+    );
+    const falabr = await db.transaction((tx) =>
+      abrirCaminho(tx, { pautaId: pauta.id, tipo: 'falabr', porEstudanteId: owner.id }),
+    );
+
+    expect(comunidade).toMatchObject({ aberto: true });
+    expect(falabr).toMatchObject({ aberto: true });
+    expect((await eventosDa(pauta.id)).map((e) => e.tipo)).toEqual([
+      'caminho_aberto',
+      'caminho_aberto',
+    ]);
+    // Abrir caminho não mexe no status.
+    expect((await lerPauta(pauta.id))?.status).toBe('juntando_apoios');
+  });
+
+  it('quem não é owner não abre caminho', async () => {
+    const { pauta } = await pautaComOwner();
+    const apoiador = await criarEstudanteVerificado(db);
+
+    const r = await db.transaction((tx) =>
+      abrirCaminho(tx, { pautaId: pauta.id, tipo: 'falabr', porEstudanteId: apoiador.id }),
+    );
+
+    expect(r).toEqual({ aberto: false, motivo: 'nao_e_owner' });
+    expect(await eventosDa(pauta.id)).toEqual([]);
+  });
+});
+
+describe('registrarProtocolo ligado ao status (RN08)', () => {
+  async function caminhoFalabr(status: 'juntando_apoios' | 'meta_batida' | 'cobrando') {
+    const { pauta, owner } = await pautaComOwner({ status });
+    const r = await db.transaction((tx) =>
+      abrirCaminho(tx, { pautaId: pauta.id, tipo: 'falabr', porEstudanteId: owner.id }),
+    );
+    if (!r.aberto) throw new Error('caminho não abriu');
+    return { pauta, caminhoId: r.caminhoId };
+  }
+
+  it('protocolo em 01/11 vence em 01/12 e, prorrogado, em 31/12', async () => {
+    const { caminhoId } = await caminhoFalabr('juntando_apoios');
+    const r = await db.transaction((tx) =>
+      registrarProtocolo(tx, {
+        caminhoId,
+        protocolo: '23546.000001/2026-11',
+        abertoEm: '2026-11-01',
+      }),
+    );
+    expect(r).toMatchObject({ registrado: true, prazo: '2026-12-01' });
+
+    const outro = await caminhoFalabr('juntando_apoios');
+    const prorrogado = await db.transaction((tx) =>
+      registrarProtocolo(tx, {
+        caminhoId: outro.caminhoId,
+        protocolo: '23546.000002/2026-11',
+        abertoEm: '2026-11-01',
+        prorrogado: true,
+      }),
+    );
+    expect(prorrogado).toMatchObject({ registrado: true, prazo: '2026-12-31' });
+  });
+
+  it.each(['juntando_apoios', 'meta_batida'] as const)(
+    'protocolar leva a pauta de %s para cobrando e registra o protocolo',
+    async (status) => {
+      const { pauta, caminhoId } = await caminhoFalabr(status);
+
+      await db.transaction((tx) =>
+        registrarProtocolo(tx, {
+          caminhoId,
+          protocolo: '23546.000003/2026-11',
+          abertoEm: '2026-11-01',
+        }),
+      );
+
+      expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
+      const tipos = (await eventosDa(pauta.id)).map((e) => e.tipo);
+      expect(tipos).toEqual(['caminho_aberto', 'protocolo_registrado', 'status_alterado']);
+    },
+  );
+
+  it('pauta já em cobrando fica onde está', async () => {
+    const { pauta, caminhoId } = await caminhoFalabr('cobrando');
+
+    await db.transaction((tx) =>
+      registrarProtocolo(tx, {
+        caminhoId,
+        protocolo: '23546.000004/2026-11',
+        abertoEm: '2026-11-01',
+      }),
+    );
+
+    expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
+    expect((await eventosDa(pauta.id)).map((e) => e.tipo)).toEqual([
+      'caminho_aberto',
+      'protocolo_registrado',
+    ]);
+  });
+
+  it('reenviar o mesmo protocolo não gera evento de novo', async () => {
+    const { pauta, caminhoId } = await caminhoFalabr('juntando_apoios');
+    const entrada = { caminhoId, protocolo: '23546.000005/2026-11', abertoEm: '2026-11-01' };
+    await db.transaction((tx) => registrarProtocolo(tx, entrada));
+    await db.transaction((tx) => registrarProtocolo(tx, entrada));
+
+    const protocolos = (await eventosDa(pauta.id)).filter((e) => e.tipo === 'protocolo_registrado');
+    expect(protocolos).toHaveLength(1);
+  });
+
+  it('o evento do protocolo não leva nenhum dado de apoiador', async () => {
+    const { pauta, caminhoId } = await caminhoFalabr('juntando_apoios');
+    await db.transaction((tx) =>
+      registrarProtocolo(tx, {
+        caminhoId,
+        protocolo: '23546.000006/2026-11',
+        abertoEm: '2026-11-01',
+      }),
+    );
+
+    const evento = (await eventosDa(pauta.id)).find((e) => e.tipo === 'protocolo_registrado');
+    expect(evento?.dados).toEqual({ caminho_id: caminhoId, protocolo: '23546.000006/2026-11' });
+  });
+});
+
+describe('registrarExecucaoProposta (RN09)', () => {
+  it('vira conquista parcial na linha do tempo e o status da pauta não muda', async () => {
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const [proposta] = await db
+      .insert(propostas)
+      .values({ pautaId: pauta.id, descricao: 'Mutirão de limpeza', pessoasNecessarias: 5 })
+      .returning({ id: propostas.id });
+    if (proposta === undefined) throw new Error('proposta não criada');
+
+    const r = await db.transaction((tx) =>
+      registrarExecucaoProposta(tx, { propostaId: proposta.id }),
+    );
+    const repetida = await db.transaction((tx) =>
+      registrarExecucaoProposta(tx, { propostaId: proposta.id }),
+    );
+
+    expect(r).toEqual({ executada: true });
+    expect(repetida).toEqual({ executada: false, motivo: 'ja_executada' });
+    expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
+    expect(await eventosDa(pauta.id)).toEqual([
+      { tipo: 'proposta_executada', dados: { proposta_id: proposta.id } },
+    ]);
+  });
+});
+
+describe('registrarPromessa (RN13)', () => {
+  const nova = (pautaId: string, registradaPor: string, dataEntrega = '2026-12-10') => ({
+    pautaId,
+    resumo: 'A reitoria vai trocar as lâmpadas.',
+    dataEntrega,
+    fonte: 'Resposta no Fala.BR',
+    registradaPor,
+  });
+
+  it('leva a pauta a prometido e agenda a conferência na data de entrega, por 7 dias', async () => {
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+
+    const r = await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+    // 10/12 à meia-noite em Maceió (UTC−3) é 03:00 UTC.
+    expect(r.conferenciaAbreEm.toISOString()).toBe('2026-12-10T03:00:00.000Z');
+    expect(r.conferenciaFechaEm.toISOString()).toBe('2026-12-17T03:00:00.000Z');
+    expect((await lerPauta(pauta.id))?.status).toBe('prometido');
+    expect((await eventosDa(pauta.id)).map((e) => e.tipo)).toEqual([
+      'status_alterado',
+      'promessa_registrada',
+    ]);
+  });
+
+  it.each(['entregue_em_parte', 'descumprida'] as const)(
+    'nova promessa depois de %s funciona e fica como a única ativa',
+    async (status) => {
+      const pauta = await criarPauta(db, { status });
+      const curador = await criarCurador(db);
+      // Promessa anterior já apurada, como a T13 deixa.
+      await db.insert(promessas).values({
+        ...nova(pauta.id, curador.id, '2026-11-01'),
+        conferenciaAbreEm: new Date('2026-11-01T03:00:00Z'),
+        conferenciaFechaEm: new Date('2026-11-08T03:00:00Z'),
+        resultado: status,
+      });
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      const ativas = await db
+        .select({ dataEntrega: promessas.dataEntrega })
+        .from(promessas)
+        .where(and(eq(promessas.pautaId, pauta.id), isNull(promessas.resultado)));
+      expect(ativas).toEqual([{ dataEntrega: '2026-12-10' }]);
+      expect((await lerPauta(pauta.id))?.status).toBe('prometido');
+    },
+  );
+
+  it('promessa ainda ativa é encerrada como substituida, e a nova fica como a única ativa', async () => {
+    const pauta = await criarPauta(db, { status: 'descumprida' });
+    const curador = await criarCurador(db);
+    await db.insert(promessas).values({
+      ...nova(pauta.id, curador.id, '2026-11-01'),
+      conferenciaAbreEm: new Date('2026-11-01T03:00:00Z'),
+      conferenciaFechaEm: new Date('2026-11-08T03:00:00Z'),
+    });
+
+    await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+    const todas = await db
+      .select({ dataEntrega: promessas.dataEntrega, resultado: promessas.resultado })
+      .from(promessas)
+      .where(eq(promessas.pautaId, pauta.id));
+    expect(todas).toEqual(
+      expect.arrayContaining([
+        { dataEntrega: '2026-11-01', resultado: 'substituida' },
+        { dataEntrega: '2026-12-10', resultado: null },
+      ]),
+    );
+  });
+
+  it('pauta fora de cobrando não recebe promessa e nada é gravado', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    const curador = await criarCurador(db);
+
+    await expect(
+      db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id))),
+    ).rejects.toMatchObject({ codigo: 'transicao_invalida' });
+
+    const gravadas = await db.select().from(promessas).where(eq(promessas.pautaId, pauta.id));
+    expect(gravadas).toEqual([]);
+  });
+
+  it.each(['2026-02-31', '10/12/2026', ''])(
+    'data de entrega inválida (%j) é recusada',
+    async (dia) => {
+      const pauta = await criarPauta(db, { status: 'cobrando' });
+      const curador = await criarCurador(db);
+
+      await expect(
+        db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id, dia))),
+      ).rejects.toMatchObject({ codigo: 'data_invalida' });
+
+      expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
+    },
+  );
+});

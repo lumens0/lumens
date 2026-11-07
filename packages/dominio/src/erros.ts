@@ -12,7 +12,8 @@ export type CodigoErroDeRegra =
   | 'dados_pessoais_no_evento'
   | 'pauta_inexistente'
   | 'transicao_invalida'
-  | 'motivo_obrigatorio';
+  | 'motivo_obrigatorio'
+  | 'data_invalida';
 
 export class ErroDeRegra extends Error {
   constructor(

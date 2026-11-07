@@ -15,8 +15,10 @@
  * módulo deve gravar nessas colunas.
  */
 import { and, eq, sql, type Tx } from '@lumens/db';
-import { caminhos } from '@lumens/db';
+import { caminhos, pautas } from '@lumens/db';
+import { registrarEvento } from './eventos';
 import { calcularPrazo } from './prazo';
+import { transicionarStatus } from './status';
 
 export interface RegistroDeProtocolo {
   caminhoId: string;
@@ -93,7 +95,12 @@ export async function registrarProtocolo(
   }
 
   const [caminho] = await tx
-    .select({ tipo: caminhos.tipo, protocolo: caminhos.protocolo, prazo: caminhos.prazo })
+    .select({
+      pautaId: caminhos.pautaId,
+      tipo: caminhos.tipo,
+      protocolo: caminhos.protocolo,
+      prazo: caminhos.prazo,
+    })
     .from(caminhos)
     .where(eq(caminhos.id, caminhoId))
     .limit(1);
@@ -136,6 +143,20 @@ export async function registrarProtocolo(
     .returning({ protocolo: caminhos.protocolo, prazo: caminhos.prazo });
 
   if (gravado !== undefined) {
+    await registrarEvento(tx, {
+      pautaId: caminho.pautaId,
+      tipo: 'protocolo_registrado',
+      dados: { caminho_id: caminhoId, protocolo: limpo },
+      origem: 'bot',
+    });
+    // Protocolado, a pauta passa a ser cobrada (T12). Se já estava em `cobrando` ou adiante, fica.
+    const [pauta] = await tx
+      .select({ status: pautas.status })
+      .from(pautas)
+      .where(eq(pautas.id, caminho.pautaId));
+    if (pauta?.status === 'juntando_apoios' || pauta?.status === 'meta_batida') {
+      await transicionarStatus(tx, { pautaId: caminho.pautaId, para: 'cobrando', origem: 'bot' });
+    }
     return { registrado: true, protocolo: limpo, prazo: prazo.vence, jaEstava: false };
   }
 
