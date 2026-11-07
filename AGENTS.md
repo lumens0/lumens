@@ -85,6 +85,11 @@ Não aprove uma PR quando houver problema `P0` ou `P1`.
 
 Quando houver qualquer problema que precise ser corrigido antes do merge:
 
-- envie a revisão no GitHub com o estado **Solicitar alterações** (`REQUEST_CHANGES`), em vez de publicar apenas um comentário;
-- use o veredito `ALTERAÇÕES NECESSÁRIAS` e mencione `@sthefanyblima` no resumo da revisão, para que a pessoa responsável receba a notificação;
+- use o veredito `ALTERAÇÕES NECESSÁRIAS` e descreva cada problema como apontamento inline, no arquivo e na linha exata;
 - mantenha `APROVADO COM RESSALVAS` apenas para sugestões que não precisam ser corrigidas antes do merge.
+
+O estado da revisão e o texto do resumo no GitHub não são controláveis por este
+arquivo: o Codex publica sempre como comentário, com um resumo de template, e as
+regras acima valem para o conteúdo dos apontamentos. Quem avisa a pessoa autora da
+PR é o workflow `.github/workflows/aviso-de-revisao.yml`, que a menciona quando a
+revisão deixa apontamentos inline.
