@@ -1,15 +1,21 @@
+import type { Db } from '@lumens/db';
 import {
   defaultHandlers,
   MENU_TEXT,
   normalize,
   type HandlerRegistry,
   type IncomingMessage,
+  type Segredo,
 } from './handlers';
+import type { Resposta } from './resposta';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
 
 export interface RouterDeps {
   store: ConversationStore;
+  /** A mesma conexão do `store` (a transação da mensagem), para os handlers que leem o banco. */
+  db: Db;
+  segredo: Segredo;
   handlers?: HandlerRegistry;
 }
 
@@ -33,8 +39,8 @@ export function parseGlobalCommand(text: string): GlobalCommand | null {
 export async function handleIncoming(
   msg: { phoneHmac: string } & IncomingMessage,
   deps: RouterDeps,
-): Promise<string[]> {
-  const { store } = deps;
+): Promise<Resposta[]> {
+  const { store, db, segredo } = deps;
   const handlers = deps.handlers ?? defaultHandlers;
   const { phoneHmac } = msg;
   await store.lock(phoneHmac);
@@ -62,7 +68,7 @@ export async function handleIncoming(
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
     : { text: msg.text };
-  const result = await handlers[state.step]({ state, input });
+  const result = await handlers[state.step]({ state, input, db, segredo });
   assertTransition(state.step, result.next);
 
   // Aplica o patch: chave com valor undefined sai dos dados.

@@ -130,8 +130,11 @@ banco ainda não o restringe por enum ou constraint.
   Cálculo, congelamento no fluxo de criação e transições de status são tarefas do domínio.
 - FKs têm índice próprio ou são prefixo de PK composta; evento usa `(pauta_id, criado_em)`.
   Pauta também possui índices por status e bloco_id.
-- `pauta.busca` é gerada automaticamente com `to_tsvector('portuguese', titulo || ' ' || descricao)`
-  e índice GIN. Inserções/atualizações não devem fornecer essa coluna.
+- `pauta.busca` é gerada automaticamente com a configuração `public.portugues_sem_acento`
+  (português + `unaccent`), título com peso A e descrição com peso B, e tem índice GIN.
+  Inserções/atualizações não devem fornecer essa coluna. A migração 0007 instala `unaccent`,
+  `pg_trgm` e a função `normalizar_busca(text)` (minúsculas, sem acento e sem hífen), usadas pela
+  busca de pautas parecidas do bot (2.5, `buscarPautasParecidas` em `@lumens/dominio`).
 
 ## Fila de disparos
 
