@@ -57,8 +57,8 @@ describe('registrarApoio', () => {
     expect(depois).toMatchObject({ totalApoios: 1 });
   });
 
-  it.each(['em_curadoria', 'recusada'] as const)(
-    'pauta em %s não recebe apoio (RN12)',
+  it.each(['em_curadoria', 'recusada', 'conquistada'] as const)(
+    'pauta em %s não recebe apoio',
     async (status) => {
       const pauta = await criarPauta(db, { status });
       const estudante = await criarEstudanteVerificado(db);
@@ -66,6 +66,18 @@ describe('registrarApoio', () => {
       const r = await apoiar({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
 
       expect(r).toEqual({ registrado: false, motivo: 'pauta_sem_apoio' });
+    },
+  );
+
+  it.each(['entregue_em_parte', 'descumprida'] as const)(
+    'pauta em %s segue recebendo apoio: continua sendo cobrada',
+    async (status) => {
+      const pauta = await criarPauta(db, { status });
+      const estudante = await criarEstudanteVerificado(db);
+
+      const r = await apoiar({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+
+      expect(r).toMatchObject({ registrado: true, totalApoios: 1 });
     },
   );
 

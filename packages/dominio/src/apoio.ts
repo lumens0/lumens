@@ -10,8 +10,12 @@ import { apoios, eq, estudantes, pautas, sql, type StatusPauta, type Tx } from '
 import { registrarEvento } from './eventos';
 import { transicionarStatus } from './status';
 
-/** Pauta ainda não aprovada (ou recusada) não recebe apoio. */
-const SEM_APOIO: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
+/**
+ * Não recebem apoio: pauta ainda não aprovada, recusada ou já conquistada (status final).
+ * `entregue_em_parte` e `descumprida` continuam recebendo: seguem sendo cobradas, e apoio novo é
+ * o que dá força para cobrar de novo.
+ */
+const SEM_APOIO: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada', 'conquistada']);
 
 export interface NovoApoio {
   pautaId: string;
