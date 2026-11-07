@@ -66,3 +66,12 @@ export type { ResultadoExecucao } from './proposta';
 
 export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
 export type { NovaPromessa } from './promessa';
+
+export {
+  DIAS_SEM_ATIVIDADE,
+  LIMITE_DE_OWNERS,
+  adicionarCoOwner,
+  registrarAtividadeOwner,
+  removerOwnerInativo,
+} from './owners';
+export type { ResultadoCoOwner } from './owners';
