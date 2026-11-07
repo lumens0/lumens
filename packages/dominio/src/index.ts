@@ -57,3 +57,12 @@ export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from
 
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
+
+export { abrirCaminho } from './caminhos';
+export type { NovoCaminho, ResultadoCaminho } from './caminhos';
+
+export { registrarExecucaoProposta } from './proposta';
+export type { ResultadoExecucao } from './proposta';
+
+export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
+export type { NovaPromessa } from './promessa';
