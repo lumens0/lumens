@@ -17,6 +17,7 @@ import {
   MENU_TEXT,
   type HandlerRegistry,
 } from './conversation/handlers';
+import type { Resposta } from './conversation/resposta';
 import { ConversationStore } from './conversation/store';
 import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
@@ -436,7 +437,7 @@ describe('registerReplyWorker', () => {
 
   it('entrega as respostas pelo sender, na ordem de chegada', async () => {
     const { boss, chamadas, handler } = bossFalso();
-    const entregues: string[][] = [];
+    const entregues: Resposta[][] = [];
     await registerReplyWorker(
       boss,
       {

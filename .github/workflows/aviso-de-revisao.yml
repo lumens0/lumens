@@ -1,0 +1,63 @@
+name: Aviso de revisão
+
+# O Codex sempre publica a revisão como COMMENTED — nunca "Solicitar alterações",
+# por mais que o AGENTS.md peça. Sem este aviso, um apontamento que chega num push
+# depois da abertura da PR só é visto por quem lembrar de abrir a aba de arquivos.
+#
+# ATENÇÃO: este workflow roda a partir da branch BASE, não da branch da PR. Editar
+# o arquivo dentro de uma PR não muda o comportamento DAQUELA PR; só vale depois do
+# merge na main. Para conferir uma alteração aqui, use a PR seguinte.
+on:
+  pull_request_review:
+    types: [submitted]
+
+# O workflow só comenta na PR; não lê nem executa código dela.
+permissions:
+  pull-requests: write
+
+jobs:
+  avisar:
+    name: avisar
+    # Lista branca de propósito: só o Codex. Qualquer outro revisor que apareça
+    # fica de fora sem precisar de ajuste aqui — na PR 48 alguém pediu revisão ao
+    # Copilot na mão, e ela nem rodou, por falta de cota.
+    # PR aberta por bot não tem pessoa para notificar.
+    if: >-
+      github.event.review.user.login == 'chatgpt-codex-connector[bot]'
+      && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Marcar a pessoa autora quando houver apontamento
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          ID_REVISAO: ${{ github.event.review.id }}
+          AUTORIA: ${{ github.event.pull_request.user.login }}
+          URL_REVISAO: ${{ github.event.review.html_url }}
+        shell: bash
+        run: |
+          # Quando não encontra nada, o Codex costuma não criar revisão nenhuma —
+          # mas "costuma" não basta: uma menção sem apontamento ensina a ignorar a
+          # menção. Conte antes de marcar alguém.
+          #
+          # Contar por linha em vez de `--slurp`: o gh recusa `--slurp` junto com
+          # `--jq`, e assim o passo não depende do jq estar no runner.
+          total=$(gh api \
+            "repos/$GITHUB_REPOSITORY/pulls/$PR/reviews/$ID_REVISAO/comments?per_page=100" \
+            --paginate --jq '.[].id' | wc -l)
+
+          if [[ "$total" -eq 0 ]]; then
+            echo "Revisão sem apontamento inline; ninguém a marcar."
+            exit 0
+          fi
+
+          if [[ "$total" -eq 1 ]]; then
+            assunto="1 apontamento"
+          else
+            assunto="$total apontamentos"
+          fi
+
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" \
+            --body "@$AUTORIA o Codex deixou $assunto nesta PR: $URL_REVISAO"

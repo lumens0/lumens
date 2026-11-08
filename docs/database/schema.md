@@ -130,8 +130,11 @@ banco ainda não o restringe por enum ou constraint.
   Cálculo, congelamento no fluxo de criação e transições de status são tarefas do domínio.
 - FKs têm índice próprio ou são prefixo de PK composta; evento usa `(pauta_id, criado_em)`.
   Pauta também possui índices por status e bloco_id.
-- `pauta.busca` é gerada automaticamente com `to_tsvector('portuguese', titulo || ' ' || descricao)`
-  e índice GIN. Inserções/atualizações não devem fornecer essa coluna.
+- `pauta.busca` é gerada automaticamente com a configuração `public.portugues_sem_acento`
+  (português + `unaccent`), título com peso A e descrição com peso B, e tem índice GIN.
+  Inserções/atualizações não devem fornecer essa coluna. A migração 0007 instala `unaccent`,
+  `pg_trgm` e a função `normalizar_busca(text)` (minúsculas, sem acento e sem hífen), usadas pela
+  busca de pautas parecidas do bot (2.5, `buscarPautasParecidas` em `@lumens/dominio`).
 
 ## Fila de disparos
 
@@ -185,4 +188,6 @@ SQLSTATE e constraint, além da busca, metadados e consumo de tipos pelo domíni
 - Confirmar nomes reais dos blocos e base DIACOM antes do seed definitivo.
 - Domínio/agendador: expiração em dez minutos, máximo de tentativas, retenção de 24h,
   máximo de responsáveis ativos e transições. Os campos existem; as rotinas não estão nesta task.
-- Cifra e views públicas: fornecer as garantias de escrita e acesso aos campos protegidos.
+- T14 concluída: as views públicas e o login só de leitura `lumens_site` estão documentados no
+  [README de `@lumens/db`](../../packages/db/README.md#views-públicas-contrato-com-o-site).
+- Cifra: fornecer as garantias de escrita dos campos protegidos.
