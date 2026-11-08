@@ -66,5 +66,13 @@ export type { CodigoErroDeRegra } from './erros';
 export { TIPOS_EVENTO, registrarEvento } from './eventos';
 export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from './eventos';
 
+export {
+  PRAZO_DE_CURADORIA_MS,
+  aprovarPauta,
+  listarFilaDeCuradoria,
+  recusarPauta,
+} from './curadoria';
+export type { PautaNaFila, ResultadoDecisao } from './curadoria';
+
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
