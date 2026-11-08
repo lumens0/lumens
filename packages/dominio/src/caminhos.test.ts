@@ -1,5 +1,16 @@
-import { and, eq, eventos, isNull, pautas, promessas, propostas, type Db } from '@lumens/db';
-import { criarBancoEmMemoria } from '@lumens/db/teste';
+import {
+  and,
+  criarDb,
+  criarPool,
+  eq,
+  eventos,
+  isNull,
+  pautas,
+  promessas,
+  propostas,
+  type Db,
+} from '@lumens/db';
+import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarProtocolo } from './caminho-registro';
 import { abrirCaminho } from './caminhos';
@@ -279,4 +290,60 @@ describe('registrarPromessa (RN13)', () => {
       expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
     },
   );
+});
+
+// Concorrência precisa de várias conexões ao mesmo tempo, o que o PGlite não tem.
+const URL_TESTE = process.env.DATABASE_URL_TESTE;
+if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
+
+describe.skipIf(!URL_TESTE)('registrarProtocolo com Postgres de verdade', () => {
+  it('protocolos simultâneos em dois caminhos Fala.BR da mesma pauta: os dois gravam e a pauta vai para cobrando uma vez', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    // Com tratador de erro: apagar o banco temporário derruba as conexões (57P01).
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real, { status: 'meta_batida' });
+      const owner = await criarEstudanteVerificado(real);
+      await tornarOwner(real, pauta.id, owner.id);
+      const caminhosIds: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        const r = await real.transaction((tx) =>
+          abrirCaminho(tx, { pautaId: pauta.id, tipo: 'falabr', porEstudanteId: owner.id }),
+        );
+        if (!r.aberto) throw new Error('caminho não abriu');
+        caminhosIds.push(r.caminhoId);
+      }
+
+      // Abre as conexões antes da disputa, para as duas transações correrem juntas de verdade.
+      await Promise.all(caminhosIds.map(() => pool.query('select pg_sleep(0.05)')));
+      const resultados = await Promise.all(
+        caminhosIds.map((caminhoId, i) =>
+          real.transaction((tx) =>
+            registrarProtocolo(tx, {
+              caminhoId,
+              protocolo: `23546.00000${String(i)}/2026-11`,
+              abertoEm: '2026-11-01',
+            }),
+          ),
+        ),
+      );
+
+      expect(resultados.every((r) => r.registrado)).toBe(true);
+      const [lida] = await real.select().from(pautas).where(eq(pautas.id, pauta.id));
+      expect(lida?.status).toBe('cobrando');
+      const tipos = (
+        await real.select({ tipo: eventos.tipo }).from(eventos).where(eq(eventos.pautaId, pauta.id))
+      ).map((e) => e.tipo);
+      expect(tipos.filter((t) => t === 'status_alterado')).toHaveLength(1);
+      expect(tipos.filter((t) => t === 'protocolo_registrado')).toHaveLength(2);
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  });
 });
