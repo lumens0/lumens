@@ -1,4 +1,4 @@
-import { and, criarCliente, eq, estudantes, eventos, pautas, type Db } from '@lumens/db';
+import { and, criarDb, criarPool, eq, estudantes, eventos, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarApoio, type NovoApoio } from './apoio';
@@ -149,7 +149,14 @@ if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TE
 describe.skipIf(!URL_TESTE)('registrarApoio com Postgres de verdade', () => {
   it('dois apoios simultâneos que cruzam a meta geram um evento meta_batida só', async () => {
     const temporario = await criarBancoTemporario(URL_TESTE ?? '');
-    const { db: real, pool } = criarCliente(temporario.url);
+    // Com tratador de erro, como no teste de integração do backend: apagar o banco temporário
+    // derruba as conexões (57P01), e uma conexão sem tratador derruba a suíte.
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
     try {
       const pauta = await criarPauta(real, { meta: 2 });
       const [a, b, c] = [
@@ -172,5 +179,5 @@ describe.skipIf(!URL_TESTE)('registrarApoio com Postgres de verdade', () => {
       await pool.end();
       await temporario.apagar();
     }
-  });
+  }, 30_000);
 });
