@@ -130,6 +130,15 @@ export async function registrarProtocolo(
   // universidade na data errada e em público.
   const prazo = calcularPrazo({ abertoEm, prorrogado });
 
+  // FOR UPDATE na pauta antes de qualquer escrita: dois protocolos simultâneos em caminhos Fala.BR
+  // da mesma pauta passam um depois do outro, e o segundo já vê `cobrando`. Travar só depois do
+  // evento dava deadlock: a FK do evento segura a pauta em KEY SHARE nas duas transações.
+  const [pauta] = await tx
+    .select({ status: pautas.status })
+    .from(pautas)
+    .where(eq(pautas.id, caminho.pautaId))
+    .for('update');
+
   // A gravação é condicionada a `protocolo IS NULL` para resolver a corrida no
   // banco e não na leitura acima: duas mensagens do owner em sequência chegam
   // como duas transações, e a segunda não pode sobrescrever a primeira.
@@ -150,13 +159,6 @@ export async function registrarProtocolo(
       origem: 'bot',
     });
     // Protocolado, a pauta passa a ser cobrada (T12). Se já estava em `cobrando` ou adiante, fica.
-    // FOR UPDATE: dois protocolos simultâneos em caminhos Fala.BR da mesma pauta leem o status um
-    // depois do outro; o segundo já vê `cobrando` e não tenta a transição de novo.
-    const [pauta] = await tx
-      .select({ status: pautas.status })
-      .from(pautas)
-      .where(eq(pautas.id, caminho.pautaId))
-      .for('update');
     if (pauta?.status === 'juntando_apoios' || pauta?.status === 'meta_batida') {
       await transicionarStatus(tx, { pautaId: caminho.pautaId, para: 'cobrando', origem: 'bot' });
     }
