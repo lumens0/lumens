@@ -29,6 +29,7 @@ lumens/
 │   └── painel/           Next.js: painel de curadoria       (parte 5)
 ├── docker/init/          scripts SQL do banco local         (parte 1)
 └── packages/
+    ├── contratos/        tipos da API de leitura pública    (parte 1)
     ├── db/               esquema, migrações, views, seed    (parte 1)
     └── dominio/          regras de negócio + testes         (parte 1)
 ```
@@ -135,11 +136,14 @@ Ao atualizar um volume existente, não é preciso apagá-lo:
 
 1. Crie `.env.database` a partir do exemplo e mova para ele toda configuração administrativa:
    `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`,
-   `POSTGRES_APP_PASSWORD`, `DATABASE_URL_MIGRACAO` e `DATABASE_URL_TESTE`.
+   `POSTGRES_APP_PASSWORD`, `POSTGRES_SITE_PASSWORD`, `DATABASE_URL_MIGRACAO` e
+   `DATABASE_URL_TESTE`.
 2. Remova essas chaves administrativas do `.env`; o backend carrega esse arquivo.
-3. No `.env`, troque **tanto** `DATABASE_URL` quanto `DATABASE_URL_LEITURA` para o login
-   `lumens_app`, usando a mesma senha definida em `POSTGRES_APP_PASSWORD`.
-4. Rode `pnpm db:up` para provisionar o login e `pnpm db:migrate` para aplicar os privilégios.
+3. No `.env`, aponte `DATABASE_URL` para o login `lumens_app`, com a senha de
+   `POSTGRES_APP_PASSWORD`, e `DATABASE_URL_LEITURA` para o login só de leitura `lumens_site`,
+   com a senha de `POSTGRES_SITE_PASSWORD`.
+4. Rode `pnpm db:up` para provisionar os logins e `pnpm db:migrate` para aplicar as views e os
+   privilégios.
 
 Antes de iniciar o backend, confirme que o `.env` não contém mais usuário ou URL de owner/migrador.
 
@@ -225,10 +229,19 @@ com `pnpm --filter @lumens/backend start` (migrações: `pnpm db:migrate`).
 Pendências da parte 2:
 
 - Envio das respostas pela API da Meta: trocar o `logSender` (`src/bot/worker.ts`) por um sender
-  que decifra o telefone e chama a Cloud API.
-- Handlers das histórias 2.4, 2.5 e 2.6 são placeholders (`TODO` em
-  `src/bot/conversation/handlers.ts`).
+  que decifra o telefone e chama a Cloud API. Uma resposta é texto ou mensagem de lista
+  (`src/bot/conversation/resposta.ts`), que vira `interactive.type = "list"` com uma seção só.
+- Handlers das histórias 2.4 e 2.6 são placeholders (`TODO` em
+  `src/bot/conversation/handlers.ts`); o apoio da 2.7 entra no `TODO(2.7)` de
+  `src/bot/conversation/relato.ts`.
 - Verificar o webhook no painel da Meta e medir resposta < 5 s (critério de pronto da 2.1).
+
+## API de leitura pública
+
+O mesmo servidor do `pnpm dev` (`:3001`) serve a API REST só de leitura do site: `GET /resumo`,
+`/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas` e `/atividade`, sem login, pelo login
+`lumens_site` (`DATABASE_URL_LEITURA`). As origens aceitas no CORS vêm de `CORS_ORIGENS`. Rotas,
+campos e exemplos: [docs/api.md](docs/api.md). Os tipos das respostas ficam em `@lumens/contratos`.
 
 ## Como contribuir
 

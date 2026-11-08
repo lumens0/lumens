@@ -44,6 +44,12 @@ pnpm sim encaminhada 'URGENTE: repassem para todos'
 pnpm sim botao confirmar Confirmar
 pnpm sim lista cat_iluminacao 'Iluminação'
 
+# Relato com busca de pauta parecida (2.5): menu → relato → bloco → pauta
+pnpm sim texto 'oi'
+pnpm sim texto '1'
+pnpm sim encaminhada 'o bebedouro do bloco 18 está quebrado'
+pnpm sim lista outro 'É outro problema'   # ou o id da pauta que apareceu no log: pauta:<id>
+
 # Imagem com legenda
 pnpm sim imagem 'poste apagado'
 
