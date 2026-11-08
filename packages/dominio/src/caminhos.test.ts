@@ -345,5 +345,5 @@ describe.skipIf(!URL_TESTE)('registrarProtocolo com Postgres de verdade', () => 
       await pool.end();
       await temporario.apagar();
     }
-  });
+  }, 30_000);
 });
