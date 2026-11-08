@@ -150,10 +150,13 @@ export async function registrarProtocolo(
       origem: 'bot',
     });
     // Protocolado, a pauta passa a ser cobrada (T12). Se já estava em `cobrando` ou adiante, fica.
+    // FOR UPDATE: dois protocolos simultâneos em caminhos Fala.BR da mesma pauta leem o status um
+    // depois do outro; o segundo já vê `cobrando` e não tenta a transição de novo.
     const [pauta] = await tx
       .select({ status: pautas.status })
       .from(pautas)
-      .where(eq(pautas.id, caminho.pautaId));
+      .where(eq(pautas.id, caminho.pautaId))
+      .for('update');
     if (pauta?.status === 'juntando_apoios' || pauta?.status === 'meta_batida') {
       await transicionarStatus(tx, { pautaId: caminho.pautaId, para: 'cobrando', origem: 'bot' });
     }
