@@ -78,6 +78,7 @@ async function verificar() {
   return estudante.id;
 }
 
+// Banco em memória novo + mensagens iniciais: no Windows, com os testes em paralelo, passa de 20s.
 beforeEach(async () => {
   db = await criarBancoEmMemoria();
   store = new ConversationStore(db);
@@ -92,7 +93,7 @@ beforeEach(async () => {
   bloco18 = b18.id;
   artes = art.id;
   await send('oi');
-}, 20_000);
+}, 60_000);
 
 afterEach(() => {
   CURADORIA.prazo = null;
