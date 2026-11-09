@@ -1,7 +1,7 @@
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 // Pautas em curadoria ou recusadas nunca aparecem no site.
-const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
+export const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
 
 /**
  * Status que não recebem apoio. Espelha `SEM_APOIO` de `packages/dominio/src/apoio.ts`, que não é
