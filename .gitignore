@@ -16,6 +16,8 @@ coverage/
 .env.*
 !.env.example
 !.env.database.example
+!.env.producao.example
+!.env.producao.admin.example
 
 # Logs
 *.log
