@@ -66,8 +66,25 @@ export type { CodigoErroDeRegra } from './erros';
 export { TIPOS_EVENTO, registrarEvento } from './eventos';
 export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from './eventos';
 
+export {
+  PRAZO_DE_CURADORIA_MS,
+  aprovarPauta,
+  listarFilaDeCuradoria,
+  recusarPauta,
+} from './curadoria';
+export type { PautaNaFila, ResultadoDecisao } from './curadoria';
+
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
+
+export {
+  CATEGORIA_A_CLASSIFICAR,
+  DESCRICAO_MAXIMA,
+  TITULO_MAXIMO,
+  criarPauta,
+  gerarSlug,
+} from './pauta';
+export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
@@ -81,6 +98,9 @@ export type { ResultadoExecucao } from './proposta';
 export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
 export type { NovaPromessa } from './promessa';
 
+export { encerrarConferencia } from './conferencia-apuracao';
+export type { ResultadoEncerramento } from './conferencia-apuracao';
+
 export {
   DIAS_SEM_ATIVIDADE,
   LIMITE_DE_OWNERS,
@@ -89,9 +109,6 @@ export {
   removerOwnerInativo,
 } from './owners';
 export type { ResultadoCoOwner } from './owners';
-
-export { encerrarConferencia } from './conferencia-apuracao';
-export type { ResultadoEncerramento } from './conferencia-apuracao';
 
 export {
   MODELO_CONFERENCIA,
