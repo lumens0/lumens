@@ -1,169 +1,167 @@
-# Homologação na AWS
+# Homologação
 
-Ambiente público do Lumens para a demo (SCRUM-93): uma instância EC2 rodando Postgres,
+Ambiente público do Lumens para a demo (SCRUM-93): uma máquina virtual rodando Postgres,
 back-end e Caddy em `docker compose`. O site e o painel continuam na Vercel.
 
-> **A conta é do Free plan.** Ela fecha sozinha 6 meses depois de criada, ou antes se os
-> créditos acabarem, e os dados são apagados 90 dias depois disso. Não guarde nada aqui que
-> não possa ser recriado pelo seed.
+## Onde roda, e por que não é a AWS
 
-## Por que esta forma
+A decisão original era AWS. Ela não se sustentou, e o motivo fica aqui para ninguém repetir
+o caminho:
 
-| Decisão                 | Alternativa descartada  | Motivo                                                                                                                                                       |
-| ----------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Postgres na própria EC2 | RDS                     | Um serviço em vez de dois, montagem em horas e não em um dia, e muito menos crédito. O preço é não ter backup automático — a SCRUM-95 vira `pg_dump` em cron |
-| Caddy                   | ACM + ALB               | O ALB sozinho consome os créditos. O Caddy emite e renova o certificado sem configuração                                                                     |
-| Build na instância      | ECR                     | Menos uma peça. Exige swap, porque a t3.micro tem 1 GB de RAM                                                                                                |
-| Site na Vercel          | Amplify / S3+CloudFront | Já funciona, é o endereço registrado na SCRUM-242 e não gasta crédito                                                                                        |
+| Nuvem                  | O que impediu                                                                                                                                                                                                                                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AWS Free plan**      | Uma _service control policy_ da organização nega `ec2:CreateKeyPair`, `ec2:CreateSecurityGroup` e até `ec2:DescribeKeyPairs`. SCP fica acima do IAM, então `AdministratorAccess` e o root da conta não contornam — e a conta gerenciadora é da própria AWS. O único caminho seria o Paid plan, com cartão |
+| **Oracle Always Free** | O cadastro brasileiro exige CNPJ e cartão de crédito                                                                                                                                                                                                                                                      |
+| **Azure for Students** | Nenhuma das duas barreiras: $100 por 365 dias, sem cartão, verificado pelo e-mail acadêmico                                                                                                                                                                                                               |
 
-## Antes de qualquer recurso
+Usamos **Azure for Students**. A verificação funcionou com `@ic.ufal.br`; `@edge.ufal.br` não
+foi reconhecido como domínio acadêmico.
 
-**1. Alerta de orçamento.** Console → Billing and Cost Management → Budgets → Create budget →
-_Zero spend budget_. É a única proteção contra a conta fechar no meio do semestre.
+Como a conta não tem cartão vinculado, **ela não gera fatura**: se o crédito acabar, os
+recursos param. O risco aqui é o ambiente sumir, não uma cobrança.
 
-**2. Credenciais do CLI:**
+> Tudo abaixo descreve uma VM Linux comum. Nada é específico do Azure além das telas de
+> criação — a mesma pilha sobe em qualquer provedor que entregue uma máquina com Docker.
 
-```bash
-aws configure
+## 1. Criar a máquina
+
+Portal do Azure → **Virtual machines** → **Create** → _Azure virtual machine_.
+
+| Campo                 | Valor                                                        |
+| --------------------- | ------------------------------------------------------------ |
+| Resource group        | `lumens-homologacao` (criar novo)                            |
+| Virtual machine name  | `lumens-homolog`                                             |
+| Region                | `(South America) Brazil South`                               |
+| Image                 | **Ubuntu Server 24.04 LTS - x64 Gen2**                       |
+| Size                  | **B2s** (2 vcpus, 4 GiB)                                     |
+| Authentication type   | SSH public key                                               |
+| Username              | `azureuser`                                                  |
+| SSH public key source | Generate new key pair                                        |
+| Key pair name         | `lumens-homolog-key`                                         |
+| Public inbound ports  | Allow selected: **SSH (22)**, **HTTP (80)**, **HTTPS (443)** |
+| OS disk size          | **30 GiB** ou mais                                           |
+
+Sobre o tamanho: a imagem do back-end tem ~1,1 GB e o `pnpm install` do build é guloso de
+memória. Com 1 GiB (B1s) o build precisa de swap e fica no limite; com 4 GiB, não. O B2s
+consome mais crédito, e com $100 e algumas semanas até a demo isso cabe com folga — confira
+o preço que o portal mostra antes de criar, não a estimativa deste documento.
+
+Ao criar, o navegador baixa `lumens-homolog-key.pem`. **É a única cópia.** No Windows:
+
+```powershell
+icacls $HOME\Downloads\lumens-homolog-key.pem /inheritance:r /grant:r "$($env:USERNAME):(R)"
 ```
 
+## 2. Endereço fixo
+
+Por padrão o IP público do Azure é dinâmico e muda quando a VM é desalocada — o que quebraria
+o DNS e o certificado.
+
+Portal → a VM → **Networking** → clique no **Public IP address** → **Configuration** →
+**Assignment: Static** → **Save**.
+
+Anote o IP.
+
+## 3. Domínio
+
+O Caddy precisa de um domínio real apontando para esse IP: é por ele que o Let's Encrypt
+valida, e é a URL do webhook da Meta.
+
+**Não use o nome que o Azure oferece** (`*.cloudapp.azure.com`). Ele saiu da Public Suffix
+List, então todos esses nomes dividem o mesmo limite de emissão do Let's Encrypt no mundo
+inteiro. Emite hoje e pode recusar amanhã, sem aviso.
+
+Se houver subdomínio da UFAL, é a melhor opção. Senão, um gratuito com faixa própria de
+emissão resolve — por exemplo **DuckDNS** (`duckdns.org`): criar um nome, apontar para o IP
+da VM, e usar `<nome>.duckdns.org` em `DOMINIO`.
+
+Confira antes de seguir, de outra máquina:
+
 ```bash
-aws sts get-caller-identity
+nslookup <nome>.duckdns.org
 ```
 
-## Rede e acesso
+Tem de devolver exatamente o IP da VM. Se não devolver, o certificado não sai.
 
-A chave privada sai no `stdout` uma única vez — se perder, não há como recuperar, só criar outra.
+## 4. Preparar o servidor
 
 ```bash
-aws ec2 create-key-pair --key-name lumens-homologacao --query KeyMaterial --output text > ~/.ssh/lumens-homologacao.pem
+ssh -i ~/Downloads/lumens-homolog-key.pem azureuser@<IP>
 ```
 
+Docker e git:
+
 ```bash
-chmod 600 ~/.ssh/lumens-homologacao.pem
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2 git && sudo systemctl enable --now docker && sudo usermod -aG docker azureuser
 ```
 
-Security group: 80 e 443 abertos para a internet (o Caddy precisa da 80 para validar o
-certificado), e 22 **só para o seu IP**.
+Saia e entre de novo no SSH para o grupo `docker` valer. Confira:
 
 ```bash
-aws ec2 create-security-group --group-name lumens-homologacao --description "Homologacao do Lumens"
+docker compose version
 ```
 
-```bash
-aws ec2 authorize-security-group-ingress --group-name lumens-homologacao --protocol tcp --port 80 --cidr 0.0.0.0/0
-```
+Clone em `/opt/lumens` — é o caminho que o `scripts/deploy-homologacao.sh` espera:
 
 ```bash
-aws ec2 authorize-security-group-ingress --group-name lumens-homologacao --protocol tcp --port 443 --cidr 0.0.0.0/0
-```
-
-```bash
-aws ec2 authorize-security-group-ingress --group-name lumens-homologacao --protocol tcp --port 22 --cidr $(curl -s https://checkip.amazonaws.com)/32
-```
-
-Nunca abra a 5432. O compose não publica a porta do Postgres, então o banco só existe
-dentro da rede dos contêineres — é assim que o critério "o banco não aceita conexão vinda
-da internet" se sustenta.
-
-## A instância
-
-20 GB de disco, não os 8 GB padrão: a imagem do back-end tem ~1,1 GB, e com Postgres, cache
-de build e a versão anterior da imagem o disco de 8 GB enche em poucos deploys. O erro que
-aparece depois é falta de espaço no build, que não parece ter relação com o deploy.
-
-```bash
-aws ec2 run-instances --image-id $(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --query Parameter.Value --output text) --instance-type t3.micro --key-name lumens-homologacao --security-groups lumens-homologacao --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":20,"VolumeType":"gp3"}}]' --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=lumens-homologacao}]'
-```
-
-Endereço fixo, para o DNS não quebrar a cada reinício:
-
-```bash
-aws ec2 allocate-address --domain vpc
-```
-
-```bash
-aws ec2 associate-address --instance-id <ID-DA-INSTANCIA> --allocation-id <ID-DO-ENDERECO>
-```
-
-> IPv4 público é cobrado por hora mesmo associado a uma instância ligada. Sai de graça dos
-> créditos, mas entra na conta — e um endereço alocado e **não** associado custa igual.
-> Se derrubar a instância, libere o endereço com `aws ec2 release-address`.
-
-## Preparar o servidor
-
-Conecte com `ssh -i ~/.ssh/lumens-homologacao.pem ec2-user@<IP>` e rode:
-
-```bash
-sudo dnf install -y docker git && sudo systemctl enable --now docker && sudo usermod -aG docker ec2-user
-```
-
-```bash
-sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-```
-
-Swap, senão o `pnpm install` dentro do build estoura o 1 GB de RAM da t3.micro:
-
-```bash
-sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-Saia e entre de novo no SSH para o grupo `docker` valer. Então clone o repositório em
-`/opt/lumens` (é o caminho que o `scripts/deploy-homologacao.sh` espera) e preencha o
-ambiente:
-
-```bash
-sudo mkdir -p /opt/lumens && sudo chown ec2-user:ec2-user /opt/lumens && git clone https://github.com/lumens0/lumens.git /opt/lumens
+sudo mkdir -p /opt/lumens && sudo chown azureuser:azureuser /opt/lumens && git clone https://github.com/lumens0/lumens.git /opt/lumens
 ```
 
 ```bash
 cd /opt/lumens && cp .env.producao.example .env.producao
 ```
 
-Gere as duas chaves, **diferentes entre si e diferentes das locais**:
+Preencha o `.env.producao`. As duas chaves de criptografia precisam ser **diferentes entre si
+e diferentes das locais** — gere cada uma na própria instância:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-## Domínio
+Se o Node não estiver na instância, use o contêiner:
 
-O Caddy precisa de um domínio real apontando para o IP da instância. O DNS público da AWS
-não serve: o Let's Encrypt recusa emitir para `*.amazonaws.com`. Use o subdomínio da UFAL,
-se houver, ou um gratuito. Coloque o nome em `DOMINIO`, no `.env.producao`.
+```bash
+docker run --rm node:24-slim node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
-## Primeiro deploy
+## 5. Primeiro deploy
 
 ```bash
 cd /opt/lumens && ./scripts/deploy-homologacao.sh origin/main
 ```
 
-Para a demo, com o banco vazio:
+A migração roda antes de subir a nova versão, em comando separado: se ela falhar, o script
+para e nada é publicado. Confira:
+
+```bash
+curl -s https://<DOMINIO>/saude
+```
+
+Esperado: `{"ok":true}`. Para a demo, com o banco vazio:
 
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
 ```
 
-## Deploy automático
+## 6. Deploy automático
 
-Quatro secrets no repositório (Settings → Secrets and variables → Actions):
+Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 
-| Secret                    | Valor                                       |
-| ------------------------- | ------------------------------------------- |
-| `HOMOLOG_SSH_HOST`        | IP público da instância                     |
-| `HOMOLOG_SSH_USUARIO`     | `ec2-user`                                  |
-| `HOMOLOG_SSH_CHAVE`       | conteúdo de `~/.ssh/lumens-homologacao.pem` |
-| `HOMOLOG_SSH_KNOWN_HOSTS` | saída de `ssh-keyscan <IP>`                 |
-| `HOMOLOG_DOMINIO`         | o domínio sem `https://`                    |
+| Secret                    | Valor                                |
+| ------------------------- | ------------------------------------ |
+| `HOMOLOG_SSH_HOST`        | IP público da VM                     |
+| `HOMOLOG_SSH_USUARIO`     | `azureuser`                          |
+| `HOMOLOG_SSH_CHAVE`       | conteúdo de `lumens-homolog-key.pem` |
+| `HOMOLOG_SSH_KNOWN_HOSTS` | saída de `ssh-keyscan <IP>`          |
+| `HOMOLOG_DOMINIO`         | o domínio, sem `https://`            |
 
-A partir daí, todo push na `main` com o `check` verde roda o job `deploy-backend`: ele migra
-primeiro, em comando separado, e só então sobe a nova versão. **Migração que falha interrompe
-o deploy e deixa a versão anterior servindo.** No fim, o smoke test bate em `/saude` e
+A partir daí, todo push na `main` com o `check` verde roda o job `deploy-backend`, que migra
+e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
 `/resumo`.
 
-## Webhook da Meta
+## 7. Webhook da Meta
 
-Com o HTTPS no ar, cadastre `https://<DOMINIO>/webhook` no painel da Meta, usando o mesmo
+Com o HTTPS no ar, cadastre `https://<DOMINIO>/webhook` no painel da Meta, com o mesmo
 `META_VERIFY_TOKEN` do `.env.producao`.
 
 ## Quando algo falha
@@ -173,7 +171,9 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
 ```
 
 - **`/saude` responde 503:** o back-end está vivo e o banco não. Veja os logs do `postgres`.
-- **Certificado não sai:** confira se o `DOMINIO` resolve para o IP da instância e se a porta
-  80 está aberta — a validação do Let's Encrypt passa por ela.
-- **Build morre sem mensagem:** quase sempre é o swap ausente ou o disco cheio. `free -h` e
-  `df -h` respondem qual dos dois.
+- **Certificado não sai:** confira se o `DOMINIO` resolve para o IP da VM e se a porta 80 está
+  liberada no NSG — a validação do Let's Encrypt passa por ela. Se o erro falar em _rate
+  limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
+- **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
+- **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
+  cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
