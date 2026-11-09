@@ -24,6 +24,8 @@
   é o bot, na 2.7 (SCRUM-102).
 - "Apoiar" só aparece para status que recebem apoio: todos, menos `em_curadoria`, `recusada` e
   `conquistada` (a mesma regra de `registrarApoio` no domínio).
+- "Apoiar" também depende de `NEXT_PUBLIC_FLAG_APOIAR=1`, desligada por padrão até o bot
+  interpretar `apoiar <slug>` (2.7, SCRUM-102). Sem isso, o comando cairia no "Não entendi".
 - "Vou ajudar" só aparece com `NEXT_PUBLIC_FLAG_VOU_AJUDAR=1`, até a 3.5 (SCRUM-197).
 
 ## Critérios de aceitação
