@@ -95,7 +95,7 @@ export type { NovoCaminho, ResultadoCaminho } from './caminhos';
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
 
-export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
+export { DIAS_DE_CONFERENCIA, MODELO_RESPOSTA_OFICIAL, registrarPromessa } from './promessa';
 export type { NovaPromessa } from './promessa';
 
 export { encerrarConferencia } from './conferencia-apuracao';
