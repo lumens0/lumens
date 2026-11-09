@@ -26,6 +26,9 @@
   `conquistada` (a mesma regra de `registrarApoio` no domínio).
 - "Apoiar" também depende de `NEXT_PUBLIC_FLAG_APOIAR=1`, desligada por padrão até o bot
   interpretar `apoiar <slug>` (2.7, SCRUM-102). Sem isso, o comando cairia no "Não entendi".
+- "Relatar um problema" depende de `NEXT_PUBLIC_FLAG_RELATAR=1`, desligada por padrão até o bot
+  salvar a pauta relatada (2.6, SCRUM-101): hoje as etapas de título, local e descrição descartam
+  a resposta.
 - "Vou ajudar" só aparece com `NEXT_PUBLIC_FLAG_VOU_AJUDAR=1`, até a 3.5 (SCRUM-197).
 
 ## Critérios de aceitação
