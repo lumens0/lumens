@@ -68,7 +68,7 @@ export async function handleIncoming(
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
     : { text: msg.text };
-  const result = await handlers[state.step]({ state, input, db, segredo });
+  const result = await handlers[state.step]({ state, input, db, segredo, phoneHmac });
   assertTransition(state.step, result.next);
 
   // Aplica o patch: chave com valor undefined sai dos dados.
