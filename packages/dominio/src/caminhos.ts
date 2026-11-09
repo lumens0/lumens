@@ -43,8 +43,7 @@ export interface NovoCaminho {
 }
 
 export type ResultadoCaminho =
-  | { aberto: true; caminhoId: string }
-  | { aberto: false; motivo: 'nao_e_owner' | 'pauta_fechada' };
+  { aberto: true; caminhoId: string } | { aberto: false; motivo: 'nao_e_owner' | 'pauta_fechada' };
 
 /** Abre um caminho e registra `caminho_aberto`. Não olha a meta nem os outros caminhos. */
 export async function abrirCaminho(
