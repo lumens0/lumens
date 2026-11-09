@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CabecalhoPauta } from './CabecalhoPauta';
 import { ConteudoPauta } from './ConteudoPauta';
-import { fixture } from './fixture';
+import { fixture } from '../../dados/pauta-detalhe-teste';
 import { altDaFoto, urlFoto } from './foto';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
@@ -15,18 +15,17 @@ describe('página da pauta: seções', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');
     expect(html).toContain('Iluminação no entorno do Bloco de Artes');
-    expect(html).toContain('Bloco de Artes · seguranca');
+    expect(html).toContain('seguranca · Bloco de Artes');
     expect(html).toContain('Cobrando');
     expect(html).toContain('Owner · Enfermagem');
     expect(html).toContain('Owner · Jornalismo');
   });
 
-  it('sem bloco, o cabeçalho mostra só a categoria', () => {
+  it('sem bloco, o cabeçalho mostra "Todo o campus", como o card', () => {
     const html = renderToStaticMarkup(
       <CabecalhoPauta pauta={{ ...fixture, bloco_nome: null, bloco_slug: null }} />,
     );
-    expect(html).not.toContain(' · seguranca');
-    expect(html).toContain('seguranca');
+    expect(html).toContain('seguranca · Todo o campus');
   });
 
   it('"Apoiar" abre o bot com o slug, e some em pauta conquistada', () => {
@@ -69,7 +68,7 @@ describe('página da pauta: seções', () => {
 
   it('linha do tempo preserva a ordem da API, com rótulo e data em Maceió', () => {
     const html = renderToStaticMarkup(<LinhaDoTempo eventos={fixture.linha_do_tempo} />);
-    expect(html.indexOf('Meta de apoios batida')).toBeLessThan(html.indexOf('Pauta aprovada'));
+    expect(html.indexOf('Pauta aprovada')).toBeLessThan(html.indexOf('Meta de apoios batida'));
     expect(html).toContain('dateTime="2026-02-08T12:00:00.000Z"');
     // 12:00 UTC = 09:00 em Maceió (UTC-3).
     expect(html).toContain('08/02/2026');

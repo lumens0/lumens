@@ -19,6 +19,22 @@ Vitest com `renderToStaticMarkup`, sem rede.
 | `app/p/[slug]/page.test.tsx`       | Página e metadados com a pauta                          | título no HTML e em `title`                      |
 |                                    | `null` da API e status fora do site                     | `notFound()` chamado (mock de `next/navigation`) |
 
+## Verificação do HTTP 404
+
+Build de produção contra uma API falsa (servidor `node:http` descartável na porta 4599:
+`/pautas/existe` → 200 com um `PautaDetalhe` válido; qualquer outra rota → 404
+`{"erro":"Pauta não encontrada."}`).
+
+```sh
+LUMENS_API_URL=http://localhost:4599 pnpm --filter @lumens/site build
+LUMENS_API_URL=http://localhost:4599 npx next start -p 4600   # em apps/site
+curl -s -o /dev/null -w '%{http_code}' http://localhost:4600/p/existe        # 200
+curl -s -o /dev/null -w '%{http_code}' http://localhost:4600/p/em-curadoria  # 404
+```
+
+Resultado (09/11/2026): `/p/existe` → `200` (HTML com o título da pauta); `/p/em-curadoria` →
+`404` (página amigável do `not-found.tsx`).
+
 ## Lacunas conhecidas
 
 - Sem teste de ponta a ponta contra a API real: fazer à mão com `docker compose up`, seed e

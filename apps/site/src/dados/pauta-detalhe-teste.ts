@@ -1,6 +1,6 @@
 import type { PautaDetalhe } from '@lumens/contratos';
 
-/** Pauta pública de teste, no formato de GET /pautas/:slug. */
+/** Pauta pública de teste, no formato de GET /pautas/:slug (linha do tempo em ordem cronológica crescente, como a API devolve). */
 export const fixture: PautaDetalhe = {
   slug: 'iluminacao-no-bloco-de-artes',
   titulo: 'Iluminação no entorno do Bloco de Artes',
@@ -28,14 +28,14 @@ export const fixture: PautaDetalhe = {
   caminhos: [],
   linha_do_tempo: [
     {
-      tipo: 'meta_batida',
-      dados: {},
-      criado_em: '2026-02-08T12:00:00.000Z',
-    },
-    {
       tipo: 'pauta_aprovada',
       dados: {},
       criado_em: '2026-02-07T12:00:00.000Z',
+    },
+    {
+      tipo: 'meta_batida',
+      dados: {},
+      criado_em: '2026-02-08T12:00:00.000Z',
     },
   ],
 };
