@@ -1,4 +1,4 @@
-import { eq, eventos, pautas, relatos, type Db } from '@lumens/db';
+import { eq, eventos, papeisPauta, pautas, relatos, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { aprovarPauta, listarFilaDeCuradoria, recusarPauta } from './curadoria';
@@ -50,17 +50,38 @@ describe('listarFilaDeCuradoria', () => {
     });
   });
 
-  it('mostra a foto do relato que originou a pauta', async () => {
+  it('mostra a foto do relato de quem criou a pauta, não a de relatos que chegaram depois', async () => {
     const pauta = await novaEmCuradoria();
-    const estudante = await criarEstudanteVerificado(db);
+    const [owner, outro] = [await criarEstudanteVerificado(db), await criarEstudanteVerificado(db)];
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
     await db.insert(relatos).values([
-      { pautaId: pauta.id, estudanteId: estudante.id, texto: 'sem foto' },
-      { pautaId: pauta.id, estudanteId: estudante.id, texto: 'com foto', fotoChave: 'fotos/a.jpg' },
+      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro.jpg' },
+      { pautaId: pauta.id, estudanteId: owner.id, texto: 'sem foto' },
+      { pautaId: pauta.id, estudanteId: owner.id, texto: 'origem', fotoChave: 'fotos/origem.jpg' },
+      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro2.jpg' },
     ]);
 
     const fila = await listarFilaDeCuradoria(db);
 
-    expect(fila.find((p) => p.id === pauta.id)?.fotoChave).toBe('fotos/a.jpg');
+    expect(fila.find((p) => p.id === pauta.id)?.fotoChave).toBe('fotos/origem.jpg');
+  });
+
+  it('sem foto no relato de origem, a fila mostra sem foto', async () => {
+    const pauta = await novaEmCuradoria();
+    const [owner, outro] = [await criarEstudanteVerificado(db), await criarEstudanteVerificado(db)];
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+    await db.insert(relatos).values([
+      { pautaId: pauta.id, estudanteId: owner.id, texto: 'origem' },
+      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro.jpg' },
+    ]);
+
+    const fila = await listarFilaDeCuradoria(db);
+
+    expect(fila.find((p) => p.id === pauta.id)?.fotoChave).toBeNull();
   });
 });
 
