@@ -1,0 +1,38 @@
+/**
+ * Linha do tempo completa da pauta para a curadoria (5.5): todos os eventos, inclusive os que não
+ * vão para o site. Só leitura: o banco recusa UPDATE e DELETE em `evento` (migração 0002), então
+ * não existe, nem aqui nem no painel, ação de editar ou apagar.
+ */
+import { eq, eventos, type Db } from '@lumens/db';
+import type { OrigemEvento } from './eventos';
+
+export interface EventoDaLinha {
+  id: string;
+  tipo: string;
+  dados: Record<string, unknown>;
+  origem: OrigemEvento;
+  publico: boolean;
+  criadoEm: Date;
+}
+
+/**
+ * Eventos da pauta, do mais antigo para o mais novo. Pauta sem eventos ou inexistente dá lista vazia.
+ *
+ * ponytail: eventos da mesma transação têm o mesmo `criado_em` (o `now()` do Postgres é o início da
+ * transação), e o desempate por `id` é arbitrário. Se a ordem dentro da transação importar, o
+ * default da coluna vira `clock_timestamp()`.
+ */
+export function listarLinhaDoTempo(db: Db, pautaId: string): Promise<EventoDaLinha[]> {
+  return db
+    .select({
+      id: eventos.id,
+      tipo: eventos.tipo,
+      dados: eventos.dados,
+      origem: eventos.origem,
+      publico: eventos.publico,
+      criadoEm: eventos.criadoEm,
+    })
+    .from(eventos)
+    .where(eq(eventos.pautaId, pautaId))
+    .orderBy(eventos.criadoEm, eventos.id);
+}
