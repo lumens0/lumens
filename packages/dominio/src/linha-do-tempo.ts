@@ -18,9 +18,8 @@ export interface EventoDaLinha {
 /**
  * Eventos da pauta, do mais antigo para o mais novo. Pauta sem eventos ou inexistente dá lista vazia.
  *
- * ponytail: eventos da mesma transação têm o mesmo `criado_em` (o `now()` do Postgres é o início da
- * transação), e o desempate por `id` é arbitrário. Se a ordem dentro da transação importar, o
- * default da coluna vira `clock_timestamp()`.
+ * Eventos da mesma ação têm o mesmo `criado_em` (o `now()` é o início da transação); a `seq`, que
+ * cresce a cada evento gravado, desempata na ordem em que aconteceram.
  */
 export function listarLinhaDoTempo(db: Db, pautaId: string): Promise<EventoDaLinha[]> {
   return db
@@ -34,5 +33,5 @@ export function listarLinhaDoTempo(db: Db, pautaId: string): Promise<EventoDaLin
     })
     .from(eventos)
     .where(eq(eventos.pautaId, pautaId))
-    .orderBy(eventos.criadoEm, eventos.id);
+    .orderBy(eventos.criadoEm, eventos.seq);
 }

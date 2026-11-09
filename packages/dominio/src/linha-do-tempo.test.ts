@@ -1,6 +1,7 @@
 import type { Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { aprovarPauta } from './curadoria';
 import { registrarEvento } from './eventos';
 import { criarPauta } from './fabricas';
 import { listarLinhaDoTempo } from './linha-do-tempo';
@@ -56,6 +57,18 @@ describe('listarLinhaDoTempo', () => {
       },
     ]);
     expect(linha[0]?.criadoEm.getTime()).toBeLessThanOrEqual(linha[1]?.criadoEm.getTime() ?? 0);
+  });
+
+  it('eventos da mesma ação saem na ordem em que foram gravados', async () => {
+    // Na mesma transação o `now()` empata; o desempate por `id` aleatório erraria metade das vezes.
+    for (let i = 0; i < 10; i++) {
+      const pauta = await criarPauta(db, { status: 'em_curadoria' });
+      await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id }));
+
+      const tipos = (await listarLinhaDoTempo(db, pauta.id)).map((e) => e.tipo);
+
+      expect(tipos).toEqual(['status_alterado', 'pauta_aprovada']);
+    }
   });
 
   it('pauta sem eventos ou inexistente dá lista vazia', async () => {
