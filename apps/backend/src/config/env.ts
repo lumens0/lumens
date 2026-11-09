@@ -108,9 +108,19 @@ const esquema = z
     EMAIL_SENHA: obrigatoria,
     EMAIL_REMETENTE: obrigatoria,
 
-    // AWS / fotos (T20)
-    AWS_REGION: obrigatoria,
-    S3_BUCKET_FOTOS: obrigatoria,
+    /**
+     * Storage das fotos (T20) — opcionais enquanto a T20 não existe (SCRUM-251).
+     *
+     * Não há código de upload no repositório: o bot guarda só o `fotoMediaId` da Meta.
+     * Enquanto eram obrigatórias, qualquer ambiente novo precisava inventar um nome de
+     * bucket para o processo subir — foi assim que a homologação ficou com o valor de
+     * fachada `lumens-fotos-pendente`, que parece configuração e não é. Variável de
+     * fachada é pior do que variável ausente: some o aviso e fica o engano.
+     *
+     * Quando a T20 entrar, voltam a ser `obrigatoria` — junto com o código que as usa.
+     */
+    AWS_REGION: opcional,
+    S3_BUCKET_FOTOS: opcional,
     S3_ENDPOINT: opcional,
   })
   .refine((env) => env.CHAVE_CIFRA !== env.CHAVE_HMAC, {
