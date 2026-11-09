@@ -89,6 +89,9 @@ export type { ResultadoExecucao } from './proposta';
 export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
 export type { NovaPromessa } from './promessa';
 
+export { encerrarConferencia } from './conferencia-apuracao';
+export type { ResultadoEncerramento } from './conferencia-apuracao';
+
 export {
   DIAS_SEM_ATIVIDADE,
   LIMITE_DE_OWNERS,
