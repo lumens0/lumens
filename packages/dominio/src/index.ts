@@ -92,3 +92,24 @@ export type { ResultadoCoOwner } from './owners';
 
 export { encerrarConferencia } from './conferencia-apuracao';
 export type { ResultadoEncerramento } from './conferencia-apuracao';
+
+export {
+  MODELO_CONFERENCIA,
+  abrirConferencia,
+  fecharConferencia,
+  promessasParaAbrir,
+  promessasParaFechar,
+} from './conferencia-agenda';
+export type { ResultadoAbertura, ResultadoFecho } from './conferencia-agenda';
+
+export {
+  DIAS_DE_ANTECEDENCIA_DO_PRAZO,
+  DIA_DO_AVISO_DE_INATIVIDADE,
+  MODELO_LEMBRETE_PRAZO,
+  MODELO_OWNER_INATIVO,
+  enfileirarAvisosDeInatividade,
+  enfileirarLembretesDePrazo,
+  removerOwnersAvisados,
+} from './lembretes';
+
+export { diaEmMaceio, formatarDia } from './datas';
