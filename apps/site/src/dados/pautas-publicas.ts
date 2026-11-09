@@ -18,6 +18,11 @@ export function aceitaApoio(status: StatusPauta): boolean {
   return !SEM_APOIO.has(status);
 }
 
+/** Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus. */
+export function contextoDaPauta(categoria: string, blocoNome: string | null | undefined): string {
+  return `${categoria} · ${blocoNome ?? 'Todo o campus'}`;
+}
+
 /**
  * Pautas que o site mostra, na ordem da lista:
  * mais apoios primeiro; no empate, a mais recente primeiro.

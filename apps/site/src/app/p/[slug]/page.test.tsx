@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fixture } from '../../../componentes/pauta/fixture';
+import { fixture } from '../../../dados/pauta-detalhe-teste';
 import { buscarPauta } from '../../../dados/api';
 import PaginaPauta, { generateMetadata } from './page';
 

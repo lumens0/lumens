@@ -26,7 +26,8 @@
 - [x] Owner aparece só pelo curso.
 - [x] Relato aparece sem autor.
 - [x] A ordem da linha do tempo é a da API.
-- [x] Foto, quando existir, tem texto alternativo.
+- [ ] Foto, quando existir, tem texto alternativo. **Parcial:** as fotos não aparecem até a T20
+      (SCRUM-93) definir a URL pública; o `alt` está implementado e testado só com `urlFoto` injetado.
 - [x] Pauta inexistente ou fora do site responde 404, com mensagem amigável e link para a home.
 - [x] Campos de identidade que viessem a mais na resposta não chegam ao HTML.
 - [x] Legível em 360 px, com quebra de palavras longas.
