@@ -452,7 +452,36 @@ a depender de zod.
 2. Declare o campo no esquema em `packages/contratos/src/index.ts`. Sem isso, o Fastify descarta o
    campo e o site não o recebe.
 3. Atualize a consulta em `apps/backend/src/api/`, os testes da rota e esta página.
-4. Nunca declare campo com telefone, e-mail, HMAC, cifra ou id; a varredura da SCRUM-89 confere isso.
+4. Nunca declare campo com telefone, e-mail, HMAC, cifra ou id; a
+   [varredura de identidade](#varredura-de-identidade) confere isso.
+
+## Varredura de identidade
+
+`apps/backend/src/api/privacidade.test.ts` (SCRUM-89) é a rede de segurança da RNF01 no CI. A cada
+`pnpm test` ele pega as rotas `GET` **do próprio Fastify** — ninguém lista URL à mão —, chama cada
+uma e varre o JSON inteiro atrás de:
+
+- **nome de campo** com `telefone`, `email`, `hmac`, `cifra`, `estudante_id` ou terminado em `id`;
+- **valor** do estudante sentinela que o teste insere no banco (telefone, e-mail e `estudante_id`
+  conhecidos, que o seed não tem em claro);
+- **padrão** de telefone brasileiro ou de e-mail em qualquer valor, inclusive no texto de um
+  relato. O telefone não exige o `+55` (quase ninguém escreve o código do país ao passar o
+  próprio número); o que evita falso positivo é o 9 do celular ser obrigatório.
+
+A falha diz a rota, o caminho do campo no JSON (`$.itens[0].relatos[0].texto`) e o que encontrou.
+
+> **Se este teste falhar, não o desative e não afrouxe os padrões: corrija a rota.** Um campo de
+> identidade que chega ao site já foi servido e cacheado — não dá para voltar atrás.
+
+Duas consequências práticas:
+
+- **Rota nova entra sozinha na varredura.** Se ela tiver um parâmetro novo (`/:id_qualquer`), o
+  teste falha pedindo valores em `VALORES_DO_PARAMETRO` — é de propósito: rota sem valor
+  conhecido seria pulada em silêncio, e o mesmo vale para rota curinga (`/arquivos/*`). As rotas
+  também têm de responder 200: uma que passasse a dar 404 ou 500 seria "varrida" com o corpo de
+  erro e nada seria conferido.
+- Um `describe` no fim do arquivo é o **teste do teste**: uma rota falsa que vaza os três tipos de
+  dado prova que a varredura ainda acusa. Sem ele, um varredor quebrado passaria calado.
 
 ## Desempenho
 
