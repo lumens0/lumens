@@ -35,9 +35,6 @@ const PAUTAS_EM_ORDEM = [
   'sala-de-descanso-na-saude', // 68
   'biblioteca-aberta-aos-sabados', // 30
 ];
-/** Chaves que nunca podem sair da API (RNF01). */
-const CHAVE_PROIBIDA = /telefone|email|hmac|cifr|estudante_id|(^|_)id$/;
-
 /** PGlite com as migrações e o seed, consultado como `lumens_site`: só as views são legíveis. */
 async function bancoDoSite(antesDoPapel?: (db: Db) => Promise<void>): Promise<Db> {
   const db = await criarBancoEmMemoria();
@@ -90,14 +87,6 @@ function conferirChaves(esquema: z.ZodType, valor: unknown, caminho = '$'): void
 function conferirContrato(esquema: z.ZodType, corpo: unknown) {
   expect(esquema.safeParse(corpo).error).toBeUndefined();
   conferirChaves(esquema, corpo);
-}
-
-function chavesDe(valor: unknown): string[] {
-  if (Array.isArray(valor)) return valor.flatMap(chavesDe);
-  if (valor !== null && typeof valor === 'object') {
-    return Object.entries(valor).flatMap(([chave, filho]) => [chave, ...chavesDe(filho)]);
-  }
-  return [];
 }
 
 describe('API de leitura pública com o seed', () => {
@@ -445,22 +434,9 @@ describe('API de leitura pública com o seed', () => {
     });
   });
 
-  it('nenhuma resposta tem telefone, e-mail, HMAC, cifra ou id', async () => {
-    const urls = [
-      '/resumo',
-      '/blocos',
-      '/pautas?limit=100',
-      ...PAUTAS_EM_ORDEM.map((slug) => `/pautas/${slug}`),
-      '/conquistas',
-      '/atividade?limit=100',
-    ];
-    const corpos = await Promise.all(urls.map(corpo));
-    const chaves = new Set(chavesDe(corpos));
-
-    // Sem isso o filtro abaixo passaria vazio se as respostas viessem sem nada.
-    expect([...chaves]).toEqual(expect.arrayContaining(['slug', 'curso', 'dados', 'pauta_slug']));
-    expect([...chaves].filter((chave) => CHAVE_PROIBIDA.test(chave))).toEqual([]);
-  });
+  // A varredura de identidade (RNF01) mora em `privacidade.test.ts` (SCRUM-89): lá as rotas
+  // saem do próprio Fastify e a busca é por nome de campo, valor sentinela e padrão de
+  // telefone/e-mail. A lista de URLs que ficava aqui não cobria rota nova.
 
   describe('cabeçalhos', () => {
     it('ecoa a origem do site no CORS, sem curinga', async () => {
