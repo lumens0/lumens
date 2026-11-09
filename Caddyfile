@@ -1,0 +1,28 @@
+# HTTPS da homologação (SCRUM-93). O Caddy pede e renova o certificado do Let's Encrypt
+# sozinho, desde que o DOMINIO aponte para o IP desta instância e as portas 80 e 443
+# estejam abertas no security group — a validação usa a 80.
+#
+# A AWS bloqueia emissão para *.amazonaws.com, então o DNS público da instância não serve:
+# precisa de um domínio de verdade (o da UFAL, ou um subdomínio gratuito).
+
+{$DOMINIO} {
+	encode zstd gzip
+
+	# O webhook da Meta chega aqui. O back-end confere a assinatura do corpo, então o
+	# proxy não pode reescrever o payload — só repassa.
+	reverse_proxy backend:3000
+
+	log {
+		# O handshake da Meta manda o META_VERIFY_TOKEN na query (`hub.verify_token`).
+		# O back-end já corta a query do próprio log; sem isto aqui, o log do Caddy
+		# seria o único lugar do ambiente que ainda guardaria o token em texto.
+		format filter {
+			wrap console
+			fields {
+				request>uri query {
+					replace hub.verify_token REDACTED
+				}
+			}
+		}
+	}
+}

@@ -183,6 +183,11 @@ O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
 `VERCEL_SITE_PROJECT_ID` e `VERCEL_PAINEL_PROJECT_ID`. Na Vercel, os diretórios raiz dos
 projetos continuam sendo `apps/site` e `apps/painel`, respectivamente.
 
+O **back-end** vai para uma EC2, por `docker compose`, no job `deploy-backend`: migração
+primeiro, em comando separado, e só então a nova versão sobe — migração que falha deixa a
+anterior servindo. Como montar a instância e quais secrets ela exige está em
+[docs/homologacao.md](docs/homologacao.md). O site e o painel continuam na Vercel.
+
 ## Painel de curadoria
 
 O painel é um app separado do site público. Esta base ainda não autentica nem permite ações de
