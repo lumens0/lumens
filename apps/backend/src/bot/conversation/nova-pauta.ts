@@ -13,7 +13,7 @@
  * `conversa` guarda o passo de cada telefone por 24h. A pauta só é gravada no último passo, por
  * `criarPauta` (domínio), na mesma transação da conversa.
  */
-import { blocos, eq, estudantes, type Db } from '@lumens/db';
+import { blocos, eq, type Db } from '@lumens/db';
 import {
   DESCRICAO_MAXIMA,
   TITULO_MAXIMO,
@@ -24,6 +24,7 @@ import {
 import { z } from 'zod';
 import type { MotivoFotoRecusada } from '../../fotos/servico';
 import { BLOCK_NOT_FOUND_TEXT, blocoEscolhido, listaDeBlocos } from './blocos';
+import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import type { Resposta } from './resposta';
 import { NEW_TITLE_TEXT, normalize } from './texto';
@@ -107,16 +108,6 @@ function decifrado(segredo: Segredo, cifrado: string | undefined): string | unde
   } catch {
     return undefined;
   }
-}
-
-/** O estudante deste telefone, se ele pode criar pauta (RN01: verificado e não saiu). */
-async function estudanteVerificado(db: Db, phoneHmac: string): Promise<string | undefined> {
-  const [estudante] = await db
-    .select({ id: estudantes.id, verificadoEm: estudantes.verificadoEm, saiuEm: estudantes.saiuEm })
-    .from(estudantes)
-    .where(eq(estudantes.telefoneHmac, phoneHmac));
-  if (estudante === undefined) return undefined;
-  return estudante.verificadoEm !== null && estudante.saiuEm === null ? estudante.id : undefined;
 }
 
 /**
