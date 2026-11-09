@@ -69,6 +69,15 @@ export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
 
+export {
+  CATEGORIA_A_CLASSIFICAR,
+  DESCRICAO_MAXIMA,
+  TITULO_MAXIMO,
+  criarPauta,
+  gerarSlug,
+} from './pauta';
+export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
+
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
