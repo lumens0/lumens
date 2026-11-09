@@ -43,6 +43,7 @@ function listaEm(respostas: Resposta[]): MensagemDeLista {
   return achada;
 }
 
+// Banco em memória novo + mensagens iniciais: no Windows, com os testes em paralelo, passa de 20s.
 beforeEach(async () => {
   db = await criarBancoEmMemoria();
   store = new ConversationStore(db);
@@ -90,7 +91,7 @@ beforeEach(async () => {
     .values({ telefoneHmac: H, telefoneCifrado: 'x', verificadoEm: new Date() });
   await send('oi');
   await send('1');
-}, 20_000);
+}, 60_000);
 
 describe('relatar (2.5)', () => {
   it('o menu pede o relato e aceita mensagem encaminhada', async () => {
