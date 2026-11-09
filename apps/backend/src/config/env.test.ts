@@ -62,29 +62,13 @@ describe('carregarEnv', () => {
   });
 
   it('lista todas as variáveis faltantes de uma vez, não só a primeira', () => {
-    const {
-      META_TOKEN: _a,
-      EMAIL_HOST: _b,
-      EMAIL_REMETENTE: _c,
-      ...incompleto
-    } = ambienteCompleto();
+    const { META_TOKEN: _a, EMAIL_HOST: _b, AWS_REGION: _c, ...incompleto } = ambienteCompleto();
 
     const mensagem = mensagemDeErro(incompleto);
 
     expect(mensagem).toContain('META_TOKEN');
     expect(mensagem).toContain('EMAIL_HOST');
-    expect(mensagem).toContain('EMAIL_REMETENTE');
-  });
-
-  it('sobe sem AWS_REGION e sem S3_BUCKET_FOTOS enquanto a T20 não existe', () => {
-    // SCRUM-251: obrigá-las forçava o ambiente a inventar um bucket só para o processo
-    // subir. Quando a T20 entrar com o upload de verdade, este teste muda junto.
-    const { AWS_REGION: _regiao, S3_BUCKET_FOTOS: _bucket, ...semStorage } = ambienteCompleto();
-
-    const env = carregarEnv(semStorage);
-
-    expect(env.AWS_REGION).toBeUndefined();
-    expect(env.S3_BUCKET_FOTOS).toBeUndefined();
+    expect(mensagem).toContain('AWS_REGION');
   });
 
   it('recusa variável presente mas vazia', () => {
