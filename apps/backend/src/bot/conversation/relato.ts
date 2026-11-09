@@ -9,27 +9,31 @@
  * O relato fica cifrado nos dados da conversa (`relatoCifrado`), nunca em claro: a tabela
  * `conversa` guarda o passo de cada telefone por 24h, e o relato é texto livre, que pode ter nome,
  * e-mail ou telefone. Quando a pessoa escolhe "É outro problema", `relatoCifrado` e `blocoId`
- * continuam nos dados para a 2.6 aproveitar como descrição e lugar da pauta nova.
+ * continuam nos dados, e a pauta nova (2.6, `nova-pauta.ts`) usa os dois como descrição e lugar.
  */
-import {
-  buscarPautasParecidas,
-  listarBlocos,
-  palavrasDe,
-  termosDaBusca,
-  type BlocoParaRelato,
-} from '@lumens/dominio';
+import { buscarPautasParecidas, listarBlocos, termosDaBusca } from '@lumens/dominio';
 import type { Db } from '@lumens/db';
 import { z } from 'zod';
-import type { DataPatch, Segredo, StepHandler, StepResult } from './handlers';
+import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
+import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
+import { entrarNaPautaNova } from './nova-pauta';
 import { lista, type MensagemDeLista } from './resposta';
-import { NEW_TITLE_TEXT, normalize } from './texto';
+import { normalize } from './texto';
+
+// Os testes do relato e quem já importava daqui continuam achando as funções de blocos.
+export {
+  BLOCK_NOT_FOUND_TEXT,
+  BLOCK_QUESTION_TEXT,
+  CAMPUS_ROW_ID,
+  blocoCitado,
+  blocoEscolhido,
+  listaDeBlocos,
+} from './blocos';
 
 export const REPORT_PROMPT_TEXT =
   'Descreva o problema que você encontrou. Se alguém já te mandou o relato, pode encaminhar a mensagem aqui.';
 export const REPORT_TOO_SHORT_TEXT =
   'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado".';
-export const BLOCK_QUESTION_TEXT = 'Em que bloco é o problema?';
-export const BLOCK_NOT_FOUND_TEXT = 'Não achei esse bloco. Escolha um na lista.';
 export const SIMILAR_LIST_TEXT =
   'Achei pautas abertas parecidas com o seu relato. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const PICK_AGAIN_TEXT = 'Não entendi. Escolha uma pauta da lista ou "É outro problema".';
@@ -40,11 +44,8 @@ export const NOTHING_CREATED_TEXT = 'Tudo bem, não criei nada.';
 export const REPORT_LOST_TEXT =
   'Não consegui recuperar o seu relato. Escolha 1 no menu para relatar de novo.';
 
-/** Linha da lista de blocos para quem não sabe ou fala do campus inteiro. */
-export const CAMPUS_ROW_ID = 'bloco:campus';
 /** Linha que leva à pauta nova. */
 export const OTHER_ROW_ID = 'outro';
-const BLOCK_ROW_PREFIX = 'bloco:';
 const PAUTA_ROW_PREFIX = 'pauta:';
 
 const YES = new Set(['sim', 's', 'quero', 'criar', 'pode']);
@@ -57,8 +58,6 @@ const OTHER = new Set([
   'nenhuma',
   'nenhum',
 ]);
-const CAMPUS = new Set(['campus', 'todo o campus', 'nao sei', 'nenhum', 'outro']);
-
 const parecidaSchema = z.object({ id: z.string(), titulo: z.string(), descricao: z.string() });
 type Parecida = z.infer<typeof parecidaSchema>;
 
@@ -77,73 +76,6 @@ function dadosDoRelato(data: unknown): z.infer<typeof dadosSchema> {
 
 /** Tira os dados do relato da conversa quando o fluxo acaba sem pauta nova. */
 const LIMPAR: DataPatch = { relatoCifrado: undefined, blocoId: undefined, parecidas: undefined };
-
-/** "Bloco 18 (fictício)" → "bloco 18": o nome como alguém escreveria. */
-function nomeComparavel(nome: string): string {
-  return palavrasDe(nome.replace(/\([^)]*\)/g, '')).join(' ');
-}
-
-/**
- * O bloco que o relato cita pelo nome inteiro ("bebedouro do bloco 18 quebrado"). Só quando é um
- * só: com dois ou nenhum, pergunta. Nome inteiro e palavra inteira, para "bloco 1" não casar com
- * "bloco 18".
- */
-export function blocoCitado(
-  relato: string,
-  blocos: readonly BlocoParaRelato[],
-): BlocoParaRelato | undefined {
-  const texto = ` ${palavrasDe(relato).join(' ')} `;
-  const citados = blocos.filter((b) => {
-    const nome = nomeComparavel(b.nome);
-    return nome !== '' && texto.includes(` ${nome} `);
-  });
-  return citados.length === 1 ? citados[0] : undefined;
-}
-
-/**
- * O bloco que a pessoa escolheu: a linha da lista, ou o nome digitado — inteiro ("Bloco de
- * Artes") ou um pedaço que só um bloco tem ("artes", "18"). `null` é o campus inteiro;
- * `undefined`, que não deu para saber.
- */
-export function blocoEscolhido(
-  resposta: string,
-  blocos: readonly BlocoParaRelato[],
-): { blocoId: string | null } | undefined {
-  const bruta = resposta.trim();
-  if (bruta === CAMPUS_ROW_ID) return { blocoId: null };
-  if (bruta.startsWith(BLOCK_ROW_PREFIX)) {
-    const id = bruta.slice(BLOCK_ROW_PREFIX.length);
-    return blocos.some((b) => b.id === id) ? { blocoId: id } : undefined;
-  }
-
-  const digitado = palavrasDe(bruta).join(' ');
-  if (digitado === '') return undefined;
-  if (CAMPUS.has(digitado)) return { blocoId: null };
-  const exato = blocos.find(
-    (b) => nomeComparavel(b.nome) === digitado || palavrasDe(b.slug).join(' ') === digitado,
-  );
-  if (exato) return { blocoId: exato.id };
-  const contem = blocos.filter((b) => ` ${nomeComparavel(b.nome)} `.includes(` ${digitado} `));
-  const [unico] = contem;
-  return contem.length === 1 && unico ? { blocoId: unico.id } : undefined;
-}
-
-/** Lista de blocos. Cabem 9 e a linha do campus; com mais, a pessoa pode digitar o nome. */
-export function listaDeBlocos(blocos: readonly BlocoParaRelato[]): MensagemDeLista {
-  const cabem = blocos.slice(0, 9);
-  const corpo =
-    cabem.length < blocos.length
-      ? `${BLOCK_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
-      : BLOCK_QUESTION_TEXT;
-  return lista({
-    corpo,
-    botao: 'Escolher bloco',
-    linhas: [
-      ...cabem.map((b) => ({ id: `${BLOCK_ROW_PREFIX}${b.id}`, titulo: b.nome })),
-      { id: CAMPUS_ROW_ID, titulo: 'Todo o campus / não sei' },
-    ],
-  });
-}
 
 /** Até 3 pautas e "É outro problema". Título e descrição já cortados por `lista()`. */
 export function listaDeParecidas(parecidas: readonly Parecida[]): MensagemDeLista {
@@ -229,24 +161,24 @@ function pautaEscolhida(resposta: string, parecidas: readonly Parecida[]): Parec
   return parecidas.find((p) => normalize(p.titulo) === texto);
 }
 
-const paraPautaNova: StepResult = {
-  next: 'NEW_ASK_TITLE',
-  // `relatoCifrado` e `blocoId` ficam para a 2.6; a lista já não serve.
-  data: { parecidas: undefined },
-  replies: [NEW_FROM_REPORT_TEXT, NEW_TITLE_TEXT],
-};
+/** "É outro problema" / "sim": pauta nova, levando o relato e o bloco; a lista já não serve. */
+async function paraPautaNova(ctx: StepContext): Promise<StepResult> {
+  const resultado = await entrarNaPautaNova(ctx, [NEW_FROM_REPORT_TEXT]);
+  return { ...resultado, data: { ...resultado.data, parecidas: undefined } };
+}
 
-export const reportPickSimilar: StepHandler = ({ state, input }) => {
+export const reportPickSimilar: StepHandler = (ctx) => {
+  const { state, input } = ctx;
   const parecidas = dadosDoRelato(state.data).parecidas ?? [];
   const texto = normalize(input.text);
 
   if (parecidas.length === 0) {
-    if (YES.has(texto) || input.text.trim() === OTHER_ROW_ID) return paraPautaNova;
+    if (YES.has(texto) || input.text.trim() === OTHER_ROW_ID) return paraPautaNova(ctx);
     if (NO.has(texto)) return { next: 'MENU', data: LIMPAR, replies: [NOTHING_CREATED_TEXT] };
     return { next: 'REPORT_PICK_SIMILAR', replies: [YES_NO_TEXT] };
   }
 
-  if (input.text.trim() === OTHER_ROW_ID || OTHER.has(texto)) return paraPautaNova;
+  if (input.text.trim() === OTHER_ROW_ID || OTHER.has(texto)) return paraPautaNova(ctx);
 
   const escolhida = pautaEscolhida(input.text, parecidas);
   if (escolhida === undefined) {
