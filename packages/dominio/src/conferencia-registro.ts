@@ -56,7 +56,9 @@ export async function registrarRespostaConferencia(
     })
     .from(promessas)
     .where(eq(promessas.id, promessaId))
-    .limit(1);
+    // FOR SHARE: respostas simultâneas não se bloqueiam, mas o `encerrarConferencia` (FOR UPDATE)
+    // espera esta transação; uma resposta aceita aqui sempre entra na apuração.
+    .for('share');
 
   if (promessa === undefined) return { registrada: false, motivo: 'promessa_inexistente' };
 
