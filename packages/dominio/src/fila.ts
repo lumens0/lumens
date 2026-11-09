@@ -19,7 +19,19 @@
  * aceitado no instante da queda — e é de propósito: aviso repetido incomoda,
  * mas conferência que não chegou tira o voto de alguém (RN10).
  */
-import { and, disparos, eq, gt, inArray, isNull, lt, or, sql, type Tx } from '@lumens/db';
+import {
+  and,
+  disparos,
+  eq,
+  estudantes,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  or,
+  sql,
+  type Tx,
+} from '@lumens/db';
 import { planejarEnvio, type Disparo, type TipoDisparo } from './envio';
 
 /** Quanto tempo uma reserva segura o disparo antes de ele voltar para a fila. */
@@ -33,6 +45,15 @@ const JANELA_META_MS = 24 * 60 * 60_000;
  * fila ao mesmo tempo veriam o mesmo limite livre e, juntos, passariam dele.
  */
 const LOCK_DA_FILA = 202;
+
+/**
+ * Quanto tempo um aviso pode esperar na fila antes de perder o sentido. Meta batida de duas
+ * semanas atrás, ou "Foi feito?" de uma conferência que já fechou, só confundem quem recebe.
+ *
+ * Não vale para `lembrete`: o aviso de owner inativo tem que sair, porque é ele que autoriza a
+ * remoção (SCRUM-239), e o de prazo já deixa de ser enfileirado quando o prazo passa.
+ */
+export const VALIDADE_DO_AVISO_MS = 7 * 24 * 60 * 60_000;
 
 export interface NovoAviso {
   tipo: TipoDisparo;
@@ -52,6 +73,8 @@ export interface DisparoReservado {
   estudanteId: string;
   modelo: string;
   parametros: string[];
+  /** Telefone do destinatário, cifrado com a CHAVE_CIFRA. Só quem envia decifra. */
+  telefoneCifrado: string;
 }
 
 /**
@@ -114,6 +137,30 @@ export async function reservarLote(
 
   const inicioDaJanela = new Date(agora.getTime() - JANELA_META_MS);
   const reservaVencida = new Date(agora.getTime() - RESERVA_EXPIRA_MS);
+  const pendente = and(isNull(disparos.enviadoEm), isNull(disparos.falhouEm));
+
+  // Antes de planejar, tira da fila o que não vai mais sair: não gasta vaga com quem saiu do
+  // sistema nem com aviso que perdeu o sentido. Fica registrado com o motivo.
+  await tx
+    .update(disparos)
+    .set({ falhouEm: agora, falha: 'estudante_saiu' })
+    .where(
+      and(
+        pendente,
+        sql`${disparos.estudanteId} in (select ${estudantes.id} from ${estudantes}
+          where ${estudantes.saiuEm} is not null)`,
+      ),
+    );
+  await tx
+    .update(disparos)
+    .set({ falhouEm: agora, falha: 'expirado' })
+    .where(
+      and(
+        pendente,
+        sql`${disparos.tipo} <> 'lembrete'`,
+        lt(disparos.enfileiradoEm, new Date(agora.getTime() - VALIDADE_DO_AVISO_MS)),
+      ),
+    );
 
   const alcancados = await tx
     .selectDistinct({ estudanteId: disparos.estudanteId })
@@ -129,14 +176,12 @@ export async function reservarLote(
       modelo: disparos.modelo,
       parametros: disparos.parametros,
       enfileiradoEm: disparos.enfileiradoEm,
+      telefoneCifrado: estudantes.telefoneCifrado,
     })
     .from(disparos)
+    .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
     .where(
-      and(
-        isNull(disparos.enviadoEm),
-        isNull(disparos.falhouEm),
-        or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida)),
-      ),
+      and(pendente, or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida))),
     );
 
   const porId = new Map(pendentes.map((p) => [p.id, p]));
@@ -167,6 +212,7 @@ export async function reservarLote(
       estudanteId: linha.estudanteId,
       modelo: linha.modelo,
       parametros: linha.parametros,
+      telefoneCifrado: linha.telefoneCifrado,
     };
   });
 }
@@ -220,6 +266,31 @@ export async function registrarFalha(
     .update(disparos)
     .set({ falhouEm: agora, falha: motivo })
     .where(and(eq(disparos.id, id), isNull(disparos.enviadoEm), isNull(disparos.falhouEm)))
+    .returning({ id: disparos.id });
+  return atualizados.length > 0;
+}
+
+/**
+ * A Meta aceitou o envio, mas avisou depois pelo webhook que não conseguiu entregar (status
+ * `failed`). O disparo continua com `enviado_em`, porque saiu, e ganha a falha: o registro de
+ * entrega fica honesto e a curadoria vê quem não recebeu.
+ *
+ * Devolve `false` quando o wamid não é de um disparo ou ele já tinha entrega ou falha.
+ */
+export async function registrarFalhaDeEntrega(
+  tx: Tx,
+  { wamidHmac, motivo, agora = new Date() }: { wamidHmac: string; motivo: string; agora?: Date },
+): Promise<boolean> {
+  const atualizados = await tx
+    .update(disparos)
+    .set({ falhouEm: agora, falha: motivo })
+    .where(
+      and(
+        eq(disparos.wamidHmac, wamidHmac),
+        isNull(disparos.entregueEm),
+        isNull(disparos.falhouEm),
+      ),
+    )
     .returning({ id: disparos.id });
   return atualizados.length > 0;
 }
