@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
 import exemplo from './exemplo.json';
-import { SEM_APOIO, blocoDaUrl, pautasPublicas, totais } from './pautas-publicas';
+import { SEM_APOIO, blocoDaUrl, contextoDaPauta, pautasPublicas, totais } from './pautas-publicas';
 
 describe('pautasPublicas', () => {
   const lista = pautasPublicas(PAUTAS_TESTE);
@@ -93,5 +93,12 @@ describe('SEM_APOIO', () => {
       .sort();
     expect(doDominio.length).toBeGreaterThan(0);
     expect([...SEM_APOIO].sort()).toEqual(doDominio);
+  });
+});
+
+describe('contextoDaPauta', () => {
+  it('mostra categoria e bloco; sem bloco, "Todo o campus"', () => {
+    expect(contextoDaPauta('seguranca', 'Bloco de Artes')).toBe('seguranca · Bloco de Artes');
+    expect(contextoDaPauta('seguranca', null)).toBe('seguranca · Todo o campus');
   });
 });

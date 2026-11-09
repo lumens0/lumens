@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { aceitaApoio } from '../dados/pautas-publicas';
+import { aceitaApoio, contextoDaPauta } from '../dados/pautas-publicas';
 import type { Pauta } from '../dados/tipos';
 import { comandoApoiar } from '../whatsapp';
 import { BarraApoios } from './BarraApoios';
@@ -11,9 +11,7 @@ export function CardPauta({ pauta }: { pauta: Pauta }) {
   const id = `pauta-${pauta.slug}`;
   return (
     <article className={estilos.card} aria-labelledby={id}>
-      <span className={estilos.contexto}>
-        {pauta.categoria} · {pauta.bloco_nome ?? 'Todo o campus'}
-      </span>
+      <span className={estilos.contexto}>{contextoDaPauta(pauta.categoria, pauta.bloco_nome)}</span>
       <h2 id={id} className={estilos.titulo}>
         <Link href={`/p/${pauta.slug}`}>{pauta.titulo}</Link>
       </h2>
