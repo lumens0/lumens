@@ -11,7 +11,15 @@ Oráculo: ticket SCRUM-26, `encodeURIComponent` conferido à mão e a regra `SEM
 - [codificação] **`apoiar iluminação já`** sai como `apoiar%20ilumina%C3%A7%C3%A3o%20j%C3%A1`;
   `&` e `=` também são codificados.
 - [negativo] **sem env, env vazia ou só símbolos** devolvem `null`.
+- [negativo] **`exigirNumeroDoBot`** falha com mensagem clara sem env, vazia ou só símbolos;
+  devolve só os dígitos com número válido.
 - [dados] **comandos** `apoiar <slug>`, `ajudar <id>` e `nova pauta`.
+
+## Casos — config (`apps/site/src/next-config.test.ts`)
+
+- [negativo] **build de produção sem número** lança o erro do `exigirNumeroDoBot`.
+- [principal] **build de produção com número** devolve a config.
+- [dev] **`next dev` sem número** não falha.
 
 ## Casos — componentes (`apps/site/src/componentes/whatsapp.test.tsx`)
 
