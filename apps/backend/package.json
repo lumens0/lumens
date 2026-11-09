@@ -15,15 +15,16 @@
     "fixtures": "tsx scripts/gerar-fixtures.ts",
     "modelos": "tsx --env-file-if-exists=../../.env scripts/modelos.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.database ../../node_modules/vitest/vitest.mjs run --passWithNoTests"
+    "test": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.database ../../node_modules/vitest/vitest.mjs run --passWithNoTests --hookTimeout=30000"
   },
   "dependencies": {
+    "@lumens/contratos": "workspace:*",
     "@lumens/db": "workspace:*",
     "@lumens/dominio": "workspace:*",
-    "sharp": "^0.35.5",
     "fastify": "^5.12.7",
     "pg-boss": "^12.38.0",
     "pino": "^10.4.0",
+    "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   }

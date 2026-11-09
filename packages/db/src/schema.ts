@@ -93,9 +93,15 @@ export const pautas = pgTable(
     aprovadaEm: instante('aprovada_em'),
     metaBatidaEm: instante('meta_batida_em'),
     motivoRecusa: text('motivo_recusa'),
+    /**
+     * Português sem acento (`portugues_sem_acento`, migração 0007): "iluminacao" acha
+     * "Iluminação". O título pesa mais (A) que a descrição (B) na busca de pautas parecidas.
+     */
     busca: tsvector('busca')
       .notNull()
-      .generatedAlwaysAs(sql`to_tsvector('portuguese'::regconfig, "titulo" || ' ' || "descricao")`),
+      .generatedAlwaysAs(
+        sql`setweight(to_tsvector('public.portugues_sem_acento'::regconfig, "titulo"), 'A') || setweight(to_tsvector('public.portugues_sem_acento'::regconfig, "descricao"), 'B')`,
+      ),
   },
   (t) => [
     index('pauta_bloco_id_idx').on(t.blocoId),

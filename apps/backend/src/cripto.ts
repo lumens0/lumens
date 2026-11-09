@@ -47,3 +47,17 @@ export function decifrar(cifradoBase64: string, chave: Buffer): string {
     decifra.final(),
   ]).toString('utf8');
 }
+
+/**
+ * `cifrar`/`decifrar` com a chave já presa: o que os passos da conversa usam para guardar o que a
+ * pessoa escreveu (o relato da 2.5) sem ver a chave.
+ */
+export function segredoCom(chave: Buffer): {
+  cifrar(texto: string): string;
+  decifrar(cifrado: string): string;
+} {
+  return {
+    cifrar: (texto) => cifrar(texto, chave),
+    decifrar: (cifrado) => decifrar(cifrado, chave),
+  };
+}

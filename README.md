@@ -29,6 +29,7 @@ lumens/
 │   └── painel/           Next.js: painel de curadoria       (parte 5)
 ├── docker/init/          scripts SQL do banco local         (parte 1)
 └── packages/
+    ├── contratos/        tipos da API de leitura pública    (parte 1)
     ├── db/               esquema, migrações, views, seed    (parte 1)
     └── dominio/          regras de negócio + testes         (parte 1)
 ```
@@ -228,10 +229,19 @@ com `pnpm --filter @lumens/backend start` (migrações: `pnpm db:migrate`).
 Pendências da parte 2:
 
 - Envio das respostas pela API da Meta: trocar o `logSender` (`src/bot/worker.ts`) por um sender
-  que decifra o telefone e chama a Cloud API.
-- Handlers das histórias 2.4, 2.5 e 2.6 são placeholders (`TODO` em
-  `src/bot/conversation/handlers.ts`).
+  que decifra o telefone e chama a Cloud API. Uma resposta é texto ou mensagem de lista
+  (`src/bot/conversation/resposta.ts`), que vira `interactive.type = "list"` com uma seção só.
+- Handlers das histórias 2.4 e 2.6 são placeholders (`TODO` em
+  `src/bot/conversation/handlers.ts`); o apoio da 2.7 entra no `TODO(2.7)` de
+  `src/bot/conversation/relato.ts`.
 - Verificar o webhook no painel da Meta e medir resposta < 5 s (critério de pronto da 2.1).
+
+## API de leitura pública
+
+O mesmo servidor do `pnpm dev` (`:3001`) serve a API REST só de leitura do site: `GET /resumo`,
+`/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas` e `/atividade`, sem login, pelo login
+`lumens_site` (`DATABASE_URL_LEITURA`). As origens aceitas no CORS vêm de `CORS_ORIGENS`. Rotas,
+campos e exemplos: [docs/api.md](docs/api.md). Os tipos das respostas ficam em `@lumens/contratos`.
 
 ## Como contribuir
 
