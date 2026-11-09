@@ -6,7 +6,7 @@ import comuns from '../componentes.module.css';
 import { StatusPill } from '../StatusPill';
 import estilos from './pauta.module.css';
 
-/** Título, status, bloco, categoria, responsáveis (só o curso) e apoios. */
+/** Título, status, bloco, categoria, responsáveis (só o curso), apoios e o botão do card. */
 export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
   return (
     <header className={estilos.cabecalho}>
@@ -26,11 +26,17 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
         meta={pauta.meta}
         rotulo={`Apoios da pauta ${pauta.titulo}`}
       />
-      {mostraApoiar(pauta.status) && (
-        <div className={comuns.acoes}>
-          <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
-        </div>
-      )}
+      <div className={comuns.acoes}>
+        {mostraApoiar(pauta.status) && <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />}
+        <a
+          href={`/p/${pauta.slug}/card.png`}
+          download={`lumens-${pauta.slug}.png`}
+          className={comuns.botaoSecundario}
+          aria-label={`Baixar o card da pauta ${pauta.titulo}`}
+        >
+          Baixar card
+        </a>
+      </div>
     </header>
   );
 }
