@@ -30,12 +30,15 @@ describe('página da pauta: seções', () => {
 
   it('"Apoiar" abre o bot com o slug, e some em pauta conquistada', () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
+    vi.stubEnv('NEXT_PUBLIC_FLAG_APOIAR', '1');
     expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).toContain(
       'href="https://wa.me/5582999999999?text=apoiar%20iluminacao-no-bloco-de-artes"',
     );
     expect(
       renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, status: 'conquistada' }} />),
     ).not.toContain('wa.me');
+    vi.stubEnv('NEXT_PUBLIC_FLAG_APOIAR', '');
+    expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).not.toContain('wa.me');
   });
 
   it('relato mostra texto e curso, sem autor; sem curso, nada no lugar', () => {

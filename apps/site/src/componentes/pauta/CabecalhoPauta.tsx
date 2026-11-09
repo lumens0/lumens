@@ -1,8 +1,7 @@
 import type { PautaDetalhe } from '@lumens/contratos';
-import { aceitaApoio, contextoDaPauta } from '../../dados/pautas-publicas';
-import { comandoApoiar } from '../../whatsapp';
+import { contextoDaPauta } from '../../dados/pautas-publicas';
 import { BarraApoios } from '../BarraApoios';
-import { BotaoWhatsApp } from '../BotaoWhatsApp';
+import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
 import comuns from '../componentes.module.css';
 import { StatusPill } from '../StatusPill';
 import estilos from './pauta.module.css';
@@ -27,13 +26,9 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
         meta={pauta.meta}
         rotulo={`Apoios da pauta ${pauta.titulo}`}
       />
-      {aceitaApoio(pauta.status) && (
+      {mostraApoiar(pauta.status) && (
         <div className={comuns.acoes}>
-          <BotaoWhatsApp
-            comando={comandoApoiar(pauta.slug)}
-            texto="Apoiar"
-            rotulo={`Apoiar a pauta ${pauta.titulo} pelo WhatsApp`}
-          />
+          <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
         </div>
       )}
     </header>
