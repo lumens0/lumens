@@ -41,6 +41,13 @@ describe('página da pauta: seções', () => {
     expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).not.toContain('wa.me');
   });
 
+  it('"Baixar card" aponta para o PNG da pauta, mesmo sem o bot configurado', () => {
+    const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
+    expect(html).toContain('href="/p/iluminacao-no-bloco-de-artes/card.png"');
+    expect(html).toContain('download="lumens-iluminacao-no-bloco-de-artes.png"');
+    expect(html).toContain('>Baixar card</a>');
+  });
+
   it('relato mostra texto e curso, sem autor; sem curso, nada no lugar', () => {
     const html = renderToStaticMarkup(<Relatos relatos={fixture.relatos} />);
     expect(html).toContain('A saída das aulas noturnas fica muito escura.');
