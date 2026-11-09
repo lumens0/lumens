@@ -12,6 +12,7 @@ describe('home', () => {
 
   it('com a lista vazia, "Relatar um problema" aparece uma vez só (o da ListaVazia)', async () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
+    vi.stubEnv('NEXT_PUBLIC_FLAG_RELATAR', '1');
     // Os dados de exemplo ainda não têm pautas: a home cai na lista vazia.
     const html = renderToStaticMarkup(await Home({ searchParams: Promise.resolve({}) }));
     expect(html).toContain('role="status"');

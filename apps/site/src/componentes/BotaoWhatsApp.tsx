@@ -65,8 +65,13 @@ export function BotaoVouAjudar({ caminhoId, titulo }: { caminhoId: string; titul
   );
 }
 
-/** "Relatar um problema": abre o bot com `nova pauta`. Usado na home e na lista vazia. */
+/**
+ * "Relatar um problema": abre o bot com `nova pauta`. Usado na home e na lista vazia.
+ * Desligado por padrão: só aparece com `NEXT_PUBLIC_FLAG_RELATAR=1`, até o bot salvar a pauta
+ * relatada (2.6, SCRUM-101); hoje as etapas de título, local e descrição ainda descartam a resposta.
+ */
 export function BotaoRelatar() {
+  if (process.env.NEXT_PUBLIC_FLAG_RELATAR !== '1') return null;
   return (
     <BotaoWhatsApp
       comando={COMANDO_NOVA_PAUTA}
