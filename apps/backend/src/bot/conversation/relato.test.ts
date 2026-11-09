@@ -1,4 +1,4 @@
-import { blocos, conversas, pautas, type Db } from '@lumens/db';
+import { blocos, conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
@@ -43,6 +43,7 @@ function listaEm(respostas: Resposta[]): MensagemDeLista {
   return achada;
 }
 
+// Banco em memória novo + mensagens iniciais: no Windows, com os testes em paralelo, passa de 20s.
 beforeEach(async () => {
   db = await criarBancoEmMemoria();
   store = new ConversationStore(db);
@@ -84,9 +85,13 @@ beforeEach(async () => {
     banheiros: banheiros.id,
     ru: ru.id,
   };
+  // "É outro problema" leva à pauta nova, que só segue com estudante verificado (2.6).
+  await db
+    .insert(estudantes)
+    .values({ telefoneHmac: H, telefoneCifrado: 'x', verificadoEm: new Date() });
   await send('oi');
   await send('1');
-}, 20_000);
+}, 60_000);
 
 describe('relatar (2.5)', () => {
   it('o menu pede o relato e aceita mensagem encaminhada', async () => {

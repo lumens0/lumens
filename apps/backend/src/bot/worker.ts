@@ -1,6 +1,7 @@
 import type { Db } from '@lumens/db';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
+import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
 import type { HandlerRegistry, IncomingMessage } from './conversation/handlers';
@@ -40,6 +41,8 @@ export interface WorkerDeps {
   queue: JobQueue;
   logger: Logger;
   chaves: Chaves;
+  /** Fotos da pauta nova (2.6). */
+  fotos?: ServicoDeFotos;
   handlers?: HandlerRegistry;
 }
 
@@ -152,6 +155,7 @@ export async function processIncomingJob(
               store: deps.store.withDb(tx),
               db: tx,
               segredo: segredoCom(deps.chaves.cifra),
+              ...(deps.fotos ? { fotos: deps.fotos } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );

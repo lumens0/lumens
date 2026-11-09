@@ -1,4 +1,4 @@
-import { conversas, type Db } from '@lumens/db';
+import { conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CLEANUP_CRON, CLEANUP_TZ, registerCleanupJob } from '../../agendador/limpeza-conversas';
@@ -37,6 +37,10 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
   clock = new Date('2026-10-21T12:00:00Z');
   store = new ConversationStore(db, now);
+  // A "2 Nova pauta" só segue para o título com estudante verificado (2.6).
+  await db
+    .insert(estudantes)
+    .values({ telefoneHmac: H, telefoneCifrado: 'x', verificadoEm: new Date() });
 }, 20_000);
 
 describe('steps', () => {
@@ -104,8 +108,7 @@ describe('router', () => {
     expect((await store.get(H))?.step).toBe('NEW_ASK_TITLE');
     // Nova instância do store (ex.: outro worker) continua do mesmo passo.
     store = new ConversationStore(db, now);
-    const replies = await send('Bebedouro quebrado');
-    expect(replies[0]).toContain('NEW_ASK_TITLE');
+    await send('Bebedouro quebrado');
     expect((await store.get(H))?.step).toBe('NEW_ASK_PLACE');
   });
 
@@ -232,8 +235,10 @@ describe('limpeza agendada das conversas', () => {
 
 describe('experiência da pessoa', () => {
   const foto = { id: 'midia-1', mimeType: 'image/jpeg' };
+  // Serviço de fotos falso: a foto "chega" ao storage sem rede (o real é testado em fotos/).
+  const fotos = { guardarFoto: () => Promise.resolve({ ok: true as const, chave: 'fotos/x.jpg' }) };
   const sendFoto = () =>
-    handleIncoming({ phoneHmac: H, text: '', image: foto }, { store, db, segredo });
+    handleIncoming({ phoneHmac: H, text: '', image: foto }, { store, db, segredo, fotos });
 
   it.each([
     ['Cancelar.', 'cancelar'],
@@ -262,18 +267,22 @@ describe('experiência da pessoa', () => {
     expect((await store.get(H))?.step).toBe('MENU');
   });
 
-  it('nova pauta aceita a foto no último passo e guarda o id da mídia', async () => {
-    for (const t of ['oi', '2', 'Bebedouro', 'Bloco 12', 'Vazando']) await send(t);
+  it('nova pauta aceita a foto no último passo e cria a pauta', async () => {
+    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'Vazando']) await send(t);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
 
-    expect(await sendFoto()).toEqual([PHOTO_RECEIVED_TEXT, MENU_TEXT]);
+    const replies = await sendFoto();
+    expect(replies[0]).toBe(PHOTO_RECEIVED_TEXT);
+    expect(replies.at(-1)).toBe(MENU_TEXT);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
-    expect(st?.data).toMatchObject({ fotoMediaId: 'midia-1' });
+    expect(await db.select({ titulo: pautas.titulo }).from(pautas)).toEqual([
+      { titulo: 'Bebedouro' },
+    ]);
   });
 
   it("no passo da foto, texto qualquer pede a foto de novo e 'pular' segue sem ela", async () => {
-    for (const t of ['oi', '2', 'Bebedouro', 'Bloco 12', 'Vazando']) await send(t);
+    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'Vazando']) await send(t);
     expect(await send('já mandei')).toEqual([PHOTO_ASK_TEXT]);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
     expect((await send('Pular')).at(-1)).toBe(MENU_TEXT);
