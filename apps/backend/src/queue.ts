@@ -49,6 +49,8 @@ export const JOBS = {
   outgoingRepliesDead: 'outgoing-replies-dead',
   cleanupConversations: 'cleanup-expired-conversations',
   unblockConversations: 'unblock-conversations',
+  /** Gatilhos de data da Parte 3 (SCRUM-237): conferência, prazos e owner inativo. */
+  gatilhosDeData: 'agendador-gatilhos',
 } as const;
 
 /**
