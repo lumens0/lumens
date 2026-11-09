@@ -15,8 +15,10 @@
  * módulo deve gravar nessas colunas.
  */
 import { and, eq, sql, type Tx } from '@lumens/db';
-import { caminhos } from '@lumens/db';
+import { caminhos, pautas } from '@lumens/db';
+import { registrarEvento } from './eventos';
 import { calcularPrazo } from './prazo';
+import { transicionarStatus } from './status';
 
 export interface RegistroDeProtocolo {
   caminhoId: string;
@@ -93,7 +95,12 @@ export async function registrarProtocolo(
   }
 
   const [caminho] = await tx
-    .select({ tipo: caminhos.tipo, protocolo: caminhos.protocolo, prazo: caminhos.prazo })
+    .select({
+      pautaId: caminhos.pautaId,
+      tipo: caminhos.tipo,
+      protocolo: caminhos.protocolo,
+      prazo: caminhos.prazo,
+    })
     .from(caminhos)
     .where(eq(caminhos.id, caminhoId))
     .limit(1);
@@ -123,6 +130,15 @@ export async function registrarProtocolo(
   // universidade na data errada e em público.
   const prazo = calcularPrazo({ abertoEm, prorrogado });
 
+  // FOR UPDATE na pauta antes de qualquer escrita: dois protocolos simultâneos em caminhos Fala.BR
+  // da mesma pauta passam um depois do outro, e o segundo já vê `cobrando`. Travar só depois do
+  // evento dava deadlock: a FK do evento segura a pauta em KEY SHARE nas duas transações.
+  const [pauta] = await tx
+    .select({ status: pautas.status })
+    .from(pautas)
+    .where(eq(pautas.id, caminho.pautaId))
+    .for('update');
+
   // A gravação é condicionada a `protocolo IS NULL` para resolver a corrida no
   // banco e não na leitura acima: duas mensagens do owner em sequência chegam
   // como duas transações, e a segunda não pode sobrescrever a primeira.
@@ -136,6 +152,16 @@ export async function registrarProtocolo(
     .returning({ protocolo: caminhos.protocolo, prazo: caminhos.prazo });
 
   if (gravado !== undefined) {
+    await registrarEvento(tx, {
+      pautaId: caminho.pautaId,
+      tipo: 'protocolo_registrado',
+      dados: { caminho_id: caminhoId, protocolo: limpo },
+      origem: 'bot',
+    });
+    // Protocolado, a pauta passa a ser cobrada (T12). Se já estava em `cobrando` ou adiante, fica.
+    if (pauta?.status === 'juntando_apoios' || pauta?.status === 'meta_batida') {
+      await transicionarStatus(tx, { pautaId: caminho.pautaId, para: 'cobrando', origem: 'bot' });
+    }
     return { registrado: true, protocolo: limpo, prazo: prazo.vence, jaEstava: false };
   }
 
