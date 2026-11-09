@@ -87,25 +87,34 @@ async function autenticar(nome: string, senha: string) {
   const url = new URL(urlAdministrativa);
   url.username = nome;
   url.password = senha;
-  const pool = new Pool({ connectionString: url.toString(), connectionTimeoutMillis: 2000 });
-  try {
-    const { rows } = await pool.query<{ session_user: string; current_user: string }>(
-      'SELECT session_user, current_user',
-    );
-    return rows[0];
-  } finally {
-    await pool.end();
-  }
+  return autenticarPelaUrl(url.toString());
 }
 
+/**
+ * Abre o pool, confere a identidade e fecha.
+ *
+ * O ouvinte de `error` existe porque `limparPapeis` derruba os backends do papel
+ * (`pg_terminate_backend`) logo depois: se o `end()` ainda não tiver terminado, o
+ * `pg` entrega o `57P01` (`admin_shutdown`) a um client já encerrando, o pool emite
+ * `error` e um `error` sem ouvinte derruba a execução inteira do vitest — com todos
+ * os testes verdes e a `main` vermelha. Mesmo tratamento de `privileges.test.ts`.
+ * Só o `57P01`, e só depois de o fechamento ter sido pedido: qualquer outro erro,
+ * ou um `57P01` com o pool em uso, continua estourando.
+ */
 async function autenticarPelaUrl(connectionString: string) {
   const pool = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
+  let encerrando = false;
+  pool.on('error', (erro: Error & { code?: string }) => {
+    if (encerrando && erro.code === '57P01') return;
+    throw erro;
+  });
   try {
     const { rows } = await pool.query<{ session_user: string; current_user: string }>(
       'SELECT session_user, current_user',
     );
     return rows[0];
   } finally {
+    encerrando = true;
     await pool.end();
   }
 }
