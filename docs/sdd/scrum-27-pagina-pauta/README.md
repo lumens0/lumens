@@ -30,6 +30,9 @@ Pendente.
 - [x] Relatos sem autor e linha do tempo com datas em pt-BR (SCRUM-46).
 - [x] 404 de verdade para pauta inexistente ou fora do site, com página amigável (SCRUM-47).
 - [x] `LUMENS_API_URL` documentada no `.env.example`.
+- [ ] **Antes do merge:** `LUMENS_API_URL` configurada no projeto do site na Vercel (o merge no
+      `main` publica em produção). Sem ela, toda `/p/<slug>` cai no `error.tsx`, inclusive pauta
+      inexistente, que deveria dar 404.
 
 ## Desvios do ticket
 

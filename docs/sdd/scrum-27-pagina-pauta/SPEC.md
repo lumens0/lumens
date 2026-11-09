@@ -30,7 +30,8 @@
       (SCRUM-93) definir a URL pública; o `alt` está implementado e testado só com `urlFoto` injetado.
 - [x] Pauta inexistente ou fora do site responde 404, com mensagem amigável e link para a home.
 - [x] Campos de identidade que viessem a mais na resposta não chegam ao HTML.
-- [x] Legível em 360 px, com quebra de palavras longas.
+- [x] Legível em 360 px, com quebra de palavras longas. Conferido no navegador em 360 × 780 com o
+      build de produção e a API falsa do TESTS.md: sem rolagem horizontal (`scrollWidth` = 360).
 
 ## Contextuais
 
