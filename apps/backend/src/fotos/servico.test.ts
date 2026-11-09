@@ -59,13 +59,11 @@ describe('guardarFoto', () => {
     const { servico, guardadas } = montar({ bytes: jpeg, mimeType: 'image/jpeg' });
     const r = await servico.guardarFoto({ id: 'midia-1', mimeType: 'image/jpeg' });
 
-    expect(r).toEqual({
-      ok: true,
-      chave: expect.stringMatching(/^fotos\/2026\/11\/[0-9a-f-]{36}\.jpg$/),
-    });
+    if (!r.ok) throw new Error(`foto recusada: ${r.motivo}`);
+    expect(r.chave).toMatch(/^fotos\/2026\/11\/[0-9a-f-]{36}\.jpg$/);
     expect(guardadas).toHaveLength(1);
     const [guardada] = guardadas;
-    if (!r.ok || guardada === undefined) throw new Error('foto não guardada');
+    if (guardada === undefined) throw new Error('foto não guardada');
     expect(guardada.chave).toBe(r.chave);
     expect(guardada.contentType).toBe('image/jpeg');
 
@@ -79,7 +77,8 @@ describe('guardarFoto', () => {
   it('PNG vira .png', async () => {
     const { servico, guardadas } = montar({ bytes: png, mimeType: 'image/png' });
     const r = await servico.guardarFoto({ id: 'm', mimeType: 'image/png' });
-    expect(r).toMatchObject({ ok: true, chave: expect.stringMatching(/\.png$/) });
+    if (!r.ok) throw new Error(`foto recusada: ${r.motivo}`);
+    expect(r.chave).toMatch(/\.png$/);
     expect(guardadas[0]?.contentType).toBe('image/png');
   });
 

@@ -28,7 +28,7 @@ export interface ServicoDeFotos {
 }
 
 export interface DependenciasDasFotos {
-  baixar(mediaId: string): Promise<MidiaBaixada>;
+  baixar: (mediaId: string) => Promise<MidiaBaixada>;
   storage: Storage;
   agora?: () => Date;
   /** Registra falhas de rede ou storage, sem dados da pessoa. */
