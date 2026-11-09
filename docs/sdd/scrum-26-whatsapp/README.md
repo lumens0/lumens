@@ -29,7 +29,7 @@ Pendente.
 - [x] Componente `BotaoWhatsApp` e a variante `BotaoVouAjudar`, atrás da flag
       `NEXT_PUBLIC_FLAG_VOU_AJUDAR` (SCRUM-44).
 - [x] "Apoiar" no card da pauta, só para status que aceitam apoio, fora do link do título.
-- [x] "Relatar um problema" na home; `ListaVazia` passou a usar o helper.
+- [x] "Relatar um problema" (`BotaoRelatar`) na home, só com a lista não vazia, e na `ListaVazia`.
 - [x] `NEXT_PUBLIC_WHATSAPP_BOT` e `NEXT_PUBLIC_FLAG_VOU_AJUDAR` documentadas no `.env.example`.
 - [ ] "Apoiar" e "Vou ajudar" na página da pauta: entram com a página (SCRUM-27).
 
@@ -40,6 +40,6 @@ Pendente.
 ## Dívida técnica aceita
 
 - A lista de status sem apoio existe em dois lugares (`packages/dominio/src/apoio.ts` e
-  `apps/site/src/componentes/CardPauta.tsx`). Mudou uma, muda a outra.
+  `apps/site/src/dados/pautas-publicas.ts`); um teste compara as duas e falha se divergirem.
 - O bot ainda não interpreta `apoiar <slug>`, `ajudar <id>` nem `nova pauta` (2.7 / SCRUM-102 e
   3.5 / SCRUM-197): até lá, o link abre a conversa com o texto, mas a ação depende do bot.

@@ -21,9 +21,22 @@ Oráculo: ticket SCRUM-26, `encodeURIComponent` conferido à mão e a regra `SEM
 - [regra] **card por status**: os nove status de `STATUS_PAUTA`; "Apoiar" só fora de
   `em_curadoria`, `recusada` e `conquistada`.
 - [HTML] **"Apoiar" fora do link do título**: nenhum `<a>` aninhado.
-- [regressão] **`ListaVazia`** (`estados.test.tsx`) leva `?text=nova%20pauta`.
+- [regressão] **`ListaVazia`** (`estados.test.tsx`) usa o `BotaoRelatar`: leva `?text=nova%20pauta`,
+  `aria-label`, `target="_blank"` e `rel="noopener noreferrer"`.
+- [flag] **"Vou ajudar"**: o `aria-label` começa pelo texto visível (`Vou ajudar no caminho …`).
+
+## Casos — home (`apps/site/src/app/page.test.tsx`)
+
+- [regressão] **lista vazia**: "Relatar um problema" aparece uma vez só (o da `ListaVazia`), sem
+  repetir o do topo.
+
+## Casos — regra de apoio (`apps/site/src/dados/pautas-publicas.test.ts`)
+
+- [sincronia] **`SEM_APOIO` do site** é igual ao `SEM_APOIO` de `packages/dominio/src/apoio.ts`: o
+  teste lê o fonte do domínio e compara os status; se as listas divergirem, o CI falha.
 
 ## Lacunas conhecidas
 
 - Nenhum teste prova que o bot entende os comandos; isso fica na 2.7 e na 3.5.
-- A igualdade entre a lista local e `SEM_APOIO` do domínio é conferida à mão, não por teste.
+- O teste de sincronia lê o `SEM_APOIO` do domínio por regex: se a declaração mudar de formato, ele
+  falha (não passa em silêncio) e precisa ser ajustado.

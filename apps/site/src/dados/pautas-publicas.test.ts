@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
 import exemplo from './exemplo.json';
-import { blocoDaUrl, pautasPublicas, totais } from './pautas-publicas';
+import { SEM_APOIO, blocoDaUrl, pautasPublicas, totais } from './pautas-publicas';
 
 describe('pautasPublicas', () => {
   const lista = pautasPublicas(PAUTAS_TESTE);
@@ -75,5 +76,22 @@ describe('filtro por bloco', () => {
     const blocoA = blocoDaUrl(blocos, 'bloco-a');
     const lista = pautasPublicas(PAUTAS_TESTE, blocoA);
     expect(lista.map((p) => p.status)).toEqual(['descumprida', 'entregue_em_parte']);
+  });
+});
+
+describe('SEM_APOIO', () => {
+  it('é a mesma lista de SEM_APOIO do domínio (packages/dominio/src/apoio.ts)', () => {
+    const fonte = readFileSync(
+      new URL('../../../../packages/dominio/src/apoio.ts', import.meta.url),
+      'utf-8',
+    );
+    const declaracao =
+      /const\s+SEM_APOIO\b[^=]*=\s*new\s+Set\s*(?:<[^>]*>)?\s*\(\s*\[([^\]]*)\]/.exec(fonte);
+    if (!declaracao) throw new Error('SEM_APOIO não encontrado em apoio.ts');
+    const doDominio = [...(declaracao[1] ?? '').matchAll(/['"]([a-z_]+)['"]/g)]
+      .map((m) => m[1])
+      .sort();
+    expect(doDominio.length).toBeGreaterThan(0);
+    expect([...SEM_APOIO].sort()).toEqual(doDominio);
   });
 });

@@ -25,9 +25,11 @@ describe('estados da lista', () => {
   it('relatar um problema abre o WhatsApp do bot quando o número está configurado', () => {
     expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).not.toContain('wa.me');
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
-    expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).toContain(
-      'href="https://wa.me/5582999999999?text=nova%20pauta"',
-    );
+    const html = renderToStaticMarkup(<ListaVazia bloco={undefined} />);
+    expect(html).toContain('href="https://wa.me/5582999999999?text=nova%20pauta"');
+    expect(html).toContain('aria-label="Relatar um problema do campus pelo WhatsApp"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
   });
 
   it('erro: anuncia com role=alert e tem o botão de tentar de novo', () => {

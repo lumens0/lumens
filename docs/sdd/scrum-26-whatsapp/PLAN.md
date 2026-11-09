@@ -14,7 +14,7 @@ escolhem comando, texto e `aria-label`.
   Next só embute no bundle do navegador a variável `NEXT_PUBLIC_*` acessada assim.
 - **Regra de status com apoio em lista local:** `@lumens/dominio` tem a regra (`SEM_APOIO` em
   `apoio.ts`), mas não a exporta, e o pacote importa `@lumens/db` (drizzle, `pg`), dependência de
-  servidor que o site não deve puxar. O site mantém `SEM_APOIO`/`aceitaApoio` em `CardPauta.tsx`,
+  servidor que o site não deve puxar. O site mantém `SEM_APOIO`/`aceitaApoio` em `dados/pautas-publicas.ts`, ao lado de `FORA_DO_SITE`,
   com comentário apontando a origem.
 - **Botão fora do link:** o título do card é um `<Link>`; o "Apoiar" fica num `div` irmão, porque
   `<a>` dentro de `<a>` é HTML inválido.
