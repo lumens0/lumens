@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { COMANDO_NOVA_PAUTA, comandoAjudar, comandoApoiar, linkWhatsApp } from './whatsapp';
+import {
+  COMANDO_NOVA_PAUTA,
+  comandoAjudar,
+  comandoApoiar,
+  exigirNumeroDoBot,
+  linkWhatsApp,
+} from './whatsapp';
 
 describe('linkWhatsApp', () => {
   afterEach(() => {
@@ -32,5 +38,17 @@ describe('linkWhatsApp', () => {
     expect(comandoApoiar('bebedouros-no-bloco-18')).toBe('apoiar bebedouros-no-bloco-18');
     expect(comandoAjudar('c1')).toBe('ajudar c1');
     expect(COMANDO_NOVA_PAUTA).toBe('nova pauta');
+  });
+});
+
+describe('exigirNumeroDoBot', () => {
+  it('falha com mensagem clara sem dígitos', () => {
+    for (const valor of [undefined, '', ' + ']) {
+      expect(() => exigirNumeroDoBot(valor)).toThrow(/NEXT_PUBLIC_WHATSAPP_BOT não configurada/);
+    }
+  });
+
+  it('devolve só os dígitos', () => {
+    expect(exigirNumeroDoBot('+55 82 99999-9999')).toBe('5582999999999');
   });
 });
