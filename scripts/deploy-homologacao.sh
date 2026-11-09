@@ -20,8 +20,20 @@ COMPOSE=(docker compose -f docker-compose.prod.yml --env-file .env.producao)
 
 cd "$REPO_DIR"
 
-if [[ ! -f .env.producao ]]; then
-  echo "::error::.env.producao não existe em $REPO_DIR. Copie do .env.producao.example e preencha." >&2
+for arquivo in .env.producao .env.producao.admin; do
+  if [[ ! -f "$arquivo" ]]; then
+    echo "::error::$arquivo não existe em $REPO_DIR. Copie do $arquivo.example e preencha." >&2
+    exit 1
+  fi
+done
+
+# O back-end recebe só o .env.producao. Se a credencial de owner do banco vazar para esse
+# arquivo, o processo que atende a internet passa a poder apagar trigger e reescrever a
+# linha do tempo de eventos, contornando os privilégios de lumens_app. A separação está em
+# packages/db/README.md e é exercida pelo teste de isolamento do back-end; aqui ela vira
+# portão de deploy, porque um `cat` distraído desfaz o invariante sem nenhum sintoma.
+if grep -qE '^[[:space:]]*(POSTGRES_PASSWORD|DATABASE_URL_MIGRACAO)=' .env.producao; then
+  echo "::error::.env.producao contém credencial administrativa do banco. Ela pertence só ao .env.producao.admin." >&2
   exit 1
 fi
 

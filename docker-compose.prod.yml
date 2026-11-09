@@ -15,10 +15,9 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env.producao}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env.producao}
-      POSTGRES_DB: ${POSTGRES_DB:-lumens}
+    # Só o arquivo admin: owner do cluster e senhas dos papéis restritos.
+    env_file:
+      - .env.producao.admin
     volumes:
       - lumens-pgdata:/var/lib/postgresql/data
     # Sem `ports`: o banco só existe dentro da rede do compose. Publicar 5432 aqui o
@@ -39,10 +38,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Tarefa privilegiada e efêmera: é o único serviço que enxerga os dois arquivos.
     env_file:
       - .env.producao
-    environment:
-      DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO:?defina DATABASE_URL_MIGRACAO no .env.producao}
+      - .env.producao.admin
     # Provisiona os dois logins restritos (lumens_app e lumens_site) e aplica as migrações.
     # O provision é idempotente, então roda a cada deploy sem efeito colateral.
     command: sh -c 'pnpm db:provision && pnpm db:migrate'
