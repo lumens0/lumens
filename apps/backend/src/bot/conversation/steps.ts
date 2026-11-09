@@ -47,10 +47,13 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // não existe, escolha fora da lista).
   REPORT_ASK_TEXT: ['REPORT_ASK_BLOCK', 'REPORT_PICK_SIMILAR', 'REPORT_ASK_TEXT'],
   REPORT_ASK_BLOCK: ['REPORT_PICK_SIMILAR', 'REPORT_ASK_BLOCK'],
-  REPORT_PICK_SIMILAR: ['MENU', 'NEW_ASK_TITLE', 'REPORT_PICK_SIMILAR'],
-  NEW_ASK_TITLE: ['NEW_ASK_PLACE'],
-  NEW_ASK_PLACE: ['NEW_ASK_DESCRIPTION'],
-  NEW_ASK_DESCRIPTION: ['NEW_ASK_PHOTO'],
+  // Pauta nova vinda do relato passa pela verificação se a pessoa ainda não é verificada.
+  REPORT_PICK_SIMILAR: ['MENU', 'NEW_ASK_TITLE', 'VERIFY_ASK_EMAIL', 'REPORT_PICK_SIMILAR'],
+  // A pauta nova pula o local e a descrição quando vem do relato (2.5), e cada passo repete a
+  // pergunta quando a resposta não serve (título longo, bloco que não existe...).
+  NEW_ASK_TITLE: ['NEW_ASK_PLACE', 'NEW_ASK_DESCRIPTION', 'NEW_ASK_PHOTO', 'NEW_ASK_TITLE'],
+  NEW_ASK_PLACE: ['NEW_ASK_DESCRIPTION', 'NEW_ASK_PLACE'],
+  NEW_ASK_DESCRIPTION: ['NEW_ASK_PHOTO', 'NEW_ASK_DESCRIPTION'],
   NEW_ASK_PHOTO: ['MENU', 'NEW_ASK_PHOTO'],
 };
 

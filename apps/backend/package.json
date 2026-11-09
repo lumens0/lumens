@@ -18,6 +18,7 @@
     "test": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.database ../../node_modules/vitest/vitest.mjs run --passWithNoTests --hookTimeout=30000"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@lumens/contratos": "workspace:*",
     "@lumens/db": "workspace:*",
     "@lumens/dominio": "workspace:*",

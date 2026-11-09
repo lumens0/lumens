@@ -5,6 +5,9 @@ import { ConversationStore } from './bot/conversation/store';
 import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
 import { carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto';
+import { baixarMidiaDaMeta } from './fotos/meta-midia';
+import { criarServicoDeFotos } from './fotos/servico';
+import { criarStorageS3 } from './fotos/storage';
 import { criarLogger, resumoDoErro } from './logger';
 import { criarPgBossRuntime } from './pg-boss';
 import { filaPgBoss } from './queue';
@@ -74,9 +77,20 @@ async function iniciar(env: Env): Promise<void> {
     const queue = filaPgBoss(boss);
     const chaves = chavesDoEnv(env);
     const store = new ConversationStore(db);
+    const fotos = criarServicoDeFotos({
+      baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN }),
+      storage: criarStorageS3({
+        bucket: env.S3_BUCKET_FOTOS,
+        regiao: env.AWS_REGION,
+        endpoint: env.S3_ENDPOINT,
+      }),
+      avisar: (mensagem) => {
+        logger.warn(mensagem);
+      },
+    });
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
-    await registerIncomingWorker(boss, { db, store, queue, logger, chaves });
+    await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 
     const app = await buildApp({
