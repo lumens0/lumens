@@ -32,6 +32,9 @@ Pendente.
 - [x] "Relatar um problema" (`BotaoRelatar`) na home, só com a lista não vazia, e na `ListaVazia`.
 - [x] `NEXT_PUBLIC_WHATSAPP_BOT` e `NEXT_PUBLIC_FLAG_VOU_AJUDAR` documentadas no `.env.example`.
 - [ ] "Apoiar" e "Vou ajudar" na página da pauta: entram com a página (SCRUM-27).
+- [x] Build de produção falha sem `NEXT_PUBLIC_WHATSAPP_BOT`, com mensagem clara (SCRUM-43).
+- [ ] Antes do merge: NEXT_PUBLIC_WHATSAPP_BOT configurada no projeto do site na Vercel (sem ela o
+      deploy de produção falha no build).
 
 ## Desvios do ticket
 

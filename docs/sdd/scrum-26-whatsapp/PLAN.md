@@ -20,6 +20,9 @@ escolhem comando, texto e `aria-label`.
   `<a>` dentro de `<a>` é HTML inválido.
 - **Nova aba:** `target="_blank"` com `rel="noopener noreferrer"`, para a aba do WhatsApp Web não
   ter acesso à página do site.
+- **Build falha sem número (SCRUM-43):** `next.config.ts` usa a forma de função e, na fase
+  `PHASE_PRODUCTION_BUILD`, chama `exigirNumeroDoBot`. O CI passa um número fictício no passo
+  "Build do site"; a Vercel precisa da variável configurada.
 - **`ListaVazia`:** passa a usar o helper; o link agora leva `?text=nova%20pauta`.
 
 ## Passos

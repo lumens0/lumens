@@ -8,7 +8,8 @@
 
 - `linkWhatsApp(comando?)` devolve `https://wa.me/<número>?text=<comando codificado>`. O número vem
   de `NEXT_PUBLIC_WHATSAPP_BOT`, só com os dígitos. Sem comando, o link não tem `?text`. Sem número,
-  devolve `null`, e nenhum botão aparece.
+  devolve `null`, e nenhum botão aparece; isso só vale no `next dev` e nos testes, porque o build de
+  produção falha sem número (SCRUM-43).
 - O link wa.me abre o app no celular e o WhatsApp Web no computador.
 - Comandos:
 
@@ -28,7 +29,8 @@
 ## Critérios de aceitação
 
 - [x] Espaços e acentos do comando saem codificados no `text`.
-- [x] Sem número configurado, nenhum botão aparece.
+- [x] Sem número configurado, nenhum botão aparece (`next dev` e testes).
+- [x] Número ausente gera erro claro no build (`next build`), não um link quebrado (SCRUM-43).
 - [x] `+`, espaços e hífens do número são descartados.
 - [x] Cada botão tem `aria-label` com a ação e o alvo e abre em nova aba com
       `rel="noopener noreferrer"`.
