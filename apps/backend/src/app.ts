@@ -1,7 +1,9 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { SLUG_MAX } from '@lumens/contratos';
+import { sql } from '@lumens/db';
 import { apiPlugin, type ApiPluginOptions } from './api';
 import { webhookPlugin, type WebhookPluginOptions } from './bot/webhook/routes';
+import { resumoDoErro } from './logger';
 
 export type AppDeps = WebhookPluginOptions & {
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
@@ -32,7 +34,20 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         serializers: { ...opts.serializers, req: serializarRequisicao },
       }),
   }) as unknown as FastifyInstance;
-  app.get('/health', () => ({ ok: true }));
+  // Healthcheck da hospedagem (SCRUM-93). Vai ao banco de propósito: um processo vivo com o
+  // banco fora do ar continua respondendo 200 num check que só olha o próprio processo, e o
+  // deploy quebrado passa despercebido. Substituiu o /health, que devolvia ok sem checar nada.
+  //
+  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou.
+  app.get('/saude', async (_req, reply) => {
+    try {
+      await deps.db.execute(sql`select 1`);
+      return { ok: true };
+    } catch (erro) {
+      deps.logger.error({ erro: resumoDoErro(erro) }, 'healthcheck: banco indisponível');
+      return reply.code(503).send({ ok: false });
+    }
+  });
   const { leitura, ...webhook } = deps;
   await app.register(webhookPlugin, webhook);
   await app.register(apiPlugin, leitura);
