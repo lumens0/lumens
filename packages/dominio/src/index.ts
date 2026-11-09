@@ -89,3 +89,6 @@ export {
   removerOwnerInativo,
 } from './owners';
 export type { ResultadoCoOwner } from './owners';
+
+export { encerrarConferencia } from './conferencia-apuracao';
+export type { ResultadoEncerramento } from './conferencia-apuracao';
