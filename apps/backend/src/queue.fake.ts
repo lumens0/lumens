@@ -1,4 +1,5 @@
 import { sql, type Db, type Tx } from '@lumens/db';
+import type { StatusDeEnvioJob } from './bot/envio/worker';
 import type { IncomingMessageJob } from './bot/webhook/process';
 import type { OutgoingReplies } from './bot/worker';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue, type SendOptions } from './queue';
@@ -54,6 +55,10 @@ function consultaDaFila(name: string) {
 
 export function mensagensNaFila(db: Db): Promise<{ data: IncomingMessageJob }[]> {
   return linhas(db, consultaDaFila(JOBS.incomingMessage));
+}
+
+export function statusNaFila(db: Db): Promise<{ data: StatusDeEnvioJob }[]> {
+  return linhas(db, consultaDaFila(JOBS.statusDeEnvio));
 }
 
 export function respostasNaFila(db: Db): Promise<{ data: OutgoingReplies }[]> {
