@@ -1,58 +1,58 @@
-# SCRUM-251 · As fotos ficam sem storage até a T20
+# SCRUM-251 · O envio de foto está quebrado até existir um bucket
 
 Dívida registrada · 2026-11-09 · @sthefanyblima
-**Situação:** aceita. A demo vai sem foto; a escolha do storage fica para quando a T20 for feita.
+**Situação:** aceita se a demo for sem foto. Precisa de decisão se a demo tiver foto.
 
-## O que se descobriu ao investigar
+## Estado real
 
-O ticket descrevia o sintoma como "`S3_BUCKET_FOTOS` aponta para um bucket que não existe" e
-oferecia duas saídas: um bucket S3-compatível de verdade (sem mexer em código) ou Azure Blob
-Storage (mexendo). A investigação mostrou que **nenhuma das duas entrega foto hoje**:
+A T20 está pronta e funcionando: `apps/backend/src/fotos/` baixa a mídia da Meta, confere o tipo,
+remove os metadados (EXIF, GPS) e grava no bucket; `main.ts` monta o serviço com
+`criarStorageS3`. O que falta é só o bucket.
 
-- Não há `S3Client`, `@aws-sdk` nem nenhuma chamada de upload no repositório.
-- O bot guarda apenas o `fotoMediaId` da Meta ([`handlers.ts`](../../apps/backend/src/bot/conversation/handlers.ts)).
-  Ninguém baixa o arquivo da Meta nem o grava em lugar nenhum.
-- O único código que menciona storage é a validação do ambiente
-  ([`env.ts`](../../apps/backend/src/config/env.ts)), que exigia `AWS_REGION` e `S3_BUCKET_FOTOS`.
+A SCRUM-93 saiu da AWS — a conta gratuita bloqueia EC2 por service control policy e a homologação
+foi para uma VM no Azure —, então o bucket previsto deixou de existir. Como `AWS_REGION` e
+`S3_BUCKET_FOTOS` são obrigatórias em `env.ts`, o `.env.producao` da homologação está com o valor
+de fachada `lumens-fotos-pendente`, só para o back-end iniciar.
 
-Ou seja: criar um bucket não destravaria a foto, porque falta quem faça o upload. O que existe de
-verdade é uma exigência de configuração para uma funcionalidade que ainda não foi escrita — a T20.
+## O que a pessoa vê hoje, na homologação
+
+O `PutObject` falha, `criarServicoDeFotos` devolve `indisponivel` e o bot responde:
+
+> Não consegui usar essa foto: não consegui baixar a foto agora. Envie outra foto ou responda 'pular'.
+
+Duas coisas a notar:
+
+1. **Não quebra o fluxo.** A pessoa continua no passo da foto e segue com `pular`. A pauta é criada
+   sem foto; nada mais é afetado.
+2. **A mensagem culpa o download, e o que falhou foi o storage.** Quem mandar outra foto vai ver o
+   mesmo texto de novo, para sempre. Numa demonstração ao vivo isso parece bot quebrado, não
+   funcionalidade desligada.
 
 ## Decisão
 
-1. **A demo vai sem foto.** Não é bloqueante para a apresentação.
-2. **`AWS_REGION` e `S3_BUCKET_FOTOS` passam a ser opcionais** em `env.ts`. Quando a T20 entrar com
-   o upload, voltam a ser obrigatórias junto com o código que as usa.
-3. **A escolha entre S3-compatível e Azure Blob fica com a T20**, não com este ticket. Quem decidir
-   terá o código do upload à frente e poderá medir o atrito de verdade; `S3_ENDPOINT` continua
-   existindo e mantém a saída S3-compatível barata.
+**A demo vai sem foto.** O envio de foto não é demonstrado; quem testar deve responder `pular`.
 
-## Por quê
+`AWS_REGION` e `S3_BUCKET_FOTOS` **continuam obrigatórias**. O `env.ts` existe justamente para
+falhar na inicialização, com o nome do que falta, em vez de a variável vazia aparecer no meio de
+uma conversa do bot — e, com a T20 pronta, esse raciocínio vale inteiro. O valor de fachada
+`lumens-fotos-pendente` fica, e esta página é o registro de que ele é fachada.
 
-Variável obrigatória para funcionalidade inexistente obriga todo ambiente novo a inventar um valor
-só para o processo subir. Foi assim que a homologação ficou com `lumens-fotos-pendente`, que **tem
-cara de configuração e não é**. Valor de fachada é pior do que variável ausente: some o aviso e
-fica o engano — quem abrir o `.env.producao` daqui a um mês vai ler um nome de bucket plausível e
-concluir que o storage está configurado.
+## As saídas, quando a foto for necessária
 
-É o mesmo princípio aplicado na SCRUM-93, onde a homologação desligada virou aviso em vez de erro:
-o sinal só serve enquanto significar alguma coisa.
+| Saída                                                  | Mexe em código? | Observação                                                                   |
+| ------------------------------------------------------ | --------------- | ---------------------------------------------------------------------------- |
+| Bucket em provedor S3-compatível (R2, Supabase, MinIO) | Não             | `S3_ENDPOINT` já existe e o `criarStorageS3` já usa `forcePathStyle` com ele |
+| Bucket S3 de verdade na AWS                            | Não             | Depende de a conta permitir                                                  |
+| Azure Blob Storage                                     | Sim             | Aproveita a conta que já usamos; o código hoje fala S3                       |
 
-## O que precisa ser feito fora do repositório
+A primeira é a de menor atrito e é a única que vale considerar antes da apresentação: preencher
+`AWS_REGION`, `S3_BUCKET_FOTOS` e `S3_ENDPOINT` no `.env.producao` e reiniciar o back-end.
 
-Na VM de homologação, apagar o valor de fachada do `.env.producao`:
+## Dívida menor, anotada de passagem
 
-```
-AWS_REGION=
-S3_BUCKET_FOTOS=
-```
-
-O back-end sobe com as duas vazias. Nenhum outro ajuste é necessário.
-
-## Quando reabrir
-
-Quando a T20 for priorizada. Aí a pergunta volta, com o código na frente: bucket S3-compatível
-(sem mexer em código) ou Azure Blob (adaptando o que hoje não existe)?
+Se a decisão mudar e a foto entrar na demo, vale corrigir o texto de `indisponivel` em
+`nova-pauta.ts`: ele atribui ao download uma falha que também acontece no storage. Fora do escopo
+deste ticket.
 
 ## Nota sobre a conta
 
