@@ -1,7 +1,10 @@
 import { criarDb, criarPool } from '@lumens/db';
+import { registerAvisoMetaBatidaJob } from './agendador/aviso-meta-batida';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
 import { ConversationStore } from './bot/conversation/store';
+import { graphSender, logModeloSender } from './bot/envio/sender';
+import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
 import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
 import { carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto';
@@ -76,6 +79,20 @@ async function iniciar(env: Env): Promise<void> {
     const store = new ConversationStore(db);
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
+    await registerAvisoMetaBatidaJob(boss, { db, logger });
+    // No `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade. Enquanto os modelos não
+    // forem aprovados, a Meta recusa com erro passageiro e os avisos esperam na fila.
+    const modeloSender = MODO_DEV
+      ? logModeloSender(logger)
+      : graphSender({ token: env.META_TOKEN, phoneNumberId: env.META_PHONE_NUMBER_ID });
+    await registerEnvioWorker(boss, {
+      db,
+      sender: modeloSender,
+      chaves,
+      logger,
+      limite: env.META_LIMITE_PESSOAS,
+    });
+    await registerStatusWorker(boss, { db, logger });
     await registerIncomingWorker(boss, { db, store, queue, logger, chaves });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 
