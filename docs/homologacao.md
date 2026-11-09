@@ -164,6 +164,36 @@ e publica o SHA exato que passou nos testes, e termina com um smoke test em `/sa
 Com o HTTPS no ar, cadastre `https://<DOMINIO>/webhook` no painel da Meta, com o mesmo
 `META_VERIFY_TOKEN` do `.env.producao`.
 
+## Ligar e desligar
+
+A VM é o único gasto relevante do crédito: **$0,153 por hora ligada**, contra uns $3/mês de
+disco quando desalocada. Com $100, ligada sem parar ela dura 27 dias. Desligada fora de uso,
+dura o semestre.
+
+Por isso a homologação **fica desligada por padrão** e é ligada quando alguém precisa dela.
+
+**Desligamento automático.** No portal: a VM → **Operations** → **Auto-shutdown** → ativar,
+horário **23:00**, fuso **(UTC-03:00) Brasília**, com notificação por e-mail 30 minutos antes.
+A notificação traz um link para adiar por hoje, útil para quem estiver trabalhando tarde.
+Isso tira a disciplina das pessoas: ninguém precisa lembrar.
+
+**Ligar.** Portal → a VM → **Start**, ou pelo app do Azure no celular. Leva menos de um minuto.
+
+**Semana da demo.** Desative o auto-shutdown e deixe ligada. Uma semana contínua custa ~$26 e
+elimina o risco de o ambiente estar fora na hora errada.
+
+### O que acontece com o deploy quando ela está desligada
+
+O job `deploy-backend` testa a porta 22 antes de tentar publicar. Se a VM não responder, ele
+**encerra com aviso, não com erro**: o merge na `main` continua verde e nada é publicado.
+
+Isso é deliberado. Falhar o job pintaria a `main` de vermelho sem ninguém ter errado nada, e
+CI que fica vermelho por motivo normal é CI que todo mundo aprende a ignorar.
+
+Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O `check` roda de
+novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
+mesmo algo pendente de publicar.
+
 ## Quando algo falha
 
 ```bash

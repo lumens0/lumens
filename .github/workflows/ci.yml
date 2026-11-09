@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
+  # Para redeployar a homologação depois de ligar a VM: a máquina fica desligada fora
+  # de uso para poupar crédito, então o deploy do merge pode ter sido pulado.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -213,13 +216,17 @@ jobs:
       - name: Publicar na Vercel
         run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
 
-  # Homologação na AWS (SCRUM-93): uma EC2 com Postgres, back-end e Caddy em docker compose.
+  # Homologação (SCRUM-93): uma VM com Postgres, back-end e Caddy em docker compose. Hoje no
+  # Azure; o docs/homologacao.md explica por que não é AWS. Nada aqui depende do provedor.
+  #
   # Separado do job `deploy` porque publica outra coisa, noutro lugar, e a falha de um não
-  # deve esconder a do outro — site na Vercel e back-end na AWS caem por motivos diferentes.
+  # deve esconder a do outro — site na Vercel e back-end na VM caem por motivos diferentes.
   deploy-backend:
     name: deploy-backend
     needs: check
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: >-
+      ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -253,7 +260,25 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
+      - name: Conferir se a homologação está ligada
+        id: alcance
+        shell: bash
+        run: |
+          # A VM fica desligada fora de uso para não queimar o crédito do Azure. Falhar o job
+          # por causa disso pintaria a main de vermelho sem ninguém ter errado nada — e CI que
+          # fica vermelho por motivo normal é CI que todo mundo aprende a ignorar.
+          #
+          # Então aqui a homologação desligada é aviso, não erro: o merge segue verde e quem
+          # precisar sobe a VM e dispara este workflow pelo botão "Run workflow".
+          if timeout 20 bash -c "cat < /dev/null > /dev/tcp/$SSH_HOST/22" 2>/dev/null; then
+            echo "ligada=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "ligada=nao" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Homologação desligada::A VM não respondeu na porta 22. Ligue a máquina no portal do Azure e rode este workflow em Actions > CI > Run workflow. O código desta execução NÃO foi publicado."
+          fi
+
       - name: Publicar e migrar
+        if: ${{ steps.alcance.outputs.ligada == 'sim' }}
         shell: bash
         env:
           SHA: ${{ github.sha }}
@@ -264,6 +289,7 @@ jobs:
             "/opt/lumens/scripts/deploy-homologacao.sh '$SHA'"
 
       - name: Smoke test
+        if: ${{ steps.alcance.outputs.ligada == 'sim' }}
         shell: bash
         run: |
           # O compose devolve o controle quando o contêiner sobe, não quando o Fastify
