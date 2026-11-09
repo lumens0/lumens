@@ -1,4 +1,4 @@
-import { sql, type Db } from '@lumens/db';
+import { estudantes, sql, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -81,6 +81,10 @@ const passo = async () => (await deps.store.get(PHONE_HMAC))?.step;
 beforeEach(async () => {
   db = await criarBancoEmMemoria();
   await prepararFilaFalsa(db);
+  // A "2 Nova pauta" só segue para o título com estudante verificado (2.6).
+  await db
+    .insert(estudantes)
+    .values({ telefoneHmac: PHONE_HMAC, telefoneCifrado: 'x', verificadoEm: new Date() });
   queue = new FakeQueue();
   deps = {
     db,

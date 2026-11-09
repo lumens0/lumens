@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { formatarNumero } from '../componentes/BarraApoios';
+import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
@@ -23,6 +24,8 @@ export default async function Home({
     <main className={estilos.pagina}>
       <h1 className={estilos.titulo}>Lumens</h1>
       <p className={estilos.subtitulo}>Da reclamação à pauta.</p>
+      {/* Com a lista vazia, o botão aparece na própria ListaVazia. */}
+      {lista.length > 0 && <BotaoRelatar />}
       <FiltroBloco blocos={blocos} atual={bloco?.slug} />
       {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
       <section className={estilos.totais} aria-labelledby="totais-titulo" aria-live="polite">
