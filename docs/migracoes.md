@@ -97,13 +97,18 @@ id. A varredura de identidade da SCRUM-89 quebra o build se isso acontecer; ela 
 
 ## Reverter
 
-Não existe `down`. Para desfazer em desenvolvimento, recrie o banco:
+Não existe `down`, e **recriar o banco não desfaz migração nenhuma**: o `pnpm db:fresh` apaga o
+volume e aplica de novo _todos_ os arquivos de `packages/db/migrations/`, inclusive o que você quer
+desfazer. São dois casos diferentes:
 
-```bash
-pnpm db:fresh
-```
-
-Em um banco que já tem dados que importam, a reversão é uma migração nova que desfaz a anterior.
+- **A migração ainda é só sua** (gerada agora, sem push e sem ninguém mais ter aplicado): apague o
+  arquivo `.sql`, remova a entrada correspondente em `migrations/meta/_journal.json` e o
+  `NNNN_snapshot.json` daquele índice, e rode `pnpm db:fresh`. É o único momento em que dá para
+  fingir que ela nunca existiu.
+- **A migração já saiu da sua máquina** (está na `main`, numa PR ou no banco de outra pessoa):
+  escreva uma **migração compensatória**, que desfaz o que a anterior fez. Vale também em
+  desenvolvimento — é o que deixa todas as máquinas no mesmo estado, e apagar o arquivo aqui só
+  criaria um histórico divergente do de quem já aplicou.
 
 ## Em seguida
 

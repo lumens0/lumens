@@ -100,7 +100,7 @@ pnpm --filter @lumens/dominio test
 Um arquivo só:
 
 ```bash
-pnpm --filter @lumens/backend exec vitest run src/api/privacidade.test.ts
+pnpm --filter @lumens/backend exec vitest run src/api/api.test.ts
 ```
 
 A maioria dos testes não precisa de Docker: eles sobem um Postgres em memória (PGlite) com as
