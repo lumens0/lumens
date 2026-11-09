@@ -11,6 +11,7 @@ import {
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
+import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import { MENU_TEXT } from './handlers';
 import {
   BLOCK_GONE_TEXT,
@@ -25,6 +26,7 @@ import {
   TITLE_EMPTY_TEXT,
   VERIFY_FIRST_TEXT,
   descriptionTooLongText,
+  photoRefusedText,
   resumo,
   titleTooLongText,
 } from './nova-pauta';
@@ -46,10 +48,19 @@ let bloco18: string;
 let artes: string;
 
 const send = (text: string) => handleIncoming({ phoneHmac: H, text }, { store, db, segredo });
-const sendFoto = () =>
+/** Serviço de fotos falso: devolve o que o teste mandar (o real é testado em `fotos/`). */
+let resultadoDaFoto: ResultadoFoto;
+const fotosPedidas: { id: string; mimeType: string }[] = [];
+const fotos: ServicoDeFotos = {
+  guardarFoto: (midia) => {
+    fotosPedidas.push(midia);
+    return Promise.resolve(resultadoDaFoto);
+  },
+};
+const sendFoto = (servico?: ServicoDeFotos) =>
   handleIncoming(
     { phoneHmac: H, text: '', image: { id: 'midia-1', mimeType: 'image/jpeg' } },
-    { store, db, segredo },
+    { store, db, segredo, ...(servico ? { fotos: servico } : {}) },
   );
 const passo = async () => (await store.get(H))?.step;
 const dados = async () => (await store.get(H))?.data ?? {};
@@ -92,6 +103,8 @@ beforeEach(async () => {
   if (!b18 || !art) throw new Error('blocos não inseridos');
   bloco18 = b18.id;
   artes = art.id;
+  resultadoDaFoto = { ok: true, chave: 'fotos/2026/11/abc.jpg' };
+  fotosPedidas.length = 0;
   await send('oi');
 }, 60_000);
 
@@ -173,12 +186,36 @@ describe('pauta nova pelo menu', () => {
     expect(await dados()).toEqual({});
   });
 
-  it('com foto, agradece e o resumo diz que tem foto', async () => {
+  it('com foto, guarda a chave no primeiro relato e o resumo diz que tem foto', async () => {
     for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
-    const respostas = await sendFoto();
+    const respostas = await sendFoto(fotos);
+    expect(fotosPedidas).toEqual([{ id: 'midia-1', mimeType: 'image/jpeg' }]);
     expect(respostas[0]).toBe(PHOTO_RECEIVED_TEXT);
     expect(resumoEm(respostas)).toContain('*Foto:* sim');
-    expect(await todasAsPautas()).toHaveLength(1);
+    const [pauta] = await todasAsPautas();
+    if (!pauta) throw new Error('pauta não criada');
+    expect(await db.select().from(relatos).where(eq(relatos.pautaId, pauta.id))).toMatchObject([
+      { fotoChave: 'fotos/2026/11/abc.jpg' },
+    ]);
+  });
+
+  it.each(['formato', 'tamanho', 'invalida', 'indisponivel'] as const)(
+    'foto recusada (%s): avisa, continua no passo da foto e não cria pauta',
+    async (motivo) => {
+      for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+      resultadoDaFoto = { ok: false, motivo };
+      expect(await sendFoto(fotos)).toEqual([photoRefusedText(motivo)]);
+      expect(await passo()).toBe('NEW_ASK_PHOTO');
+      expect(await todasAsPautas()).toEqual([]);
+
+      // Ainda dá para pular e criar a pauta sem foto.
+      expect(resumoEm(await send('pular'))).toContain('*Foto:* não');
+    },
+  );
+
+  it('sem serviço de fotos configurado, a foto é recusada como indisponível', async () => {
+    for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+    expect(await sendFoto()).toEqual([photoRefusedText('indisponivel')]);
   });
 
   it('"não sei" é o campus inteiro, com a meta máxima', async () => {

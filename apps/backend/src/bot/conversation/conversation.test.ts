@@ -235,8 +235,10 @@ describe('limpeza agendada das conversas', () => {
 
 describe('experiência da pessoa', () => {
   const foto = { id: 'midia-1', mimeType: 'image/jpeg' };
+  // Serviço de fotos falso: a foto "chega" ao storage sem rede (o real é testado em fotos/).
+  const fotos = { guardarFoto: () => Promise.resolve({ ok: true as const, chave: 'fotos/x.jpg' }) };
   const sendFoto = () =>
-    handleIncoming({ phoneHmac: H, text: '', image: foto }, { store, db, segredo });
+    handleIncoming({ phoneHmac: H, text: '', image: foto }, { store, db, segredo, fotos });
 
   it.each([
     ['Cancelar.', 'cancelar'],
