@@ -113,8 +113,24 @@ sudo mkdir -p /opt/lumens && sudo chown azureuser:azureuser /opt/lumens && git c
 ```
 
 ```bash
-cd /opt/lumens && cp .env.producao.example .env.producao
+cd /opt/lumens && cp .env.producao.example .env.producao && cp .env.producao.admin.example .env.producao.admin && chmod 600 .env.producao .env.producao.admin
 ```
+
+São **dois** arquivos de ambiente, e a divisão não é organizacional:
+
+| Arquivo               | Quem recebe            | O que tem                              |
+| --------------------- | ---------------------- | -------------------------------------- |
+| `.env.producao`       | `backend`, `migracao`  | logins restritos, chaves, Meta, e-mail |
+| `.env.producao.admin` | `postgres`, `migracao` | owner do banco e senhas dos papéis     |
+
+O serviço `backend` **não** recebe o arquivo admin. Se o processo que atende a internet
+tivesse `DATABASE_URL_MIGRACAO`, um comprometimento dele daria acesso de owner: apagar
+trigger, reescrever a linha do tempo de eventos, contornar os privilégios de `lumens_app`.
+É a mesma separação do `.env` e `.env.database` locais, documentada em
+`packages/db/README.md` e exercida pelo teste de isolamento do back-end.
+
+O `scripts/deploy-homologacao.sh` recusa publicar se encontrar credencial administrativa
+no `.env.producao`.
 
 Preencha o `.env.producao`. As duas chaves de criptografia precisam ser **diferentes entre si
 e diferentes das locais** — gere cada uma na própria instância:
