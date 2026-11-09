@@ -39,7 +39,12 @@ Portal do Azure → **Virtual machines** → **Create** → _Azure virtual machi
 | SSH public key source | Generate new key pair                                        |
 | Key pair name         | `lumens-homolog-key`                                         |
 | Public inbound ports  | Allow selected: **SSH (22)**, **HTTP (80)**, **HTTPS (443)** |
-| OS disk size          | **30 GiB** ou mais                                           |
+
+A porta 22 fica aberta para qualquer origem, e isso é deliberado: o job `deploy-backend` roda
+num runner `ubuntu-latest` do GitHub, cujo IP muda a cada execução — restringir a origem faria
+o deploy automático terminar em timeout. Quem protege o acesso é a chave: autenticação por
+senha não é habilitada. Não "endureça" essa regra sem antes dar ao CI outra rota até a máquina.
+| OS disk size | **30 GiB** ou mais |
 
 Sobre o tamanho: a imagem do back-end tem ~1,1 GB e o `pnpm install` do build é guloso de
 memória. Com 1 GiB (B1s) o build precisa de swap e fica no limite; com 4 GiB, não. O B2s

@@ -34,7 +34,12 @@ git reset --hard "$REF"
 echo "--> Migrando o banco"
 # Comando separado e antes do up: código de saída diferente de zero encerra o script
 # pelo set -e, sem ter derrubado o back-end que está servindo.
-"${COMPOSE[@]}" run --rm migracao
+#
+# --build não é opcional: `run` reaproveita a imagem existente, então sem ele o segundo
+# deploy em diante migraria com o código ANTIGO. As migrations novas ficariam de fora e o
+# back-end novo subiria contra um banco desatualizado — falhando depois, por coluna ou
+# tabela ausente, longe da causa.
+"${COMPOSE[@]}" run --build --rm migracao
 
 echo "--> Subindo back-end e Caddy"
 "${COMPOSE[@]}" up -d --build
