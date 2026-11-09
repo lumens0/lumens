@@ -516,9 +516,11 @@ describe('migração inicial em Postgres real', () => {
 
   it('busca título/descrição em português e atualiza o vetor automaticamente', async () => {
     const id = await pauta();
-    for (const termo of ['biblioteca', 'iluminação']) {
+    // Com e sem acento: quem escreve no WhatsApp raramente acentua.
+    for (const termo of ['biblioteca', 'iluminação', 'iluminacao', 'BIBLIOTECAS']) {
       const { rows } = await pool.query<{ achou: boolean }>(
-        `SELECT busca @@ plainto_tsquery('portuguese', $1) AS achou FROM pauta WHERE id = $2`,
+        `SELECT busca @@ plainto_tsquery('public.portugues_sem_acento', $1) AS achou
+         FROM pauta WHERE id = $2`,
         [termo, id],
       );
       expect(rows[0]?.achou).toBe(true);
@@ -529,11 +531,31 @@ describe('migração inicial em Postgres real', () => {
       id,
     ]);
     const { rows } = await pool.query<{ antigo: boolean; novo: boolean }>(
-      `SELECT busca @@ plainto_tsquery('portuguese', 'biblioteca') AS antigo,
-       busca @@ plainto_tsquery('portuguese', 'restaurante') AS novo FROM pauta WHERE id = $1`,
+      `SELECT busca @@ plainto_tsquery('public.portugues_sem_acento', 'biblioteca') AS antigo,
+       busca @@ plainto_tsquery('public.portugues_sem_acento', 'restaurante') AS novo
+       FROM pauta WHERE id = $1`,
       [id],
     );
     expect(rows[0]).toEqual({ antigo: false, novo: true });
+  });
+
+  it('separa título (peso A) de descrição (peso B) no vetor de busca', async () => {
+    const id = await pauta();
+    const { rows } = await pool.query<{ titulo: boolean; descricao: boolean }>(
+      `SELECT busca @@ to_tsquery('public.portugues_sem_acento', 'biblioteca:A') AS titulo,
+       busca @@ to_tsquery('public.portugues_sem_acento', 'iluminacao:A') AS descricao
+       FROM pauta WHERE id = $1`,
+      [id],
+    );
+    expect(rows[0]).toEqual({ titulo: true, descricao: false });
+  });
+
+  it('instala pg_trgm e a normalização usada contra erro de digitação', async () => {
+    const { rows } = await pool.query<{ normalizado: string; parecido: boolean }>(
+      `SELECT normalizar_busca('Wi-Fi da Residência') AS normalizado,
+       word_similarity('bibloteca', normalizar_busca('Biblioteca aberta')) >= 0.6 AS parecido`,
+    );
+    expect(rows[0]).toEqual({ normalizado: 'wifi da residencia', parecido: true });
   });
 
   it('instala índices de busca, status e linha do tempo', async () => {

@@ -1,9 +1,10 @@
 import type { Db } from '@lumens/db';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
-import { cifrar, decifrar, type Chaves } from '../cripto';
+import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
 import { resumoDoErro, type Logger } from '../logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
 import type { HandlerRegistry, IncomingMessage } from './conversation/handlers';
+import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
@@ -18,14 +19,14 @@ export interface OutgoingReplies {
   /** O wamid da mensagem respondida, para correlacionar. */
   wamidHmac: string;
   /**
-   * As respostas (`string[]` em JSON), cifradas com a CHAVE_CIFRA: uma resposta pode repetir o
-   * que a pessoa escreveu. Leia com `respostasDoJob`.
+   * As respostas (`Resposta[]` em JSON: texto ou mensagem de lista), cifradas com a CHAVE_CIFRA:
+   * uma resposta pode repetir o que a pessoa escreveu. Leia com `respostasDoJob`.
    */
   repliesCifradas: string;
 }
 
-export function respostasDoJob(message: OutgoingReplies, chaves: Chaves): string[] {
-  return JSON.parse(decifrar(message.repliesCifradas, chaves.cifra)) as string[];
+export function respostasDoJob(message: OutgoingReplies, chaves: Chaves): Resposta[] {
+  return JSON.parse(decifrar(message.repliesCifradas, chaves.cifra)) as Resposta[];
 }
 
 /** Quem entrega as respostas ao usuário. */
@@ -132,7 +133,7 @@ export function inputOf(content: ConteudoMensagem): IncomingMessage | null {
 export async function processIncomingJob(
   job: JobAttempt & { data: IncomingMessageJob },
   deps: WorkerDeps,
-): Promise<string[]> {
+): Promise<Resposta[]> {
   const { data } = job;
   let conteudo: ConteudoMensagem;
   try {
@@ -149,6 +150,8 @@ export async function processIncomingJob(
             { phoneHmac: data.phoneHmac, ...input },
             {
               store: deps.store.withDb(tx),
+              db: tx,
+              segredo: segredoCom(deps.chaves.cifra),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );
@@ -396,9 +399,9 @@ export function logSender(
         {
           conversa: conversaDoLog(message),
           respostas: replies.length,
-          caracteres: replies.reduce((total, r) => total + r.length, 0),
+          caracteres: replies.reduce((total, r) => total + textoDaResposta(r).length, 0),
           // Só no `pnpm dev`: é o que deixa testar a conversa pelo simulador sem celular.
-          ...(opcoes.mostrarTexto ? { texto: replies } : {}),
+          ...(opcoes.mostrarTexto ? { texto: replies.map(textoDaResposta) } : {}),
         },
         'respostas do bot (envio pela Meta ainda não implementado)',
       );
