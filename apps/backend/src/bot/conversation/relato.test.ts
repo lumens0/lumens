@@ -1,4 +1,4 @@
-import { blocos, conversas, pautas, type Db } from '@lumens/db';
+import { blocos, conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
@@ -84,6 +84,10 @@ beforeEach(async () => {
     banheiros: banheiros.id,
     ru: ru.id,
   };
+  // "É outro problema" leva à pauta nova, que só segue com estudante verificado (2.6).
+  await db
+    .insert(estudantes)
+    .values({ telefoneHmac: H, telefoneCifrado: 'x', verificadoEm: new Date() });
   await send('oi');
   await send('1');
 }, 20_000);
