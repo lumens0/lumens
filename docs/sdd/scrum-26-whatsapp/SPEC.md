@@ -35,6 +35,14 @@
 - [x] O card mostra "Apoiar" só para status que aceitam apoio.
 - [x] "Vou ajudar" fica escondido sem a flag.
 - [x] O formato do comando de apoio está registrado (slug público).
+- [ ] **PENDENTE:** O texto que chega no WhatsApp é exatamente o comando que o bot espera.
+      Na `origin/main`, o bot só entende `nova pauta` como atalho do menu
+      (`apps/backend/src/bot/conversation/handlers.ts:64`): numa conversa nova a pessoa recebe a
+      saudação (GREETING), e no meio de um fluxo o texto é tomado como conteúdo. `apoiar <slug>` ainda
+      não tem parser. Precisa ser alinhado com a 2.7 (SCRUM-102) e a 2.6 (SCRUM-101), para os
+      comandos serem reconhecidos em qualquer passo, inclusive no GREETING.
+      Questão aberta: "Relatar um problema" deveria mandar `nova pauta` (menu 2) ou `relatar`
+      (menu 1)? Fica `nova pauta`, como pede a spec do Jira.
 
 ## Contextuais
 

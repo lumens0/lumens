@@ -1,13 +1,12 @@
 import Link from 'next/link';
 import { formatarNumero } from '../componentes/BarraApoios';
-import { BotaoWhatsApp } from '../componentes/BotaoWhatsApp';
+import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
 import exemplo from '../dados/exemplo.json';
 import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
 import type { DadosExemplo } from '../dados/tipos';
-import { COMANDO_NOVA_PAUTA } from '../whatsapp';
 import estilos from './page.module.css';
 
 // Dados de exemplo até a API de leitura (4.2b).
@@ -25,11 +24,8 @@ export default async function Home({
     <main className={estilos.pagina}>
       <h1 className={estilos.titulo}>Lumens</h1>
       <p className={estilos.subtitulo}>Da reclamação à pauta.</p>
-      <BotaoWhatsApp
-        comando={COMANDO_NOVA_PAUTA}
-        texto="Relatar um problema"
-        rotulo="Relatar um problema do campus pelo WhatsApp"
-      />
+      {/* Com a lista vazia, o botão aparece na própria ListaVazia. */}
+      {lista.length > 0 && <BotaoRelatar />}
       <FiltroBloco blocos={blocos} atual={bloco?.slug} />
       {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
       <section className={estilos.totais} aria-labelledby="totais-titulo" aria-live="polite">

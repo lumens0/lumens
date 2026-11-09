@@ -4,6 +4,21 @@ import type { Bloco, Pauta, StatusPauta } from './tipos';
 const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
 
 /**
+ * Status que não recebem apoio. Espelha `SEM_APOIO` de `packages/dominio/src/apoio.ts`, que não é
+ * exportado e puxa `@lumens/db` (servidor). Um teste lê o fonte do domínio e falha se as listas
+ * divergirem. `em_curadoria` e `recusada` nem chegam ao site, mas ficam aqui para a regra ser a mesma.
+ */
+export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set([
+  'em_curadoria',
+  'recusada',
+  'conquistada',
+]);
+
+export function aceitaApoio(status: StatusPauta): boolean {
+  return !SEM_APOIO.has(status);
+}
+
+/**
  * Pautas que o site mostra, na ordem da lista:
  * mais apoios primeiro; no empate, a mais recente primeiro.
  * Com `bloco`, só as daquele bloco (as de todo o campus ficam de fora).

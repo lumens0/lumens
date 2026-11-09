@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Pauta, StatusPauta } from '../dados/tipos';
+import { SEM_APOIO } from '../dados/pautas-publicas';
+import type { Pauta } from '../dados/tipos';
 import { STATUS_PAUTA } from '../dados/tipos';
 import { BotaoVouAjudar, BotaoWhatsApp } from './BotaoWhatsApp';
 import { CardPauta } from './CardPauta';
@@ -54,11 +55,10 @@ describe('botões do WhatsApp', () => {
     vi.stubEnv('NEXT_PUBLIC_FLAG_VOU_AJUDAR', '1');
     const html = renderToStaticMarkup(botao);
     expect(html).toContain('?text=ajudar%20c1');
-    expect(html).toContain('aria-label="Ajudar no caminho Mutirão pelo WhatsApp"');
+    expect(html).toContain('aria-label="Vou ajudar no caminho Mutirão pelo WhatsApp"');
   });
 
-  const SEM_APOIO: StatusPauta[] = ['em_curadoria', 'recusada', 'conquistada'];
-  it.each(STATUS_PAUTA.map((status) => [status, !SEM_APOIO.includes(status)] as const))(
+  it.each(STATUS_PAUTA.map((status) => [status, !SEM_APOIO.has(status)] as const))(
     'card com status %s mostra Apoiar: %s',
     (status, mostra) => {
       const html = renderToStaticMarkup(<CardPauta pauta={{ ...pauta, status }} />);

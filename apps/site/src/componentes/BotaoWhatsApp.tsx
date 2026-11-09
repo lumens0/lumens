@@ -1,4 +1,4 @@
-import { comandoAjudar, linkWhatsApp } from '../whatsapp';
+import { COMANDO_NOVA_PAUTA, comandoAjudar, linkWhatsApp } from '../whatsapp';
 import estilos from './componentes.module.css';
 
 /**
@@ -39,7 +39,18 @@ export function BotaoVouAjudar({ caminhoId, titulo }: { caminhoId: string; titul
     <BotaoWhatsApp
       comando={comandoAjudar(caminhoId)}
       texto="Vou ajudar"
-      rotulo={`Ajudar no caminho ${titulo} pelo WhatsApp`}
+      rotulo={`Vou ajudar no caminho ${titulo} pelo WhatsApp`}
+    />
+  );
+}
+
+/** "Relatar um problema": abre o bot com `nova pauta`. Usado na home e na lista vazia. */
+export function BotaoRelatar() {
+  return (
+    <BotaoWhatsApp
+      comando={COMANDO_NOVA_PAUTA}
+      texto="Relatar um problema"
+      rotulo="Relatar um problema do campus pelo WhatsApp"
     />
   );
 }
