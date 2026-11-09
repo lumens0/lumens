@@ -26,7 +26,7 @@ describe('estados da lista', () => {
     expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).not.toContain('wa.me');
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
     expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).toContain(
-      'href="https://wa.me/5582999999999"',
+      'href="https://wa.me/5582999999999?text=nova%20pauta"',
     );
   });
 
