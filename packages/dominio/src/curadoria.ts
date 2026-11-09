@@ -4,7 +4,7 @@
  * Aprovar e recusar passam por `transicionarStatus`; aqui ficam a recusa de quem chega atrasado
  * (outra pessoa da curadoria já decidiu) e o evento próprio de cada decisão.
  */
-import { blocos, eq, pautas, relatos, sql, type Db, type Tx } from '@lumens/db';
+import { blocos, eq, papeisPauta, pautas, relatos, sql, type Db, type Tx } from '@lumens/db';
 import { registrarEvento } from './eventos';
 import { transicionarStatus } from './status';
 
@@ -33,9 +33,14 @@ export async function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise
       titulo: pautas.titulo,
       descricao: pautas.descricao,
       bloco: blocos.nome,
-      fotoChave: sql<
-        string | null
-      >`(select ${relatos.fotoChave} from ${relatos} where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null limit 1)`,
+      // O relato de origem é o de quem criou a pauta (o owner): `relato` não guarda data, então
+      // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
+      fotoChave: sql<string | null>`(
+        select ${relatos.fotoChave} from ${relatos}
+        join ${papeisPauta} on ${papeisPauta.pautaId} = ${relatos.pautaId}
+          and ${papeisPauta.estudanteId} = ${relatos.estudanteId} and ${papeisPauta.papel} = 'owner'
+        where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
+        limit 1)`,
       criadaEm: pautas.criadaEm,
     })
     .from(pautas)
