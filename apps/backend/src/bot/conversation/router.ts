@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   defaultHandlers,
   MENU_TEXT,
@@ -16,6 +17,7 @@ export interface RouterDeps {
   /** A mesma conexão do `store` (a transação da mensagem), para os handlers que leem o banco. */
   db: Db;
   segredo: Segredo;
+  fotos?: ServicoDeFotos;
   handlers?: HandlerRegistry;
 }
 
@@ -68,7 +70,14 @@ export async function handleIncoming(
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
     : { text: msg.text };
-  const result = await handlers[state.step]({ state, input, db, segredo, phoneHmac });
+  const result = await handlers[state.step]({
+    state,
+    input,
+    db,
+    segredo,
+    phoneHmac,
+    ...(deps.fotos ? { fotos: deps.fotos } : {}),
+  });
   assertTransition(state.step, result.next);
 
   // Aplica o patch: chave com valor undefined sai dos dados.

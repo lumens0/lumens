@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   entrarNaPautaNova,
   newAskDescription,
@@ -35,6 +36,8 @@ export interface StepContext {
   input: IncomingMessage;
   /** `hashPhone` de quem escreveu: acha o estudante verificado (2.4) para a pauta nova (2.6). */
   phoneHmac: string;
+  /** Baixa, limpa e guarda a foto da pauta nova (2.6). Sem ele, a foto é recusada com aviso. */
+  fotos?: ServicoDeFotos;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;

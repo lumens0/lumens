@@ -22,6 +22,7 @@ import {
   type ResultadoCriacao,
 } from '@lumens/dominio';
 import { z } from 'zod';
+import type { MotivoFotoRecusada } from '../../fotos/servico';
 import { BLOCK_NOT_FOUND_TEXT, blocoEscolhido, listaDeBlocos } from './blocos';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import type { Resposta } from './resposta';
@@ -34,7 +35,8 @@ export const DESCRIPTION_QUESTION_TEXT =
   'Agora descreva o problema: o que acontece, onde (sala, andar) e desde quando.';
 export const DESCRIPTION_EMPTY_TEXT = `A descrição não pode ficar em branco. ${DESCRIPTION_QUESTION_TEXT}`;
 export const FROM_REPORT_DESCRIPTION_TEXT = 'Vou usar o seu relato como descrição da pauta.';
-export const PHOTO_ASK_TEXT = "Envie uma foto do problema, ou responda 'pular'.";
+export const PHOTO_ASK_TEXT =
+  "Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
@@ -43,6 +45,17 @@ export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Escolha 2 no menu para começar de novo.';
 export const DATA_LOST_TEXT =
   'Não consegui recuperar as respostas da sua pauta. Escolha 2 no menu para começar de novo.';
+
+/** Foto que não deu para usar: a pessoa continua no passo da foto, para mandar outra ou pular. */
+export function photoRefusedText(motivo: MotivoFotoRecusada): string {
+  const porque: Record<MotivoFotoRecusada, string> = {
+    formato: 'ela precisa ser JPEG ou PNG',
+    tamanho: 'ela passa de 5 MB',
+    invalida: 'o arquivo não abriu como imagem',
+    indisponivel: 'não consegui baixar a foto agora',
+  };
+  return `Não consegui usar essa foto: ${porque[motivo]}. Envie outra foto ou responda 'pular'.`;
+}
 
 export function titleTooLongText(tamanho: number): string {
   return `Seu título tem ${String(tamanho)} caracteres e o limite é ${String(TITULO_MAXIMO)}. Escreva um título mais curto.`;
@@ -175,16 +188,28 @@ export const newAskDescription: StepHandler = ({ input, segredo }) => {
   };
 };
 
-/** Pede a foto. Aceita a foto ou "pular"; qualquer outro texto pede de novo. */
-export const newAskPhoto: StepHandler = (ctx) => {
-  if (ctx.input.image) return finalizar(ctx, true);
-  if (SKIP_WORDS.has(normalize(ctx.input.text))) return finalizar(ctx, false);
+/**
+ * Pede a foto. Aceita a foto ou "pular"; qualquer outro texto pede de novo. A foto é baixada,
+ * limpa e guardada na hora (`ServicoDeFotos`): se não der, a pessoa fica sabendo e pode mandar
+ * outra ou pular.
+ */
+export const newAskPhoto: StepHandler = async (ctx) => {
+  const { image } = ctx.input;
+  if (image) {
+    const foto = ctx.fotos
+      ? await ctx.fotos.guardarFoto(image)
+      : ({ ok: false, motivo: 'indisponivel' } as const);
+    if (!foto.ok) return { next: 'NEW_ASK_PHOTO', replies: [photoRefusedText(foto.motivo)] };
+    return finalizar(ctx, foto.chave);
+  }
+  if (SKIP_WORDS.has(normalize(ctx.input.text))) return finalizar(ctx, null);
   return { next: 'NEW_ASK_PHOTO', replies: [PHOTO_ASK_TEXT] };
 };
 
 /** Junta as respostas, cria a pauta e responde com o resumo. Sempre volta ao menu. */
-async function finalizar(ctx: StepContext, comFoto: boolean): Promise<StepResult> {
+async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
+  const comFoto = fotoChave !== null;
   const antes = comFoto ? PHOTO_RECEIVED_TEXT : NO_PHOTO_TEXT;
   const fim = (texto: string): StepResult => ({ next: 'MENU', data: LIMPAR, replies: [texto] });
 
@@ -201,14 +226,15 @@ async function finalizar(ctx: StepContext, comFoto: boolean): Promise<StepResult
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   if (estudanteId === undefined) return fim(NOT_VERIFIED_AT_END_TEXT);
 
-  // TODO(2.6, parte 3): baixar a foto (`ctx.input.image.id`) da Meta, tirar os metadados, enviar
-  // ao storage e gravar a chave no primeiro relato da pauta.
+  // Se a pauta não for criada (recusa abaixo), a foto já enviada fica sem dono no storage. É raro
+  // (estudante que saiu no meio, bloco apagado) e não expõe ninguém: o arquivo não tem metadados.
   const resultado = await db.transaction((tx) =>
     criarPauta(tx, {
       estudanteId,
       titulo,
       descricao,
       blocoId,
+      fotoChave,
       ...(relato === undefined ? {} : { relato }),
     }),
   );
