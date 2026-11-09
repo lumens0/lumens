@@ -34,13 +34,29 @@ lumens/
     └── dominio/          regras de negócio + testes         (parte 1)
 ```
 
+## Documentação
+
+| Página                                            | Para quê                                                  |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar |
+| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                    |
+| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova  |
+| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome               |
+| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão |
+| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                  |
+| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto       |
+| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta               |
+
 **Regra da equipe:** nenhum módulo grava direto numa tabela de negócio. Todos chamam funções de
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
 transação.
 
 ## Como rodar
 
-Pré-requisitos: **Node.js 24 LTS** (veja `.nvmrc`) e **pnpm 10**.
+Passo a passo completo, com os problemas comuns: [docs/rodar-local.md](docs/rodar-local.md).
+O resumo:
+
+Pré-requisitos: **Node.js 24 LTS** (veja `.nvmrc`), **pnpm 10** e **Docker Desktop**.
 
 ```bash
 # habilita o pnpm na versão fixada no package.json (vem com o Node)
@@ -68,7 +84,7 @@ Comandos úteis:
 Para rodar um comando em um pacote só: `pnpm --filter @lumens/dominio test`.
 
 O CI executa tipos, lint, formatação, migração em base vazia e testes, incluindo integração
-com PostgreSQL. A documentação completa de operação entra na T21.
+com PostgreSQL.
 
 ## Banco local
 
@@ -99,6 +115,9 @@ testes de integração — criado pelos scripts de `docker/init/`, que rodam uma
 criação do volume. Se editar algum deles, use `pnpm db:reset`.
 
 ### Esquema e migrações
+
+Como criar uma migração, revisar o SQL gerado e mexer no que as views usam:
+[docs/migracoes.md](docs/migracoes.md).
 
 ```bash
 pnpm db:migrate   # aplica as migrações da aplicação e do pg-boss pela URL administrativa
