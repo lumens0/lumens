@@ -5,9 +5,12 @@
  */
 import {
   blocos,
+  curadores,
   estudantes,
+  papeisPauta,
   pautas,
   type Bloco,
+  type Curador,
   type Db,
   type Estudante,
   type NovaPauta,
@@ -60,4 +63,19 @@ export async function criarPauta(db: Db, campos: Partial<NovaPauta> = {}): Promi
     .returning();
   if (pauta === undefined) throw new Error('pauta não criada');
   return pauta;
+}
+
+/** Estudante como owner ativo da pauta (papel `owner`, sem `ate`). */
+export async function tornarOwner(db: Db, pautaId: string, estudanteId: string): Promise<void> {
+  await db.insert(papeisPauta).values({ pautaId, estudanteId, papel: 'owner' });
+}
+
+export async function criarCurador(db: Db): Promise<Curador> {
+  const n = unico();
+  const [curador] = await db
+    .insert(curadores)
+    .values({ emailHmac: `email-${n}`, emailCifrado: `cifrado-${n}`, nome: `Curador ${n}` })
+    .returning();
+  if (curador === undefined) throw new Error('curador não criado');
+  return curador;
 }

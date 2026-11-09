@@ -71,3 +71,21 @@ export type { Transicao } from './status';
 
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
+
+export { abrirCaminho } from './caminhos';
+export type { NovoCaminho, ResultadoCaminho } from './caminhos';
+
+export { registrarExecucaoProposta } from './proposta';
+export type { ResultadoExecucao } from './proposta';
+
+export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
+export type { NovaPromessa } from './promessa';
+
+export {
+  DIAS_SEM_ATIVIDADE,
+  LIMITE_DE_OWNERS,
+  adicionarCoOwner,
+  registrarAtividadeOwner,
+  removerOwnerInativo,
+} from './owners';
+export type { ResultadoCoOwner } from './owners';
