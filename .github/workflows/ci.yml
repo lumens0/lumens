@@ -98,6 +98,9 @@ jobs:
       - name: Build do site
         if: ${{ !cancelled() && steps.install.conclusion == 'success' }}
         run: pnpm --filter @lumens/site build
+        env:
+          # Número fictício só para o build do CI: sem ele o next.config.ts falha (SCRUM-43).
+          NEXT_PUBLIC_WHATSAPP_BOT: '5500000000000'
 
       - name: Build do painel
         if: ${{ !cancelled() && steps.install.conclusion == 'success' }}
