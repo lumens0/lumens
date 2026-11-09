@@ -1,0 +1,90 @@
+# Homologação na AWS (SCRUM-93): uma instância EC2 rodando Postgres, back-end e Caddy.
+#
+# Não substitui o docker-compose.yml, que sobe só o banco local. Este arquivo vive no
+# servidor e sobe com:
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao
+#   docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --build
+#
+# A migração roda ANTES e em comando separado de propósito: se ela falhar, o back-end
+# antigo continua no ar servindo a versão anterior, em vez de o ambiente ficar fora.
+
+name: lumens-homologacao
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env.producao}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env.producao}
+      POSTGRES_DB: ${POSTGRES_DB:-lumens}
+    volumes:
+      - lumens-pgdata:/var/lib/postgresql/data
+    # Sem `ports`: o banco só existe dentro da rede do compose. Publicar 5432 aqui o
+    # deixaria alcançável pela internet assim que o security group abrisse a porta —
+    # é o critério "o banco não aceita conexão vinda da internet".
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Perfil próprio para não subir junto no `up`: é tarefa de uma vez só, chamada pelo
+  # deploy com `run --rm`, cujo código de saída decide se o deploy continua.
+  migracao:
+    profiles: ['ferramentas']
+    build: .
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.producao
+    environment:
+      DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO:?defina DATABASE_URL_MIGRACAO no .env.producao}
+    # Provisiona os dois logins restritos (lumens_app e lumens_site) e aplica as migrações.
+    # O provision é idempotente, então roda a cada deploy sem efeito colateral.
+    command: sh -c 'pnpm db:provision && pnpm db:migrate'
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.producao
+    # Sem `ports`: quem fala com a internet é o Caddy.
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3000/saude'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMINIO: ${DOMINIO:?defina DOMINIO no .env.producao}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Os certificados do Let's Encrypt moram aqui. Perder este volume faz o Caddy
+      # pedir tudo de novo, e o Let's Encrypt limita emissões por semana.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - backend
+
+volumes:
+  lumens-pgdata:
+  caddy-data:
+  caddy-config:
