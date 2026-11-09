@@ -89,8 +89,8 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
-export { abrirCaminho } from './caminhos';
-export type { NovoCaminho, ResultadoCaminho } from './caminhos';
+export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
+export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
