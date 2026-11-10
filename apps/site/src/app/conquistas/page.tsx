@@ -1,6 +1,7 @@
 import type { Conquista } from '@lumens/contratos';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { connection } from 'next/server';
 import { formatarNumero } from '../../componentes/BarraApoios';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarDia } from '../../componentes/pauta/LinhaDoTempo';
@@ -70,6 +71,9 @@ function ItemConquista({ conquista }: { conquista: Conquista }) {
 }
 
 export default async function PaginaConquistas() {
+  // Sem parâmetro na URL, o `next build` pré-renderizaria a página chamando a API (que pode nem
+  // estar no ar). O `connection()` deixa a renderização para a hora do acesso.
+  await connection();
   // Erro da API sobe e cai no `error.tsx`.
   const conquistas = await buscarConquistas();
   return (

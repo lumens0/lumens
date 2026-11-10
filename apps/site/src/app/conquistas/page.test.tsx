@@ -5,6 +5,8 @@ import { buscarConquistas } from '../../dados/api';
 import PaginaConquistas from './page';
 
 vi.mock('../../dados/api', () => ({ buscarConquistas: vi.fn() }));
+// Fora de uma requisição o `connection()` lança; no teste ele só precisa resolver.
+vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
 // A conquista do seed (packages/db/seed/data.ts), como o GET /conquistas a devolve. Os mesmos literais
 // são conferidos contra o seed de verdade em packages/db/src/views-publicas.test.ts (v_conquista) e
