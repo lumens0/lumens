@@ -148,3 +148,6 @@ export {
 } from './lembretes';
 
 export { diaEmMaceio, formatarDia } from './datas';
+
+export { documentosDeResposta, registrarDocumentoDeResposta } from './documento-resposta';
+export type { DocumentoDaPauta, ResultadoDocumento } from './documento-resposta';
