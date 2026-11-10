@@ -1,27 +1,29 @@
 # SCRUM-192 · Canal dos avisos que só informam
 
 Spike · Parte 3 · 2026-11-02 · @JGSEIXAS
-**Situação:** proposta, aguardando aprovação da equipe na PR. Aprovada, vira regra e esta linha muda.
+**Situação:** decidido. Na v1, **todos os avisos vão pelo WhatsApp**; nenhum vai por e-mail.
+Formalizado neste documento em 2026-11-10.
 
 ## A pergunta
 
-O que só informa (sem pedir resposta) vai por e-mail? A ideia é poupar a cota de 250 da Meta para o
-que precisa de ação. A decisão muda as histórias 3.2 e 3.6, que pela SCRUM-202 e pela SCRUM-193 são
-os avisos de **meta batida** e de **resposta oficial**.
+O que só informa (sem pedir resposta) vai por e-mail? A ideia era poupar o limite de 250 da Meta
+para o que precisa de ação. A decisão muda as histórias 3.2 e 3.6, que pela SCRUM-202 e pela
+SCRUM-193 são os avisos de **meta batida** e de **resposta oficial**.
 
-| Aviso                    | Pede ação?                      |
-| ------------------------ | ------------------------------- |
-| Meta batida              | Não                             |
-| Resposta oficial         | Não                             |
-| Conferência "Foi feito?" | Sim: responder sim/em parte/não |
-| Lembrete de prazo        | Sim, ao owner                   |
-| Owner inativo            | Sim, ao owner                   |
+| Aviso                    | Para quem  | Pede ação?                      |
+| ------------------------ | ---------- | ------------------------------- |
+| Meta batida              | apoiadores | Não                             |
+| Resposta oficial         | apoiadores | Não                             |
+| Conferência "Foi feito?" | apoiadores | Sim: responder sim/em parte/não |
+| Lembrete de prazo        | owner      | Sim, ao owner                   |
+| Owner inativo            | owner      | Sim, ao owner                   |
+| Pauta recusada           | owner      | Não                             |
 
-## Decisão proposta
+## Decisão
 
-**Não. Na v1 todos os avisos vão pelo WhatsApp.** Os que só informam saem com prioridade menor na
-fila (SCRUM-202) e podem atrasar quando a cota aperta. O site mostra a novidade na hora pela linha
-do tempo, então ninguém fica sem a informação, só sem a notificação.
+**Não. Na v1 todos os avisos vão pelo WhatsApp.** Os avisos coletivos que só informam saem depois
+da conferência na fila (SCRUM-202) e podem atrasar quando o limite aperta. O site mostra a novidade
+na hora pela linha do tempo, então ninguém fica sem a informação, só sem a notificação.
 
 ## Por quê
 
@@ -29,26 +31,52 @@ do tempo, então ninguém fica sem a informação, só sem a notificação.
    quem escolheu "Verificar e-mail" no menu do bot (história 2.4). Quem não verificou precisaria
    cair no WhatsApp de qualquer forma, e o mesmo aviso passaria a ter dois caminhos, dois textos e
    dois registros de entrega.
-2. **Os avisos que só informam são o que tira o bot dos 250.** Pela documentação da Meta, um dos
-   caminhos para subir a 2.000 é entregar 2.000 mensagens fora da janela de atendimento em 30 dias
-   (detalhes na SCRUM-191). Meta batida e resposta oficial são boa parte desse volume. Desviá-los
-   para o e-mail adia justamente a saída do aperto que motivou a pergunta.
-3. **A cota aperta menos do que parecia.** Ela conta pessoas diferentes numa janela móvel de 24h,
-   não mensagens. Os avisos de uma mesma pauta saem com semanas de distância, então não se somam
-   no mesmo dia. O pico real é o disparo de uma pauta grande (até 300 pessoas), que cabe em dois
-   dias a 250 e em um a 2.000.
-4. **O SMTP que existe não foi feito para aviso coletivo.** O backend já tem `EMAIL_*` para o
+2. **O limite aperta menos do que parecia.** Ele conta pessoas diferentes numa janela móvel de 24h,
+   não mensagens (detalhes na SCRUM-191). Os avisos de uma mesma pauta saem com semanas de
+   distância, então não se somam nas mesmas 24h. O pico real é o disparo de uma pauta grande (até
+   300 pessoas), que a fila divide em duas janelas de 250.
+3. **O SMTP que existe não foi feito para aviso coletivo.** O backend já tem `EMAIL_*` para o
    código de verificação, que é uma mensagem para quem acabou de pedir. Aviso coletivo é outra
    coisa: até 300 destinatários de uma vez, limite de envio do provedor, tratamento de devolução e
    link de descadastro em cada mensagem. Nada disso está planejado no sprint.
-5. **Estudante lê WhatsApp, não e-mail institucional.** O bot pede o e-mail institucional
+4. **Estudante lê WhatsApp, não e-mail institucional.** O bot pede o e-mail institucional
    (`@*.ufal.br`), que pouca gente abre no dia a dia.
+
+A proposta original trazia mais um motivo: os avisos que só informam seriam o volume que levaria o
+bot de 250 para 2.000. Ele deixou de valer com a decisão da SCRUM-191, de operar no limite de
+portfólio não verificado sem perseguir esse volume. Os quatro motivos acima bastam.
+
+## Como o código reflete a decisão
+
+Conferido na `main` em 2026-11-10:
+
+- **Um canal só.** A fila (`packages/dominio/src/fila.ts`, tabela `disparo`) guarda o nome da
+  mensagem modelo e os parâmetros; não existe coluna de canal nem envio de aviso por e-mail. O
+  `EMAIL_*` do backend continua servindo só ao código de verificação e ao login do painel.
+- **A ordem de saída** é a de `PRIORIDADE` em `packages/dominio/src/envio.ts`:
+
+  | Ordem | Tipo               | Avisos                           | Por que nesta posição                                                              |
+  | ----: | ------------------ | -------------------------------- | ---------------------------------------------------------------------------------- |
+  |     1 | `conferencia`      | Conferência "Foi feito?"         | A única com janela fechada: atrasar o envio encurta os sete dias de quem responde. |
+  |     2 | `resposta_oficial` | Resposta oficial                 | Só informa.                                                                        |
+  |     3 | `meta_batida`      | Meta batida                      | Só informa, e não tem prazo nenhum.                                                |
+  |     4 | `recusa`           | Pauta recusada                   | Vai para uma pessoa só.                                                            |
+  |     5 | `lembrete`         | Lembrete de prazo, owner inativo | Vão para uma pessoa só, e esperar uma janela não muda o resultado de nada.         |
+
+  O teste `os avisos que só informam esperam a conferência` em `envio.test.ts` prende a regra
+  desta decisão: com o limite curto, a conferência sai e meta batida e resposta oficial ficam
+  adiadas, mesmo tendo chegado antes.
+
+Os avisos ao owner pedem ação e mesmo assim ficam no fim da ordem. Isso é escolha anterior a esta
+spike, registrada em `envio.ts`, e não contraria a decisão: cada um ocupa uma vaga só, e o aviso de
+owner inativo sai no dia 25 de um prazo de 30. O que esta decisão exige é que os avisos coletivos
+que só informam não passem na frente da conferência.
 
 ## O risco que esta decisão aceita
 
 Aviso que só informa é o tipo que as pessoas bloqueiam quando acham irrelevante, e bloqueio derruba a
-**qualidade** do número, que a Meta usa para subir o limite e para manter os modelos como
-utilitários. Mitigações, todas já no escopo de outras tasks:
+**qualidade** do número, que a Meta usa para manter os modelos como utilitários. Mitigações, todas
+já no escopo de outras tasks:
 
 - **Texto utilitário de verdade** (SCRUM-193): o aviso fala da pauta que a pessoa apoiou, sem apelo,
   sem "compartilhe". Mensagem com cara de campanha vira marketing, custa mais e conta contra a
@@ -61,8 +89,7 @@ utilitários. Mitigações, todas já no escopo de outras tasks:
 Reabrir esta decisão se acontecer qualquer um destes:
 
 - A qualidade do número cair para média ou baixa no WhatsApp Manager.
-- Avisos que só informam ficarem mais de **três dias** na fila, de forma recorrente, mesmo depois de
-  o limite subir para 2.000.
+- Avisos que só informam ficarem mais de **três dias** na fila, de forma recorrente.
 - A Meta reclassificar os modelos de meta batida ou resposta oficial como marketing.
 
 ## O que muda nas histórias
