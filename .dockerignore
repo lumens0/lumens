@@ -1,0 +1,19 @@
+# node_modules da máquina local tem binário compilado para o SO de quem buildou.
+# Copiar para dentro da imagem quebra o sharp e o esbuild em silêncio.
+node_modules
+**/node_modules
+
+# Segredos nunca entram na imagem: em produção vêm do arquivo de ambiente do servidor.
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.agent
+.claude
+docs
+**/*.test.ts
+**/dist
+**/.next
+**/.turbo

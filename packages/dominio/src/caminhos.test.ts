@@ -1,8 +1,11 @@
 import {
   and,
+  apoios,
   criarDb,
   criarPool,
+  disparos,
   eq,
+  estudantes,
   eventos,
   isNull,
   pautas,
@@ -264,6 +267,57 @@ describe('registrarPromessa (RN13)', () => {
         { dataEntrega: '2026-12-10', resultado: null },
       ]),
     );
+  });
+
+  it('enfileira o aviso de resposta oficial para quem apoia, menos quem saiu do sistema', async () => {
+    const pauta = await criarPauta(db, { status: 'cobrando', titulo: 'Lâmpadas do bloco B' });
+    const curador = await criarCurador(db);
+    const [a, b, saiu] = [
+      await criarEstudanteVerificado(db),
+      await criarEstudanteVerificado(db),
+      await criarEstudanteVerificado(db),
+    ];
+    await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, saiu.id));
+    await db
+      .insert(apoios)
+      .values(
+        [a, b, saiu].map((e) => ({ pautaId: pauta.id, estudanteId: e.id, origem: 'bot' as const })),
+      );
+
+    const r = await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+    expect(r.avisados).toBe(2);
+    const fila = await db
+      .select({
+        tipo: disparos.tipo,
+        aviso: disparos.aviso,
+        estudanteId: disparos.estudanteId,
+        modelo: disparos.modelo,
+        parametros: disparos.parametros,
+      })
+      .from(disparos)
+      .where(eq(disparos.aviso, r.promessaId));
+    expect(fila).toHaveLength(2);
+    expect(fila.map((d) => d.estudanteId).sort()).toEqual([a.id, b.id].sort());
+    expect(fila[0]).toMatchObject({
+      tipo: 'resposta_oficial',
+      modelo: 'lumens_resposta_oficial',
+      parametros: ['Lâmpadas do bloco B', 'Resposta no Fala.BR', pauta.slug],
+    });
+  });
+
+  it('promessa recusada não deixa aviso na fila', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    const curador = await criarCurador(db);
+    const apoiador = await criarEstudanteVerificado(db);
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: apoiador.id, origem: 'bot' });
+
+    await expect(
+      db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id))),
+    ).rejects.toMatchObject({ codigo: 'transicao_invalida' });
+
+    const fila = await db.select().from(disparos).where(eq(disparos.estudanteId, apoiador.id));
+    expect(fila).toEqual([]);
   });
 
   it('pauta fora de cobrando não recebe promessa e nada é gravado', async () => {
