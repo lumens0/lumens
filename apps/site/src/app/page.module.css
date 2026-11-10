@@ -74,3 +74,34 @@
   border-top: 1px solid var(--borda);
   font-size: 0.875em;
 }
+
+/* Rótulo em cima, valor embaixo, nos cards de conquista. */
+.fatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.fatos dt {
+  font-size: 0.8125em;
+  color: var(--tinta-2);
+}
+
+.fatos dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.paginacao {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: var(--espaco);
+}
+
+.navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}

@@ -94,6 +94,10 @@
   gap: 2px;
 }
 
+.caminhoTipo {
+  font-weight: 700;
+}
+
 .data {
   font:
     600 0.8125em var(--fonte-rotulo),

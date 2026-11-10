@@ -354,12 +354,18 @@ describe('views públicas com o seed', () => {
     });
 
     it('v_conquista traz a data, os apoios e se houve proposta executada', async () => {
-      const linhas = await comoSite<{ conquistada_em: unknown }>(
+      const linhas = await comoSite<{ conquistada_em: unknown; criada_em: unknown }>(
         db,
         sql`SELECT * FROM v_conquista`,
       );
 
-      expect(linhas.map((l) => ({ ...l, conquistada_em: instante(l.conquistada_em) }))).toEqual([
+      expect(
+        linhas.map((l) => ({
+          ...l,
+          conquistada_em: instante(l.conquistada_em),
+          criada_em: instante(l.criada_em),
+        })),
+      ).toEqual([
         {
           pauta_slug: 'laboratorios-abertos-nas-engenharias',
           titulo: 'Laboratórios de informática abertos no contraturno',
@@ -367,6 +373,7 @@ describe('views públicas com o seed', () => {
           conquistada_em: '2026-03-19T12:00:00.000Z',
           apoios: 300,
           proposta_executada: false,
+          criada_em: '2026-02-10T12:00:00.000Z',
         },
       ]);
     });
@@ -648,6 +655,50 @@ describe('views públicas com dados além do seed', () => {
         view,
       ).toEqual([]);
     }
+  });
+});
+
+// Banco próprio: o evento inserido aqui mudaria a contagem do feed dos testes acima.
+describe('relatos no feed de atividade', () => {
+  let db: Db;
+
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+    await executarSeed(db);
+  }, 60_000);
+
+  // SCRUM-57: no feed, relato só aparece depois de aprovado, e sem o texto nem o id interno.
+  it('v_atividade só mostra relato aprovado, como relato_aprovado sem texto nem relato_id', async () => {
+    const slug = 'bebedouros-no-bloco-18';
+    const pautaId = await idDaPauta(db, slug);
+    const marca = randomUUID();
+    const relatos = await consultar<{ id: string; moderacao: string }>(
+      db,
+      sql`INSERT INTO relato (pauta_id, estudante_id, texto, moderacao)
+          SELECT ${pautaId}, id, ${`Relato ${marca} `} || m, m::moderacao_relato
+          FROM (SELECT id FROM estudante LIMIT 1) e,
+               unnest(ARRAY['pendente', 'recusado', 'aprovado']) AS m
+          RETURNING id, moderacao`,
+    );
+    const aprovado = relatos.find((r) => r.moderacao === 'aprovado');
+    if (!aprovado) throw new Error('Relato aprovado não foi inserido.');
+    // A aprovação grava o evento público (catálogo da T7); pendente e recusado não gravam nada.
+    await db.execute(
+      sql`INSERT INTO evento (pauta_id, tipo, dados, origem, publico)
+          VALUES (${pautaId}, 'relato_aprovado', ${JSON.stringify({ relato_id: aprovado.id })},
+                  'curadoria', true)`,
+    );
+
+    const linhas = await comoSite<{ tipo: string; dados: unknown }>(
+      db,
+      sql`SELECT tipo, dados FROM v_atividade WHERE pauta_slug = ${slug}`,
+    );
+    const texto = JSON.stringify(linhas);
+    expect(texto).not.toContain(marca);
+    expect(texto).not.toContain(aprovado.id);
+    expect(linhas.filter((l) => l.tipo.startsWith('relato'))).toEqual([
+      { tipo: 'relato_aprovado', dados: {} },
+    ]);
   });
 });
 

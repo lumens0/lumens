@@ -285,6 +285,7 @@ fim (`conquistada_em DESC NULLS LAST`). Sem paginação: a lista é pequena.
 | `itens[].conquistada_em`     | instante, nulo | instante do evento público `status_alterado` com `para = conquistada` |
 | `itens[].apoios`             | int            | quantas pessoas apoiaram                                              |
 | `itens[].proposta_executada` | boolean        | se alguma proposta da pauta foi executada                             |
+| `itens[].criada_em`          | instante       | criação da pauta; o site usa para contar os dias até a entrega        |
 
 ```json
 {
@@ -295,7 +296,8 @@ fim (`conquistada_em DESC NULLS LAST`). Sem paginação: a lista é pequena.
       "bloco_nome": "Bloco das Engenharias (fictício)",
       "conquistada_em": "2026-03-19T12:00:00.000Z",
       "apoios": 300,
-      "proposta_executada": false
+      "proposta_executada": false,
+      "criada_em": "2026-02-10T12:00:00.000Z"
     }
   ]
 }

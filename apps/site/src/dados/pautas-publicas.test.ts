@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
-import exemplo from './exemplo.json';
+import exemplo from './blocos-teste.json';
 import { SEM_APOIO, blocoDaUrl, contextoDaPauta, pautasPublicas, totais } from './pautas-publicas';
 
 describe('pautasPublicas', () => {

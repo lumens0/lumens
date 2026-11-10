@@ -20,7 +20,7 @@ export interface DadosPorTipo {
   proposta_publicada: { proposta_id: string; pessoas_necessarias: number };
   proposta_executada: { proposta_id: string };
   resposta_oficial_recebida: { caminho_id: string };
-  promessa_registrada: { promessa_id: string; data_entrega: string };
+  promessa_registrada: { promessa_id: string; data_entrega: string; resumo: string; fonte: string };
   conferencia_aberta: { promessa_id: string; fecha_em: string };
   conferencia_apurada: {
     promessa_id: string;

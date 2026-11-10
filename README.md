@@ -189,6 +189,11 @@ pnpm --filter @lumens/site dev     # http://localhost:3000
 pnpm --filter @lumens/site build   # build de produção
 ```
 
+`LUMENS_SITE_URL` é opcional e só é lida no servidor. Ela define a origem pública do site, com o
+esquema (`https://`) e sem barra final, e é a base das URLs absolutas do `og:image` da prévia de
+link (`/p/{slug}/og.png`, SCRUM-55). Sem ela, ou com um valor inválido, o site usa `https://$VERCEL_URL`
+(o deploy atual na Vercel) e, fora da Vercel, a produção `https://lumens-ufal.vercel.app`.
+
 Homologação: [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app). O endereço antigo
 `lumens-hazel.vercel.app` continua respondendo, mas é o nome que a Vercel gerou sozinha quando
 `lumens.vercel.app` já estava tomado — use o novo em links, cartões e mensagens (SCRUM-242).
