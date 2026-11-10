@@ -17,7 +17,7 @@ argumento, validam a regra, gravam e registram o evento — na mesma transação
 | `adicionarCoOwner`             | Apoiador vira co-owner, se houver vaga (`LIMITE_DE_OWNERS`)                                |
 | `registrarAtividadeOwner`      | Owner mandou mensagem ao bot: renova o prazo de `DIAS_SEM_ATIVIDADE`                       |
 | `removerOwnerInativo`          | Tira o papel de quem está 30 dias sem atividade e diz se abriu vaga (agendador)            |
-| `abrirCaminho`                 | Abre um caminho (Fala.BR, comunidade, representante) e registra `caminho_aberto`           |
+| `abrirCaminho`                 | Abre um caminho em pauta aprovada e não conquistada; registra `caminho_aberto`             |
 | `registrarProtocolo`           | Guarda o protocolo do Fala.BR; reenviar o mesmo número não é erro, outro número é recusado |
 | `registrarPromessa`            | Registra a promessa e leva a pauta a `prometido`, encerrando a promessa ativa anterior     |
 | `registrarExecucaoProposta`    | Proposta da comunidade executada (RN09): conquista parcial, mas a pauta continua cobrada   |
@@ -34,6 +34,8 @@ argumento, validam a regra, gravam e registram o evento — na mesma transação
 | ----------------------- | ----------------------------------------------------------------------------- |
 | `buscarPautasParecidas` | Até três pautas abertas parecidas com o relato, da mais para a menos parecida |
 | `listarBlocos`          | Blocos para o bot perguntar onde é o problema                                 |
+| `caminhosDaPauta`       | Os caminhos da pauta, do mais antigo ao mais novo (estado no bot, 3.3)        |
+| `pautasDoOwner`         | Pautas em que o estudante é owner ativo e que aceitam caminho                 |
 
 **Regras puras** (não tocam no banco; servem ao painel e aos testes sem subir nada):
 

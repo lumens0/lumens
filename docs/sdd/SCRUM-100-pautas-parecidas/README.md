@@ -28,5 +28,5 @@
 
 - O apoio ao escolher "É essa" é da 2.7: o handler responde um placeholder e tem um `TODO(2.7)`
   no lugar exato onde `registrarApoio` deve entrar, na mesma transação da conversa.
-- A calibração usa 23 relatos escritos para imitar o WhatsApp, não relatos reais
+- A calibração usa 28 relatos escritos para imitar o WhatsApp, não relatos reais
   coletados. Ver [TESTS.md](TESTS.md#calibração).
