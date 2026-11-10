@@ -50,5 +50,5 @@ Nova dependência: `@aws-sdk/client-s3`, em commit próprio.
 - **Foto sem dono.** A foto é guardada antes de a pauta ser criada. Se a criação for recusada logo
   depois (estudante saiu, bloco apagado), o arquivo fica no storage sem relato. É raro e o arquivo
   já está sem metadados; uma limpeza periódica do bucket resolve, se for preciso.
-- **Retomada depois da verificação.** Até a 2.4 existir, quem não é verificado não cria pauta
-  pela conversa. É o comportamento certo (RN01), mas bloqueia testes manuais no `pnpm dev`.
+- **Retomada depois da verificação.** Resolvida na SCRUM-138: ao fim da 2.4, o bot volta para o
+  título da pauta nova, com o relato da 2.5 se houver.

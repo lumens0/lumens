@@ -1,4 +1,4 @@
-import { codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -7,7 +7,9 @@ import {
   MAX_TENTATIVAS,
   REENVIO_APOS_MS,
   apagarCodigo,
+  concluirVerificacao,
   conferirCodigo,
+  cursoValido,
   emailInstitucional,
   esperaParaReenviar,
   gerarCodigo,
@@ -334,5 +336,95 @@ describe('vincularEmail (SCRUM-137, RN01)', () => {
     });
     // Quem volta a valer (limpar `saiu_em`, marcar `verificado_em`) é o fim da 2.4, não o vínculo.
     expect((await estudanteDe('7'))?.saiuEm).toEqual(saiuEm);
+  });
+});
+
+describe('concluirVerificacao (SCRUM-138)', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+  }, 60_000);
+
+  const AGORA = new Date('2026-11-10T20:00:00Z');
+  const CURSO = 'Ciência da Computação';
+  const vinculado = async (telefone: string) =>
+    vincularEmail(db, {
+      telefoneHmac: `tel-${telefone}`,
+      telefoneCifrado: `cifra-tel-${telefone}`,
+      emailHmac: `hmac-${telefone}@ufal.br`,
+      emailCifrado: `cifra-${telefone}@ufal.br`,
+    });
+  const estudanteDe = async (telefone: string) =>
+    (
+      await db
+        .select()
+        .from(estudantes)
+        .where(eq(estudantes.telefoneHmac, `tel-${telefone}`))
+    )[0];
+
+  it('só aceita curso da lista', () => {
+    for (const curso of CURSOS) expect(cursoValido(curso)).toBe(true);
+    expect(cursoValido('Maria da Silva')).toBe(false);
+    expect(cursoValido('ciência da computação')).toBe(false);
+  });
+
+  it('grava o curso e marca verificado agora', async () => {
+    await vinculado('1');
+    const resultado = await concluirVerificacao(db, {
+      telefoneHmac: 'tel-1',
+      curso: CURSO,
+      agora: AGORA,
+    });
+    const estudante = await estudanteDe('1');
+    expect(resultado).toEqual({ verificado: true, estudanteId: estudante?.id });
+    expect(estudante).toMatchObject({ curso: CURSO, verificadoEm: AGORA, saiuEm: null });
+  });
+
+  it('curso fora da lista não grava nada', async () => {
+    await vinculado('2');
+    expect(
+      await concluirVerificacao(db, {
+        telefoneHmac: 'tel-2',
+        curso: 'Maria da Silva',
+        agora: AGORA,
+      }),
+    ).toEqual({ verificado: false, motivo: 'curso_invalido' });
+    expect(await estudanteDe('2')).toMatchObject({ curso: null, verificadoEm: null });
+  });
+
+  it('sem cadastro, ou cadastro sem e-mail, não verifica', async () => {
+    expect(
+      await concluirVerificacao(db, { telefoneHmac: 'tel-3', curso: CURSO, agora: AGORA }),
+    ).toEqual({ verificado: false, motivo: 'sem_vinculo' });
+
+    await db.insert(estudantes).values({ telefoneHmac: 'tel-4', telefoneCifrado: 'cifra-tel-4' });
+    expect(
+      await concluirVerificacao(db, { telefoneHmac: 'tel-4', curso: CURSO, agora: AGORA }),
+    ).toEqual({ verificado: false, motivo: 'sem_vinculo' });
+    expect((await estudanteDe('4'))?.verificadoEm).toBeNull();
+  });
+
+  it('quem já era verificado mantém a data da primeira verificação', async () => {
+    await vinculado('5');
+    const primeira = new Date('2026-09-01T12:00:00Z');
+    await concluirVerificacao(db, { telefoneHmac: 'tel-5', curso: CURSO, agora: primeira });
+    await concluirVerificacao(db, { telefoneHmac: 'tel-5', curso: 'Direito', agora: AGORA });
+    expect(await estudanteDe('5')).toMatchObject({ curso: 'Direito', verificadoEm: primeira });
+  });
+
+  it('quem tinha saído volta a valer: saiu_em limpo e verificado agora', async () => {
+    await vinculado('6');
+    await concluirVerificacao(db, {
+      telefoneHmac: 'tel-6',
+      curso: CURSO,
+      agora: new Date('2026-09-01T12:00:00Z'),
+    });
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date('2026-10-01T12:00:00Z') })
+      .where(eq(estudantes.telefoneHmac, 'tel-6'));
+
+    await concluirVerificacao(db, { telefoneHmac: 'tel-6', curso: CURSO, agora: AGORA });
+    expect(await estudanteDe('6')).toMatchObject({ verificadoEm: AGORA, saiuEm: null });
   });
 });
