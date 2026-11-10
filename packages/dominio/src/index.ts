@@ -4,8 +4,8 @@ export type { BlocoParaMeta } from './meta';
 export { conferirAnonimato } from './anonimato';
 export type { Achado, MotivoAchado, OpcoesDeConferencia, Severidade, Veredicto } from './anonimato';
 
-export { gerarTextoFalaBr } from './texto-falabr';
-export type { PautaParaTexto, TextoFalaBr } from './texto-falabr';
+export { MARCA_DE_REMOVIDO, gerarTextoFalaBr, prepararParaProtocolar } from './texto-falabr';
+export type { PautaParaTexto, TextoFalaBr, TextoParaProtocolar } from './texto-falabr';
 export { textoFalaBrDaPauta } from './texto-falabr-da-pauta';
 
 export {
