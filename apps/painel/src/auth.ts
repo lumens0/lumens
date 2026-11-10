@@ -7,6 +7,7 @@ import { criarDb, criarPool, type Db } from '@lumens/db';
 import NextAuth from 'next-auth';
 import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
+import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
@@ -56,15 +57,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         server: smtp,
         from: exigir('EMAIL_REMETENTE'),
         maxAge: QUINZE_MINUTOS,
-        async sendVerificationRequest({ identifier, url, provider }) {
-          await createTransport(smtp).sendMail({
-            to: identifier,
-            from: provider.from,
-            subject: 'Seu link de acesso ao painel do Lumens',
-            text:
-              `Para entrar no painel de curadoria, abra este link:\n\n${url}\n\n` +
-              'Ele vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
-          });
+        // O e-mail sai depois da resposta (`after`). Esperar o SMTP aqui deixaria o pedido de um
+        // curador segundos mais lento que o de quem não é, e a demora entregaria quem é curador.
+        sendVerificationRequest({ identifier, url, provider }) {
+          after(() =>
+            createTransport(smtp)
+              .sendMail({
+                to: identifier,
+                from: provider.from,
+                subject: 'Seu link de acesso ao painel do Lumens',
+                text:
+                  `Para entrar no painel de curadoria, abra este link:\n\n${url}\n\n` +
+                  'Ele vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
+              })
+              .catch((erro: unknown) => {
+                console.error('Link de acesso do painel não saiu:', erro);
+              }),
+          );
         },
       }) as Provider,
     ],

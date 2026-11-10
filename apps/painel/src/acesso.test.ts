@@ -1,4 +1,4 @@
-import { curadores, eq, type Db } from '@lumens/db';
+import { curadores, eq, verificacoesLogin, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { adaptador, curadorAtivo, curadorAtivoPorId, hmacDoEmail } from './acesso';
@@ -71,6 +71,28 @@ describe('link de acesso', () => {
     expect(
       await a.useVerificationToken?.({ identifier: 'ana@ufal.br', token: 'hash-1' }),
     ).toBeNull();
+  });
+
+  it('a tabela guarda o HMAC do e-mail, não o e-mail, e pedir um link novo leva os vencidos', async () => {
+    const a = adaptador(db, CHAVE);
+    await a.createVerificationToken?.({
+      identifier: 'ana@ufal.br',
+      token: 'hash-vencido',
+      expires: new Date(Date.now() - 60_000),
+    });
+    await a.createVerificationToken?.({
+      identifier: 'ana@ufal.br',
+      token: 'hash-novo',
+      expires: new Date(Date.now() + 60_000),
+    });
+
+    const linhas = await db.select().from(verificacoesLogin);
+    expect(linhas.map((l) => l.token)).toContain('hash-novo');
+    expect(linhas.map((l) => l.token)).not.toContain('hash-vencido');
+    expect(JSON.stringify(linhas)).not.toContain('ana@ufal.br');
+    expect(linhas.find((l) => l.token === 'hash-novo')?.identificador).toBe(
+      hmacDoEmail('ana@ufal.br', CHAVE),
+    );
   });
 
   it('token de outro e-mail não serve', async () => {
