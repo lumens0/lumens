@@ -20,6 +20,8 @@ export interface RouterDeps {
   segredo: Segredo;
   fotos?: ServicoDeFotos;
   email?: ServicoDeEmail;
+  /** HMAC com a CHAVE_HMAC, para o e-mail do estudante (2.4). */
+  hmac?: (valor: string) => string;
   handlers?: HandlerRegistry;
 }
 
@@ -41,7 +43,7 @@ export function parseGlobalCommand(text: string): GlobalCommand | null {
  * (o `hashPhone` do remetente), que o webhook já calcula e põe no job.
  */
 export async function handleIncoming(
-  msg: { phoneHmac: string } & IncomingMessage,
+  msg: { phoneHmac: string; phoneCifrado?: string } & IncomingMessage,
   deps: RouterDeps,
 ): Promise<Resposta[]> {
   const { store, db, segredo } = deps;
@@ -80,6 +82,8 @@ export async function handleIncoming(
     phoneHmac,
     ...(deps.fotos ? { fotos: deps.fotos } : {}),
     ...(deps.email ? { email: deps.email } : {}),
+    ...(deps.hmac ? { hmac: deps.hmac } : {}),
+    ...(msg.phoneCifrado === undefined ? {} : { phoneCifrado: msg.phoneCifrado }),
   });
   assertTransition(state.step, result.next);
 

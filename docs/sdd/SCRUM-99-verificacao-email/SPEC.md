@@ -51,8 +51,22 @@
    O mesmo vale para o primeiro envio.
 9. Sem o e-mail nos dados da conversa, o reenvio pede o e-mail de novo.
 
+## SCRUM-137 · Vincular telefone ↔ e-mail (RN01)
+
+1. Com o código certo, o telefone fica ligado ao e-mail no cadastro do estudante (`estudante`):
+   telefone e e-mail cifrados, com o HMAC de cada um para busca. Telefone novo cria o cadastro.
+2. O cadastro nasce **sem** `verificado_em`: quem marca é o fim da 2.4, depois do curso.
+3. **E-mail já ligado a outro número:** o bot explica que cada e-mail vale para um número só (é o
+   que garante um apoio por estudante), sugere falar com a equipe se o número antigo era da
+   pessoa e pede outro e-mail. O cadastro do outro número não muda.
+4. O aviso de e-mail em uso só vem **depois** do código certo. No passo do e-mail o bot não diz
+   nada: senão, qualquer um digitaria o e-mail de um colega para saber se ele usa o Lumens.
+5. **Mesmo número, outro e-mail** (quem refaz a verificação): o e-mail do cadastro é trocado e o
+   antigo fica livre. `verificado_em` e `saiu_em` não mudam aqui.
+6. Depois do vínculo, o e-mail sai dos dados da conversa: ele já está no cadastro.
+7. Sem o e-mail na conversa, o código não é conferido (não é gasto) e o bot pede o e-mail de novo.
+
 ## Fora de escopo (próximas subtasks)
 
-- E-mail já usado por outro telefone (RN01) e o vínculo telefone ↔ e-mail.
 - Curso, marcar verificado e retomar o pedido.
 - E-mail testado em contas reais da UFAL (spam): depende do SMTP de produção.

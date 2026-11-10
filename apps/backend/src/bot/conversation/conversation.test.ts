@@ -267,7 +267,10 @@ describe('experiência da pessoa', () => {
       },
     };
     const sendComEmail = (text: string) =>
-      handleIncoming({ phoneHmac: H, text }, { store, db, segredo, email });
+      handleIncoming(
+        { phoneHmac: H, phoneCifrado: segredo.cifrar('5582999990000'), text },
+        { store, db, segredo, email, hmac: (valor) => `hmac-${valor}` },
+      );
     await sendComEmail('oi');
     await sendComEmail('3');
     await sendComEmail('aluno@ufal.br');

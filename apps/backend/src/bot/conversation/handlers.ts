@@ -43,6 +43,10 @@ export interface StepContext {
   fotos?: ServicoDeFotos;
   /** Envia o código de verificação (2.4). Sem ele, o código não sai e a pessoa é avisada. */
   email?: ServicoDeEmail;
+  /** O telefone cifrado do job (CHAVE_CIFRA): o cadastro do estudante guarda assim (2.4). */
+  phoneCifrado?: string;
+  /** HMAC com a CHAVE_HMAC, o mesmo do `phoneHmac`: busca o e-mail sem guardá-lo em claro (2.4). */
+  hmac?: (valor: string) => string;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;
