@@ -81,11 +81,14 @@ const CURSO_ROW_PREFIX = 'curso:';
 /** Cabem 10 linhas na lista do WhatsApp; com mais cursos, 9 e um aviso para digitar o nome. */
 const LINHAS_DE_CURSO = 10;
 
-/** A lista de cursos. Com mais de 10, mostra 9 e pede para digitar o nome dos outros. */
-export function listaDeCursos(): MensagemDeLista {
-  const cabem = CURSOS.length <= LINHAS_DE_CURSO ? CURSOS : CURSOS.slice(0, LINHAS_DE_CURSO - 1);
+/**
+ * A lista de cursos. Com mais de 10, mostra 9 e pede para digitar o nome dos outros. Recebe a
+ * lista para o caso de mais de 10 poder ser testado: a `CURSOS` de hoje tem 8.
+ */
+export function listaDeCursos(cursos: readonly string[] = CURSOS): MensagemDeLista {
+  const cabem = cursos.length <= LINHAS_DE_CURSO ? cursos : cursos.slice(0, LINHAS_DE_CURSO - 1);
   const corpo =
-    cabem.length < CURSOS.length
+    cabem.length < cursos.length
       ? `${COURSE_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
       : COURSE_QUESTION_TEXT;
   return lista({

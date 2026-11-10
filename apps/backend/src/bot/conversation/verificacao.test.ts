@@ -429,6 +429,14 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     expect(await passo()).toBe('VERIFY_ASK_COURSE');
   });
 
+  it('com mais de 10 cursos, a lista mostra 9 e pede para digitar o nome dos outros', () => {
+    const muitos = Array.from({ length: 12 }, (_, i) => `Curso ${String(i + 1)}`);
+    const mensagem = listaDeCursos(muitos);
+    expect(mensagem.linhas).toHaveLength(9);
+    expect(mensagem.corpo).toContain('escreva o nome dele');
+    expect(listaDeCursos().corpo).not.toContain('escreva o nome dele');
+  });
+
   it('escolher pela lista marca verificado com o curso e volta ao menu', async () => {
     await ateOCurso();
     expect(await send('curso:Ciência da Computação')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
