@@ -49,6 +49,8 @@ export const JOBS = {
   outgoingRepliesDead: 'outgoing-replies-dead',
   cleanupConversations: 'cleanup-expired-conversations',
   unblockConversations: 'unblock-conversations',
+  /** Gatilhos de data da Parte 3 (SCRUM-237): conferência, prazos e owner inativo. */
+  gatilhosDeData: 'agendador-gatilhos',
   /** Gatilho do aviso de meta batida (3.2): enfileira na fila de disparos. */
   avisoMetaBatida: 'aviso-meta-batida',
   /** Envio em lotes da fila de disparos, dentro do limite da Meta (RNF06). */

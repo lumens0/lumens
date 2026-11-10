@@ -1,5 +1,6 @@
 import { criarDb, criarPool } from '@lumens/db';
 import { registerAvisoMetaBatidaJob } from './agendador/aviso-meta-batida';
+import { registerGatilhosJob } from './agendador/gatilhos';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
 import { ConversationStore } from './bot/conversation/store';
@@ -93,6 +94,7 @@ async function iniciar(env: Env): Promise<void> {
     });
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
+    await registerGatilhosJob(boss, { db, logger });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
     // No `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade. Enquanto os modelos não
     // forem aprovados, a Meta recusa com erro passageiro e os avisos esperam na fila.
