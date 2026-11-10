@@ -3,6 +3,7 @@
 //      pnpm --filter @lumens/backend modelos --situacao
 // Sem --enviar, só imprime os pedidos. Veja docs/meta/mensagens-modelo.md.
 import { MODELOS, paraSubmissao, type NomeModelo } from '../src/bot/whatsapp/modelos';
+import { listarModelosNaMeta } from '../src/bot/whatsapp/situacao-modelos';
 
 const VERSAO_GRAPH = 'v23.0';
 
@@ -57,14 +58,12 @@ if (opcoes.situacao) {
   const waba = process.env.META_WABA_ID;
   if (!token || !waba) sair('META_TOKEN e META_WABA_ID precisam estar no ambiente para --situacao');
 
-  const res = await fetch(
-    `https://graph.facebook.com/${opcoes.versao}/${waba}/message_templates?fields=id,name,status,category,language&limit=200`,
-    { headers: { authorization: `Bearer ${token}` } },
-  );
-  if (!res.ok) sair(`HTTP ${String(res.status)} ${await res.text()}`);
-  const { data } = (await res.json()) as {
-    data: { id: string; name: string; status: string; category: string; language: string }[];
-  };
+  let data;
+  try {
+    data = await listarModelosNaMeta({ waba, token, versao: opcoes.versao });
+  } catch (erro) {
+    sair(erro instanceof Error ? erro.message : String(erro));
+  }
   for (const nome of Object.keys(MODELOS)) {
     const naMeta = data.filter((m) => m.name === nome);
     if (naMeta.length === 0) console.log(`${nome}: não está na Meta`);
