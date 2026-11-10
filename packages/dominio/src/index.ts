@@ -6,6 +6,7 @@ export type { Achado, MotivoAchado, OpcoesDeConferencia, Severidade, Veredicto }
 
 export { gerarTextoFalaBr } from './texto-falabr';
 export type { PautaParaTexto, TextoFalaBr } from './texto-falabr';
+export { textoFalaBrDaPauta } from './texto-falabr-da-pauta';
 
 export {
   PRAZO_INICIAL_DIAS,

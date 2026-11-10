@@ -6,7 +6,9 @@ import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
 import {
   ALL_OPEN_TEXT,
   DATA_LOST_TEXT,
+  FALABR_TEXT_INTRO,
   INDEPENDENT_TEXT,
+  NEXT_STEP_TEXT,
   LOST_OWNER_TEXT,
   NOT_OWNER_TEXT,
   OPENED_TEXT,
@@ -189,7 +191,7 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
     expect(botoesEm(r).corpo).toMatch(
       /• Fala\.BR: aberto em \d{2}\/\d{2}\/\d{4}, ainda sem protocolo/,
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
+    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'texto:falabr', 'menu']);
     expect(await passo()).toBe('OWNER_PATHS');
 
     const abertos = await caminhosDe(pautaId);
@@ -199,17 +201,16 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
     expect(pauta?.status).toBe('juntando_apoios');
   });
 
-  it('abre os dois, em qualquer ordem; com os dois abertos, volta ao menu', async () => {
+  it('abre os dois, em qualquer ordem; com os dois abertos, sobra o texto do Fala.BR', async () => {
     const primeiro = await send('comunidade');
     expect(primeiro[0]).toBe(OPENED_TEXT.comunidade);
     expect(idsDosBotoes(primeiro)).toEqual(['caminho:falabr', 'menu']);
 
     const segundo = await send('Abrir Fala.BR');
     expect(segundo[0]).toBe(OPENED_TEXT.falabr);
-    expect(segundo[1]).toContain(ALL_OPEN_TEXT);
-    expect(segundo.at(-1)).toBe(MENU_TEXT);
-    expect(await passo()).toBe('MENU');
-    expect(await dados()).not.toHaveProperty('pautaId');
+    expect(botoesEm(segundo).corpo).toContain(NEXT_STEP_TEXT);
+    expect(idsDosBotoes(segundo)).toEqual(['texto:falabr', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
 
     expect(
       (await caminhosDe(pautaId)).map((c) => c.tipo).sort((a, b) => a.localeCompare(b)),
@@ -260,6 +261,47 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
   });
 });
 
+describe('texto do Fala.BR (3.4)', () => {
+  let pautaId: string;
+
+  beforeEach(async () => {
+    const eu = await verificar();
+    pautaId = await pautaDe(eu, 'Bebedouro do bloco 18');
+    await send('4');
+  });
+
+  it('sai logo depois de abrir o Fala.BR: a explicação e, sozinho, o texto para copiar', async () => {
+    const [aberto, explicacao, texto, estado] = await send('caminho:falabr');
+
+    expect(aberto).toBe(OPENED_TEXT.falabr);
+    expect(explicacao).toBe(FALABR_TEXT_INTRO);
+    expect(texto).toEqual(expect.stringContaining('Assunto: Bebedouro do bloco 18'));
+    expect(texto).toEqual(expect.stringContaining('Descrição da pauta.'));
+    expect(typeof estado).not.toBe('string');
+  });
+
+  it('o botão manda o texto de novo e continua nos caminhos', async () => {
+    await send('caminho:falabr');
+
+    const [explicacao, texto] = await send('texto:falabr');
+
+    expect(explicacao).toBe(FALABR_TEXT_INTRO);
+    expect(texto).toEqual(expect.stringContaining('Assunto: Bebedouro do bloco 18'));
+    expect(await passo()).toBe('OWNER_PATHS');
+  });
+
+  it('também atende ao pedido digitado', async () => {
+    await send('caminho:falabr');
+
+    expect((await send('Texto do Fala.BR'))[0]).toBe(FALABR_TEXT_INTRO);
+  });
+
+  it('sem Fala.BR aberto não há botão de texto', async () => {
+    expect(idsDosBotoes(await send('talvez'))).not.toContain('texto:falabr');
+    expect(await caminhosDe(pautaId)).toHaveLength(0);
+  });
+});
+
 describe('estado dos caminhos', () => {
   it('mostra protocolo e prazo do Fala.BR já registrado, e só oferece o que falta', async () => {
     const eu = await verificar();
@@ -280,11 +322,11 @@ describe('estado dos caminhos', () => {
     expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
   });
 
-  it('com os dois já abertos, mostra o estado e fica no menu', async () => {
+  it('com os dois abertos e o protocolo registrado, mostra o estado e fica no menu', async () => {
     const eu = await verificar();
-    const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca');
+    const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca', { status: 'cobrando' });
     await db.insert(caminhos).values([
-      { pautaId, tipo: 'falabr', status: 'aberto' },
+      { pautaId, tipo: 'falabr', status: 'aberto', protocolo: 'OUV-1', prazo: '2026-12-01' },
       { pautaId, tipo: 'comunidade', status: 'aberto' },
     ]);
 
