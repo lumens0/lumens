@@ -65,18 +65,18 @@ pnpm --filter @lumens/backend modelos --site https://<dominio-do-site>
 
 ### Checklist antes de enviar
 
-- [ ] **Domínio definitivo do site decidido.** Ele vai fixo no botão "Ver a pauta" de três modelos:
+- [x] **Domínio definitivo do site decidido.** Ele vai fixo no botão "Ver a pauta" de três modelos:
       trocar depois exige editar o modelo e esperar nova aprovação. Não submeta com o endereço de
-      homologação se ele for mudar. Domínio: `______`
-- [ ] **Responsável pela submissão definido**: alguém com acesso de administrador ao app da Meta e
-      à conta do WhatsApp Business. Responsável: `______`
-- [ ] **Credenciais no `.env` da raiz, na máquina de quem submete**: `META_TOKEN` (token com a
+      homologação se ele for mudar. Domínio: `https://lumens-ufal.vercel.app`
+- [x] **Responsável pela submissão definido**: alguém com acesso de administrador ao app da Meta e
+      à conta do WhatsApp Business. Responsável: `Sthefany`
+- [x] **Credenciais no `.env` da raiz, na máquina de quem submete**: `META_TOKEN` (token com a
       permissão `whatsapp_business_management`) e `META_WABA_ID` (id da conta do WhatsApp Business,
       no WhatsApp Manager). Nenhuma das duas entra no repositório.
 - [ ] **Cobrança resolvida por quem é dono do portfólio.** A Meta cobra mensagens utilitárias
       (veja a [SCRUM-191](../decisoes/SCRUM-191-verificacao-meta.md)). Criar o modelo não envia
       mensagem, mas os avisos só saem com isso resolvido.
-- [ ] **Dry-run conferido** com o domínio definitivo: os seis pedidos, textos iguais aos da tabela
+- [x] **Dry-run conferido** com o domínio definitivo: os seis pedidos, textos iguais aos da tabela
       acima.
 - [ ] **`pnpm --filter @lumens/backend test` verde** na versão que será submetida.
 
@@ -115,21 +115,27 @@ de quem envia. A Meta recusa envio cujo número de variáveis não bate com o mo
 
 ## Andamento
 
-**Nenhuma submissão foi registrada até 2026-11-10.** Não há, no repositório, id nem resposta da Meta
-para nenhum dos seis modelos, e a situação real na conta não foi consultada (faltam as credenciais).
-Antes de submeter, rode `--situacao` para confirmar que nenhum deles já existe na conta.
+**Primeira submissão: 2026-11-10, às 18:32 (horário de Brasília), por Sthefany**, com o domínio
+`https://lumens-ufal.vercel.app`. Antes do envio, `--situacao` confirmou que nenhum dos seis existia
+na conta. A Meta aceitou os seis pedidos, todos em `PENDING` e com categoria `UTILITY`; o
+`--situacao` rodado logo depois (18:33) devolveu os mesmos ids, situação e categoria, em `pt_BR`.
+
+**A conta usada é a de teste** ("Test Messaging Account", do número de teste da Meta): a conta do
+Facebook da responsável é recente e ainda não libera um número de produção. Os modelos ficam presos à
+conta onde foram criados, então, quando houver número e conta de produção, os seis precisam ser
+submetidos de novo lá e esperar nova aprovação.
 
 Atualize a tabela a cada submissão e a cada mudança de situação. Preencha só com o que a Meta
 respondeu.
 
-| Modelo                    | Id na Meta | Submetido em | Situação      | Categoria devolvida | Atualizado em |
-| ------------------------- | ---------- | ------------ | ------------- | ------------------- | ------------- |
-| `lumens_meta_batida`      |            |              | não submetido |                     | 2026-11-10    |
-| `lumens_resposta_oficial` |            |              | não submetido |                     | 2026-11-10    |
-| `lumens_conferencia`      |            |              | não submetido |                     | 2026-11-10    |
-| `lumens_lembrete_prazo`   |            |              | não submetido |                     | 2026-11-10    |
-| `lumens_owner_inativo`    |            |              | não submetido |                     | 2026-11-10    |
-| `lumens_pauta_recusada`   |            |              | não submetido |                     | 2026-11-10    |
+| Modelo                    | Id na Meta       | Submetido em | Situação  | Categoria devolvida | Atualizado em |
+| ------------------------- | ---------------- | ------------ | --------- | ------------------- | ------------- |
+| `lumens_meta_batida`      | 1124361657017155 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_resposta_oficial` | 1954383762194455 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_conferencia`      | 1685902049990843 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_lembrete_prazo`   | 1112877021560025 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_owner_inativo`    | 1438995534448675 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_pauta_recusada`   | 1878214926703375 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
 
 ## O que este documento não resolve
 
