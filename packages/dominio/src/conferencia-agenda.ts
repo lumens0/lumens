@@ -218,7 +218,15 @@ interface PromessaTravada {
   aberturas: number;
 }
 
-/** Lê a promessa com FOR UPDATE: duas execuções do agendador ao mesmo tempo fazem fila aqui. */
+/**
+ * Lê a promessa com FOR UPDATE: duas execuções do agendador ao mesmo tempo fazem fila aqui.
+ *
+ * As aberturas são contadas numa consulta separada, DEPOIS da trava. Na mesma consulta, quem
+ * esperou pela trava contaria com a foto do banco de antes da espera: no READ COMMITTED o Postgres
+ * relê a linha travada, mas não a subconsulta. Duas aberturas simultâneas veriam as duas "0
+ * aberturas" e gravariam dois `conferencia_aberta`, e o fecho tomaria a primeira rodada pela
+ * segunda, sem reabrir.
+ */
 async function travarPromessa(tx: Tx, promessaId: string): Promise<PromessaTravada | undefined> {
   const [promessa] = await tx
     .select({
@@ -229,13 +237,18 @@ async function travarPromessa(tx: Tx, promessaId: string): Promise<PromessaTrava
       abreEm: promessas.conferenciaAbreEm,
       fechaEm: promessas.conferenciaFechaEm,
       resultado: promessas.resultado,
-      aberturas: aberturasDa(promessaId),
     })
     .from(promessas)
     .innerJoin(pautas, eq(pautas.id, promessas.pautaId))
     .where(eq(promessas.id, promessaId))
     .for('update', { of: promessas });
-  return promessa;
+  if (promessa === undefined) return undefined;
+
+  const [contagem] = await tx
+    .select({ aberturas: aberturasDa(promessaId) })
+    .from(promessas)
+    .where(eq(promessas.id, promessaId));
+  return { ...promessa, aberturas: contagem?.aberturas ?? 0 };
 }
 
 /**
