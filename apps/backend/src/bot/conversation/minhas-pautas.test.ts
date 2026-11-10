@@ -190,10 +190,16 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
   it('Fala.BR pelo botão: abre, não muda o status da pauta e a comunidade continua disponível', async () => {
     const r = await send('caminho:falabr');
     expect(r[0]).toBe(OPENED_TEXT.falabr);
-    expect(botoesEm(r).corpo).toMatch(
+    expect(listaEm(r).corpo).toMatch(
       /• Fala\.BR: aberto em \d{2}\/\d{2}\/\d{4}, ainda sem protocolo/,
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'texto:falabr', 'menu']);
+    // Quatro opções não cabem em botões (o limite é 3): viram lista.
+    expect(listaEm(r).linhas.map((l) => l.id)).toEqual([
+      'caminho:comunidade',
+      'texto:falabr',
+      'protocolo:falabr',
+      'menu',
+    ]);
     expect(await passo()).toBe('OWNER_PATHS');
 
     const abertos = await caminhosDe(pautaId);
@@ -211,7 +217,7 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
     const segundo = await send('Abrir Fala.BR');
     expect(segundo[0]).toBe(OPENED_TEXT.falabr);
     expect(botoesEm(segundo).corpo).toContain(NEXT_STEP_TEXT);
-    expect(idsDosBotoes(segundo)).toEqual(['texto:falabr', 'menu']);
+    expect(idsDosBotoes(segundo)).toEqual(['texto:falabr', 'protocolo:falabr', 'menu']);
     expect(await passo()).toBe('OWNER_PATHS');
 
     expect(

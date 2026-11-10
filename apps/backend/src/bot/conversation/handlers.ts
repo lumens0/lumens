@@ -8,6 +8,7 @@ import {
   newAskTitle,
 } from './nova-pauta';
 import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
+import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -127,4 +128,6 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  OWNER_ASK_PROTOCOL: ownerAskProtocol,
+  OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
 };
