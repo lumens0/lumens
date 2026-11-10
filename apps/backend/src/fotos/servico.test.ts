@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { TAMANHO_MAXIMO_FOTO } from './imagem';
 import { ErroDeMidia, type MidiaBaixada } from './meta-midia';
 import { criarServicoDeFotos, type DependenciasDasFotos } from './servico';
 
@@ -114,6 +117,37 @@ describe('guardarFoto', () => {
       ok: false,
       motivo: 'tamanho',
     });
+  });
+
+  it('foto acima de 5 MB que escapou do download é recusada pelo tamanho, sem guardar', async () => {
+    // Um download que não conferiu o tamanho: a conferência de `removerMetadados` ainda segura.
+    const grande = Buffer.concat([jpeg, Buffer.alloc(TAMANHO_MAXIMO_FOTO + 1 - jpeg.length)]);
+    const { servico, guardadas } = montar({ bytes: grande, mimeType: 'image/jpeg' });
+    expect(await servico.guardarFoto({ id: 'm', mimeType: 'image/jpeg' })).toEqual({
+      ok: false,
+      motivo: 'tamanho',
+    });
+    expect(guardadas).toEqual([]);
+  });
+
+  it('o original com metadados nunca é gravado: só a foto limpa, uma vez', async () => {
+    const { servico, guardadas } = montar({ bytes: jpeg, mimeType: 'image/jpeg' });
+    await servico.guardarFoto({ id: 'm', mimeType: 'image/jpeg' });
+
+    expect(jpeg.toString('latin1')).toContain('iPhone 13');
+    expect(guardadas).toHaveLength(1);
+    for (const texto of ['iPhone', 'Apple', 'Autor Secreto', 'GPS']) {
+      expect(guardadas[0]?.bytes.toString('latin1')).not.toContain(texto);
+    }
+  });
+
+  it('nenhum módulo das fotos escreve em disco: o storage é a única saída', () => {
+    // O caminho da foto é só memória (Buffer) até o storage. Se alguém passar a usar arquivo
+    // temporário, o original com EXIF e GPS ficaria no disco do servidor: este teste cai.
+    for (const arquivo of ['imagem.ts', 'meta-midia.ts', 'servico.ts', 'storage.ts']) {
+      const fonte = readFileSync(join(import.meta.dirname, arquivo), 'utf8');
+      expect(fonte, arquivo).not.toMatch(/from 'node:(fs|os)'|from '(fs|os)'|\.toFile\(|tmpdir/);
+    }
   });
 
   it('Meta fora do ar: indisponível, com aviso no log', async () => {

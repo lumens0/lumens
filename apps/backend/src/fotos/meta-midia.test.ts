@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ErroDeMidia, TAMANHO_MAXIMO_FOTO, VERSAO_GRAPH, baixarMidiaDaMeta } from './meta-midia';
+import { TAMANHO_MAXIMO_FOTO } from './imagem';
+import { ErroDeMidia, VERSAO_GRAPH, baixarMidiaDaMeta } from './meta-midia';
 
 interface Chamada {
   url: string;
@@ -67,6 +68,18 @@ describe('baixarMidiaDaMeta', () => {
     await expect(baixarMidiaDaMeta('m', { token: 't', fetch: buscar })).rejects.toMatchObject({
       motivo: 'tamanho',
     });
+  });
+
+  it.each([
+    ['um byte abaixo do limite', TAMANHO_MAXIMO_FOTO - 1],
+    ['exatamente no limite', TAMANHO_MAXIMO_FOTO],
+  ])('foto com %s é baixada, pelo file_size e pelos bytes', async (_caso, tamanho) => {
+    const { buscar } = fetchFalso(
+      { corpo: { ...INFO, file_size: tamanho } },
+      { bytes: Buffer.alloc(tamanho) },
+    );
+    const midia = await baixarMidiaDaMeta('m', { token: 't', fetch: buscar });
+    expect(midia.bytes).toHaveLength(tamanho);
   });
 
   it.each([
