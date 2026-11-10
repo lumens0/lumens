@@ -13,6 +13,7 @@ import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import { TRANSITIONS, type Step } from './steps';
 import { normalize } from './texto';
+import { EMAIL_QUESTION_TEXT, verifyAskEmail } from './verificacao';
 
 export { normalize } from './texto';
 export { PHOTO_ASK_TEXT, PHOTO_RECEIVED_TEXT } from './nova-pauta';
@@ -73,7 +74,7 @@ const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, ME
 /** Opções do menu que só mudam de passo. A "2" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
   '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
-  '3': { next: 'VERIFY_ASK_EMAIL', reply: 'Qual o seu e-mail institucional?' },
+  '3': { next: 'VERIFY_ASK_EMAIL', reply: EMAIL_QUESTION_TEXT },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -114,8 +115,8 @@ function placeholder(step: Step, story: string): StepHandler {
 export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,
   MENU: menu,
-  // TODO(2.4): verificação de e-mail institucional.
-  VERIFY_ASK_EMAIL: placeholder('VERIFY_ASK_EMAIL', '2.4'),
+  VERIFY_ASK_EMAIL: verifyAskEmail,
+  // TODO(2.4): código e curso (próximas subtasks).
   VERIFY_ASK_CODE: placeholder('VERIFY_ASK_CODE', '2.4'),
   VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
   REPORT_ASK_TEXT: reportAskText,
