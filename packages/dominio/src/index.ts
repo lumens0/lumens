@@ -145,3 +145,6 @@ export {
 } from './lembretes';
 
 export { diaEmMaceio, formatarDia } from './datas';
+
+export { sairDoLumens } from './sair';
+export type { ResultadoSaida } from './sair';
