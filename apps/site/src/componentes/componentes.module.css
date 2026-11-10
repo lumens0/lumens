@@ -144,3 +144,14 @@
   display: flex;
   margin-top: 4px;
 }
+
+/* Selo de "solução da comunidade" nas conquistas. Mesmas cores da pill de conquistada. */
+.selo {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.875em;
+  background: #e3f2f0;
+  color: #0b5e57;
+}
