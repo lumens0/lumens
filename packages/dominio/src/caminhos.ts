@@ -65,10 +65,13 @@ export async function abrirCaminho(
   if (owner === undefined) return { aberto: false, motivo: 'nao_e_owner' };
 
   // Pauta em curadoria ou recusada não é pública, e a conquistada já acabou: não abre caminho.
+  // O lock da linha serializa com `transicionarStatus` (ex.: apuração da conferência): sem ele, o
+  // caminho entraria depois de a pauta virar conquistada.
   const [pauta] = await tx
     .select({ status: pautas.status })
     .from(pautas)
-    .where(eq(pautas.id, pautaId));
+    .where(eq(pautas.id, pautaId))
+    .for('update');
   if (pauta === undefined || !STATUS_COM_CAMINHOS.includes(pauta.status)) {
     return { aberto: false, motivo: 'pauta_fechada' };
   }
