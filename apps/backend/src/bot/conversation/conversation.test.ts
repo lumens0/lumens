@@ -258,14 +258,20 @@ describe('experiência da pessoa', () => {
   });
 
   it('fim de fluxo mostra o menu de novo', async () => {
-    // A verificação (2.4) envia o código por e-mail: aqui, um e-mail falso que sempre aceita.
-    const email = { enviarCodigo: () => Promise.resolve(true) };
+    // A verificação (2.4) envia o código por e-mail: aqui, um e-mail falso que guarda o código.
+    let codigo = '';
+    const email = {
+      enviarCodigo: (_para: string, enviado: string) => {
+        codigo = enviado;
+        return Promise.resolve(true);
+      },
+    };
     const sendComEmail = (text: string) =>
       handleIncoming({ phoneHmac: H, text }, { store, db, segredo, email });
     await sendComEmail('oi');
     await sendComEmail('3');
     await sendComEmail('aluno@ufal.br');
-    await sendComEmail('123456');
+    await sendComEmail(codigo);
     const replies = await sendComEmail('Computação');
     expect(replies.at(-1)).toBe(MENU_TEXT);
     expect((await store.get(H))?.step).toBe('MENU');

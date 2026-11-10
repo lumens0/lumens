@@ -158,10 +158,15 @@ export {
   DIGITOS_DO_CODIGO,
   DOMINIO_UFAL,
   EMAIL_MAXIMO,
+  MAX_TENTATIVAS,
+  REENVIO_APOS_MS,
+  apagarCodigo,
+  conferirCodigo,
   emailInstitucional,
+  esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
 } from './verificacao';
-export type { ResultadoEmail } from './verificacao';
+export type { ResultadoConferencia, ResultadoEmail } from './verificacao';
