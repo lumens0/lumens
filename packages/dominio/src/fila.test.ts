@@ -9,6 +9,7 @@ import {
   registrarEnvio,
   registrarFalha,
   registrarFalhaDeEntrega,
+  renovarReserva,
   reservarLote,
   type NovoAviso,
 } from './fila';
@@ -369,5 +370,54 @@ describe('falha de entrega', () => {
     );
 
     expect(falhou).toBe(false);
+  });
+});
+
+describe('renovarReserva', () => {
+  it('quem reservou renova; a reserva fica valendo a partir de agora', async () => {
+    const a = await estudante();
+    await enfileirar([aviso('meta_batida', a)]);
+    const [d] = await reservar(10, T0);
+    if (d === undefined) throw new Error('nada reservado');
+
+    const nova = await db.transaction((tx) =>
+      renovarReserva(tx, { id: d.id, reservadoEm: d.reservadoEm, agora: depois(9 * MINUTO) }),
+    );
+
+    expect(nova).toEqual(depois(9 * MINUTO));
+    // Renovada às 12h09, ela não vence às 12h10 como venceria a original.
+    expect(await reservar(10, depois(RESERVA_EXPIRA_MS + MINUTO))).toEqual([]);
+  });
+
+  it('reserva vencida e tomada por outra instância não é mais de quem reservou primeiro', async () => {
+    const a = await estudante();
+    await enfileirar([aviso('meta_batida', a)]);
+    const [primeira] = await reservar(10, T0);
+    const [segunda] = await reservar(10, depois(RESERVA_EXPIRA_MS + MINUTO));
+    if (primeira === undefined || segunda === undefined) throw new Error('nada reservado');
+
+    const agora = depois(RESERVA_EXPIRA_MS + 2 * MINUTO);
+    const daPrimeira = await db.transaction((tx) =>
+      renovarReserva(tx, { id: primeira.id, reservadoEm: primeira.reservadoEm, agora }),
+    );
+    const daSegunda = await db.transaction((tx) =>
+      renovarReserva(tx, { id: segunda.id, reservadoEm: segunda.reservadoEm, agora }),
+    );
+
+    expect([daPrimeira, daSegunda]).toEqual([null, agora]);
+  });
+
+  it('disparo que já saiu não é renovado', async () => {
+    const a = await estudante();
+    await enfileirar([aviso('meta_batida', a)]);
+    const [d] = await reservar(10, T0);
+    if (d === undefined) throw new Error('nada reservado');
+    await db.transaction((tx) => registrarEnvio(tx, { id: d.id, wamidHmac: 'w', agora: T0 }));
+
+    expect(
+      await db.transaction((tx) =>
+        renovarReserva(tx, { id: d.id, reservadoEm: d.reservadoEm, agora: depois(MINUTO) }),
+      ),
+    ).toBeNull();
   });
 });

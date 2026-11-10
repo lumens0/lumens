@@ -58,6 +58,7 @@ export {
   registrarEnvio,
   registrarFalha,
   registrarFalhaDeEntrega,
+  renovarReserva,
   reservarLote,
 } from './fila';
 

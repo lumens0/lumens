@@ -75,6 +75,11 @@ export interface DisparoReservado {
   parametros: string[];
   /** Telefone do destinatário, cifrado com a CHAVE_CIFRA. Só quem envia decifra. */
   telefoneCifrado: string;
+  /**
+   * Instante da reserva: é a prova de posse. Quem envia passa este valor a `renovarReserva` antes
+   * de cada envio; se outra instância tiver pegado o disparo, o valor no banco já é outro.
+   */
+  reservadoEm: Date;
 }
 
 /**
@@ -213,8 +218,38 @@ export async function reservarLote(
       modelo: linha.modelo,
       parametros: linha.parametros,
       telefoneCifrado: linha.telefoneCifrado,
+      reservadoEm: agora,
     };
   });
+}
+
+/**
+ * Renova a reserva logo antes de enviar, se ela ainda for de quem pergunta. Devolve o novo
+ * instante da reserva (a nova prova de posse) ou `null` quando o disparo não é mais desta
+ * instância: a reserva venceu e outra o pegou, ou ele já saiu ou falhou.
+ *
+ * Um lote grande, mandado um por um, pode levar mais que `RESERVA_EXPIRA_MS`. Sem renovar, outra
+ * instância pegaria o fim do lote enquanto esta ainda o manda, e a pessoa receberia duas vezes.
+ * Renovando antes de cada envio, cada disparo fica dez minutos seguro a partir do seu próprio
+ * envio, que leva segundos.
+ */
+export async function renovarReserva(
+  tx: Tx,
+  { id, reservadoEm, agora = new Date() }: { id: string; reservadoEm: Date; agora?: Date },
+): Promise<Date | null> {
+  const renovados = await tx
+    .update(disparos)
+    .set({ reservadoEm: agora })
+    .where(
+      and(
+        eq(disparos.id, id),
+        eq(disparos.reservadoEm, reservadoEm),
+        isNull(disparos.enviadoEm),
+        isNull(disparos.falhouEm),
+      ),
+    )
+    .returning({ reservadoEm: disparos.reservadoEm });
+  return renovados[0]?.reservadoEm ?? null;
 }
 
 /**

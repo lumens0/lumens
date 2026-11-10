@@ -1,6 +1,6 @@
 import { disparos, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
-import { enfileirarDisparos } from '@lumens/dominio';
+import { enfileirarDisparos, renovarReserva, reservarLote } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cifrar, hmacHex, type Chaves } from '../../cripto';
 import { criarLogger } from '../../logger';
@@ -67,14 +67,14 @@ const linhaDe = async (estudanteId: string) =>
   (await db.select().from(disparos).where(eq(disparos.estudanteId, estudanteId)))[0];
 
 const lote = (sender: ModeloSender, limite = 250) =>
-  enviarLote({ db, sender, chaves, logger, limite }, AGORA);
+  enviarLote({ db, sender, chaves, logger, limite, relogio: () => AGORA }, AGORA);
 
 describe('enviarLote (SCRUM-208)', () => {
   it('manda para o telefone decifrado e grava o envio com o HMAC do wamid', async () => {
     const a = await avisoPara('5582911110000');
     const { sender, recebidas } = senderFalso(['wamid.A']);
 
-    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 0 });
+    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 0, tomadosPorOutro: 0 });
 
     expect(recebidas[0]?.to).toBe('5582911110000');
     expect(await linhaDe(a)).toMatchObject({ wamidHmac: hmacHex('wamid.A', chaves.hmac) });
@@ -96,7 +96,7 @@ describe('enviarLote (SCRUM-208)', () => {
     const b = await avisoPara('5582900000004');
     const { sender } = senderFalso([new ErroDaMeta(131026, 'não entregável'), 'wamid.B']);
 
-    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 1, adiados: 0 });
+    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 1, adiados: 0, tomadosPorOutro: 0 });
     expect((await linhaDe(a))?.falha).toBe('meta:131026');
     expect((await linhaDe(b))?.enviadoEm).not.toBeNull();
   });
@@ -106,7 +106,7 @@ describe('enviarLote (SCRUM-208)', () => {
     const b = await avisoPara('5582900000006');
     const { sender, recebidas } = senderFalso([new ErroDaMeta(130429, 'limite de vazão')]);
 
-    expect(await lote(sender)).toEqual({ enviados: 0, falhas: 0, adiados: 2 });
+    expect(await lote(sender)).toEqual({ enviados: 0, falhas: 0, adiados: 2, tomadosPorOutro: 0 });
     expect(recebidas).toHaveLength(1);
     for (const id of [a, b])
       expect(await linhaDe(id)).toMatchObject({ falha: null, enviadoEm: null });
@@ -117,7 +117,7 @@ describe('enviarLote (SCRUM-208)', () => {
     await avisoPara('5582900000008');
     const { sender, recebidas } = senderFalso([new ErroDaMeta(132001, 'modelo não existe')]);
 
-    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 1 });
+    expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 1, tomadosPorOutro: 0 });
     expect(recebidas).toHaveLength(2);
   });
 
@@ -125,9 +125,46 @@ describe('enviarLote (SCRUM-208)', () => {
     const a = await avisoPara('', 'cifrado-de-mentira');
     const { sender, recebidas } = senderFalso([]);
 
-    expect(await lote(sender)).toEqual({ enviados: 0, falhas: 1, adiados: 0 });
+    expect(await lote(sender)).toEqual({ enviados: 0, falhas: 1, adiados: 0, tomadosPorOutro: 0 });
     expect(recebidas).toHaveLength(0);
     expect((await linhaDe(a))?.falha).toBe('telefone_ilegivel');
+  });
+});
+
+describe('duas instâncias com um lote mais longo que a reserva', () => {
+  it('a reserva que venceu e foi tomada por outra não é mandada de novo', async () => {
+    const MINUTO = 60_000;
+    await avisoPara('5582900000011');
+    await avisoPara('5582900000012');
+    let agora = AGORA;
+    const daOutra: { id: string; reservadoEm: Date }[] = [];
+
+    // A instância A reserva os dois às 12h. O primeiro envio demora: quando ele volta, já passou
+    // dos dez minutos, e a instância B pega o que estava reservado por A.
+    const sender: ModeloSender = {
+      enviar: async () => {
+        if (daOutra.length === 0) {
+          agora = new Date(AGORA.getTime() + 11 * MINUTO);
+          daOutra.push(...(await db.transaction((tx) => reservarLote(tx, { limite: 250, agora }))));
+        }
+        return { wamid: `wamid.${String(daOutra.length)}.${agora.toISOString()}` };
+      },
+    };
+
+    const resultado = await enviarLote(
+      { db, sender, chaves, logger, limite: 250, relogio: () => agora },
+      AGORA,
+    );
+
+    // A mandou o primeiro (renovou a reserva antes) e pulou o segundo, que agora é de B.
+    expect(resultado).toEqual({ enviados: 1, falhas: 0, adiados: 0, tomadosPorOutro: 1 });
+    // B pegou os dois, mas o primeiro já saiu por A: B também não o manda de novo.
+    const posses = await Promise.all(
+      daOutra.map((d) =>
+        db.transaction((tx) => renovarReserva(tx, { id: d.id, reservadoEm: d.reservadoEm, agora })),
+      ),
+    );
+    expect(posses.filter((p) => p !== null)).toHaveLength(1);
   });
 });
 

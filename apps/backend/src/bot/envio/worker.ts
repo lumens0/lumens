@@ -4,6 +4,7 @@ import {
   registrarEnvio,
   registrarFalha,
   registrarFalhaDeEntrega,
+  renovarReserva,
   reservarLote,
 } from '@lumens/dominio';
 import type { Job, PgBoss } from 'pg-boss';
@@ -33,6 +34,8 @@ export interface EnvioDeps {
   logger: Logger;
   /** Pessoas distintas por 24h que a Meta permite hoje (RNF06). */
   limite: number;
+  /** Relógio de cada envio. Injetável para teste; o padrão é a hora de agora. */
+  relogio?: () => Date;
 }
 
 export interface ResultadoDoLote {
@@ -41,16 +44,23 @@ export interface ResultadoDoLote {
   falhas: number;
   /** Ficam para o próximo lote: a reserva vence e eles voltam. */
   adiados: number;
+  /** A reserva venceu no meio do lote e outra instância pegou: não manda, para não duplicar. */
+  tomadosPorOutro: number;
 }
 
-/** Um lote: reserva, envia um por um, registra. */
+/**
+ * Um lote: reserva, envia um por um, registra. Antes de cada envio, renova a reserva daquele
+ * disparo (`renovarReserva`): se outra instância já o pegou, pula. É o que impede a mesma
+ * mensagem de sair duas vezes quando o lote leva mais que os dez minutos da reserva.
+ */
 export async function enviarLote(
   deps: EnvioDeps,
   agora: Date = new Date(),
 ): Promise<ResultadoDoLote> {
   const { db, sender, chaves, logger } = deps;
+  const relogio = deps.relogio ?? (() => new Date());
   const lote = await db.transaction((tx) => reservarLote(tx, { limite: deps.limite, agora }));
-  const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0 };
+  const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
 
   const falhar = async (id: string, motivo: string) => {
     await db.transaction((tx) => registrarFalha(tx, { id, motivo }));
@@ -67,6 +77,15 @@ export async function enviarLote(
         disparo.id,
         erro instanceof ParametrosInvalidosError ? 'parametros_invalidos' : 'telefone_ilegivel',
       );
+      continue;
+    }
+
+    const posse = await db.transaction((tx) =>
+      renovarReserva(tx, { id: disparo.id, reservadoEm: disparo.reservadoEm, agora: relogio() }),
+    );
+    if (posse === null) {
+      resultado.tomadosPorOutro++;
+      logger.info({ disparo: disparo.id }, 'reserva vencida e tomada por outra instância; pulando');
       continue;
     }
 
