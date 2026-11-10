@@ -15,8 +15,11 @@ export default async function Home({
 }) {
   // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
   // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
+  // O `searchParams` vem antes da primeira busca: lê-lo torna a página dinâmica, então o
+  // `next build` não tenta pré-renderizar a home chamando a API (que pode nem estar no ar).
+  const { bloco: blocoParam } = await searchParams;
   const blocos = await buscarBlocos();
-  const bloco = blocoDaUrl(blocos, (await searchParams).bloco);
+  const bloco = blocoDaUrl(blocos, blocoParam);
   // A API já filtra e ordena; o `pautasPublicas` repete a regra como segunda barreira.
   const lista = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
   const { abertas, apoios, conquistas } = totais(lista);
