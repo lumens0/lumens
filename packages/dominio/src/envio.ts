@@ -19,21 +19,24 @@
  */
 
 /** Tipos de disparo que o bot inicia, do mais ao menos urgente. */
-export type TipoDisparo = 'conferencia' | 'resposta_oficial' | 'meta_batida' | 'lembrete';
+export type TipoDisparo =
+  'conferencia' | 'resposta_oficial' | 'meta_batida' | 'recusa' | 'lembrete';
 
 /**
  * Ordem de atendimento quando a cota do dia não cobre todo mundo.
  *
  * A conferência vem primeiro porque é a única com janela fechada: a apuração
  * da RN10 corre sete dias depois do disparo, então atrasar o envio encurta o
- * prazo de quem responde. Lembrete vem por último porque é o único que pode
+ * prazo de quem responde. A recusa de pauta vai para uma pessoa só, então
+ * quase não gasta cota. Lembrete vem por último porque é o único que pode
  * esperar um dia sem mudar o resultado de nada.
  */
 export const PRIORIDADE: Readonly<Record<TipoDisparo, number>> = Object.freeze({
   conferencia: 1,
   resposta_oficial: 2,
   meta_batida: 3,
-  lembrete: 4,
+  recusa: 4,
+  lembrete: 5,
 });
 
 /** Limite da Meta para um portfólio novo, em pessoas distintas por 24h móveis (RNF06). */
