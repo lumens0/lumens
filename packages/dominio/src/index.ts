@@ -153,5 +153,15 @@ export {
 
 export { diaEmMaceio, formatarDia } from './datas';
 
-export { DOMINIO_UFAL, EMAIL_MAXIMO, emailInstitucional, normalizarEmail } from './verificacao';
+export {
+  CODIGO_EXPIRA_MS,
+  DIGITOS_DO_CODIGO,
+  DOMINIO_UFAL,
+  EMAIL_MAXIMO,
+  emailInstitucional,
+  gerarCodigo,
+  guardarCodigo,
+  hashDoCodigo,
+  normalizarEmail,
+} from './verificacao';
 export type { ResultadoEmail } from './verificacao';

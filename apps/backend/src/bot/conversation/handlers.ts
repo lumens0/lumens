@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   entrarNaPautaNova,
@@ -40,6 +41,8 @@ export interface StepContext {
   phoneHmac: string;
   /** Baixa, limpa e guarda a foto da pauta nova (2.6). Sem ele, a foto é recusada com aviso. */
   fotos?: ServicoDeFotos;
+  /** Envia o código de verificação (2.4). Sem ele, o código não sai e a pessoa é avisada. */
+  email?: ServicoDeEmail;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;

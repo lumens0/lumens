@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   defaultHandlers,
@@ -18,6 +19,7 @@ export interface RouterDeps {
   db: Db;
   segredo: Segredo;
   fotos?: ServicoDeFotos;
+  email?: ServicoDeEmail;
   handlers?: HandlerRegistry;
 }
 
@@ -77,6 +79,7 @@ export async function handleIncoming(
     segredo,
     phoneHmac,
     ...(deps.fotos ? { fotos: deps.fotos } : {}),
+    ...(deps.email ? { email: deps.email } : {}),
   });
   assertTransition(state.step, result.next);
 
