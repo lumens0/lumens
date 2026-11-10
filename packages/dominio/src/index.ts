@@ -67,6 +67,7 @@ export { TIPOS_EVENTO, registrarEvento } from './eventos';
 export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from './eventos';
 
 export {
+  MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
   listarFilaDeCuradoria,
