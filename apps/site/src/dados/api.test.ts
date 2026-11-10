@@ -61,6 +61,18 @@ describe('buscarPautas e buscarBlocos', () => {
     ]);
   });
 
+  it('pauta repetida entre páginas aparece uma vez só', async () => {
+    const paginas = [
+      { itens: [{ slug: 'a' }, { slug: 'b' }], proximo: 2 },
+      { itens: [{ slug: 'b' }, { slug: 'c' }], proximo: null },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify(paginas.shift()), { status: 200 }))),
+    );
+    expect((await buscarPautas()).map((p) => p.slug)).toEqual(['a', 'b', 'c']);
+  });
+
   it('sem bloco, não manda o parâmetro', async () => {
     const fetch = responder(200, { itens: [], proximo: null });
     vi.stubGlobal('fetch', fetch);

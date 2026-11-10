@@ -57,7 +57,10 @@ export async function buscarPautas(bloco?: string): Promise<Pauta[]> {
       `/pautas?${query.toString()}`,
       'a lista de pautas',
     );
-    pautas.push(...pagina.itens);
+    // Cada página tem cache próprio e a ordem por apoios muda entre elas: a mesma pauta pode vir
+    // em duas páginas. Fica a primeira, para não duplicar a key nem somar os totais duas vezes.
+    for (const item of pagina.itens)
+      if (!pautas.some((p) => p.slug === item.slug)) pautas.push(item);
     offset = pagina.proximo;
   }
   return pautas;
