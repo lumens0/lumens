@@ -1,4 +1,4 @@
-import { codigosVerificacao, type Db } from '@lumens/db';
+import { codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -14,6 +14,8 @@ import {
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
+  vincularEmail,
+  type NovoVinculo,
 } from './verificacao';
 
 describe('emailInstitucional', () => {
@@ -243,5 +245,94 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
     await apagarCodigo(db, 'c-8');
     expect(await linhaDe('c-8')).toBeUndefined();
     expect(await linhaDe('c-9')).toBeDefined();
+  });
+});
+
+describe('vincularEmail (SCRUM-137, RN01)', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+  }, 60_000);
+
+  const vinculo = (telefone: string, email: string): NovoVinculo => ({
+    telefoneHmac: `tel-${telefone}`,
+    telefoneCifrado: `cifra-tel-${telefone}`,
+    emailHmac: `hmac-${email}`,
+    emailCifrado: `cifra-${email}`,
+  });
+  const estudanteDe = async (telefone: string) =>
+    (
+      await db
+        .select()
+        .from(estudantes)
+        .where(eq(estudantes.telefoneHmac, `tel-${telefone}`))
+    )[0];
+
+  it('telefone novo: cria o estudante com o e-mail, ainda sem verificado_em', async () => {
+    const resultado = await vincularEmail(db, vinculo('1', 'a@ufal.br'));
+    const estudante = await estudanteDe('1');
+    expect(resultado).toEqual({ vinculado: true, estudanteId: estudante?.id });
+    expect(estudante).toMatchObject({
+      telefoneHmac: 'tel-1',
+      telefoneCifrado: 'cifra-tel-1',
+      emailHmac: 'hmac-a@ufal.br',
+      emailCifrado: 'cifra-a@ufal.br',
+      verificadoEm: null,
+      saiuEm: null,
+    });
+  });
+
+  it('o mesmo telefone com o mesmo e-mail de novo: mesmo estudante, sem duplicar', async () => {
+    const primeiro = await vincularEmail(db, vinculo('2', 'b@ufal.br'));
+    const segundo = await vincularEmail(db, vinculo('2', 'b@ufal.br'));
+    expect(segundo).toEqual(primeiro);
+    expect(
+      await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, 'tel-2')),
+    ).toHaveLength(1);
+  });
+
+  it('e-mail de outro telefone: recusa e não mexe em nenhum dos dois', async () => {
+    await vincularEmail(db, vinculo('3', 'c@ufal.br'));
+    const antes = await estudanteDe('3');
+
+    expect(await vincularEmail(db, vinculo('4', 'c@ufal.br'))).toEqual({
+      vinculado: false,
+      motivo: 'email_em_uso',
+    });
+    expect(await estudanteDe('3')).toEqual(antes);
+    expect(await estudanteDe('4')).toBeUndefined();
+  });
+
+  it('telefone com cadastro troca de e-mail: mantém verificação e saída, e o antigo fica livre', async () => {
+    await vincularEmail(db, vinculo('5', 'd@ufal.br'));
+    const verificadoEm = new Date('2026-10-01T12:00:00Z');
+    await db.update(estudantes).set({ verificadoEm }).where(eq(estudantes.telefoneHmac, 'tel-5'));
+    const antes = await estudanteDe('5');
+
+    expect(await vincularEmail(db, vinculo('5', 'e@ufal.br'))).toEqual({
+      vinculado: true,
+      estudanteId: antes?.id,
+    });
+    expect(await estudanteDe('5')).toMatchObject({
+      emailHmac: 'hmac-e@ufal.br',
+      emailCifrado: 'cifra-e@ufal.br',
+      verificadoEm,
+      saiuEm: null,
+    });
+    expect((await vincularEmail(db, vinculo('6', 'd@ufal.br'))).vinculado).toBe(true);
+  });
+
+  it('estudante que saiu e volta pelo mesmo telefone continua o mesmo cadastro', async () => {
+    await vincularEmail(db, vinculo('7', 'f@ufal.br'));
+    const saiuEm = new Date('2026-10-05T12:00:00Z');
+    await db.update(estudantes).set({ saiuEm }).where(eq(estudantes.telefoneHmac, 'tel-7'));
+    const antes = await estudanteDe('7');
+
+    expect(await vincularEmail(db, vinculo('7', 'f@ufal.br'))).toEqual({
+      vinculado: true,
+      estudanteId: antes?.id,
+    });
+    // Quem volta a valer (limpar `saiu_em`, marcar `verificado_em`) é o fim da 2.4, não o vínculo.
+    expect((await estudanteDe('7'))?.saiuEm).toEqual(saiuEm);
   });
 });

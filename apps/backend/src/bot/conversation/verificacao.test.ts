@@ -1,8 +1,8 @@
-import { codigosVerificacao, conversas, type Db } from '@lumens/db';
+import { codigosVerificacao, conversas, eq, estudantes, type Db } from '@lumens/db';
 import { CODIGO_EXPIRA_MS, MAX_TENTATIVAS, REENVIO_APOS_MS, hashDoCodigo } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { hmacHex, segredoCom } from '../../cripto';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { MENU_TEXT } from './handlers';
 import { hashPhone } from './phone';
@@ -19,11 +19,13 @@ import {
   CODE_SENT_TEXT,
   COURSE_PENDING_TEXT,
   EMAIL_FORMAT_TEXT,
+  EMAIL_IN_USE_TEXT,
   EMAIL_LOST_TEXT,
   EMAIL_MANY_TEXT,
   EMAIL_MISSING_TEXT,
   EMAIL_NOT_UFAL_TEXT,
   EMAIL_QUESTION_TEXT,
+  LINK_UNAVAILABLE_TEXT,
   NO_ATTEMPTS_TEXT,
   RESEND_FAILED_TEXT,
   wrongCodeText,
@@ -47,8 +49,17 @@ const emailFalso: ServicoDeEmail = {
   },
 };
 
-const send = (text: string) =>
-  handleIncoming({ phoneHmac: H, text }, { store, db, segredo, ...(email ? { email } : {}) });
+const TELEFONE = '5582999990000';
+const hmac = (valor: string) => hmacHex(valor, CHAVE);
+/** Como o worker: o telefone cifrado vem no job, e o HMAC usa a CHAVE_HMAC. */
+let comIdentidade = true;
+
+const sendDe = (phoneHmac: string, phoneCifrado: string, text: string) =>
+  handleIncoming(
+    { phoneHmac, text, ...(comIdentidade ? { phoneCifrado } : {}) },
+    { store, db, segredo, ...(email ? { email } : {}), ...(comIdentidade ? { hmac } : {}) },
+  );
+const send = (text: string) => sendDe(H, segredo.cifrar(TELEFONE), text);
 const codigoGuardado = async () => (await db.select().from(codigosVerificacao))[0];
 const ultimoCodigo = () => enviados.at(-1)?.codigo ?? '';
 
@@ -73,6 +84,7 @@ beforeEach(async () => {
   store = new ConversationStore(db);
   enviados.length = 0;
   envioFunciona = true;
+  comIdentidade = true;
   email = emailFalso;
   await send('oi');
 }, 60_000);
@@ -315,5 +327,80 @@ describe('conferir o código, 5 tentativas e reenvio (SCRUM-136)', () => {
     await store.save(H, 'VERIFY_ASK_CODE', {});
     expect(await send('reenviar')).toEqual([EMAIL_LOST_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+  });
+});
+
+describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
+  const estudanteDe = async (phoneHmac: string) =>
+    (await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, phoneHmac)))[0];
+
+  it('código certo cria o cadastro com o telefone e o e-mail, cifrados e com HMAC', async () => {
+    await send('3');
+    await send('Aluno@IC.ufal.br');
+    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, COURSE_PENDING_TEXT]);
+
+    const estudante = await estudanteDe(H);
+    expect(estudante?.emailHmac).toBe(hmac('aluno@ic.ufal.br'));
+    expect(segredo.decifrar(estudante?.emailCifrado ?? '')).toBe('aluno@ic.ufal.br');
+    expect(segredo.decifrar(estudante?.telefoneCifrado ?? '')).toBe(TELEFONE);
+    // Verificado de vez só no fim da 2.4 (curso).
+    expect(estudante?.verificadoEm).toBeNull();
+    // O e-mail já está no cadastro: sai da conversa.
+    expect(await dados()).not.toHaveProperty('emailCifrado');
+  });
+
+  it('e-mail já ligado a outro número: explica, pede outro e-mail e não mexe no outro', async () => {
+    const OUTRO_TELEFONE = '5582988887777';
+    const outro = hashPhone(OUTRO_TELEFONE, CHAVE);
+    await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), 'oi');
+    await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), '3');
+    await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), 'aluno@ufal.br');
+    await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), ultimoCodigo());
+    const doOutro = await estudanteDe(outro);
+    expect(doOutro?.emailHmac).toBe(hmac('aluno@ufal.br'));
+
+    await pedirCodigo();
+    expect(await send(ultimoCodigo())).toEqual([EMAIL_IN_USE_TEXT]);
+    expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+    expect(await dados()).not.toHaveProperty('emailCifrado');
+    expect(await estudanteDe(H)).toBeUndefined();
+    expect(await estudanteDe(outro)).toEqual(doOutro);
+
+    // Com outro e-mail, segue normalmente.
+    expect(await send('outro.aluno@ufal.br')).toEqual([CODE_SENT_TEXT]);
+    expect((await send(ultimoCodigo()))[0]).toBe(CODE_OK_TEXT);
+    expect((await estudanteDe(H))?.emailHmac).toBe(hmac('outro.aluno@ufal.br'));
+  });
+
+  it('o aviso de e-mail em uso só vem depois do código: antes, o bot não revela nada', async () => {
+    const OUTRO_TELEFONE = '5582988887777';
+    const outro = hashPhone(OUTRO_TELEFONE, CHAVE);
+    for (const t of ['oi', '3', 'aluno@ufal.br']) {
+      await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), t);
+    }
+    await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), ultimoCodigo());
+
+    await send('3');
+    expect(await send('aluno@ufal.br')).toEqual([CODE_SENT_TEXT]);
+  });
+
+  it('sem o telefone cifrado ou o HMAC, não gasta o código e pede para tentar depois', async () => {
+    await pedirCodigo();
+    comIdentidade = false;
+    expect(await send(ultimoCodigo())).toEqual([LINK_UNAVAILABLE_TEXT]);
+    expect(await passo()).toBe('VERIFY_ASK_CODE');
+    expect((await codigoGuardado())?.tentativas).toBe(0);
+
+    comIdentidade = true;
+    expect((await send(ultimoCodigo()))[0]).toBe(CODE_OK_TEXT);
+  });
+
+  it('sem o e-mail na conversa, não confere o código e pede o e-mail', async () => {
+    await pedirCodigo();
+    const codigo = ultimoCodigo();
+    await store.save(H, 'VERIFY_ASK_CODE', {});
+    expect(await send(codigo)).toEqual([EMAIL_LOST_TEXT]);
+    expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+    expect(await codigoGuardado()).toBeDefined();
   });
 });
