@@ -10,6 +10,12 @@ import { z } from 'zod';
  * Instantes (`timestamptz`) saem como ISO 8601 em UTC; datas (`date`) como `AAAA-MM-DD`.
  */
 
+/**
+ * Origem pública do site em produção. Padrão do CORS da API (`CORS_ORIGENS`) e da base das URLs
+ * absolutas dos metadados do site (`LUMENS_SITE_URL`): um lugar só, para o domínio mudar junto.
+ */
+export const ORIGEM_SITE_PRODUCAO = 'https://lumens-ufal.vercel.app';
+
 /** Slug de pauta ou bloco: minúsculas, dígitos e hífens, sem hífen nas pontas nem repetido. */
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SLUG_MAX = 120;

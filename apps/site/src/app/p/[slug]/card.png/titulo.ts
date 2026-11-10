@@ -4,11 +4,11 @@
 const LIMITE = 90;
 const LIMITE_FONTE_GRANDE = 50;
 
-/** Título que cabe no card: até 90 caracteres, cortado na última palavra inteira, com "…". */
-export function tituloDoCard(titulo: string): string {
+/** Título que cabe no card: até `limite` (90) caracteres, cortado na última palavra inteira, com "…". */
+export function tituloDoCard(titulo: string, limite = LIMITE): string {
   const letras = Array.from(titulo.trim());
-  if (letras.length <= LIMITE) return letras.join('');
-  const corte = letras.slice(0, LIMITE).join('');
+  if (letras.length <= limite) return letras.join('');
+  const corte = letras.slice(0, limite).join('');
   const espaco = corte.lastIndexOf(' ');
   return `${(espaco > 0 ? corte.slice(0, espaco) : corte).replace(/[\s,.;:–-]+$/u, '')}…`;
 }
