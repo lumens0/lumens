@@ -15,6 +15,8 @@ import {
   relatos,
   sql,
   type Db,
+  type SQL,
+  type StatusPauta,
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from './eventos';
@@ -41,9 +43,15 @@ export interface PautaNaFila {
   restanteMs: number;
 }
 
-/** Pautas em curadoria, da mais antiga (prazo mais perto) para a mais nova. */
-export async function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise<PautaNaFila[]> {
-  const linhas = await db
+/** A pauta como a curadoria vê na tela dela (SCRUM-168), em qualquer status. */
+export interface PautaDaCuradoria extends PautaNaFila {
+  status: StatusPauta;
+  /** Só em pauta recusada. */
+  motivoRecusa: string | null;
+}
+
+function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]> {
+  return db
     .select({
       id: pautas.id,
       titulo: pautas.titulo,
@@ -58,16 +66,39 @@ export async function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise
         where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
         limit 1)`,
       criadaEm: pautas.criadaEm,
+      status: pautas.status,
+      motivoRecusa: pautas.motivoRecusa,
     })
     .from(pautas)
     .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
-    .where(eq(pautas.status, 'em_curadoria'))
-    .orderBy(pautas.criadaEm);
+    .where(filtro)
+    .orderBy(pautas.criadaEm)
+    .then((linhas) =>
+      linhas.map((p) => {
+        const prazo = new Date(p.criadaEm.getTime() + PRAZO_DE_CURADORIA_MS);
+        return { ...p, prazo, restanteMs: prazo.getTime() - agora.getTime() };
+      }),
+    );
+}
 
-  return linhas.map((p) => {
-    const prazo = new Date(p.criadaEm.getTime() + PRAZO_DE_CURADORIA_MS);
-    return { ...p, prazo, restanteMs: prazo.getTime() - agora.getTime() };
-  });
+/** Pautas em curadoria, da mais antiga (prazo mais perto) para a mais nova. */
+export function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise<PautaDaCuradoria[]> {
+  return lerPautas(db, eq(pautas.status, 'em_curadoria'), agora);
+}
+
+/** Todas as pautas, da mais antiga para a mais nova: a lista geral do painel. */
+export function listarPautasDaCuradoria(db: Db, agora = new Date()): Promise<PautaDaCuradoria[]> {
+  return lerPautas(db, sql`true`, agora);
+}
+
+/** Uma pauta pelo id, em qualquer status; `undefined` se não existe. */
+export async function buscarPautaDaCuradoria(
+  db: Db,
+  pautaId: string,
+  agora = new Date(),
+): Promise<PautaDaCuradoria | undefined> {
+  const [pauta] = await lerPautas(db, eq(pautas.id, pautaId), agora);
+  return pauta;
 }
 
 export type ResultadoDecisao =
@@ -77,6 +108,7 @@ export type ResultadoDecisao =
 async function decidir(
   tx: Tx,
   pautaId: string,
+  curadorId: string,
   para: 'juntando_apoios' | 'recusada',
   motivo: string | undefined,
   agora: Date,
@@ -95,6 +127,8 @@ async function decidir(
   }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
+  // Quem decidiu fica na pauta, não no evento: evento não leva identidade.
+  await tx.update(pautas).set({ decididaPor: curadorId }).where(eq(pautas.id, pautaId));
   await registrarEvento(tx, {
     pautaId,
     tipo: para === 'recusada' ? 'pauta_recusada' : 'pauta_aprovada',
@@ -107,9 +141,9 @@ async function decidir(
 /** Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. */
 export function aprovarPauta(
   tx: Tx,
-  { pautaId, agora = new Date() }: { pautaId: string; agora?: Date },
+  { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  return decidir(tx, pautaId, 'juntando_apoios', undefined, agora);
+  return decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
 }
 
 /**
@@ -119,9 +153,14 @@ export function aprovarPauta(
  */
 export async function recusarPauta(
   tx: Tx,
-  { pautaId, motivo, agora = new Date() }: { pautaId: string; motivo: string; agora?: Date },
+  {
+    pautaId,
+    curadorId,
+    motivo,
+    agora = new Date(),
+  }: { pautaId: string; curadorId: string; motivo: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  const resultado = await decidir(tx, pautaId, 'recusada', motivo, agora);
+  const resultado = await decidir(tx, pautaId, curadorId, 'recusada', motivo, agora);
   if (!resultado.decidida) return resultado;
 
   const [pauta] = await tx

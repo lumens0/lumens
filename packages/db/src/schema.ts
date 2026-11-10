@@ -95,6 +95,8 @@ export const pautas = pgTable(
     aprovadaEm: instante('aprovada_em'),
     metaBatidaEm: instante('meta_batida_em'),
     motivoRecusa: text('motivo_recusa'),
+    /** Curador que aprovou ou recusou a pauta (SCRUM-165). Nunca sai nas views públicas. */
+    decididaPor: uuid('decidida_por').references(() => curadores.id, { onDelete: 'restrict' }),
     /**
      * Português sem acento (`portugues_sem_acento`, migração 0007): "iluminacao" acha
      * "Iluminação". O título pesa mais (A) que a descrição (B) na busca de pautas parecidas.
@@ -166,6 +168,8 @@ export const relatos = pgTable(
     fotoChave: text('foto_chave'),
     moderacao: moderacaoRelato('moderacao').notNull().default('pendente'),
     moderadoEm: instante('moderado_em'),
+    /** Curador que moderou o relato (SCRUM-165). */
+    moderadoPor: uuid('moderado_por').references(() => curadores.id, { onDelete: 'restrict' }),
   },
   (t) => [
     index('relato_pauta_id_idx').on(t.pautaId),
