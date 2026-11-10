@@ -8,12 +8,13 @@
 
 A história é entregue por subtask, uma branch e uma PR para cada.
 
-| Subtask   | O quê                                                 | Branch                      | Situação |
-| --------- | ----------------------------------------------------- | --------------------------- | -------- |
-| SCRUM-134 | Pedir o e-mail e aceitar só `@ufal.br` e `@*.ufal.br` | `feat/SCRUM-134-email-ufal` | esta PR  |
-| —         | Código de 6 dígitos, envio, tentativas e reenvio      | —                           | a fazer  |
-| —         | Vincular telefone ↔ e-mail (RN01); e-mail já usado    | —                           | a fazer  |
-| —         | Curso numa lista; marcar verificado; retomar o pedido | —                           | a fazer  |
+| Subtask   | O quê                                                     | Branch                              | PR / situação |
+| --------- | --------------------------------------------------------- | ----------------------------------- | ------------- |
+| SCRUM-134 | Pedir o e-mail e aceitar só `@ufal.br` e `@*.ufal.br`     | `feat/SCRUM-134-email-ufal`         | #97           |
+| SCRUM-135 | Código de 6 dígitos (hash SHA-256, 10 min) por Nodemailer | `feat/SCRUM-135-codigo-email`       | #100          |
+| SCRUM-136 | Conferir o código; máx. 5 tentativas; reenvio após 60 s   | `feat/SCRUM-136-tentativas-reenvio` | esta PR       |
+| —         | Vincular telefone ↔ e-mail (RN01); e-mail já usado        | —                                   | a fazer       |
+| —         | Curso numa lista; marcar verificado; retomar o pedido     | —                                   | a fazer       |
 
 ## Documentos
 

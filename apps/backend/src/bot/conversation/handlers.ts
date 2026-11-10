@@ -14,7 +14,7 @@ import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import { TRANSITIONS, type Step } from './steps';
 import { normalize } from './texto';
-import { EMAIL_QUESTION_TEXT, verifyAskEmail } from './verificacao';
+import { EMAIL_QUESTION_TEXT, verifyAskCode, verifyAskEmail } from './verificacao';
 
 export { normalize } from './texto';
 export { PHOTO_ASK_TEXT, PHOTO_RECEIVED_TEXT } from './nova-pauta';
@@ -119,8 +119,8 @@ export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,
   MENU: menu,
   VERIFY_ASK_EMAIL: verifyAskEmail,
-  // TODO(2.4): código e curso (próximas subtasks).
-  VERIFY_ASK_CODE: placeholder('VERIFY_ASK_CODE', '2.4'),
+  VERIFY_ASK_CODE: verifyAskCode,
+  // TODO(2.4): curso (próxima subtask).
   VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
   REPORT_ASK_TEXT: reportAskText,
   REPORT_ASK_BLOCK: reportAskBlock,

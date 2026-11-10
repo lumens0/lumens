@@ -23,7 +23,7 @@
   (`pnpm dev`). Entra no bot como o serviço de fotos: `main.ts` → worker → router →
   `StepContext.email`.
 - **Ordem:** guarda o hash e depois envia. Se gravar falhar, nenhum código sai; se o envio
-  falhar, o hash fica sem ninguém ter recebido o código e é substituído no próximo pedido.
+  falhar, o código é apagado (desde a SCRUM-136).
 - **Decisão — SHA-256 com o telefone:** a história pede SHA-256. Misturar o `telefone_hmac` faz o
   mesmo código ter hashes diferentes em telefones diferentes. Um código de 6 dígitos tem só 1
   milhão de valores, então quem lesse o banco poderia testar todos; quem limita isso são a
@@ -32,3 +32,19 @@
   acontece enquanto a transação da conversa está aberta (até ~20 s no pior caso). Se o worker cair
   depois de enviar e antes de confirmar, a reentrega gera e envia outro código, e só o último vale.
 - **Dependência:** `nodemailer` e `@types/nodemailer` no back-end, nas mesmas versões do painel.
+
+## SCRUM-136
+
+- **Domínio** (`verificacao.ts`): `conferirCodigo` trava a linha (`FOR UPDATE`), recusa código
+  inexistente, sem tentativas ou vencido, compara o hash em tempo constante (`timingSafeEqual`),
+  apaga o código certo e conta o errado. `esperaParaReenviar` calcula o último envio como
+  `expira_em − 10 min`: a tabela não precisou de coluna nova. `apagarCodigo` serve ao código usado
+  e ao que não chegou a sair.
+- **Bot** (`verificacao.ts`): `verifyAskCode` troca o placeholder de `VERIFY_ASK_CODE`.
+  `enviarCodigoNovo` é o envio único usado pelo primeiro envio e pelo reenvio.
+  `TRANSITIONS` ganhou `VERIFY_ASK_CODE → VERIFY_ASK_EMAIL`, para quando o e-mail some da conversa.
+- **Decisão — tentativas por código, não por telefone:** esgotadas as 5, um código novo (depois de
+  60 s) zera a contagem. Na pior hipótese, são 5 palpites por minuto num universo de 1 milhão:
+  centenas de horas, em média, para acertar no chute.
+- **Decisão — o que não gasta tentativa:** texto que não é número e número com tamanho errado. São
+  enganos de digitação, não palpites.

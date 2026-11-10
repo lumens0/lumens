@@ -5,9 +5,12 @@
  *    domínio tem de ser `ufal.br` ou um subdomínio dele (`ic.ufal.br`, `ctec.ufal.br`...).
  * 2. `gerarCodigo` e `guardarCodigo` (SCRUM-135): o código de 6 dígitos que vai por e-mail. O
  *    banco guarda só o hash, que vale 10 minutos; um pedido novo substitui o anterior.
+ * 3. `conferirCodigo` e `esperaParaReenviar` (SCRUM-136): no máximo 5 tentativas por código, e
+ *    um código novo só depois de 60 s do anterior. Juntos, limitam quem tenta adivinhar: 5
+ *    palpites por minuto, num universo de 1 milhão de códigos.
  */
-import { createHash, randomInt } from 'node:crypto';
-import { codigosVerificacao, type Db } from '@lumens/db';
+import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
+import { codigosVerificacao, eq, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -104,4 +107,78 @@ export async function guardarCodigo(
     .values({ telefoneHmac, ...valores })
     .onConflictDoUpdate({ target: codigosVerificacao.telefoneHmac, set: valores });
   return { expiraEm: valores.expiraEm };
+}
+
+/** Tentativas por código. Esgotadas, só um código novo (reenvio) libera de novo. */
+export const MAX_TENTATIVAS = 5;
+
+/** Tempo mínimo entre dois envios de código para o mesmo telefone. */
+export const REENVIO_APOS_MS = 60_000;
+
+export type ResultadoConferencia =
+  | { certo: true }
+  | { certo: false; motivo: 'errado'; restantes: number }
+  | { certo: false; motivo: 'sem_tentativas' | 'expirado' | 'sem_codigo' };
+
+/**
+ * Confere o código digitado. Certo: o código é apagado (vale uma vez só). Errado: conta uma
+ * tentativa e diz quantas restam. Código vencido, sem tentativas ou inexistente não é conferido:
+ * a pessoa precisa pedir outro. A linha é travada (`FOR UPDATE`) para duas mensagens ao mesmo
+ * tempo não contarem como uma tentativa só.
+ */
+export async function conferirCodigo(
+  db: Db,
+  {
+    telefoneHmac,
+    codigo,
+    agora = new Date(),
+  }: { telefoneHmac: string; codigo: string; agora?: Date },
+): Promise<ResultadoConferencia> {
+  const [linha] = await db
+    .select()
+    .from(codigosVerificacao)
+    .where(eq(codigosVerificacao.telefoneHmac, telefoneHmac))
+    .for('update');
+  if (linha === undefined) return { certo: false, motivo: 'sem_codigo' };
+  if (linha.tentativas >= MAX_TENTATIVAS) return { certo: false, motivo: 'sem_tentativas' };
+  if (linha.expiraEm.getTime() <= agora.getTime()) return { certo: false, motivo: 'expirado' };
+
+  if (mesmoHash(linha.codigoHash, hashDoCodigo(telefoneHmac, codigo))) {
+    await apagarCodigo(db, telefoneHmac);
+    return { certo: true };
+  }
+  const tentativas = linha.tentativas + 1;
+  await db
+    .update(codigosVerificacao)
+    .set({ tentativas })
+    .where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
+  return { certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - tentativas };
+}
+
+/** Compara em tempo constante: o tempo da resposta não revela quantos caracteres bateram. */
+function mesmoHash(a: string, b: string): boolean {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)];
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+/**
+ * Quanto falta (em ms) para o telefone poder pedir outro código; 0 se já pode. O envio é a
+ * validade menos 10 minutos: a tabela não precisa de outra coluna.
+ */
+export async function esperaParaReenviar(
+  db: Db,
+  { telefoneHmac, agora = new Date() }: { telefoneHmac: string; agora?: Date },
+): Promise<number> {
+  const [linha] = await db
+    .select({ expiraEm: codigosVerificacao.expiraEm })
+    .from(codigosVerificacao)
+    .where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
+  if (linha === undefined) return 0;
+  const enviadoEm = linha.expiraEm.getTime() - CODIGO_EXPIRA_MS;
+  return Math.max(0, enviadoEm + REENVIO_APOS_MS - agora.getTime());
+}
+
+/** Apaga o código do telefone: usado (certo) ou que não chegou a sair (envio falhou). */
+export async function apagarCodigo(db: Db, telefoneHmac: string): Promise<void> {
+  await db.delete(codigosVerificacao).where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
 }
