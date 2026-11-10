@@ -97,8 +97,9 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     expect(() => decifrar(e1Atualizado.telefoneCifrado, CHAVE_A)).toThrow();
 
     if (e1Atualizado.emailCifrado === null) throw new Error('email não esperado null');
-    expect(decifrar(e1Atualizado.emailCifrado, CHAVE_B)).toBe('estudante1@ufal.br');
-    expect(() => decifrar(e1Atualizado.emailCifrado, CHAVE_A)).toThrow();
+    const email1 = e1Atualizado.emailCifrado;
+    expect(decifrar(email1, CHAVE_B)).toBe('estudante1@ufal.br');
+    expect(() => decifrar(email1, CHAVE_A)).toThrow();
 
     expect(decifrar(e2Atualizado.telefoneCifrado, CHAVE_B)).toBe('+5582999990002');
     expect(() => decifrar(e2Atualizado.telefoneCifrado, CHAVE_A)).toThrow();
@@ -139,18 +140,12 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     // estudanteAmbosSaiu não foi alterado; estudanteEmailSaiu e estudanteTelSaiu tiveram 1 campo recifrado cada.
     expect(contagens).toEqual({ curadores: 0, estudantes: 2 });
 
-    const [e1] = await db
-      .select()
-      .from(estudantes)
-      .where(eq(estudantes.id, estudanteAmbosSaiu.id));
+    const [e1] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteAmbosSaiu.id));
     if (!e1) throw new Error('e1 não encontrado');
     expect(e1.telefoneCifrado).toBe('saiu:lapide-tel-1');
     expect(e1.emailCifrado).toBe('saiu:lapide-email-1');
 
-    const [e2] = await db
-      .select()
-      .from(estudantes)
-      .where(eq(estudantes.id, estudanteEmailSaiu.id));
+    const [e2] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteEmailSaiu.id));
     if (!e2) throw new Error('e2 não encontrado');
     expect(decifrar(e2.telefoneCifrado, CHAVE_B)).toBe('+5582999990003');
     expect(() => decifrar(e2.telefoneCifrado, CHAVE_A)).toThrow();
@@ -160,8 +155,9 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     if (!e3) throw new Error('e3 não encontrado');
     expect(e3.telefoneCifrado).toBe('saiu:lapide-tel-3');
     if (e3.emailCifrado === null) throw new Error('email e3 não esperado null');
-    expect(decifrar(e3.emailCifrado, CHAVE_B)).toBe('estudante3@ufal.br');
-    expect(() => decifrar(e3.emailCifrado, CHAVE_A)).toThrow();
+    const email3 = e3.emailCifrado;
+    expect(decifrar(email3, CHAVE_B)).toBe('estudante3@ufal.br');
+    expect(() => decifrar(email3, CHAVE_A)).toThrow();
   });
 
   it('faz rollback e não altera nenhum registro se a decifragem falhar no estudante', async () => {
