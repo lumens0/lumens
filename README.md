@@ -198,20 +198,18 @@ Homologação: [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app). O ender
 `lumens-hazel.vercel.app` continua respondendo, mas é o nome que a Vercel gerou sozinha quando
 `lumens.vercel.app` já estava tomado — use o novo em links, cartões e mensagens (SCRUM-242).
 
-Até o ambiente da AWS (1.1b), o site e o painel são publicados na Vercel pelo GitHub Actions.
-Após o `check` passar na `main`, o job `deploy` publica os projetos `lumens` e `lumens-painel`
-pela Vercel CLI. Isso mantém o deploy automático no plano Hobby mesmo com o repositório na
+Até o ambiente da AWS (1.1b), o site é publicado na Vercel pelo GitHub Actions.
+Após o `check` passar na `main`, o job `deploy` publica o projeto `lumens` pela Vercel CLI. Isso mantém o deploy automático no plano Hobby mesmo com o repositório na
 organização `lumens0`. O status e os logs do deploy ficam no GitHub Actions e na Vercel.
 
-O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-`VERCEL_SITE_PROJECT_ID` e `VERCEL_PAINEL_PROJECT_ID`. Na Vercel, os diretórios raiz dos
-projetos continuam sendo `apps/site` e `apps/painel`, respectivamente.
+O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_SITE_PROJECT_ID`.
+Na Vercel, o diretório raiz do projeto continua sendo `apps/site`.
 
-O **back-end** vai para uma máquina virtual, por `docker compose`, no job `deploy-backend`:
+O **back-end** e o **painel** vão para uma máquina virtual, por `docker compose`, no job
+`deploy-backend`:
 migração primeiro, em comando separado, e só então a nova versão sobe — migração que falha
 deixa a anterior servindo. Como montar a máquina, qual nuvem e por quê, e quais secrets são
-exigidos está em [docs/homologacao.md](docs/homologacao.md). O site e o painel continuam na
-Vercel.
+exigidos está em [docs/homologacao.md](docs/homologacao.md). O site continua na Vercel.
 
 ## Painel de curadoria
 
@@ -226,7 +224,7 @@ pnpm --filter @lumens/painel build   # build de produção
 ```
 
 O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
-`.env`. Na Vercel, as mesmas variáveis vão no projeto do painel.
+`.env`. Na homologação, elas vêm do `.env.producao` da VM.
 
 **Adicionar um curador** (ou reativar quem saiu):
 
@@ -240,10 +238,14 @@ O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as 
 
 Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
-Homologação: [lumens-painel.vercel.app](https://lumens-painel.vercel.app).
+Homologação: `https://painel.<DOMINIO>`, na mesma VM do banco. O painel não fica na Vercel
+porque o Postgres da homologação não tem porta publicada: fora da rede do `docker compose`,
+ninguém o alcança. Para cadastrar curador lá, rode o script dentro da VM, pelo contêiner do
+back-end (que já tem o `.env.producao`):
 
-Na Vercel, o projeto do painel usa `apps/painel` como diretório raiz. Assim, site e painel têm
-deploys e configurações independentes mesmo compartilhando o monorepo.
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+```
 
 ## Bot (parte 2)
 
