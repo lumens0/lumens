@@ -85,6 +85,14 @@ export {
 } from './curadoria';
 export type { PautaNaFila, ResultadoDecisao } from './curadoria';
 
+export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './moderacao';
+export type {
+  DecisaoDeModeracao,
+  PautaComRelatosPendentes,
+  RelatoPendente,
+  ResultadoModeracao,
+} from './moderacao';
+
 export { listarLinhaDoTempo } from './linha-do-tempo';
 export type { EventoDaLinha } from './linha-do-tempo';
 
