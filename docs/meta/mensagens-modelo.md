@@ -120,6 +120,12 @@ de quem envia. A Meta recusa envio cujo número de variáveis não bate com o mo
 na conta. A Meta aceitou os seis pedidos, todos em `PENDING` e com categoria `UTILITY`; o
 `--situacao` rodado logo depois (18:33) devolveu os mesmos ids, situação e categoria, em `pt_BR`.
 
+**Reclassificação: `lumens_owner_inativo` virou `MARKETING`.** Às 18:36 do mesmo dia, ainda em
+`PENDING`, a Meta mandou o webhook `template_category_update` com `previous_category: UTILITY` e
+`new_category: MARKETING` para esse modelo; o `--situacao` das 18:43 confirmou. Os outros cinco
+seguem `UTILITY`. Como diz a seção [Enviar](#enviar), o texto precisa ser revisto e a decisão sobre
+o canal dos avisos, reaberta, antes de usar esse modelo.
+
 **A conta usada é a de teste** ("Test Messaging Account", do número de teste da Meta): a conta do
 Facebook da responsável é recente e ainda não libera um número de produção. Os modelos ficam presos à
 conta onde foram criados, então, quando houver número e conta de produção, os seis precisam ser
@@ -134,7 +140,7 @@ respondeu.
 | `lumens_resposta_oficial` | 1954383762194455 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
 | `lumens_conferencia`      | 1685902049990843 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
 | `lumens_lembrete_prazo`   | 1112877021560025 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
-| `lumens_owner_inativo`    | 1438995534448675 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
+| `lumens_owner_inativo`    | 1438995534448675 | 2026-11-10   | `PENDING` | `MARKETING`         | 2026-11-10    |
 | `lumens_pauta_recusada`   | 1878214926703375 | 2026-11-10   | `PENDING` | `UTILITY`           | 2026-11-10    |
 
 ## O que este documento não resolve
