@@ -1,9 +1,3 @@
-.pagina {
-  width: min(100%, 860px);
-  margin: 0 auto;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px);
-}
-
 .voltar {
   color: var(--primaria);
   font-weight: 600;
