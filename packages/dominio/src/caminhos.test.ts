@@ -18,7 +18,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarProtocolo } from './caminho-registro';
 import { abrirCaminho } from './caminhos';
 import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from './fabricas';
-import { registrarPromessa } from './promessa';
+import { RESUMO_NO_AVISO_MAXIMO, registrarPromessa } from './promessa';
 import { registrarExecucaoProposta } from './proposta';
 import { transicionarStatus } from './status';
 
@@ -309,8 +309,30 @@ describe('registrarPromessa (RN13)', () => {
     expect(fila[0]).toMatchObject({
       tipo: 'resposta_oficial',
       modelo: 'lumens_resposta_oficial',
-      parametros: ['Lâmpadas do bloco B', 'Resposta no Fala.BR', pauta.slug],
+      parametros: [
+        'Lâmpadas do bloco B',
+        'Resposta no Fala.BR',
+        'A reitoria vai trocar as lâmpadas.',
+        pauta.slug,
+      ],
     });
+  });
+
+  it('resumo longo vai cortado no aviso, sem passar do teto da Meta (3.6)', async () => {
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+    const apoiador = await criarEstudanteVerificado(db);
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: apoiador.id, origem: 'bot' });
+    const longo = `A reitoria respondeu ${'com detalhes '.repeat(60)}.`;
+
+    const r = await db.transaction((tx) =>
+      registrarPromessa(tx, { ...nova(pauta.id, curador.id), resumo: longo }),
+    );
+
+    const [aviso] = await db.select().from(disparos).where(eq(disparos.aviso, r.promessaId));
+    const resumo = aviso?.parametros[2] ?? '';
+    expect(Array.from(resumo)).toHaveLength(RESUMO_NO_AVISO_MAXIMO);
+    expect(resumo.endsWith('…')).toBe(true);
   });
 
   it('promessa recusada não deixa aviso na fila', async () => {

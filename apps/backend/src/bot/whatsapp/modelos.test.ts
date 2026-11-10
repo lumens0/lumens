@@ -77,7 +77,13 @@ describe('paraSubmissao', () => {
           type: 'BODY',
           text: MODELOS.lumens_resposta_oficial.corpo,
           example: {
-            body_text: [['Bebedouro quebrado no bloco 12', 'Pró-Reitoria de Gestão Institucional']],
+            body_text: [
+              [
+                'Bebedouro quebrado no bloco 12',
+                'Pró-Reitoria de Gestão Institucional',
+                'a troca do bebedouro do térreo está prevista para 15/12.',
+              ],
+            ],
           },
         },
         { type: 'FOOTER', text: 'Lumens · pautas estudantis da UFAL' },

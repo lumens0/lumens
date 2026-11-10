@@ -9,8 +9,25 @@ import { registrarEvento } from './eventos';
 import { enfileirarDisparos } from './fila';
 import { transicionarStatus } from './status';
 
-/** Mensagem modelo (SCRUM-193): título, fonte e, no botão "Ver a pauta", o slug. */
+/** Mensagem modelo (SCRUM-193): título, fonte, resumo e, no botão "Ver a pauta", o slug. */
 export const MODELO_RESPOSTA_OFICIAL = 'lumens_resposta_oficial';
+
+/**
+ * Teto do resumo dentro da mensagem (3.6). A Meta recusa a mensagem inteira quando o corpo passa de
+ * 1024 caracteres; com o título, a fonte e o texto fixo do modelo, 400 deixa folga. O resumo
+ * inteiro continua na página da pauta.
+ */
+export const RESUMO_NO_AVISO_MAXIMO = 400;
+
+/** Corta em `maximo` caracteres, terminando em "…". Conta por code point: emoji não parte ao meio. */
+function resumoParaOAviso(resumo: string): string {
+  const caracteres = Array.from(resumo.replace(/\s+/g, ' ').trim());
+  if (caracteres.length <= RESUMO_NO_AVISO_MAXIMO) return caracteres.join('');
+  return `${caracteres
+    .slice(0, RESUMO_NO_AVISO_MAXIMO - 1)
+    .join('')
+    .trimEnd()}…`;
+}
 
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
@@ -108,7 +125,7 @@ export async function registrarPromessa(
     .innerJoin(estudantes, eq(estudantes.id, apoios.estudanteId))
     .where(and(eq(apoios.pautaId, pautaId), isNull(estudantes.saiuEm)));
 
-  const parametros = [pauta.titulo, fonte, pauta.slug];
+  const parametros = [pauta.titulo, fonte, resumoParaOAviso(resumo), pauta.slug];
   const avisados = await enfileirarDisparos(
     tx,
     apoiadores.map(({ estudanteId }) => ({
