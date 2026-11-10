@@ -6,7 +6,9 @@ import PaginaConquistas from './page';
 
 vi.mock('../../dados/api', () => ({ buscarConquistas: vi.fn() }));
 
-// A conquista do seed (packages/db/seed/data.ts), como o GET /conquistas a devolve.
+// A conquista do seed (packages/db/seed/data.ts), como o GET /conquistas a devolve. Os mesmos literais
+// são conferidos contra o seed de verdade em packages/db/src/views-publicas.test.ts (v_conquista) e
+// apps/backend/src/api/api.test.ts (GET /conquistas); mudou lá, muda aqui.
 const DO_SEED: Conquista = {
   pauta_slug: 'laboratorios-abertos-nas-engenharias',
   titulo: 'Laboratórios de informática abertos no contraturno',
