@@ -189,6 +189,14 @@ const RELATOS: [string, SlugBloco | null, string][] = [
   ['wifi da residencia nao pega no meu quarto', 'residencia-universitaria', 'internet-residencia'],
   ['o circular demora demais e vem lotado', null, 'onibus-campus'],
   ['fila do RU gigante, perdi a aula esperando o almoço', null, 'restaurante-fila'],
+  // Escritos pela equipe na fase de teste (SCRUM-144), ainda não coletados de estudantes.
+  ['a agua do bebedouro sai quente e com gosto estranho no 18', 'bloco-18', 'bebedouros-bloco-18'],
+  [
+    'o wifi cai toda hora no meu quarto, impossivel fazer trabalho online',
+    'residencia-universitaria',
+    'internet-residencia',
+  ],
+  ['de noite o busao interno nao passa, fico esperando ate as 22h', null, 'onibus-campus'],
 ];
 
 /** Problemas que não têm pauta aberta: o bot tem de oferecer pauta nova. */
@@ -199,6 +207,8 @@ const SEM_PAUTA: [string, SlugBloco | null][] = [
   ['queria mais aulas de libras no curso', null],
   // A pauta do Wi-Fi da biblioteca existe, mas ainda está em curadoria.
   ['o wifi da biblioteca cai toda hora', 'biblioteca-central'],
+  ['o paraciclo do bloco 18 ta sem cobertura, a bike pega chuva', 'bloco-18'],
+  ['o preço do xerox da copiadora ta um absurdo', null],
 ];
 
 let db: Db;
