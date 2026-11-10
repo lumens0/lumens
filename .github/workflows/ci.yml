@@ -318,14 +318,14 @@ jobs:
           # /api/auth/providers monta a configuração do login do painel: responde 500 se faltar
           # variável no .env.producao. Na primeira vez o Caddy ainda pode estar emitindo o
           # certificado de painel.<DOMINIO>, daí a espera.
-          for tentativa in $(seq 1 10); do
+          for tentativa in $(seq 1 20); do
             if curl --fail --silent --show-error --max-time 10 -o /dev/null \
               "https://painel.$DOMINIO/api/auth/providers"; then
               echo "Painel respondeu em painel.$DOMINIO."
               break
             fi
-            if [[ "$tentativa" -eq 10 ]]; then
-              echo "::error::painel.$DOMINIO não respondeu depois de 10 tentativas. Confira o DNS do nome e o AUTH_SECRET do .env.producao."
+            if [[ "$tentativa" -eq 20 ]]; then
+              echo "::error::painel.$DOMINIO não respondeu depois de 20 tentativas. Confira o DNS do nome, o AUTH_SECRET do .env.producao e o log do Caddy (docker compose -f docker-compose.prod.yml logs caddy)."
               exit 1
             fi
             sleep 6
