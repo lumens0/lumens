@@ -3,7 +3,7 @@
 SCRUM-193 · RNF04 · Parte 3.
 
 Fora da janela de atendimento de 24h, o bot só escreve primeiro com uma mensagem modelo aprovada pela
-Meta. São cinco, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
+Meta. São seis, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
 [`apps/backend/src/bot/whatsapp/modelos.ts`](../../apps/backend/src/bot/whatsapp/modelos.ts); este
 documento só mostra os textos para revisão e registra o andamento da aprovação.
 
@@ -19,6 +19,7 @@ Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um
 | `lumens_conferencia`      | apoiadores   | A pauta "{{1}}", que você apoiou, tinha uma promessa para {{2}}: {{3}}. Foi feito? Você pode responder até {{4}}, e a resposta de quem apoiou decide o resultado que aparece no site. | Sim · Em parte · Não         |
 | `lumens_lembrete_prazo`   | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
 | `lumens_owner_inativo`    | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
+| `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", que você criou, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                                | (nenhum)                     |
 
 ### Por que os textos são assim
 
@@ -71,6 +72,7 @@ Atualize a tabela a cada submissão.
 | `lumens_conferencia`      |              | não enviado |                    |
 | `lumens_lembrete_prazo`   |              | não enviado |                    |
 | `lumens_owner_inativo`    |              | não enviado |                    |
+| `lumens_pauta_recusada`   |              | não enviado |                    |
 
 ## O que este documento não resolve
 
