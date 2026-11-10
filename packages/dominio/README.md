@@ -27,6 +27,7 @@ argumento, validam a regra, gravam e registram o evento — na mesma transação
 | `registrarEnvio`               | A Meta aceitou o envio (guarda o wamid)                                                    |
 | `registrarEntrega`             | O webhook confirmou a entrega: é a prova de que a pessoa foi avisada                       |
 | `registrarFalha`               | A Meta recusou de vez; o disparo sai da fila com o motivo                                  |
+| `sairDoLumens`                 | Direito de sair (LGPD, RNF03): anonimiza o estudante e encerra os papéis ativos            |
 
 **Leem o banco** (recebem `db: Db`):
 
