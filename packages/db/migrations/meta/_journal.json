@@ -78,6 +78,13 @@
       "when": 1794500000000,
       "tag": "0010_conquista_criada_em",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794500001000,
+      "tag": "0011_verificacao_login",
+      "breakpoints": true
     }
   ]
 }

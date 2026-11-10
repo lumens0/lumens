@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 17 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 18 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -204,6 +204,7 @@ describe('migração inicial em Postgres real', () => {
       'proposta',
       'relato',
       'resposta_conferencia',
+      'verificacao_login',
       'voluntario',
     ]);
     await migrarPeloComando();
