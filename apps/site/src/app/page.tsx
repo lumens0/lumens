@@ -59,7 +59,10 @@ export default async function Home({
         </ul>
       )}
       <footer className={estilos.rodape}>
-        <Link href="/privacidade">Política de privacidade</Link>
+        <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
+          <Link href="/conquistas">Conquistas</Link>
+          <Link href="/privacidade">Política de privacidade</Link>
+        </nav>
       </footer>
     </main>
   );
