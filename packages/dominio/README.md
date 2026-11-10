@@ -28,6 +28,11 @@ argumento, validam a regra, gravam e registram o evento — na mesma transação
 | `registrarEntrega`             | O webhook confirmou a entrega: é a prova de que a pessoa foi avisada                       |
 | `registrarFalha`               | A Meta recusou de vez; o disparo sai da fila com o motivo                                  |
 
+`processarUmaVez(db, wamidHmac, acao)` é a exceção: recebe o `db` e abre a própria transação,
+porque o registro da mensagem em `mensagem_processada` e a ação têm de valer ou sumir juntos
+(RNF07). Mensagem repetida volta como `{ processada: false, motivo: 'duplicada' }` sem rodar a
+ação; a chave é o HMAC do wamid, calculado por quem chama.
+
 **Leem o banco** (recebem `db: Db`):
 
 | Função                  | O que faz                                                                     |

@@ -105,6 +105,9 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
+export { processarUmaVez } from './processar-uma-vez';
+export type { ResultadoProcessamento } from './processar-uma-vez';
+
 export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
 export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
