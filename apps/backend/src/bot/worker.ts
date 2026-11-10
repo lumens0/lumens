@@ -1,7 +1,7 @@
 import type { Db } from '@lumens/db';
 import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
-import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
+import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto';
 import type { ServicoDeEmail } from '../email/codigo';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../logger';
@@ -160,11 +160,12 @@ export async function processIncomingJob(
       input === null
         ? [UNSUPPORTED_TEXT]
         : await handleIncoming(
-            { phoneHmac: data.phoneHmac, ...input },
+            { phoneHmac: data.phoneHmac, phoneCifrado: data.phoneCifrado, ...input },
             {
               store: deps.store.withDb(tx),
               db: tx,
               segredo: segredoCom(deps.chaves.cifra),
+              hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
               ...(deps.email ? { email: deps.email } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),

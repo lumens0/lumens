@@ -48,3 +48,21 @@
   centenas de horas, em média, para acertar no chute.
 - **Decisão — o que não gasta tentativa:** texto que não é número e número com tamanho errado. São
   enganos de digitação, não palpites.
+
+## SCRUM-137
+
+- **Domínio** (`verificacao.ts`): `vincularEmail` trava a linha do dono do e-mail e a do telefone
+  (`FOR UPDATE`). E-mail de outro telefone devolve `email_em_uso`; telefone com cadastro troca o
+  e-mail; telefone novo insere com `ON CONFLICT DO NOTHING`, para dois telefones novos com o
+  mesmo e-mail ao mesmo tempo não derrubarem a transação (o segundo recebe `email_em_uso`).
+- **O que o passo recebe:** o telefone cifrado (`phoneCifrado`, que já vinha no job do webhook) e
+  o HMAC com a `CHAVE_HMAC` (`hmac`), os dois passados pelo worker ao router e ao `StepContext`,
+  como o serviço de e-mail. Sem eles, o passo não confere o código (não o gasta) e pede para tentar
+  depois.
+- **Ordem no passo do código:** tudo o que o vínculo precisa é conferido antes de `conferirCodigo`,
+  porque o código certo é apagado. O vínculo roda na mesma transação: se ele lançar erro, o código
+  volta a valer.
+- **Decisão — aviso só depois do código:** evita descobrir quem usa o Lumens digitando o e-mail
+  de outra pessoa.
+- **Decisão — sem `verificado_em` aqui:** a história marca o estudante como verificado no fim,
+  depois do curso. Até lá, `estudanteVerificado` (2.6) continua dizendo que não é verificado.

@@ -168,5 +168,11 @@ export {
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
+  vincularEmail,
 } from './verificacao';
-export type { ResultadoConferencia, ResultadoEmail } from './verificacao';
+export type {
+  NovoVinculo,
+  ResultadoConferencia,
+  ResultadoEmail,
+  ResultadoVinculo,
+} from './verificacao';

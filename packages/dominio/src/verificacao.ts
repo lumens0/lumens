@@ -8,9 +8,12 @@
  * 3. `conferirCodigo` e `esperaParaReenviar` (SCRUM-136): no máximo 5 tentativas por código, e
  *    um código novo só depois de 60 s do anterior. Juntos, limitam quem tenta adivinhar: 5
  *    palpites por minuto, num universo de 1 milhão de códigos.
+ * 4. `vincularEmail` (SCRUM-137, RN01): com o código certo, o telefone fica ligado ao e-mail no
+ *    cadastro do estudante. Um e-mail vale para um telefone só: é o que garante um apoio por
+ *    estudante (RN02), já que o apoio é contado por estudante.
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { codigosVerificacao, eq, type Db } from '@lumens/db';
+import { codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -181,4 +184,70 @@ export async function esperaParaReenviar(
 /** Apaga o código do telefone: usado (certo) ou que não chegou a sair (envio falhou). */
 export async function apagarCodigo(db: Db, telefoneHmac: string): Promise<void> {
   await db.delete(codigosVerificacao).where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
+}
+
+export type ResultadoVinculo =
+  | { vinculado: true; estudanteId: string }
+  | { vinculado: false; motivo: 'email_em_uso' };
+
+export interface NovoVinculo {
+  telefoneHmac: string;
+  telefoneCifrado: string;
+  /** HMAC do e-mail já normalizado (`normalizarEmail`), com a CHAVE_HMAC: é por ele que se busca. */
+  emailHmac: string;
+  emailCifrado: string;
+}
+
+/**
+ * Liga o telefone ao e-mail no cadastro do estudante (RN01). Chame só depois do código certo: é
+ * ele que prova que a pessoa é dona do e-mail.
+ *
+ * - E-mail de outro telefone: recusa (`email_em_uso`) e não mexe em nada.
+ * - Telefone novo: cria o estudante, ainda sem `verificado_em` (quem marca é o fim da 2.4).
+ * - Telefone que já tem cadastro: troca o e-mail; o antigo fica livre. `verificado_em` e `saiu_em`
+ *   não mudam aqui.
+ *
+ * As linhas são travadas (`FOR UPDATE`). Dois telefones novos tentando o mesmo e-mail ao mesmo
+ * tempo esbarram no `UNIQUE` de `email_hmac`: o primeiro grava, o segundo recebe `email_em_uso`.
+ * Se um deles já tinha cadastro (o `UPDATE`), o choque vira erro, a mensagem volta pelo retry do
+ * worker e, na segunda vez, a leitura do dono já devolve `email_em_uso`. Para isso, os dois
+ * precisariam ter recebido o código no mesmo e-mail no mesmo instante.
+ */
+export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<ResultadoVinculo> {
+  const [dono] = await db
+    .select({ telefoneHmac: estudantes.telefoneHmac })
+    .from(estudantes)
+    .where(eq(estudantes.emailHmac, vinculo.emailHmac))
+    .for('update');
+  if (dono !== undefined && dono.telefoneHmac !== vinculo.telefoneHmac) {
+    return { vinculado: false, motivo: 'email_em_uso' };
+  }
+
+  const [meu] = await db
+    .select({ id: estudantes.id })
+    .from(estudantes)
+    .where(eq(estudantes.telefoneHmac, vinculo.telefoneHmac))
+    .for('update');
+  if (meu !== undefined) {
+    await db
+      .update(estudantes)
+      .set({ emailHmac: vinculo.emailHmac, emailCifrado: vinculo.emailCifrado })
+      .where(eq(estudantes.id, meu.id));
+    return { vinculado: true, estudanteId: meu.id };
+  }
+
+  // Sem alvo, o `ON CONFLICT DO NOTHING` vale para qualquer UNIQUE: se outro telefone gravou o
+  // mesmo e-mail entre a leitura e aqui, nada é inserido e não há erro que derrube a transação.
+  const [criado] = await db
+    .insert(estudantes)
+    .values({
+      telefoneHmac: vinculo.telefoneHmac,
+      telefoneCifrado: vinculo.telefoneCifrado,
+      emailHmac: vinculo.emailHmac,
+      emailCifrado: vinculo.emailCifrado,
+    })
+    .onConflictDoNothing()
+    .returning({ id: estudantes.id });
+  if (criado === undefined) return { vinculado: false, motivo: 'email_em_uso' };
+  return { vinculado: true, estudanteId: criado.id };
 }
