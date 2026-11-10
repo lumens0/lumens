@@ -220,6 +220,13 @@ describe('registrarPromessa (RN13)', () => {
       'status_alterado',
       'promessa_registrada',
     ]);
+    // Resumo e fonte vão no evento público, para a página da pauta mostrar a resposta oficial.
+    const evento = (await eventosDa(pauta.id)).find((e) => e.tipo === 'promessa_registrada');
+    expect(evento?.dados).toMatchObject({
+      data_entrega: '2026-12-10',
+      resumo: 'A reitoria vai trocar as lâmpadas.',
+      fonte: 'Resposta no Fala.BR',
+    });
   });
 
   it.each(['entregue_em_parte', 'descumprida'] as const)(

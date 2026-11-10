@@ -12,6 +12,10 @@ describe('título do card', () => {
     expect(tituloDoCard(titulo)).toBe(`${'palavra '.repeat(10)}fim, e…`);
   });
 
+  it('aceita outro limite (o bloco na prévia do link)', () => {
+    expect(tituloDoCard('Bloco de Artes e Música', 12)).toBe('Bloco de…');
+  });
+
   it('palavra única maior que o limite é cortada no limite', () => {
     expect(tituloDoCard('x'.repeat(120))).toBe(`${'x'.repeat(90)}…`);
   });

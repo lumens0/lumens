@@ -1,5 +1,5 @@
 {
-  "id": "22a8bd88-5326-400a-8b67-555c8aea9145",
+  "id": "6dfb06c6-a203-4b93-8383-11947ecdbaef",
   "prevId": "9d9be40e-3417-4d11-bce0-b32523d53ff1",
   "version": "7",
   "dialect": "postgresql",
@@ -1445,42 +1445,6 @@
         "resposta_conferencia_promessa_id_estudante_id_pk": {
           "name": "resposta_conferencia_promessa_id_estudante_id_pk",
           "columns": ["promessa_id", "estudante_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.verificacao_login": {
-      "name": "verificacao_login",
-      "schema": "",
-      "columns": {
-        "identificador": {
-          "name": "identificador",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expira_em": {
-          "name": "expira_em",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "verificacao_login_identificador_token_pk": {
-          "name": "verificacao_login_identificador_token_pk",
-          "columns": ["identificador", "token"]
         }
       },
       "uniqueConstraints": {},
