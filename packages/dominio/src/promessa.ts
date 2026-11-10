@@ -1,11 +1,16 @@
 /**
  * Promessa oficial (RN13): a curadoria registra o resumo da resposta e a data prometida. A pauta vai
- * para `prometido` e a conferência "Foi feito?" fica agendada para a data de entrega, por 7 dias.
+ * para `prometido`, a conferência "Foi feito?" fica agendada para a data de entrega, por 7 dias, e
+ * quem apoia recebe o aviso de resposta oficial pela fila de envio (RNF06).
  */
-import { and, eq, promessas, sql, type Tx } from '@lumens/db';
+import { and, apoios, eq, estudantes, isNull, pautas, promessas, sql, type Tx } from '@lumens/db';
 import { ErroDeRegra } from './erros';
 import { registrarEvento } from './eventos';
+import { enfileirarDisparos } from './fila';
 import { transicionarStatus } from './status';
+
+/** Mensagem modelo (SCRUM-193): título, fonte e, no botão "Ver a pauta", o slug. */
+export const MODELO_RESPOSTA_OFICIAL = 'lumens_resposta_oficial';
 
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
@@ -43,11 +48,20 @@ function inicioDoDiaEmMaceio(dia: string): Date {
  * Só aceita a partir de `cobrando`, `entregue_em_parte` ou `descumprida` (via `transicionarStatus`);
  * fora disso lança `ErroDeRegra` e nada é gravado. Se ainda houver promessa ativa, ela é encerrada
  * como `substituida` antes: o banco só aceita uma ativa por pauta.
+ *
+ * Na mesma transação, enfileira o aviso para cada apoiador que não saiu do sistema: se a promessa
+ * não for gravada, ninguém é avisado. Promessa nova depois de `descumprida` avisa de novo, porque o
+ * aviso é por promessa.
  */
 export async function registrarPromessa(
   tx: Tx,
   { pautaId, resumo, dataEntrega, fonte, registradaPor }: NovaPromessa,
-): Promise<{ promessaId: string; conferenciaAbreEm: Date; conferenciaFechaEm: Date }> {
+): Promise<{
+  promessaId: string;
+  conferenciaAbreEm: Date;
+  conferenciaFechaEm: Date;
+  avisados: number;
+}> {
   const abre = inicioDoDiaEmMaceio(dataEntrega);
   const fecha = new Date(abre.getTime() + DIAS_DE_CONFERENCIA * MS_POR_DIA);
 
@@ -80,5 +94,34 @@ export async function registrarPromessa(
     origem: 'curadoria',
   });
 
-  return { promessaId: promessa.id, conferenciaAbreEm: abre, conferenciaFechaEm: fecha };
+  const [pauta] = await tx
+    .select({ titulo: pautas.titulo, slug: pautas.slug })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId));
+  if (pauta === undefined) throw new Error('pauta sumiu na transação');
+
+  const apoiadores = await tx
+    .select({ estudanteId: apoios.estudanteId })
+    .from(apoios)
+    .innerJoin(estudantes, eq(estudantes.id, apoios.estudanteId))
+    .where(and(eq(apoios.pautaId, pautaId), isNull(estudantes.saiuEm)));
+
+  const parametros = [pauta.titulo, fonte, pauta.slug];
+  const avisados = await enfileirarDisparos(
+    tx,
+    apoiadores.map(({ estudanteId }) => ({
+      tipo: 'resposta_oficial' as const,
+      aviso: promessa.id,
+      estudanteId,
+      modelo: MODELO_RESPOSTA_OFICIAL,
+      parametros,
+    })),
+  );
+
+  return {
+    promessaId: promessa.id,
+    conferenciaAbreEm: abre,
+    conferenciaFechaEm: fecha,
+    avisados,
+  };
 }
