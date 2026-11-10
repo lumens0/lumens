@@ -1,7 +1,12 @@
 # Homologação
 
 Ambiente público do Lumens para a demo (SCRUM-93): uma máquina virtual rodando Postgres,
-back-end e Caddy em `docker compose`. O site e o painel continuam na Vercel.
+back-end, painel de curadoria e Caddy em `docker compose`. O site continua na Vercel.
+
+O painel roda aqui, e não na Vercel, porque precisa do banco e o banco não tem porta publicada.
+Ele responde em `https://painel.<DOMINIO>`: com DuckDNS o nome já resolve para o mesmo IP; com
+outro DNS, crie o registro antes do deploy. Precisa do `AUTH_SECRET` no `.env.producao`
+(`openssl rand -base64 32`); o deploy recusa publicar sem ele.
 
 ## Onde roda, e por que não é a AWS
 

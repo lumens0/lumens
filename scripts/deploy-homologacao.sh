@@ -37,6 +37,13 @@ if grep -qE '^[[:space:]]*(POSTGRES_PASSWORD|DATABASE_URL_MIGRACAO)=' .env.produ
   exit 1
 fi
 
+# Sem AUTH_SECRET o painel sobe, mas todo login responde 500 (MissingSecret do Auth.js).
+# Melhor parar aqui, com a causa no log, do que publicar um painel que não deixa ninguém entrar.
+if ! grep -qE '^[[:space:]]*AUTH_SECRET=[^[:space:]]+' .env.producao; then
+  echo "::error::.env.producao não tem AUTH_SECRET. Gere com: openssl rand -base64 32" >&2
+  exit 1
+fi
+
 echo "--> Atualizando o código para $REF"
 git fetch --prune origin
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
@@ -53,7 +60,7 @@ echo "--> Migrando o banco"
 # tabela ausente, longe da causa.
 "${COMPOSE[@]}" run --build --rm migracao
 
-echo "--> Subindo back-end e Caddy"
+echo "--> Subindo back-end, painel e Caddy"
 "${COMPOSE[@]}" up -d --build
 
 echo "--> Limpando imagens antigas"
