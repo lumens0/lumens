@@ -74,6 +74,9 @@ export {
 } from './curadoria';
 export type { PautaNaFila, ResultadoDecisao } from './curadoria';
 
+export { listarLinhaDoTempo } from './linha-do-tempo';
+export type { EventoDaLinha } from './linha-do-tempo';
+
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
 
