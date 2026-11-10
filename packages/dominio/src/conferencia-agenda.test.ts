@@ -1,4 +1,14 @@
-import { apoios, disparos, eq, estudantes, eventos, pautas, promessas, type Db } from '@lumens/db';
+import {
+  and,
+  apoios,
+  disparos,
+  eq,
+  estudantes,
+  eventos,
+  pautas,
+  promessas,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -65,7 +75,8 @@ const avisosDa = (aviso: string) =>
   db
     .select({ estudanteId: disparos.estudanteId, parametros: disparos.parametros })
     .from(disparos)
-    .where(eq(disparos.aviso, aviso));
+    // Só os da conferência: registrar a promessa também enfileira `resposta_oficial` com o mesmo `aviso`.
+    .where(and(eq(disparos.aviso, aviso), eq(disparos.tipo, 'conferencia')));
 
 const eventosDa = async (pautaId: string, tipo: string) =>
   (await db.select().from(eventos).where(eq(eventos.pautaId, pautaId))).filter(
