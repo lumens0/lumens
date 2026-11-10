@@ -1,3 +1,4 @@
+import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { z } from 'zod';
 
 /**
@@ -81,7 +82,7 @@ const esquema = z
     ),
 
     // API de leitura: origens do site que podem chamá-la pelo navegador (CORS)
-    CORS_ORIGENS: comPadrao(origens.default(['https://lumens-ufal.vercel.app'])),
+    CORS_ORIGENS: comPadrao(origens.default([ORIGEM_SITE_PRODUCAO])),
 
     // Banco
     DATABASE_URL: obrigatoria,
