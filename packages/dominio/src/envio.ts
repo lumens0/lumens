@@ -23,7 +23,7 @@ export type TipoDisparo =
   'conferencia' | 'resposta_oficial' | 'meta_batida' | 'recusa' | 'lembrete';
 
 /**
- * Ordem de atendimento quando a cota do dia não cobre todo mundo.
+ * Ordem de atendimento quando o limite das 24h não cobre todo mundo.
  *
  * A conferência vem primeiro porque é a única com janela fechada: a apuração
  * da RN10 corre sete dias depois do disparo, então atrasar o envio encurta o
