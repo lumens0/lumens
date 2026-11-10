@@ -55,6 +55,8 @@ export const JOBS = {
   envioDisparos: 'envio-disparos',
   /** Status de entrega (delivered/read/failed) que o webhook recebeu de um envio. */
   statusDeEnvio: 'status-de-envio',
+  /** Gatilhos de data da Parte 3 (SCRUM-237): conferência, prazos e owner inativo. */
+  gatilhosDeData: 'agendador-gatilhos',
 } as const;
 
 /**

@@ -3,7 +3,7 @@
  * vaga, até 3 owners ativos (owner + co-owners); owner 30 dias sem responder perde o papel e a vaga
  * é oferecida aos apoiadores (RF-A03). A linha do papel nunca é apagada: sair é preencher `ate`.
  */
-import { and, apoios, eq, papeisPauta, pautas, sql, type Tx } from '@lumens/db';
+import { and, apoios, eq, inArray, papeisPauta, pautas, sql, type Tx } from '@lumens/db';
 import { registrarEvento } from './eventos';
 
 export const LIMITE_DE_OWNERS = 3;
@@ -90,11 +90,19 @@ export async function registrarAtividadeOwner(
  * Tira o papel de quem está há 30 dias completos ou mais sem atividade (chamada pelo agendador).
  * Grava `ate` (a linha fica no histórico) e um `owner_removido` por pessoa. `vagaAberta` diz ao
  * bot que pode oferecer a vaga aos apoiadores.
+ *
+ * `estudanteIds` restringe a remoção a essas pessoas: o agendador só tira quem já foi avisado
+ * (`removerOwnersAvisados`). Sem ele, sai todo owner da pauta que passou dos 30 dias.
  */
 export async function removerOwnerInativo(
   tx: Tx,
-  { pautaId, agora = new Date() }: { pautaId: string; agora?: Date },
+  {
+    pautaId,
+    agora = new Date(),
+    estudanteIds,
+  }: { pautaId: string; agora?: Date; estudanteIds?: readonly string[] },
 ): Promise<{ removidos: number; vagaAberta: boolean }> {
+  if (estudanteIds?.length === 0) return { removidos: 0, vagaAberta: false };
   const limite = new Date(agora.getTime() - DIAS_SEM_ATIVIDADE * MS_POR_DIA);
 
   const removidos = await tx
@@ -105,6 +113,9 @@ export async function removerOwnerInativo(
         eq(papeisPauta.pautaId, pautaId),
         ativo,
         sql`${papeisPauta.ultimaAtividadeEm} <= ${limite.toISOString()}::timestamptz`,
+        estudanteIds === undefined
+          ? undefined
+          : inArray(papeisPauta.estudanteId, [...estudanteIds]),
       ),
     )
     .returning({ papel: papeisPauta.papel });

@@ -83,6 +83,9 @@ export {
 } from './curadoria';
 export type { PautaNaFila, ResultadoDecisao } from './curadoria';
 
+export { listarLinhaDoTempo } from './linha-do-tempo';
+export type { EventoDaLinha } from './linha-do-tempo';
+
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './status';
 export type { Transicao } from './status';
 
@@ -104,7 +107,7 @@ export type { NovoCaminho, ResultadoCaminho } from './caminhos';
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
 
-export { DIAS_DE_CONFERENCIA, registrarPromessa } from './promessa';
+export { DIAS_DE_CONFERENCIA, MODELO_RESPOSTA_OFICIAL, registrarPromessa } from './promessa';
 export type { NovaPromessa } from './promessa';
 
 export { encerrarConferencia } from './conferencia-apuracao';
@@ -118,3 +121,24 @@ export {
   removerOwnerInativo,
 } from './owners';
 export type { ResultadoCoOwner } from './owners';
+
+export {
+  MODELO_CONFERENCIA,
+  abrirConferencia,
+  fecharConferencia,
+  promessasParaAbrir,
+  promessasParaFechar,
+} from './conferencia-agenda';
+export type { ResultadoAbertura, ResultadoFecho } from './conferencia-agenda';
+
+export {
+  DIAS_DE_ANTECEDENCIA_DO_PRAZO,
+  DIA_DO_AVISO_DE_INATIVIDADE,
+  MODELO_LEMBRETE_PRAZO,
+  MODELO_OWNER_INATIVO,
+  enfileirarAvisosDeInatividade,
+  enfileirarLembretesDePrazo,
+  removerOwnersAvisados,
+} from './lembretes';
+
+export { diaEmMaceio, formatarDia } from './datas';
