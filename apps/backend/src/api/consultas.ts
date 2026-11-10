@@ -124,7 +124,7 @@ export async function listarConquistas(db: Db): Promise<Conquista[]> {
   return linhas<Conquista>(
     db,
     sql`SELECT pauta_slug, titulo, bloco_nome, ${iso('conquistada_em')},
-               apoios::int AS apoios, proposta_executada
+               apoios::int AS apoios, proposta_executada, ${iso('criada_em')}
         FROM v_conquista ORDER BY v_conquista.conquistada_em DESC NULLS LAST, pauta_slug`,
   );
 }

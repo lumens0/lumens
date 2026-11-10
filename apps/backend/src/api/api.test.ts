@@ -344,6 +344,7 @@ describe('API de leitura pública com o seed', () => {
             conquistada_em: '2026-03-19T12:00:00.000Z',
             apoios: 300,
             proposta_executada: false,
+            criada_em: '2026-02-10T12:00:00.000Z',
           },
         ],
       });

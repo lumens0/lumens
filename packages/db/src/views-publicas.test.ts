@@ -354,12 +354,18 @@ describe('views públicas com o seed', () => {
     });
 
     it('v_conquista traz a data, os apoios e se houve proposta executada', async () => {
-      const linhas = await comoSite<{ conquistada_em: unknown }>(
+      const linhas = await comoSite<{ conquistada_em: unknown; criada_em: unknown }>(
         db,
         sql`SELECT * FROM v_conquista`,
       );
 
-      expect(linhas.map((l) => ({ ...l, conquistada_em: instante(l.conquistada_em) }))).toEqual([
+      expect(
+        linhas.map((l) => ({
+          ...l,
+          conquistada_em: instante(l.conquistada_em),
+          criada_em: instante(l.criada_em),
+        })),
+      ).toEqual([
         {
           pauta_slug: 'laboratorios-abertos-nas-engenharias',
           titulo: 'Laboratórios de informática abertos no contraturno',
@@ -367,6 +373,7 @@ describe('views públicas com o seed', () => {
           conquistada_em: '2026-03-19T12:00:00.000Z',
           apoios: 300,
           proposta_executada: false,
+          criada_em: '2026-02-10T12:00:00.000Z',
         },
       ]);
     });
