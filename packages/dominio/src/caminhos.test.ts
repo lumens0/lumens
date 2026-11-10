@@ -17,6 +17,7 @@ import { abrirCaminho } from './caminhos';
 import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from './fabricas';
 import { registrarPromessa } from './promessa';
 import { registrarExecucaoProposta } from './proposta';
+import { transicionarStatus } from './status';
 
 let db: Db;
 
@@ -341,6 +342,48 @@ describe.skipIf(!URL_TESTE)('registrarProtocolo com Postgres de verdade', () => 
       ).map((e) => e.tipo);
       expect(tipos.filter((t) => t === 'status_alterado')).toHaveLength(1);
       expect(tipos.filter((t) => t === 'protocolo_registrado')).toHaveLength(2);
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
+});
+
+describe.skipIf(!URL_TESTE)('abrirCaminho com Postgres de verdade', () => {
+  it('pauta que vira conquistada no meio da abertura: o caminho espera e é recusado', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real, { status: 'prometido' });
+      const owner = await criarEstudanteVerificado(real);
+      await tornarOwner(real, pauta.id, owner.id);
+      await Promise.all([0, 1].map(() => pool.query('select pg_sleep(0.05)')));
+
+      let abertura: ReturnType<typeof abrirCaminho> | undefined;
+      // A apuração segura o lock da pauta; a abertura começa nesse intervalo e só pode ler o
+      // status depois do commit da apuração.
+      await real.transaction(async (tx) => {
+        await transicionarStatus(tx, {
+          pautaId: pauta.id,
+          para: 'conquistada',
+          origem: 'agendador',
+        });
+        abertura = real.transaction((t2) =>
+          abrirCaminho(t2, { pautaId: pauta.id, tipo: 'comunidade', porEstudanteId: owner.id }),
+        );
+        await new Promise((r) => setTimeout(r, 500));
+      });
+
+      expect(await abertura).toEqual({ aberto: false, motivo: 'pauta_fechada' });
+      const tipos = (
+        await real.select({ tipo: eventos.tipo }).from(eventos).where(eq(eventos.pautaId, pauta.id))
+      ).map((e) => e.tipo);
+      expect(tipos).not.toContain('caminho_aberto');
     } finally {
       await pool.end();
       await temporario.apagar();
