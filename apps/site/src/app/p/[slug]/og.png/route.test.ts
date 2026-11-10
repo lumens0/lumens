@@ -31,10 +31,11 @@ describe('GET /p/[slug]/og.png', () => {
     expect(buscarPauta).toHaveBeenCalledWith(fixture.slug);
   });
 
-  it('título muito longo ainda gera a imagem no mesmo tamanho', async () => {
+  it('título e bloco longos ainda geram um PNG válido (o encaixe foi conferido no olho)', async () => {
     vi.mocked(buscarPauta).mockResolvedValue({
       ...fixture,
       titulo: 'Palavra '.repeat(60),
+      bloco_nome: 'Bloco '.repeat(30),
       apoios: 12345,
       meta: 20000,
     });

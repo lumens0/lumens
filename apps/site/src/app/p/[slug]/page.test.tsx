@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fixture } from '../../../dados/pauta-detalhe-teste';
 import { buscarPauta } from '../../../dados/api';
 import PaginaPauta, { generateMetadata } from './page';
@@ -17,6 +17,7 @@ const props = (slug: string) => ({ params: Promise.resolve({ slug }) });
 
 describe('página /p/[slug]', () => {
   beforeEach(() => vi.mocked(buscarPauta).mockReset());
+  afterEach(() => vi.unstubAllEnvs());
 
   it('renderiza a pauta e usa o título nos metadados', async () => {
     vi.mocked(buscarPauta).mockResolvedValue(fixture);
@@ -40,17 +41,16 @@ describe('página /p/[slug]', () => {
       openGraph: { images: [imagem] },
       twitter: { card: 'summary_large_image', images: [imagem] },
     });
-    vi.unstubAllEnvs();
   });
 
-  it('sem LUMENS_SITE_URL, a og:image usa a origem de produção', async () => {
-    vi.stubEnv('LUMENS_SITE_URL', '');
+  it('LUMENS_SITE_URL sem esquema não derruba a página: a og:image cai em produção', async () => {
+    vi.stubEnv('LUMENS_SITE_URL', 'lumens-ufal.vercel.app');
+    vi.stubEnv('VERCEL_URL', '');
     vi.mocked(buscarPauta).mockResolvedValue(fixture);
     const { openGraph } = await generateMetadata(props(fixture.slug));
     expect(openGraph?.images).toEqual([
       expect.objectContaining({ url: `https://lumens-ufal.vercel.app/p/${fixture.slug}/og.png` }),
     ]);
-    vi.unstubAllEnvs();
   });
 
   it('chama notFound quando a API não acha a pauta', async () => {
