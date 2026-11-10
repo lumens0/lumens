@@ -71,6 +71,13 @@
       "when": 1794269975756,
       "tag": "0009_tipo_disparo_recusa",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794276359819,
+      "tag": "0010_verificacao_login",
+      "breakpoints": true
     }
   ]
 }

@@ -210,13 +210,30 @@ Vercel.
 
 ## Painel de curadoria
 
-O painel é um app separado do site público. Esta base ainda não autentica nem permite ações de
-curadoria; o login por link no e-mail entra na SCRUM-164.
+O painel é um app separado do site público. Só entra quem está na tabela `curador` com
+`ativo = true`, por um link mandado ao e-mail (Auth.js, SCRUM-164): sem senha, o link vale 15
+minutos e uma vez só, e a sessão dura 7 dias. Quem não é curador vê a mesma tela de "confira seu
+e-mail", mas não recebe nada.
 
 ```bash
-pnpm --filter @lumens/painel dev     # http://localhost:3002
+pnpm --filter @lumens/painel dev     # http://localhost:3002 (lê o .env da raiz)
 pnpm --filter @lumens/painel build   # build de produção
 ```
+
+O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
+`.env`. Na Vercel, as mesmas variáveis vão no projeto do painel.
+
+**Adicionar um curador** (ou reativar quem saiu):
+
+```bash
+pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+```
+
+O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as mesmas
+`CHAVE_CIFRA` e `CHAVE_HMAC` do ambiente onde o painel roda. Para tirar o acesso, ponha
+`ativo = false` na linha dela.
+
+Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
 Homologação: [lumens-painel.vercel.app](https://lumens-painel.vercel.app).
 

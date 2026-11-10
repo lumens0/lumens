@@ -44,3 +44,30 @@
   color: var(--tinta);
   line-height: 1.5;
 }
+
+.formulario {
+  display: grid;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.formulario input {
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.botao {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primaria);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
