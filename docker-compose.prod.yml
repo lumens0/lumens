@@ -1,4 +1,4 @@
-# Homologação na AWS (SCRUM-93): uma instância EC2 rodando Postgres, back-end e Caddy.
+# Homologação (SCRUM-93): uma VM rodando Postgres, back-end, painel de curadoria e Caddy.
 #
 # Não substitui o docker-compose.yml, que sobe só o banco local. Este arquivo vive no
 # servidor e sobe com:
@@ -66,6 +66,38 @@ services:
       retries: 3
       start_period: 30s
 
+  # Painel de curadoria. Fica aqui, e não na Vercel, porque precisa do banco e o banco não tem
+  # porta publicada. Usa o mesmo .env.producao do back-end (DATABASE_URL de lumens_app,
+  # CHAVE_HMAC, EMAIL_*) mais o AUTH_SECRET, que só ele lê.
+  painel:
+    build:
+      context: .
+      dockerfile: apps/painel/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.producao
+    environment:
+      # O link do e-mail é montado a partir desta URL. Atrás do Caddy o Auth.js só confia no
+      # Host repassado com AUTH_TRUST_HOST; fixar a URL evita depender do cabeçalho.
+      AUTH_URL: https://painel.${DOMINIO:?defina DOMINIO no .env.producao}
+      AUTH_TRUST_HOST: 'true'
+    # Sem `ports`: quem fala com a internet é o Caddy.
+    healthcheck:
+      # /api/auth/providers monta a configuração do login: responde 500 se faltar variável
+      # (DATABASE_URL, CHAVE_HMAC, EMAIL_*, AUTH_SECRET), não só se o processo cair.
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3002/api/auth/providers'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -82,6 +114,7 @@ services:
       - caddy-config:/config
     depends_on:
       - backend
+      - painel
 
 volumes:
   lumens-pgdata:

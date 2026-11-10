@@ -181,10 +181,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # O painel saiu daqui: ele roda na VM da homologação, ao lado do banco, e é
+          # publicado pelo job `deploy-backend`.
           - projeto: site
             project_id_secret: VERCEL_SITE_PROJECT_ID
-          - projeto: painel
-            project_id_secret: VERCEL_PAINEL_PROJECT_ID
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
@@ -314,3 +314,19 @@ jobs:
           # cobre um caminho que o /saude não toca.
           curl --fail --silent --show-error --max-time 10 -o /dev/null "https://$DOMINIO/resumo"
           echo "/resumo respondeu."
+
+          # /api/auth/providers monta a configuração do login do painel: responde 500 se faltar
+          # variável no .env.producao. Na primeira vez o Caddy ainda pode estar emitindo o
+          # certificado de painel.<DOMINIO>, daí a espera.
+          for tentativa in $(seq 1 10); do
+            if curl --fail --silent --show-error --max-time 10 -o /dev/null \
+              "https://painel.$DOMINIO/api/auth/providers"; then
+              echo "Painel respondeu em painel.$DOMINIO."
+              break
+            fi
+            if [[ "$tentativa" -eq 10 ]]; then
+              echo "::error::painel.$DOMINIO não respondeu depois de 10 tentativas. Confira o DNS do nome e o AUTH_SECRET do .env.producao."
+              exit 1
+            fi
+            sleep 6
+          done
