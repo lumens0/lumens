@@ -18,6 +18,11 @@
  * (no máximo 5 por código) e aceita "reenviar", liberado 60 s depois do último envio. O mesmo
  * intervalo vale para quem volta e manda o e-mail de novo: o bot não vira um disparador de e-mails
  * para caixas de outras pessoas.
+ *
+ * SCRUM-137 (RN01): com o código certo, liga o telefone ao e-mail no cadastro do estudante
+ * (`vincularEmail`). E-mail de outro telefone: explica e pede outro e-mail. O aviso só vem depois
+ * do código certo de propósito: avisado antes, qualquer um digitaria o e-mail de um colega para
+ * saber se ele usa o Lumens. Assim, só quem abre a caixa daquele e-mail descobre.
  */
 import type { Db } from '@lumens/db';
 import {
@@ -30,6 +35,7 @@ import {
   esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
+  vincularEmail,
   type ResultadoEmail,
 } from '@lumens/dominio';
 import { z } from 'zod';
@@ -63,6 +69,9 @@ export const CODE_RESENT_TEXT = `Enviei um código novo para o seu e-mail da UFA
 export const RESEND_FAILED_TEXT =
   'Não consegui enviar o código agora. Tente daqui a pouco: responda *reenviar*.';
 export const EMAIL_LOST_TEXT = `Não consegui recuperar o seu e-mail. ${EMAIL_QUESTION_TEXT}`;
+export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+export const LINK_UNAVAILABLE_TEXT =
+  'Não consegui concluir a verificação agora. Digite o código de novo daqui a pouco.';
 
 export function wrongCodeText(restantes: number): string {
   if (restantes === 0) return NO_ATTEMPTS_TEXT;
@@ -179,6 +188,8 @@ export const verifyAskCode: StepHandler = async ({
   input,
   db,
   phoneHmac,
+  phoneCifrado,
+  hmac,
   segredo,
   email,
 }) => {
@@ -194,9 +205,41 @@ export const verifyAskCode: StepHandler = async ({
     return { next: 'VERIFY_ASK_CODE', replies: [CODE_LENGTH_TEXT] };
   }
 
+  // Tudo o que o vínculo precisa é conferido antes do código: código certo é gasto na hora.
+  const endereco = emailDaConversa(segredo, state.data);
+  if (endereco === undefined) {
+    return {
+      next: 'VERIFY_ASK_EMAIL',
+      data: { emailCifrado: undefined },
+      replies: [EMAIL_LOST_TEXT],
+    };
+  }
+  if (phoneCifrado === undefined || hmac === undefined) {
+    return { next: 'VERIFY_ASK_CODE', replies: [LINK_UNAVAILABLE_TEXT] };
+  }
+
   const resultado = await conferirCodigo(db, { telefoneHmac: phoneHmac, codigo: digitos });
   if (resultado.certo) {
-    return { next: 'VERIFY_ASK_COURSE', replies: [CODE_OK_TEXT, COURSE_PENDING_TEXT] };
+    // Mesma transação da mensagem: se o vínculo falhar, o código volta a valer.
+    const vinculo = await vincularEmail(db, {
+      telefoneHmac: phoneHmac,
+      telefoneCifrado: phoneCifrado,
+      emailHmac: hmac(endereco),
+      emailCifrado: segredo.cifrar(endereco),
+    });
+    if (!vinculo.vinculado) {
+      return {
+        next: 'VERIFY_ASK_EMAIL',
+        data: { emailCifrado: undefined },
+        replies: [EMAIL_IN_USE_TEXT],
+      };
+    }
+    // O e-mail já está no cadastro: a conversa não precisa mais dele.
+    return {
+      next: 'VERIFY_ASK_COURSE',
+      data: { emailCifrado: undefined },
+      replies: [CODE_OK_TEXT, COURSE_PENDING_TEXT],
+    };
   }
   switch (resultado.motivo) {
     case 'errado':
