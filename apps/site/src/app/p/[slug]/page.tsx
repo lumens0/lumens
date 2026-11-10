@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { ConteudoPauta } from '../../../componentes/pauta/ConteudoPauta';
 import { buscarPauta } from '../../../dados/api';
 import { FORA_DO_SITE } from '../../../dados/pautas-publicas';
+import { origemDoSite } from '../../../origem';
+import { TAMANHO } from './card';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -15,7 +17,17 @@ async function pautaOu404(slug: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pauta = await pautaOu404((await params).slug);
-  return { title: pauta.titulo };
+  // Imagem horizontal: a prévia do link no WhatsApp corta a vertical (SCRUM-55).
+  const imagem = {
+    url: new URL(`/p/${pauta.slug}/og.png`, origemDoSite()).href,
+    ...TAMANHO.og,
+    alt: pauta.titulo,
+  };
+  return {
+    title: pauta.titulo,
+    openGraph: { images: [imagem] },
+    twitter: { card: 'summary_large_image', images: [imagem] },
+  };
 }
 
 export default async function PaginaPauta({ params }: Props) {
