@@ -136,8 +136,7 @@ export async function recusarPauta(
       and(eq(papeisPauta.pautaId, pautaId), isNull(papeisPauta.ate), isNull(estudantes.saiuEm)),
     );
 
-  // A Meta recusa parâmetro com quebra de linha ou espaços em sequência.
-  const parametros = [pauta?.titulo ?? '', motivo.replace(/\s+/g, ' ').trim()];
+  const parametros = [pauta?.titulo ?? '', motivo];
   await enfileirarDisparos(
     tx,
     responsaveis.map(({ estudanteId }) => ({

@@ -101,6 +101,17 @@ describe('enfileirarDisparos', () => {
     expect(reservado?.modelo).toBe('lumens_conferencia');
     expect(reservado?.parametros).toEqual(['Bebedouro', '15/10/2026', 'trocar', '22/10']);
   });
+
+  it('parâmetro com quebra de linha ou espaços em sequência vira uma linha só', async () => {
+    const a = await estudante();
+    await enfileirar([
+      { ...aviso('meta_batida', a), parametros: ['Bebedouro\nquebrado\t no  bloco 12 ', '120'] },
+    ]);
+
+    const [reservado] = await reservar(10, T0);
+
+    expect(reservado?.parametros).toEqual(['Bebedouro quebrado no bloco 12', '120']);
+  });
 });
 
 describe('reservarLote (RNF06)', () => {
