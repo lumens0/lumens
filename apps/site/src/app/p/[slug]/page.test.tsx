@@ -22,8 +22,35 @@ describe('página /p/[slug]', () => {
     vi.mocked(buscarPauta).mockResolvedValue(fixture);
     const html = renderToStaticMarkup(await PaginaPauta(props(fixture.slug)));
     expect(html).toContain(fixture.titulo);
-    expect(await generateMetadata(props(fixture.slug))).toEqual({ title: fixture.titulo });
+    expect((await generateMetadata(props(fixture.slug))).title).toBe(fixture.titulo);
     expect(buscarPauta).toHaveBeenCalledWith(fixture.slug);
+  });
+
+  it('aponta og:image e twitter para o card horizontal, com URL absoluta', async () => {
+    vi.stubEnv('LUMENS_SITE_URL', 'https://lumens.teste');
+    vi.mocked(buscarPauta).mockResolvedValue(fixture);
+    const imagem = {
+      url: `https://lumens.teste/p/${fixture.slug}/og.png`,
+      width: 1200,
+      height: 630,
+      alt: fixture.titulo,
+    };
+    expect(await generateMetadata(props(fixture.slug))).toEqual({
+      title: fixture.titulo,
+      openGraph: { images: [imagem] },
+      twitter: { card: 'summary_large_image', images: [imagem] },
+    });
+    vi.unstubAllEnvs();
+  });
+
+  it('sem LUMENS_SITE_URL, a og:image usa a origem de produção', async () => {
+    vi.stubEnv('LUMENS_SITE_URL', '');
+    vi.mocked(buscarPauta).mockResolvedValue(fixture);
+    const { openGraph } = await generateMetadata(props(fixture.slug));
+    expect(openGraph?.images).toEqual([
+      expect.objectContaining({ url: `https://lumens-ufal.vercel.app/p/${fixture.slug}/og.png` }),
+    ]);
+    vi.unstubAllEnvs();
   });
 
   it('chama notFound quando a API não acha a pauta', async () => {
