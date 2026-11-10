@@ -100,7 +100,9 @@ export async function enfileirarDisparos(
         aviso: a.aviso,
         estudanteId: a.estudanteId,
         modelo: a.modelo,
-        parametros: [...a.parametros],
+        // A Meta recusa parâmetro com quebra de linha, tab ou espaços em sequência, e o título da
+        // pauta e o motivo da recusa vêm digitados por gente.
+        parametros: a.parametros.map((p) => p.replace(/\s+/g, ' ').trim()),
         enfileiradoEm: agora,
       })),
     )
