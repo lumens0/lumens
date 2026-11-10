@@ -163,3 +163,27 @@ export {
 } from './lembretes';
 
 export { diaEmMaceio, formatarDia } from './datas';
+
+export {
+  CODIGO_EXPIRA_MS,
+  DIGITOS_DO_CODIGO,
+  DOMINIO_UFAL,
+  EMAIL_MAXIMO,
+  MAX_TENTATIVAS,
+  REENVIO_APOS_MS,
+  apagarCodigo,
+  conferirCodigo,
+  emailInstitucional,
+  esperaParaReenviar,
+  gerarCodigo,
+  guardarCodigo,
+  hashDoCodigo,
+  normalizarEmail,
+  vincularEmail,
+} from './verificacao';
+export type {
+  NovoVinculo,
+  ResultadoConferencia,
+  ResultadoEmail,
+  ResultadoVinculo,
+} from './verificacao';
