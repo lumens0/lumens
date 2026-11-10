@@ -171,7 +171,7 @@ quando não expõem dados pessoais e consumidores ignoram chaves desconhecidas.
 | `proposta_publicada`        | `{ proposta_id, pessoas_necessarias }`                      |
 | `proposta_executada`        | `{ proposta_id }`                                           |
 | `resposta_oficial_recebida` | `{ caminho_id }`                                            |
-| `promessa_registrada`       | `{ promessa_id, data_entrega }`                             |
+| `promessa_registrada`       | `{ promessa_id, data_entrega, resumo, fonte }`              |
 | `conferencia_aberta`        | `{ promessa_id, fecha_em }`                                 |
 | `conferencia_apurada`       | `{ promessa_id, resultado, total_respostas }`               |
 | `status_alterado`           | `{ de, para }`                                              |
@@ -189,7 +189,10 @@ Regras do payload:
   adicionar campo opcional é compatível;
 - o seed novo usa `{ status: "em_curadoria" }` em `pauta_criada`; fixtures carregadas antes da T7
   permanecem com `titulo` porque a reaplicação usa `onConflictDoNothing()`, sem backfill;
-- `status_alterado` mantém `{ de, para }`, o payload já usado pelo seed da T6.
+- `status_alterado` mantém `{ de, para }`, o payload já usado pelo seed da T6;
+- `resumo` e `fonte` de `promessa_registrada` são públicos e aparecem no bloco "Resposta oficial" da
+  página da pauta; `fonte` vira link só quando é uma URL `http(s)`, senão é texto simples. Eventos
+  registrados antes dessa inclusão não têm essas chaves, e a página as omite.
 
 ### Decisão sobre `pauta_criada`
 
