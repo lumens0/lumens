@@ -25,7 +25,12 @@
  * equipe quiser os relatos no corpo, cada um terá de passar pela RN08
  * individualmente e isso é outra decisão, não um parâmetro deste módulo.
  */
-import { type OpcoesDeConferencia, type Veredicto, conferirAnonimato } from './anonimato';
+import {
+  type Achado,
+  type OpcoesDeConferencia,
+  type Veredicto,
+  conferirAnonimato,
+} from './anonimato';
 
 export interface PautaParaTexto {
   titulo: string;
@@ -127,4 +132,49 @@ export function gerarTextoFalaBr(
   );
 
   return { texto, anonimato: conferirAnonimato(texto, opcoes) };
+}
+
+/** O que fica no lugar de um trecho com dado pessoal. */
+export const MARCA_DE_REMOVIDO = '[removido]';
+
+export interface TextoParaProtocolar {
+  /** O texto que pode ir para o Fala.BR. Só vale quando `liberado`. */
+  texto: string;
+  /** Trechos com dado pessoal certo (bloqueio) que saíram do texto, trocados pela marca. */
+  removidos: Achado[];
+  /** Trechos que podem ser nome de pessoa (aviso): ficam no texto, para o owner conferir. */
+  suspeitos: Achado[];
+  /** Falso só se, depois de tirar os bloqueios, a conferência ainda bloquear. */
+  liberado: boolean;
+}
+
+/**
+ * Deixa o texto pronto para o owner protocolar (RN08, SCRUM-214).
+ *
+ * O que é certeza (e-mail, telefone, matrícula, nome conhecido) sai do texto: o owner não tem como
+ * editar a pauta pelo bot, e o texto não pode ir com dado pessoal. O que é só suspeita fica, e vai
+ * junto a lista para ele conferir antes de colar — tirar por heurística estragaria pauta legítima.
+ *
+ * Depois de tirar, confere de novo: se ainda houver bloqueio, `liberado` sai falso e o texto não
+ * deve ser entregue.
+ */
+export function prepararParaProtocolar(
+  gerado: TextoFalaBr,
+  opcoes: OpcoesDeConferencia = {},
+): TextoParaProtocolar {
+  const removidos = gerado.anonimato.achados.filter((a) => a.severidade === 'bloqueio');
+
+  // De trás para a frente: trocar um trecho não muda a posição dos que vêm antes dele.
+  let texto = gerado.texto;
+  for (const achado of [...removidos].sort((a, b) => b.inicio - a.inicio)) {
+    texto = texto.slice(0, achado.inicio) + MARCA_DE_REMOVIDO + texto.slice(achado.fim);
+  }
+
+  const depois = conferirAnonimato(texto, opcoes);
+  return {
+    texto,
+    removidos,
+    suspeitos: depois.achados.filter((a) => a.severidade === 'aviso'),
+    liberado: depois.liberado,
+  };
 }

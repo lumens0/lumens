@@ -22,6 +22,7 @@ import {
   abrirCaminho,
   caminhosDaPauta,
   pautasDoOwner,
+  prepararParaProtocolar,
   textoFalaBrDaPauta,
   type CaminhoDaPauta,
   type PautaDoOwner,
@@ -50,6 +51,20 @@ export const INDEPENDENT_TEXT =
 export const NEXT_STEP_TEXT = 'O que você quer fazer agora?';
 export const FALABR_TEXT_INTRO =
   'Este é o texto da manifestação. Copie a próxima mensagem inteira e cole no campo de descrição do Fala.BR:';
+export const FALABR_TEXT_BLOCKED =
+  'Não consegui montar um texto sem dado pessoal para esta pauta, e ele não pode ir assim para o Fala.BR (RN08). Fale com a curadoria antes de protocolar.';
+
+/** Quantos trechos saíram do texto por serem dado pessoal (e-mail, telefone, matrícula). */
+export function removedText(quantos: number): string {
+  const trechos = quantos === 1 ? '1 trecho que era' : `${String(quantos)} trechos que eram`;
+  return `Tirei do texto ${trechos} dado pessoal (e-mail, telefone ou matrícula). No lugar ficou [removido]. O Fala.BR é público, e o texto não pode levar dado de ninguém (RN08).`;
+}
+
+/** Possíveis nomes de pessoa que ficaram no texto, para o owner conferir. */
+export function suspectText(trechos: readonly string[]): string {
+  const lista = trechos.map((t) => `“${t}”`).join(', ');
+  return `Confira antes de colar: ${lista} pode ser nome de pessoa. Se for, apague do texto antes de protocolar.`;
+}
 
 export const OPENED_TEXT: Record<TipoEscolhido, string> = {
   falabr:
@@ -283,11 +298,22 @@ function textoPedido(resposta: string): boolean {
 }
 
 /**
- * O texto da manifestação em duas mensagens: a explicação e o texto sozinho, para o owner copiar
- * a mensagem inteira sem levar junto o que não é para colar.
+ * O texto da manifestação: a explicação, o que o anti-nome mexeu (RN08) e, por último e sozinho, o
+ * texto, para o owner copiar a mensagem inteira sem levar junto o que não é para colar.
+ *
+ * Dado pessoal certo já sai trocado por `[removido]`; possível nome de pessoa fica no texto, com o
+ * aviso para conferir. Se ainda assim o texto não passar, ele não é entregue.
  */
 async function textoDaManifestacao(db: Db, pautaId: string): Promise<Resposta[]> {
   const gerado = await textoFalaBrDaPauta(db, pautaId);
   if (gerado === undefined) return [DATA_LOST_TEXT];
-  return [FALABR_TEXT_INTRO, gerado.texto];
+
+  const pronto = prepararParaProtocolar(gerado);
+  if (!pronto.liberado) return [FALABR_TEXT_BLOCKED];
+
+  const avisos: Resposta[] = [];
+  if (pronto.removidos.length > 0) avisos.push(removedText(pronto.removidos.length));
+  const suspeitos = [...new Set(pronto.suspeitos.map((s) => s.trecho))].slice(0, 3);
+  if (suspeitos.length > 0) avisos.push(suspectText(suspeitos));
+  return [FALABR_TEXT_INTRO, ...avisos, pronto.texto];
 }

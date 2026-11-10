@@ -8,6 +8,8 @@ import {
   DATA_LOST_TEXT,
   FALABR_TEXT_INTRO,
   INDEPENDENT_TEXT,
+  removedText,
+  suspectText,
   NEXT_STEP_TEXT,
   LOST_OWNER_TEXT,
   NOT_OWNER_TEXT,
@@ -294,6 +296,34 @@ describe('texto do Fala.BR (3.4)', () => {
     await send('caminho:falabr');
 
     expect((await send('Texto do Fala.BR'))[0]).toBe(FALABR_TEXT_INTRO);
+  });
+
+  it('dado pessoal na descrição sai do texto antes de chegar ao owner (RN08)', async () => {
+    await db
+      .update(pautas)
+      .set({ descricao: 'Quem souber mais escreva para jgss@ic.ufal.br.' })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    expect(r).toContain(removedText(1));
+    const texto = r.find((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    expect(texto).toEqual(expect.stringContaining('escreva para [removido]'));
+    expect(texto).not.toEqual(expect.stringContaining('jgss@ic.ufal.br'));
+  });
+
+  it('possível nome de pessoa fica, com o aviso para conferir antes de colar', async () => {
+    await db
+      .update(pautas)
+      .set({ descricao: 'A professora Marta confirmou o problema.' })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    expect(r).toContain(suspectText(['professora Marta']));
+    // O texto é sempre a última mensagem antes do estado, para copiar sozinho.
+    const indiceDoTexto = r.findIndex((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    expect(r.indexOf(suspectText(['professora Marta']))).toBeLessThan(indiceDoTexto);
   });
 
   it('sem Fala.BR aberto não há botão de texto', async () => {
