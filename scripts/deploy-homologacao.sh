@@ -63,6 +63,15 @@ echo "--> Migrando o banco"
 echo "--> Subindo back-end, painel e Caddy"
 "${COMPOSE[@]}" up -d --build
 
+echo "--> Reiniciando o Caddy para ler o Caddyfile novo"
+# O `up` só recria contêiner cuja imagem ou configuração mudou, e o do Caddy (caddy:2) quase
+# nunca muda: ele seguiria com o Caddyfile antigo na memória. Pior, o arquivo é montado
+# sozinho e o `git reset --hard` o recria com outro inode, então nem um `caddy reload` dentro
+# do contêiner o enxergaria — o bind mount continua preso ao arquivo velho. O restart refaz a
+# montagem. Foi assim que painel.<DOMINIO> ficou sem bloco e o TLS respondia "internal error".
+# Os certificados ficam no volume caddy-data, então reiniciar não pede emissão nova.
+"${COMPOSE[@]}" restart caddy
+
 echo "--> Limpando imagens antigas"
 # Sem isto o disco da t3.micro enche depois de alguns deploys e o build seguinte falha
 # por falta de espaço — erro que não parece ter relação com o deploy.
