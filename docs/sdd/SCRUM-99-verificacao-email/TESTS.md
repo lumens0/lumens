@@ -11,6 +11,8 @@
 | `apps/backend/.../verificacao.test.ts` (SCRUM-136)     | certo segue para o curso; espaço no meio; errado conta; quinto erro; texto e tamanho errado não contam; vencido; reenviar antes e depois de 60 s; reenvio depois de esgotar; falha no reenvio; e-mail de novo antes de 60 s; sem e-mail na conversa |
 | `packages/dominio/src/verificacao.test.ts` (SCRUM-137) | telefone novo cria sem `verificado_em`; repetir não duplica; e-mail de outro telefone recusa sem mexer em nada; troca de e-mail mantém verificação e libera o antigo; quem saiu continua o mesmo cadastro                                           |
 | `apps/backend/.../verificacao.test.ts` (SCRUM-137)     | código certo cria o cadastro (HMAC e cifras conferidos); e-mail em uso explica e pede outro; nada revelado antes do código; sem telefone cifrado ou HMAC não gasta o código; sem e-mail na conversa                                                 |
+| `packages/dominio/src/verificacao.test.ts` (SCRUM-138) | `cursoValido`; grava curso e `verificado_em`; curso fora da lista não grava; sem cadastro ou sem e-mail não verifica; primeira data mantida; quem saiu volta a valer                                                                                |
+| `apps/backend/.../verificacao.test.ts` (SCRUM-138)     | lista de cursos; escolha pela lista e pelo nome digitado; curso fora da lista; retomada da pauta nova; apoio guardado para a 2.7; "3" de quem já é verificado; quem saiu se verifica de novo; sem vínculo                                           |
 
 ## Lacunas
 

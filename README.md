@@ -279,11 +279,10 @@ Pendências da parte 2:
   que decifra o telefone e chama a Cloud API. Uma resposta é texto, mensagem de lista ou mensagem
   com botões (`src/bot/conversation/resposta.ts`), que viram `interactive.type = "list"` (uma
   seção só) e `interactive.type = "button"` (os caminhos da 3.3).
-- Handlers da história 2.4 (verificação) são placeholders (`TODO` em
-  `src/bot/conversation/handlers.ts`). Ao terminar, a verificação deve retomar o
-  `pendingCommand` `nova-pauta` deixado pela 2.6 (`TODO(2.4)` em
-  `src/bot/conversation/nova-pauta.ts`). O apoio da 2.7 entra no `TODO(2.7)` de
-  `src/bot/conversation/relato.ts`.
+- A verificação (2.4) está completa no bot (`src/bot/conversation/verificacao.ts`) e retoma a
+  pauta nova da 2.6. Falta testar o e-mail do código num SMTP de verdade e em contas reais da
+  UFAL. O apoio da 2.7 entra no `TODO(2.7)` de `src/bot/conversation/relato.ts` e retoma o
+  `pendingCommand` `apoiar` (`TODO(2.7)` em `verificacao.ts`).
 - A foto da pauta nova (2.6) é baixada da Meta com o `META_TOKEN` e guardada no
   `S3_BUCKET_FOTOS`. Sem emulador de S3 no `docker-compose` (T20), no `pnpm dev` a foto é
   recusada com aviso e o "pular" continua funcionando.

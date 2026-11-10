@@ -11,9 +11,11 @@
  * 4. `vincularEmail` (SCRUM-137, RN01): com o código certo, o telefone fica ligado ao e-mail no
  *    cadastro do estudante. Um e-mail vale para um telefone só: é o que garante um apoio por
  *    estudante (RN02), já que o apoio é contado por estudante.
+ * 5. `concluirVerificacao` (SCRUM-138): com o curso escolhido, o estudante passa a ser verificado
+ *    (RN01). Só vale curso da lista `CURSOS`, porque o curso de quem cuida da pauta vai para o site.
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -187,7 +189,8 @@ export async function apagarCodigo(db: Db, telefoneHmac: string): Promise<void> 
 }
 
 export type ResultadoVinculo =
-  { vinculado: true; estudanteId: string } | { vinculado: false; motivo: 'email_em_uso' };
+  | { vinculado: true; estudanteId: string }
+  | { vinculado: false; motivo: 'email_em_uso' };
 
 export interface NovoVinculo {
   telefoneHmac: string;
@@ -249,4 +252,51 @@ export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<Resul
     .returning({ id: estudantes.id });
   if (criado === undefined) return { vinculado: false, motivo: 'email_em_uso' };
   return { vinculado: true, estudanteId: criado.id };
+}
+
+export type ResultadoConclusao =
+  | { verificado: true; estudanteId: string }
+  | { verificado: false; motivo: 'curso_invalido' | 'sem_vinculo' };
+
+/** O curso é um dos da lista? Texto livre não entra: o curso aparece no site. */
+export function cursoValido(curso: string): boolean {
+  return (CURSOS as readonly string[]).includes(curso);
+}
+
+/**
+ * Último passo da verificação (RN01): grava o curso e marca o estudante como verificado. Precisa
+ * do vínculo telefone ↔ e-mail (`vincularEmail`) já feito.
+ *
+ * - Quem já era verificado (e não saiu) mantém a data da primeira verificação.
+ * - Quem tinha saído (`saiu_em`) e se verifica de novo volta a valer: `saiu_em` é limpo e
+ *   `verificado_em` passa a ser agora.
+ */
+export async function concluirVerificacao(
+  db: Db,
+  {
+    telefoneHmac,
+    curso,
+    agora = new Date(),
+  }: { telefoneHmac: string; curso: string; agora?: Date },
+): Promise<ResultadoConclusao> {
+  if (!cursoValido(curso)) return { verificado: false, motivo: 'curso_invalido' };
+
+  const [estudante] = await db
+    .select({
+      id: estudantes.id,
+      emailHmac: estudantes.emailHmac,
+      verificadoEm: estudantes.verificadoEm,
+      saiuEm: estudantes.saiuEm,
+    })
+    .from(estudantes)
+    .where(eq(estudantes.telefoneHmac, telefoneHmac))
+    .for('update');
+  if (estudante?.emailHmac == null) return { verificado: false, motivo: 'sem_vinculo' };
+
+  const continuaValendo = estudante.verificadoEm !== null && estudante.saiuEm === null;
+  await db
+    .update(estudantes)
+    .set({ curso, verificadoEm: continuaValendo ? estudante.verificadoEm : agora, saiuEm: null })
+    .where(eq(estudantes.id, estudante.id));
+  return { verificado: true, estudanteId: estudante.id };
 }

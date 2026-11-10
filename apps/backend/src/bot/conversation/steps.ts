@@ -48,7 +48,8 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
   // 2.4: código errado, vencido ou "reenviar" ficam no passo; sem o e-mail na conversa, volta a ele.
   VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
-  VERIFY_ASK_COURSE: ['MENU'],
+  // 2.4: curso fora da lista pergunta de novo; verificado, retoma a pauta nova ou volta ao menu.
+  VERIFY_ASK_COURSE: ['MENU', 'VERIFY_ASK_COURSE', 'NEW_ASK_TITLE', 'VERIFY_ASK_EMAIL'],
   // Os passos do relato repetem a pergunta quando a resposta não serve (relato vazio, bloco que
   // não existe, escolha fora da lista).
   REPORT_ASK_TEXT: ['REPORT_ASK_BLOCK', 'REPORT_PICK_SIMILAR', 'REPORT_ASK_TEXT'],

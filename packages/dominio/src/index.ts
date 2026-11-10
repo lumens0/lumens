@@ -161,7 +161,9 @@ export {
   MAX_TENTATIVAS,
   REENVIO_APOS_MS,
   apagarCodigo,
+  concluirVerificacao,
   conferirCodigo,
+  cursoValido,
   emailInstitucional,
   esperaParaReenviar,
   gerarCodigo,
@@ -172,6 +174,7 @@ export {
 } from './verificacao';
 export type {
   NovoVinculo,
+  ResultadoConclusao,
   ResultadoConferencia,
   ResultadoEmail,
   ResultadoVinculo,
