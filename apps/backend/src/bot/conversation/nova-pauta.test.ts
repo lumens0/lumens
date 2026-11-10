@@ -9,13 +9,13 @@ import {
   type Db,
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import { MENU_TEXT } from './handlers';
 import {
   BLOCK_GONE_TEXT,
-  CURADORIA,
+  CURADORIA_PRAZO_TEXT,
   DESCRIPTION_EMPTY_TEXT,
   DESCRIPTION_QUESTION_TEXT,
   FROM_REPORT_DESCRIPTION_TEXT,
@@ -108,10 +108,6 @@ beforeEach(async () => {
   await send('oi');
 }, 60_000);
 
-afterEach(() => {
-  CURADORIA.prazo = null;
-});
-
 describe('porta de entrada (verificação)', () => {
   it('quem não é verificado vai para a verificação, guardando o pedido de pauta nova', async () => {
     expect(await send('2')).toEqual([VERIFY_FIRST_TEXT]);
@@ -165,6 +161,7 @@ describe('pauta nova pelo menu', () => {
     expect(texto).toContain('*Local:* Bloco 18');
     expect(texto).toContain('*Meta:* 120 apoios');
     expect(texto).toContain('*Foto:* não');
+    expect(texto).toContain(CURADORIA_PRAZO_TEXT);
 
     const [pauta] = await todasAsPautas();
     expect(pauta).toMatchObject({
@@ -328,12 +325,9 @@ describe('pauta nova vinda do relato (2.5)', () => {
 });
 
 describe('resumo', () => {
-  it('mostra o prazo da curadoria quando a equipe definir', async () => {
-    const semPrazo = await resumo(db, { titulo: 'T', blocoId: null, meta: 300, comFoto: false });
-    expect(semPrazo).not.toContain('A curadoria responde');
-
-    CURADORIA.prazo = 'em até 3 dias úteis';
-    const comPrazo = await resumo(db, { titulo: 'T', blocoId: null, meta: 300, comFoto: false });
-    expect(comPrazo).toContain('A curadoria responde em até 3 dias úteis.');
+  it('avisa o prazo da curadoria, o mesmo da fila do painel (24 h)', async () => {
+    const texto = await resumo(db, { titulo: 'T', blocoId: null, meta: 300, comFoto: false });
+    expect(CURADORIA_PRAZO_TEXT).toBe('A curadoria responde em até 24 horas.');
+    expect(texto.split('\n').at(-1)).toBe(CURADORIA_PRAZO_TEXT);
   });
 });
