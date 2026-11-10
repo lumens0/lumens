@@ -51,6 +51,37 @@ lumens/
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
 transação.
 
+## Endereços da homologação
+
+São dois lugares: o **site** fica na Vercel; o **back-end** (API e webhook) e o **painel** ficam na
+VM da Azure, atrás do Caddy, que emite o HTTPS. Na VM, os dois nomes vêm do mesmo `DOMINIO` do
+`.env.producao` (hoje `lumens-ufal.duckdns.org`): o back-end responde no nome puro e o painel em
+`painel.` na frente.
+
+| Endereço                                                                                | O que é                                     | Onde roda             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------- |
+| [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app)                                | site público, para quem acompanha as pautas | Vercel                |
+| [painel.lumens-ufal.duckdns.org](https://painel.lumens-ufal.duckdns.org)                | painel de curadoria (login por e-mail)      | VM, serviço `painel`  |
+| [lumens-ufal.duckdns.org/saude](https://lumens-ufal.duckdns.org/saude)                  | saúde do back-end e do banco                | VM, serviço `backend` |
+| [lumens-ufal.duckdns.org/resumo](https://lumens-ufal.duckdns.org/resumo) e demais rotas | API de leitura que o site consome           | VM, serviço `backend` |
+| `https://lumens-ufal.duckdns.org/webhook`                                               | webhook da Meta (WhatsApp)                  | VM, serviço `backend` |
+
+O que esperar de cada um:
+
+- **`https://lumens-ufal.duckdns.org/` responde 404, e isso é normal.** O nome puro é só a API: o
+  back-end não tem página na raiz. Para ver se está de pé, abra `/saude`; as rotas de leitura
+  (`/resumo`, `/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas`, `/atividade`) estão em
+  [docs/api.md](docs/api.md).
+- **`/webhook` aberto no navegador responde 403.** Ele só aceita o handshake da Meta com o
+  `META_VERIFY_TOKEN` e mensagens assinadas com o `META_APP_SECRET`.
+- **O painel manda para `/login`** enquanto não há sessão. Só entra quem está na tabela `curador`
+  (veja [Painel de curadoria](#painel-de-curadoria)).
+- **`lumens-hazel.vercel.app`** é o nome antigo do site. Ainda responde, mas não use em links.
+
+Fora do ar? A VM fica desligada quando ninguém está usando, para economizar o crédito da Azure: os
+endereços da VM param de responder e o site perde os dados. Para religar, veja
+[docs/homologacao.md](docs/homologacao.md).
+
 ## Como rodar
 
 Passo a passo completo, com os problemas comuns: [docs/rodar-local.md](docs/rodar-local.md).
