@@ -1,5 +1,6 @@
 import { criarDb, criarPool } from '@lumens/db';
 import { registerAvisoMetaBatidaJob } from './agendador/aviso-meta-batida';
+import { registerGatilhosJob } from './agendador/gatilhos';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
 import { ConversationStore } from './bot/conversation/store';
@@ -107,6 +108,7 @@ async function iniciar(env: Env): Promise<void> {
       limite: env.META_LIMITE_PESSOAS,
     });
     await registerStatusWorker(boss, { db, logger });
+    await registerGatilhosJob(boss, { db, logger });
     await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 
