@@ -6,7 +6,8 @@ O código do webhook está coberto por testes (`apps/backend/src/bot/webhook/web
 os testes não provam é o critério externo da história: **a Meta verificar o endereço no painel e
 receber o 200 em menos de 5 segundos**. Este roteiro é como provar isso e onde guardar a prova.
 
-A história só fecha com a tabela de [evidências](#evidências) preenchida.
+A história só fecha com a tabela de [evidências](#evidências) preenchida. Ela foi preenchida em
+2026-11-10.
 
 ## O que já é conferido sem a Meta
 
@@ -80,13 +81,26 @@ curl -s https://<DOMINIO>/saude
 
 ## Evidências
 
-Nenhuma validação no painel foi registrada até 2026-11-10. Preencha quando fizer:
+Validação registrada em 2026-11-10, com a homologação ligada e a versão da `main` publicada.
 
-| Item                                           | Valor |
-| ---------------------------------------------- | ----- |
-| Data e hora                                    |       |
-| Quem validou                                   |       |
-| Domínio usado                                  |       |
-| Saída do `latencia` (p50 · p95 · máximo)       |       |
-| Print do painel com o webhook verificado       |       |
-| Linhas do log do `POST /webhook` vindo da Meta |       |
+| Item                                           | Valor                                                                                                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data e hora                                    | 2026-11-10, 20:22 UTC (medição)                                                                                                                            |
+| Quem validou                                   | @sthefanyblima                                                                                                                                             |
+| Domínio usado                                  | `lumens-ufal.duckdns.org`                                                                                                                                  |
+| Saída do `latencia` (p50 · p95 · máximo)       | 20 pedidos assinados · p50 47 ms · p95 148 ms · máximo 400 ms · falhas 0 · `OK: todos responderam 200 em menos de 5000 ms`                                 |
+| Print do painel com o webhook verificado       | Painel do app, etapa "Configurar webhooks" concluída, com a URL de callback `https://lumens-ufal.duckdns.org/webhook`. Os prints ficam anexados no ticket. |
+| Linhas do log do `POST /webhook` vindo da Meta | Não coletadas.                                                                                                                                             |
+
+Conferido também de fora, no mesmo dia: verificação com token errado responde 403 e `POST` sem
+assinatura responde 401.
+
+O que esta validação **não** registra:
+
+- o print mostra a URL verificada, mas não a lista de campos assinados: a assinatura do campo
+  `messages` não ficou documentada aqui;
+- nenhuma linha de log de um evento vindo da própria Meta foi guardada. A medição acima usa pedidos
+  assinados com o segredo do app, enviados por nós, pelo mesmo caminho que a Meta usa.
+
+Se o domínio da homologação mudar, a verificação no painel precisa ser refeita e esta tabela,
+atualizada.
