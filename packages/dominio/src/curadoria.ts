@@ -114,8 +114,8 @@ export function aprovarPauta(
 
 /**
  * Recusa com motivo obrigatório (RF-C02). O motivo fica em `pauta.motivo_recusa`, fora do site, e
- * vai para quem criou a pauta pela fila de envio, na mesma transação: se a recusa não for gravada,
- * ninguém é avisado.
+ * vai para os responsáveis pela pauta pela fila de envio, na mesma transação: se a recusa não for
+ * gravada, ninguém é avisado.
  */
 export async function recusarPauta(
   tx: Tx,
