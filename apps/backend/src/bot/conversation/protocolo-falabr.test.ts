@@ -85,8 +85,9 @@ describe('registrar o protocolo pelo bot (3.4)', () => {
     expect(await falabr()).toMatchObject({ protocolo: PROTOCOLO, prazo: '2026-12-01' });
     const [pauta] = await db.select().from(pautas).where(eq(pautas.id, pautaId));
     expect(pauta?.status).toBe('cobrando');
-    // Com protocolo, texto e registro somem; a comunidade continua disponível.
-    expect(opcoesEm(r)).toEqual(['caminho:comunidade', 'menu']);
+    // Com protocolo, texto e registro somem, e entra o envio da resposta (3.6); a comunidade
+    // continua disponível.
+    expect(opcoesEm(r)).toEqual(['caminho:comunidade', 'resposta:falabr', 'menu']);
     expect(await passo()).toBe('OWNER_PATHS');
   });
 

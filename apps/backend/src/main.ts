@@ -10,6 +10,7 @@ import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/wo
 import { carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
+import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
 import { criarStorageS3 } from './fotos/storage';
 import { criarLogger, resumoDoErro } from './logger';
@@ -81,6 +82,20 @@ async function iniciar(env: Env): Promise<void> {
     const queue = filaPgBoss(boss);
     const chaves = chavesDoEnv(env);
     const store = new ConversationStore(db);
+    const storageDeArquivos = criarStorageS3({
+      bucket: env.S3_BUCKET_FOTOS,
+      regiao: env.AWS_REGION,
+      endpoint: env.S3_ENDPOINT,
+    });
+    // PDF da resposta oficial (3.6): mesmo bucket, pasta `respostas/`, que não é pública.
+    const respostas = criarServicoDeRespostas({
+      baixar: (mediaId) =>
+        baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN, tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
+      storage: storageDeArquivos,
+      avisar: (mensagem) => {
+        logger.warn(mensagem);
+      },
+    });
     const fotos = criarServicoDeFotos({
       baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN }),
       storage: criarStorageS3({
@@ -109,7 +124,7 @@ async function iniciar(env: Env): Promise<void> {
     });
     await registerStatusWorker(boss, { db, logger });
     await registerGatilhosJob(boss, { db, logger });
-    await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos });
+    await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos, respostas });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 
     const app = await buildApp({

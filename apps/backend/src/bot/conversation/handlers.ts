@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   entrarNaPautaNova,
@@ -9,6 +10,7 @@ import {
 } from './nova-pauta';
 import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
 import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
+import { ownerSendResponse } from './resposta-oficial';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -23,6 +25,8 @@ export interface IncomingMessage {
   text: string;
   /** Foto enviada pela pessoa. `id` é o id da mídia na Meta. */
   image?: { id: string; mimeType: string };
+  /** Arquivo enviado pela pessoa (o PDF da resposta oficial, 3.6). Chega com `text` vazio. */
+  document?: { id: string; mimeType: string };
 }
 
 /** Cifra o que a pessoa escreveu antes de guardar nos dados da conversa (CHAVE_CIFRA). */
@@ -40,6 +44,8 @@ export interface StepContext {
   phoneHmac: string;
   /** Baixa, limpa e guarda a foto da pauta nova (2.6). Sem ele, a foto é recusada com aviso. */
   fotos?: ServicoDeFotos;
+  /** Baixa e guarda o PDF da resposta oficial (3.6). Sem ele, o arquivo é recusado com aviso. */
+  respostas?: ServicoDeRespostas;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;
@@ -130,4 +136,5 @@ export const defaultHandlers: HandlerRegistry = {
   OWNER_PATHS: ownerPaths,
   OWNER_ASK_PROTOCOL: ownerAskProtocol,
   OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
+  OWNER_SEND_RESPONSE: ownerSendResponse,
 };
