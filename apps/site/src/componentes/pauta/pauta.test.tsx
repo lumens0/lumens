@@ -187,6 +187,33 @@ describe('página da pauta: seções', () => {
     );
   });
 
+  it('usa o Fala.BR mais recente, mesmo sem prazo, e não o prazo de um anterior', () => {
+    const pauta = {
+      ...fixture,
+      caminhos: [
+        { ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' },
+        { ...CAMINHO, tipo: 'falabr' as const, prazo: null, aberto_em: '2026-04-01T12:00:00.000Z' },
+      ],
+    };
+    expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} />)).not.toContain('10/03/2026');
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} />)).toContain(
+      'Aguardando resposta, ainda sem prazo definido.',
+    );
+  });
+
+  it('com resposta oficial depois do Fala.BR, a próxima etapa não mostra o prazo', () => {
+    const caminhos = [{ ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' }];
+    const resposta = {
+      tipo: 'resposta_oficial_recebida',
+      dados: {},
+      criado_em: '2026-03-01T15:00:00.000Z',
+    };
+    const html = renderToStaticMarkup(
+      <ProximaEtapa pauta={{ ...fixture, caminhos, linha_do_tempo: [resposta] }} />,
+    );
+    expect(html).not.toContain('Prazo de resposta do Fala.BR');
+  });
+
   it('sem resposta, mostra "aguardando resposta" com o prazo', () => {
     const pauta = {
       ...fixture,

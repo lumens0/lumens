@@ -45,14 +45,22 @@ function Fonte({ fonte }: { fonte: string }) {
 
 /** Prazo do Fala.BR aberto mais recentemente, como na `proxima_etapa` da view. */
 function prazoFalabr(pauta: PautaDetalhe): string | undefined {
+  // A API ordena por `aberto_em`: o último Fala.BR é o mais recente, mesmo ainda sem prazo.
+  return pauta.caminhos.findLast((c) => c.tipo === 'falabr')?.prazo ?? undefined;
+}
+
+/** Resposta oficial chegou depois que o Fala.BR mais recente foi aberto: o prazo já não importa. */
+function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
+  const abertoEm = pauta.caminhos.findLast((c) => c.tipo === 'falabr')?.aberto_em;
+  const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
   return (
-    pauta.caminhos.findLast((c) => c.tipo === 'falabr' && c.prazo !== null)?.prazo ?? undefined
+    resposta !== undefined && (!abertoEm || Date.parse(resposta.criado_em) >= Date.parse(abertoEm))
   );
 }
 
 /** O que acontece agora com a pauta e quando. */
 export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
-  const prazo = prazoFalabr(pauta);
+  const prazo = respondidoDepoisDoFalabr(pauta) ? undefined : prazoFalabr(pauta);
   const aberta = ultimo(pauta.linha_do_tempo, 'conferencia_aberta');
   const apurada = ultimo(pauta.linha_do_tempo, 'conferencia_apurada');
   const conferenciaAte =
