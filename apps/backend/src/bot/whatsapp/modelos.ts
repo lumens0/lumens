@@ -146,7 +146,7 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     idioma: 'pt_BR',
     destinatario: 'responsaveis',
     corpo:
-      'A pauta "{{1}}", que você criou, não foi publicada pela curadoria. Motivo: {{2}}. ' +
+      'A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. ' +
       'Se quiser, você pode mandar um novo relato por aqui.',
     exemplos: ['Bebedouro quebrado no bloco 12', 'já existe uma pauta sobre o mesmo bebedouro'],
     rodape: RODAPE,

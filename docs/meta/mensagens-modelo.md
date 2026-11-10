@@ -19,7 +19,7 @@ Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um
 | `lumens_conferencia`      | apoiadores   | A pauta "{{1}}", que você apoiou, tinha uma promessa para {{2}}: {{3}}. Foi feito? Você pode responder até {{4}}, e a resposta de quem apoiou decide o resultado que aparece no site. | Sim · Em parte · Não         |
 | `lumens_lembrete_prazo`   | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
 | `lumens_owner_inativo`    | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
-| `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", que você criou, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                                | (nenhum)                     |
+| `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                  | (nenhum)                     |
 
 ### Por que os textos são assim
 
