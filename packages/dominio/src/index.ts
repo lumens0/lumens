@@ -109,6 +109,7 @@ export {
   LIMITE_DE_OWNERS,
   adicionarCoOwner,
   registrarAtividadeOwner,
+  registrarAtividadePorTelefone,
   removerOwnerInativo,
 } from './owners';
 export type { ResultadoCoOwner } from './owners';
