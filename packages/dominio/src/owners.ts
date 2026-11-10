@@ -9,6 +9,7 @@ import {
   eq,
   estudantes,
   inArray,
+  isNull,
   papeisPauta,
   pautas,
   sql,
@@ -51,7 +52,15 @@ export async function adicionarCoOwner(
   const [apoio] = await tx
     .select({ estudanteId: apoios.estudanteId })
     .from(apoios)
-    .where(and(eq(apoios.pautaId, pautaId), eq(apoios.estudanteId, estudanteId)));
+    .innerJoin(estudantes, eq(estudantes.id, apoios.estudanteId))
+    .where(
+      and(
+        eq(apoios.pautaId, pautaId),
+        eq(apoios.estudanteId, estudanteId),
+        // Quem saiu do Lumens continua apoiando na contagem, mas não assume vaga de owner.
+        isNull(estudantes.saiuEm),
+      ),
+    );
   if (apoio === undefined) return { adicionado: false, motivo: 'nao_apoiou' };
 
   const ativos = await tx

@@ -8,6 +8,7 @@ import {
   and,
   codigosVerificacao,
   conversas,
+  disparos,
   eq,
   estudantes,
   isNull,
@@ -61,6 +62,19 @@ export async function sairDoLumens(
   await tx
     .delete(codigosVerificacao)
     .where(eq(codigosVerificacao.telefoneHmac, estudante.telefoneHmac));
+
+  // Disparos pendentes ou já reservados são cancelados para impedir envios após a saída (LGPD).
+  // O worker só avança no lote com renovarReserva (onde falhouEm precisa ser nulo).
+  await tx
+    .update(disparos)
+    .set({ falhouEm: agora, falha: 'estudante_saiu' })
+    .where(
+      and(
+        eq(disparos.estudanteId, estudanteId),
+        isNull(disparos.enviadoEm),
+        isNull(disparos.falhouEm),
+      ),
+    );
 
   // ponytail: lápide no lugar de NULL porque as colunas do telefone são NOT NULL; gravar NULL
   // depende de uma migração que as torne anuláveis.
