@@ -1,14 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import Home from './page';
+import { Inicio } from './inicio';
 
-describe('base do painel de curadoria', () => {
-  it('identifica a área restrita sem oferecer um login ainda inexistente', () => {
-    const html = renderToStaticMarkup(<Home />);
+describe('início do painel de curadoria', () => {
+  it('mostra quem entrou e o botão de sair', () => {
+    const html = renderToStaticMarkup(<Inicio nome="Ana" sair={() => Promise.resolve()} />);
 
     expect(html).toContain('Painel de curadoria');
-    expect(html).toContain('Área restrita');
-    expect(html).toContain('role="status"');
-    expect(html).not.toContain('<form');
+    expect(html).toContain('Você entrou como Ana.');
+    expect(html).toContain('Sair');
   });
 });
