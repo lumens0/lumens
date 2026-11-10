@@ -52,12 +52,21 @@ export type { Disparo, ParametrosDeEnvio, PlanoDeEnvio, TipoDisparo } from './en
 
 export {
   RESERVA_EXPIRA_MS,
+  VALIDADE_DO_AVISO_MS,
   enfileirarDisparos,
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
+  registrarFalhaDeEntrega,
   reservarLote,
 } from './fila';
+
+export {
+  MODELO_META_BATIDA,
+  PRAZO_DO_AVISO_DE_META_MS,
+  enfileirarAvisoMetaBatida,
+  pautasComMetaBatidaSemAviso,
+} from './aviso-meta-batida';
 export type { DisparoReservado, NovoAviso, ParametrosDeLote } from './fila';
 
 export { ErroDeRegra } from './erros';
@@ -92,8 +101,8 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
-export { abrirCaminho } from './caminhos';
-export type { NovoCaminho, ResultadoCaminho } from './caminhos';
+export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
+export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';

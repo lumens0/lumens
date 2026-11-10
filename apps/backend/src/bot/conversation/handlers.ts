@@ -7,6 +7,7 @@ import {
   newAskPlace,
   newAskTitle,
 } from './nova-pauta';
+import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -62,11 +63,14 @@ export const MENU_TEXT = [
   '1 Relatar problema',
   '2 Nova pauta',
   '3 Verificar e-mail',
+  '4 Minhas pautas',
 ].join('\n');
+
+export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
 const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
 
-/** Opções do menu que só mudam de passo. A "2" passa pela verificação: veja `menu`. */
+/** Opções do menu que só mudam de passo. A "2" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
   '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
   '3': { next: 'VERIFY_ASK_EMAIL', reply: 'Qual o seu e-mail institucional?' },
@@ -79,14 +83,17 @@ const MENU_ALIASES: Record<string, string> = {
   verificar: '3',
   'verificar e-mail': '3',
   'verificar email': '3',
+  'minhas pautas': '4',
+  caminhos: '4',
 };
 
 const menu: StepHandler = (ctx) => {
   const t = normalize(ctx.input.text);
   const escolha = MENU_ALIASES[t] ?? t;
   if (escolha === '2') return entrarNaPautaNova(ctx);
+  if (escolha === '4') return entrarEmMinhasPautas(ctx);
   const opt = MENU_OPTIONS[escolha];
-  if (!opt) return { next: 'MENU', replies: ['Não entendi. Responda com 1, 2 ou 3.', MENU_TEXT] };
+  if (!opt) return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
   return { next: opt.next, replies: [opt.reply] };
 };
 
@@ -118,4 +125,6 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PLACE: newAskPlace,
   NEW_ASK_DESCRIPTION: newAskDescription,
   NEW_ASK_PHOTO: newAskPhoto,
+  OWNER_PICK_PAUTA: ownerPickPauta,
+  OWNER_PATHS: ownerPaths,
 };
