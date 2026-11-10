@@ -111,7 +111,12 @@ export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
 
-export { DIAS_DE_CONFERENCIA, MODELO_RESPOSTA_OFICIAL, registrarPromessa } from './promessa';
+export {
+  DIAS_DE_CONFERENCIA,
+  MODELO_RESPOSTA_OFICIAL,
+  RESUMO_NO_AVISO_MAXIMO,
+  registrarPromessa,
+} from './promessa';
 export type { NovaPromessa } from './promessa';
 
 export { encerrarConferencia } from './conferencia-apuracao';
