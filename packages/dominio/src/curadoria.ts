@@ -4,9 +4,25 @@
  * Aprovar e recusar passam por `transicionarStatus`; aqui ficam a recusa de quem chega atrasado
  * (outra pessoa da curadoria já decidiu) e o evento próprio de cada decisão.
  */
-import { blocos, eq, papeisPauta, pautas, relatos, sql, type Db, type Tx } from '@lumens/db';
+import {
+  and,
+  blocos,
+  eq,
+  estudantes,
+  isNull,
+  papeisPauta,
+  pautas,
+  relatos,
+  sql,
+  type Db,
+  type Tx,
+} from '@lumens/db';
 import { registrarEvento } from './eventos';
+import { enfileirarDisparos } from './fila';
 import { transicionarStatus } from './status';
+
+/** Mensagem modelo (SCRUM-170): título da pauta e motivo da recusa. */
+export const MODELO_PAUTA_RECUSADA = 'lumens_pauta_recusada';
 
 /** Prazo para a curadoria decidir uma pauta nova, contado de quando ela foi criada. */
 export const PRAZO_DE_CURADORIA_MS = 24 * 3_600_000;
@@ -96,10 +112,42 @@ export function aprovarPauta(
   return decidir(tx, pautaId, 'juntando_apoios', undefined, agora);
 }
 
-/** Recusa com motivo obrigatório (RF-C02). O motivo fica em `pauta.motivo_recusa`, fora do site. */
-export function recusarPauta(
+/**
+ * Recusa com motivo obrigatório (RF-C02). O motivo fica em `pauta.motivo_recusa`, fora do site, e
+ * vai para os responsáveis pela pauta pela fila de envio, na mesma transação: se a recusa não for
+ * gravada, ninguém é avisado.
+ */
+export async function recusarPauta(
   tx: Tx,
   { pautaId, motivo, agora = new Date() }: { pautaId: string; motivo: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  return decidir(tx, pautaId, 'recusada', motivo, agora);
+  const resultado = await decidir(tx, pautaId, 'recusada', motivo, agora);
+  if (!resultado.decidida) return resultado;
+
+  const [pauta] = await tx
+    .select({ titulo: pautas.titulo })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId));
+  const responsaveis = await tx
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .innerJoin(estudantes, eq(estudantes.id, papeisPauta.estudanteId))
+    .where(
+      and(eq(papeisPauta.pautaId, pautaId), isNull(papeisPauta.ate), isNull(estudantes.saiuEm)),
+    );
+
+  // A Meta recusa parâmetro com quebra de linha ou espaços em sequência.
+  const parametros = [pauta?.titulo ?? '', motivo.replace(/\s+/g, ' ').trim()];
+  await enfileirarDisparos(
+    tx,
+    responsaveis.map(({ estudanteId }) => ({
+      tipo: 'recusa' as const,
+      aviso: pautaId,
+      estudanteId,
+      modelo: MODELO_PAUTA_RECUSADA,
+      parametros,
+    })),
+    agora,
+  );
+  return resultado;
 }

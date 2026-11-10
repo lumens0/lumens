@@ -94,7 +94,6 @@ async function iniciar(env: Env): Promise<void> {
     });
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
-    await registerGatilhosJob(boss, { db, logger });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
     // No `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade. Enquanto os modelos não
     // forem aprovados, a Meta recusa com erro passageiro e os avisos esperam na fila.
@@ -109,6 +108,7 @@ async function iniciar(env: Env): Promise<void> {
       limite: env.META_LIMITE_PESSOAS,
     });
     await registerStatusWorker(boss, { db, logger });
+    await registerGatilhosJob(boss, { db, logger });
     await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 

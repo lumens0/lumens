@@ -12,6 +12,8 @@ export const STEPS = [
   'NEW_ASK_PLACE',
   'NEW_ASK_DESCRIPTION',
   'NEW_ASK_PHOTO',
+  'OWNER_PICK_PAUTA',
+  'OWNER_PATHS',
 ] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -34,12 +36,14 @@ export const Step = {
   NEW_ASK_PLACE: 'NEW_ASK_PLACE',
   NEW_ASK_DESCRIPTION: 'NEW_ASK_DESCRIPTION',
   NEW_ASK_PHOTO: 'NEW_ASK_PHOTO',
+  OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
+  OWNER_PATHS: 'OWNER_PATHS',
 } as const satisfies { [K in Step]: K };
 
 /** Próximos passos permitidos a partir de cada passo (fora os globais). */
 export const TRANSITIONS: Record<Step, readonly Step[]> = {
   GREETING: ['MENU'],
-  MENU: ['VERIFY_ASK_EMAIL', 'REPORT_ASK_TEXT', 'NEW_ASK_TITLE'],
+  MENU: ['VERIFY_ASK_EMAIL', 'REPORT_ASK_TEXT', 'NEW_ASK_TITLE', 'OWNER_PICK_PAUTA', 'OWNER_PATHS'],
   VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE'],
   VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE'],
   VERIFY_ASK_COURSE: ['MENU'],
@@ -55,6 +59,10 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   NEW_ASK_PLACE: ['NEW_ASK_DESCRIPTION', 'NEW_ASK_PLACE'],
   NEW_ASK_DESCRIPTION: ['NEW_ASK_PHOTO', 'NEW_ASK_DESCRIPTION'],
   NEW_ASK_PHOTO: ['MENU', 'NEW_ASK_PHOTO'],
+  // 3.3: "Minhas pautas". Com uma pauta só, o menu vai direto aos caminhos. Os caminhos ficam no
+  // mesmo passo depois de abrir um (o outro continua disponível) e voltam ao menu com os dois.
+  OWNER_PICK_PAUTA: ['OWNER_PATHS', 'OWNER_PICK_PAUTA', 'MENU'],
+  OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
 };
 
 /** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar'). */

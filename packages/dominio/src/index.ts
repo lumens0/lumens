@@ -77,6 +77,7 @@ export { TIPOS_EVENTO, registrarEvento } from './eventos';
 export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from './eventos';
 
 export {
+  MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
   listarFilaDeCuradoria,
@@ -102,8 +103,8 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
-export { abrirCaminho } from './caminhos';
-export type { NovoCaminho, ResultadoCaminho } from './caminhos';
+export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
+export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
@@ -119,6 +120,7 @@ export {
   LIMITE_DE_OWNERS,
   adicionarCoOwner,
   registrarAtividadeOwner,
+  registrarAtividadePorTelefone,
   removerOwnerInativo,
 } from './owners';
 export type { ResultadoCoOwner } from './owners';

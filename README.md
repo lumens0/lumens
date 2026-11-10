@@ -254,8 +254,9 @@ com `pnpm --filter @lumens/backend start` (migrações: `pnpm db:migrate`).
 Pendências da parte 2:
 
 - Envio das respostas pela API da Meta: trocar o `logSender` (`src/bot/worker.ts`) por um sender
-  que decifra o telefone e chama a Cloud API. Uma resposta é texto ou mensagem de lista
-  (`src/bot/conversation/resposta.ts`), que vira `interactive.type = "list"` com uma seção só.
+  que decifra o telefone e chama a Cloud API. Uma resposta é texto, mensagem de lista ou mensagem
+  com botões (`src/bot/conversation/resposta.ts`), que viram `interactive.type = "list"` (uma
+  seção só) e `interactive.type = "button"` (os caminhos da 3.3).
 - Handlers da história 2.4 (verificação) são placeholders (`TODO` em
   `src/bot/conversation/handlers.ts`). Ao terminar, a verificação deve retomar o
   `pendingCommand` `nova-pauta` deixado pela 2.6 (`TODO(2.4)` em
