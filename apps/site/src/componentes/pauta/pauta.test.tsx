@@ -1,12 +1,25 @@
-import type { PautaDetalhe } from '@lumens/contratos';
+import type { Caminho, PautaDetalhe } from '@lumens/contratos';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CabecalhoPauta } from './CabecalhoPauta';
+import { Caminhos, rotuloStatusCaminho } from './Caminhos';
 import { ConteudoPauta } from './ConteudoPauta';
 import { fixture } from '../../dados/pauta-detalhe-teste';
 import { altDaFoto, urlFoto } from './foto';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
+
+const CAMINHO: Caminho = {
+  tipo: 'comunidade',
+  status: 'aberto',
+  protocolo: null,
+  prazo: null,
+  aberto_em: '2026-02-09T12:00:00.000Z',
+  descricao: null,
+  pessoas_necessarias: null,
+  voluntarios: null,
+  executada_em: null,
+};
 
 describe('página da pauta: seções', () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -99,6 +112,45 @@ describe('página da pauta: seções', () => {
     expect(renderToStaticMarkup(<LinhaDoTempo eventos={[]} />)).toContain(
       'Ainda não tem acontecimento registrado.',
     );
+  });
+
+  it('caminhos mostram o tipo e o status escrito, não só cor', () => {
+    const html = renderToStaticMarkup(
+      <Caminhos
+        caminhos={[
+          { ...CAMINHO, tipo: 'falabr', protocolo: '2026-123', prazo: '2026-03-10' },
+          {
+            ...CAMINHO,
+            tipo: 'proposta',
+            status: 'aberta',
+            aberto_em: null,
+            descricao: 'Mutirão de pintura',
+            pessoas_necessarias: 10,
+            voluntarios: 4,
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain('Fala.BR');
+    expect(html).toContain('Status: <strong>Em andamento</strong>');
+    expect(html).toContain('Protocolo 2026-123');
+    expect(html).toContain('Prazo de resposta: 10/03/2026');
+    expect(html).toContain('Proposta da comunidade');
+    expect(html).toContain('Status: <strong>Juntando voluntários</strong>');
+    expect(html).toContain('4 de 10 voluntários');
+  });
+
+  it('status de caminho desconhecido vira texto legível', () => {
+    expect(rotuloStatusCaminho('aguardando_reuniao')).toBe('aguardando reuniao');
+    expect(
+      renderToStaticMarkup(<Caminhos caminhos={[{ ...CAMINHO, status: 'aguardando_reuniao' }]} />),
+    ).toContain('<strong>aguardando reuniao</strong>');
+  });
+
+  it('sem caminhos, explica que o owner ainda vai escolher', () => {
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, caminhos: [] }} />);
+    expect(html).toContain('Caminhos</h2>');
+    expect(html).toContain('O owner ainda vai escolher os caminhos');
   });
 
   it('anti-vazamento: campos extras de identidade na resposta não chegam ao HTML', () => {
