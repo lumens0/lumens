@@ -5,12 +5,14 @@
  *                            │ não                         ▼
  *                            ▼                         OWNER_PATHS: estado dos caminhos
  *                      OWNER_PICK_PAUTA (lista) ──▶    [Abrir Fala.BR] [Abrir comunidade]
- *                                                      [Texto do Fala.BR] [Menu]
+ *                                                      [Texto do Fala.BR] [Registrar protocolo]
+ *                                                      [Menu]
  *                                                          │ abre um
  *                                                          └─▶ confirma e mostra o estado de novo
  *
  * Com o Fala.BR aberto e ainda sem protocolo, o owner pode pedir o texto pronto da manifestação
- * (3.4): o bot manda logo depois de abrir o caminho e sempre que o botão for tocado.
+ * (3.4): o bot manda logo depois de abrir o caminho e sempre que o botão for tocado. E pode
+ * registrar o protocolo que o Fala.BR devolveu (`protocolo-falabr.ts`).
  *
  * Fala.BR e comunidade ficam disponíveis a qualquer momento, inclusive antes da meta (RN05), e um
  * não bloqueia o outro (RN07): cada um tem o seu botão enquanto não estiver aberto. Abrir caminho
@@ -29,6 +31,7 @@ import {
 } from '@lumens/dominio';
 import { z } from 'zod';
 import { estudanteVerificado } from './estudante';
+import { pedirProtocolo } from './protocolo-falabr';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
 import { LIMITES_DOS_BOTOES, botoes, lista, type BotaoDeResposta, type Resposta } from './resposta';
 import { normalize } from './texto';
@@ -90,6 +93,7 @@ export function alreadyOpenText(tipo: TipoEscolhido): string {
 const PAUTA_ROW_PREFIX = 'pauta:';
 const PATH_BUTTON_PREFIX = 'caminho:';
 export const TEXT_BUTTON_ID = 'texto:falabr';
+export const PROTOCOL_BUTTON_ID = 'protocolo:falabr';
 const MENU_BUTTON: BotaoDeResposta = { id: 'menu', titulo: 'Voltar ao menu' };
 const TIPOS: readonly TipoEscolhido[] = ['falabr', 'comunidade'];
 
@@ -101,7 +105,8 @@ function pautaIdDaConversa(data: unknown): string | undefined {
   return lidos.success ? lidos.data.pautaId : undefined;
 }
 
-const LIMPAR: DataPatch = { pautaId: undefined };
+/** Tira da conversa tudo o que os passos do owner guardam, inclusive os do protocolo. */
+export const LIMPAR: DataPatch = { pautaId: undefined, caminhoId: undefined, protocolo: undefined };
 
 const dataBR = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Maceio' });
 
@@ -129,6 +134,7 @@ function acoesDaPauta(existentes: readonly CaminhoDaPauta[], faltam: readonly Ti
   }));
   if (existentes.some((c) => c.tipo === 'falabr' && c.protocolo === null)) {
     acoes.push({ id: TEXT_BUTTON_ID, titulo: 'Texto do Fala.BR' });
+    acoes.push({ id: PROTOCOL_BUTTON_ID, titulo: 'Registrar protocolo' });
   }
   return acoes;
 }
@@ -174,7 +180,7 @@ export async function estadoDosCaminhos(
   return { resposta: opcoes([...linhas, '', fecho].join('\n'), acoes), acoes };
 }
 
-async function mostrarCaminhos(
+export async function mostrarCaminhos(
   db: Db,
   pauta: { id: string; titulo: string },
   antes: Resposta[] = [],
@@ -247,27 +253,49 @@ function caminhoPedido(resposta: string): TipoEscolhido | undefined {
   return undefined;
 }
 
-export const ownerPaths: StepHandler = async ({ state, input, db, phoneHmac }) => {
+export type PautaConferida =
+  | { ok: true; pauta: { id: string; titulo: string }; estudanteId: string }
+  | { ok: false; resultado: StepResult };
+
+/**
+ * Relê a pauta da conversa e confere que quem escreve ainda é owner dela. A cada mensagem, porque
+ * entre uma e outra a pauta pode ter fechado, ou a pessoa ter deixado de ser owner.
+ */
+export async function conferirPautaDoOwner({
+  state,
+  db,
+  phoneHmac,
+}: Pick<StepContext, 'state' | 'db' | 'phoneHmac'>): Promise<PautaConferida> {
+  const sair = (texto: string): PautaConferida => ({
+    ok: false,
+    resultado: { next: 'MENU', data: LIMPAR, replies: [texto] },
+  });
   const pautaId = pautaIdDaConversa(state.data);
-  if (pautaId === undefined) return { next: 'MENU', data: LIMPAR, replies: [DATA_LOST_TEXT] };
-  // Relê tudo a cada mensagem: a pauta pode ter fechado, ou a pessoa deixado de ser owner.
+  if (pautaId === undefined) return sair(DATA_LOST_TEXT);
   const [pauta] = await db
     .select({ id: pautas.id, titulo: pautas.titulo, status: pautas.status })
     .from(pautas)
     .where(eq(pautas.id, pautaId));
-  if (pauta === undefined) return { next: 'MENU', data: LIMPAR, replies: [DATA_LOST_TEXT] };
-  if (!STATUS_COM_CAMINHOS.includes(pauta.status)) {
-    return { next: 'MENU', data: LIMPAR, replies: [PAUTA_CLOSED_TEXT] };
-  }
+  if (pauta === undefined) return sair(DATA_LOST_TEXT);
+  if (!STATUS_COM_CAMINHOS.includes(pauta.status)) return sair(PAUTA_CLOSED_TEXT);
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   const doOwner = estudanteId === undefined ? [] : await pautasDoOwner(db, estudanteId);
   if (estudanteId === undefined || !doOwner.some((p) => p.id === pauta.id)) {
-    return { next: 'MENU', data: LIMPAR, replies: [LOST_OWNER_TEXT] };
+    return sair(LOST_OWNER_TEXT);
   }
+  return { ok: true, pauta, estudanteId };
+}
+
+export const ownerPaths: StepHandler = async (ctx) => {
+  const { input, db } = ctx;
+  const conferida = await conferirPautaDoOwner(ctx);
+  if (!conferida.ok) return conferida.resultado;
+  const { pauta, estudanteId } = conferida;
 
   if (textoPedido(input.text)) {
     return mostrarCaminhos(db, pauta, await textoDaManifestacao(db, pauta.id));
   }
+  if (protocoloPedido(input.text)) return pedirProtocolo(db, pauta);
 
   const tipo = caminhoPedido(input.text);
   if (tipo === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
@@ -289,6 +317,13 @@ export const ownerPaths: StepHandler = async ({ state, input, db, phoneHmac }) =
   const depois = tipo === 'falabr' ? await textoDaManifestacao(db, pauta.id) : [];
   return mostrarCaminhos(db, pauta, [OPENED_TEXT[tipo], ...depois]);
 };
+
+/** O botão "Registrar protocolo", ou o pedido digitado ("protocolo", "registrar protocolo"). */
+function protocoloPedido(resposta: string): boolean {
+  if (resposta.trim() === PROTOCOL_BUTTON_ID) return true;
+  const letras = normalize(resposta).replace(/[^a-z]/g, '');
+  return letras === 'protocolo' || letras === 'registrarprotocolo';
+}
 
 /** O botão "Texto do Fala.BR", ou o pedido digitado ("texto", "texto do fala br"). */
 function textoPedido(resposta: string): boolean {
