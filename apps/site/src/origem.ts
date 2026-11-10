@@ -1,5 +1,4 @@
-/** Produção. É também a origem padrão do CORS da API (`CORS_ORIGENS`). */
-const PRODUCAO = 'https://lumens-ufal.vercel.app';
+import { ORIGEM_SITE_PRODUCAO as PRODUCAO } from '@lumens/contratos';
 
 /** URL absoluta (com esquema) ou `null`, sem lançar: um valor mal escrito não pode derrubar a página. */
 function urlOuNulo(valor: string | undefined): URL | null {
