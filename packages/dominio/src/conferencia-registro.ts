@@ -69,18 +69,20 @@ export async function registrarRespostaConferencia(
   }
   if (agora < promessa.abreEm) return { registrada: false, motivo: 'conferencia_nao_abriu' };
 
+  // FOR UPDATE no estudante: serializa com sairDoLumens para impedir resposta de quem está saindo.
+  const [estudante] = await tx
+    .select({ saiuEm: estudantes.saiuEm })
+    .from(estudantes)
+    .where(eq(estudantes.id, estudanteId))
+    .for('update');
+  if (estudante === undefined || estudante.saiuEm !== null) {
+    return { registrada: false, motivo: 'nao_apoiou' };
+  }
+
   const [apoio] = await tx
     .select({ estudanteId: apoios.estudanteId })
     .from(apoios)
-    .innerJoin(estudantes, eq(estudantes.id, apoios.estudanteId))
-    // Quem saiu do Lumens não responde mais; o apoio dela segue contando só na contagem pública.
-    .where(
-      and(
-        eq(apoios.pautaId, promessa.pautaId),
-        eq(apoios.estudanteId, estudanteId),
-        isNull(estudantes.saiuEm),
-      ),
-    )
+    .where(and(eq(apoios.pautaId, promessa.pautaId), eq(apoios.estudanteId, estudanteId)))
     .limit(1);
 
   if (apoio === undefined) return { registrada: false, motivo: 'nao_apoiou' };

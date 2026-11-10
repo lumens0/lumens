@@ -54,10 +54,12 @@ export async function registrarApoio(
   if (pauta === undefined) return { registrado: false, motivo: 'pauta_inexistente' };
   if (SEM_APOIO.has(pauta.status)) return { registrado: false, motivo: 'pauta_sem_apoio' };
 
+  // FOR UPDATE no estudante: serializa com sairDoLumens para impedir apoio de quem está saindo.
   const [estudante] = await tx
     .select({ verificadoEm: estudantes.verificadoEm, saiuEm: estudantes.saiuEm })
     .from(estudantes)
-    .where(eq(estudantes.id, estudanteId));
+    .where(eq(estudantes.id, estudanteId))
+    .for('update');
 
   if (estudante?.verificadoEm == null || estudante.saiuEm !== null) {
     return { registrado: false, motivo: 'estudante_nao_verificado' };
