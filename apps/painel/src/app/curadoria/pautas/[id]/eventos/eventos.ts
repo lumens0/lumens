@@ -3,7 +3,7 @@ import type { EventoDaLinha } from '@lumens/dominio';
 // Rota de leitura da linha do tempo da pauta para a curadoria (5.5, RF-C05, RN11). Só GET: o
 // banco recusa UPDATE e DELETE em `evento`, e aqui não existe outro método.
 
-export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface DependenciasEventos {
   /** Login da 5.1 (SCRUM-112). Sem ele a rota nega todo pedido. */
