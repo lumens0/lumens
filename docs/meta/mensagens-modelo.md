@@ -33,51 +33,105 @@ Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um
   formas aceitas por `interpretarResposta` (SCRUM-224), então tocar no botão e digitar caem no
   mesmo caminho.
 
-Os testes em `modelos.test.ts` conferem as regras que fazem a Meta recusar uma submissão: nome,
-numeração das variáveis, exemplos, pontas do texto e limites de tamanho.
+### O que os testes conferem
+
+`modelos.test.ts` cobre as regras que fazem a Meta recusar ou reclassificar uma submissão, para os
+seis modelos e para o pedido que `paraSubmissao` monta:
+
+- nome só com minúsculas, dígitos e sublinhado; categoria `UTILITY`; idioma `pt_BR`;
+- variáveis numeradas em sequência, nenhuma colada na outra, nenhuma na ponta do corpo;
+- um exemplo por variável, sem tabulação, quebra de linha nem quatro espaços seguidos;
+- limites de tamanho do corpo (1024), do rodapé (60) e do texto dos botões (25);
+- botões sem texto repetido e sem variável; respostas rápidas e links em blocos separados;
+- link com uma variável só, no fim da URL, e exemplo já resolvido;
+- nenhum apelo de campanha no corpo ("compartilhe", "divulgue", exclamação);
+- os nomes que o domínio enfileira são os mesmos do catálogo.
+
+`mensagem-modelo.test.ts` confere o outro lado: o envio leva exatamente os parâmetros que o modelo
+aprovado espera.
 
 ## Como submeter
 
-Precisa de quem tem acesso ao app da Meta: o token (`META_TOKEN`) e o id da conta do WhatsApp
-Business (`META_WABA_ID`, no WhatsApp Manager). As duas ficam no `.env` da raiz.
+Submeter é uma ação externa na conta da Meta e **só acontece com autorização explícita de quem
+responde por ela**. Até lá, vale o dry-run.
+
+### Dry-run
+
+Não precisa de credencial nenhuma e não fala com a Meta: só imprime os pedidos.
 
 ```bash
-# confere o que vai ser enviado, sem enviar nada
 pnpm --filter @lumens/backend modelos --site https://<dominio-do-site>
+```
 
-# envia os cinco
+### Checklist antes de enviar
+
+- [ ] **Domínio definitivo do site decidido.** Ele vai fixo no botão "Ver a pauta" de três modelos:
+      trocar depois exige editar o modelo e esperar nova aprovação. Não submeta com o endereço de
+      homologação se ele for mudar. Domínio: `______`
+- [ ] **Responsável pela submissão definido**: alguém com acesso de administrador ao app da Meta e
+      à conta do WhatsApp Business. Responsável: `______`
+- [ ] **Credenciais no `.env` da raiz, na máquina de quem submete**: `META_TOKEN` (token com a
+      permissão `whatsapp_business_management`) e `META_WABA_ID` (id da conta do WhatsApp Business,
+      no WhatsApp Manager). Nenhuma das duas entra no repositório.
+- [ ] **Cobrança resolvida por quem é dono do portfólio.** A Meta cobra mensagens utilitárias
+      (veja a [SCRUM-191](../decisoes/SCRUM-191-verificacao-meta.md)). Criar o modelo não envia
+      mensagem, mas os avisos só saem com isso resolvido.
+- [ ] **Dry-run conferido** com o domínio definitivo: os seis pedidos, textos iguais aos da tabela
+      acima.
+- [ ] **`pnpm --filter @lumens/backend test` verde** na versão que será submetida.
+
+### Enviar
+
+```bash
+# envia os seis
 pnpm --filter @lumens/backend modelos --site https://<dominio-do-site> --enviar
 
 # envia um só
 pnpm --filter @lumens/backend modelos --site https://<dominio-do-site> --so lumens_conferencia --enviar
 ```
 
-**O domínio fica fixo no botão.** Trocar de domínio depois exige editar o modelo e esperar nova
-aprovação. Submeta com o domínio definitivo do site, não com o de homologação.
+Para cada modelo o comando imprime o que a Meta respondeu: `{"id":"...","status":"...","category":"..."}`.
+**Copie a saída inteira** e registre na tabela de [andamento](#andamento): o `id`, a data, o
+`status` e a `category` de cada linha.
 
-A resposta da Meta traz `id`, `status` e `category`. Se `category` vier `MARKETING`, a Meta leu o
-texto como promocional: ajuste o texto e reabra a SCRUM-192 antes de seguir.
+Se `category` vier `MARKETING`, a Meta leu o texto como promocional: ajuste o texto e reabra a
+SCRUM-192 antes de seguir.
+
+### Acompanhar a aprovação
+
+A revisão da Meta pode levar de minutos a um dia. Para ver a situação atual, sem alterar nada:
+
+```bash
+pnpm --filter @lumens/backend modelos --situacao
+```
+
+O comando lista `id`, situação (`PENDING`, `APPROVED`, `REJECTED`...), categoria e idioma de cada
+um dos seis modelos, ou avisa que o modelo não está na Meta. Atualize a tabela a cada mudança. Se
+um modelo for recusado, o motivo aparece no WhatsApp Manager (Modelos de mensagem → o modelo):
+anote o motivo, corrija `modelos.ts` e submeta de novo.
 
 Para mudar um texto depois de aprovado: altere `modelos.ts`, submeta de novo e só então faça deploy
 de quem envia. A Meta recusa envio cujo número de variáveis não bate com o modelo aprovado.
 
 ## Andamento
 
-Atualize a tabela a cada submissão.
+**Nenhuma submissão foi registrada até 2026-11-10.** Não há, no repositório, id nem resposta da Meta
+para nenhum dos seis modelos, e a situação real na conta não foi consultada (faltam as credenciais).
+Antes de submeter, rode `--situacao` para confirmar que nenhum deles já existe na conta.
 
-| Modelo                    | Submetido em | Situação    | Categoria aprovada |
-| ------------------------- | ------------ | ----------- | ------------------ |
-| `lumens_meta_batida`      |              | não enviado |                    |
-| `lumens_resposta_oficial` |              | não enviado |                    |
-| `lumens_conferencia`      |              | não enviado |                    |
-| `lumens_lembrete_prazo`   |              | não enviado |                    |
-| `lumens_owner_inativo`    |              | não enviado |                    |
-| `lumens_pauta_recusada`   |              | não enviado |                    |
+Atualize a tabela a cada submissão e a cada mudança de situação. Preencha só com o que a Meta
+respondeu.
+
+| Modelo                    | Id na Meta | Submetido em | Situação      | Categoria devolvida | Atualizado em |
+| ------------------------- | ---------- | ------------ | ------------- | ------------------- | ------------- |
+| `lumens_meta_batida`      |            |              | não submetido |                     | 2026-11-10    |
+| `lumens_resposta_oficial` |            |              | não submetido |                     | 2026-11-10    |
+| `lumens_conferencia`      |            |              | não submetido |                     | 2026-11-10    |
+| `lumens_lembrete_prazo`   |            |              | não submetido |                     | 2026-11-10    |
+| `lumens_owner_inativo`    |            |              | não submetido |                     | 2026-11-10    |
+| `lumens_pauta_recusada`   |            |              | não submetido |                     | 2026-11-10    |
 
 ## O que este documento não resolve
 
-- **Webhook das respostas rápidas (Parte 2).** Tocar num botão de modelo chega ao webhook como
-  mensagem `type: 'button'`, com `button.text` e `button.payload`, e não como `interactive`. O tipo
-  `MetaMessage` ainda não aceita esse formato.
 - **Quando sai o lembrete de prazo** e o que acontece com o owner que responde "Quero sair" ou não
   responde: são regras das histórias do agendador. Os textos não prometem nada além de perguntar.

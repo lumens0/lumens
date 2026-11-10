@@ -1,3 +1,11 @@
+import {
+  MODELO_CONFERENCIA,
+  MODELO_LEMBRETE_PRAZO,
+  MODELO_META_BATIDA,
+  MODELO_OWNER_INATIVO,
+  MODELO_PAUTA_RECUSADA,
+  MODELO_RESPOSTA_OFICIAL,
+} from '@lumens/dominio';
 import { describe, expect, it } from 'vitest';
 import { MODELOS, paraSubmissao, type ModeloMensagem } from './modelos';
 
@@ -18,6 +26,21 @@ describe('MODELOS (RNF04)', () => {
       'lumens_pauta_recusada',
       'lumens_resposta_oficial',
     ]);
+  });
+
+  it('os nomes que o domínio enfileira são exatamente os do catálogo', () => {
+    // O domínio não importa o back-end, então o nome é escrito dos dois lados. Se um deles
+    // mudar sozinho, o disparo sai com um modelo que a Meta não conhece.
+    expect(
+      [
+        MODELO_CONFERENCIA,
+        MODELO_LEMBRETE_PRAZO,
+        MODELO_META_BATIDA,
+        MODELO_OWNER_INATIVO,
+        MODELO_PAUTA_RECUSADA,
+        MODELO_RESPOSTA_OFICIAL,
+      ].sort(),
+    ).toEqual(Object.keys(MODELOS).sort());
   });
 
   it('a chave do catálogo é o nome do modelo', () => {
@@ -54,6 +77,37 @@ describe('MODELOS (RNF04)', () => {
 
     it('rodapé sem variável', () => {
       expect(variaveis(modelo.rodape)).toEqual([]);
+    });
+
+    it('utilitário em pt_BR, com o prefixo do projeto', () => {
+      expect(modelo.categoria).toBe('UTILITY');
+      expect(modelo.idioma).toBe('pt_BR');
+      expect(modelo.nome).toMatch(/^lumens_/);
+    });
+
+    it('nenhuma variável colada na outra', () => {
+      expect(modelo.corpo).not.toMatch(/\}\}\s*\{\{/);
+    });
+
+    it('corpo e exemplos sem tabulação, quebra de linha nem quatro espaços seguidos', () => {
+      for (const texto of [modelo.corpo, modelo.rodape, ...modelo.exemplos]) {
+        expect(texto).not.toMatch(/[\t\n\r]| {4}/);
+      }
+    });
+
+    it('sem apelo de campanha: a Meta reclassificaria como marketing', () => {
+      expect(modelo.corpo).not.toMatch(/compartilh|divulg|convid|promo|!/i);
+    });
+
+    it('botões dentro do que a Meta aceita', () => {
+      const textos = modelo.botoes.map((b) => b.texto);
+      const tipos = modelo.botoes.map((b) => b.tipo);
+      expect(new Set(textos).size).toBe(textos.length);
+      for (const texto of textos) expect(texto).not.toMatch(/\{\{|[\t\n\r]/);
+      expect(tipos.filter((t) => t === 'QUICK_REPLY').length).toBeLessThanOrEqual(10);
+      expect(tipos.filter((t) => t === 'URL').length).toBeLessThanOrEqual(2);
+      // Respostas rápidas e links não se misturam: cada tipo fica num bloco só.
+      expect(tipos).toEqual([...tipos].sort());
     });
   });
 
@@ -99,6 +153,39 @@ describe('paraSubmissao', () => {
           ],
         },
       ],
+    });
+  });
+
+  // O que a Meta confere em cada pedido de criação, para os seis modelos.
+  describe.each(modelos.map((m) => [m.nome, m] as const))('pedido de %s', (_nome, modelo) => {
+    const pedido = paraSubmissao(modelo, SITE);
+
+    it('leva nome, idioma e categoria do catálogo', () => {
+      expect(pedido).toMatchObject({ name: modelo.nome, language: 'pt_BR', category: 'UTILITY' });
+    });
+
+    it('o corpo vai com uma linha de exemplos, um por variável', () => {
+      const [corpo] = pedido.components;
+      if (corpo?.type !== 'BODY') throw new Error('o primeiro componente não é o corpo');
+      expect(corpo.text).toBe(modelo.corpo);
+      expect(corpo.example.body_text).toEqual([[...modelo.exemplos]]);
+      expect(corpo.example.body_text[0]).toHaveLength(new Set(variaveis(modelo.corpo)).size);
+    });
+
+    it('só tem bloco de botões quando o modelo tem botão', () => {
+      expect(pedido.components.map((c) => c.type)).toEqual(
+        modelo.botoes.length > 0 ? ['BODY', 'FOOTER', 'BUTTONS'] : ['BODY', 'FOOTER'],
+      );
+    });
+
+    it('link com uma variável só, no fim, e exemplo já resolvido', () => {
+      const botoes = pedido.components.flatMap((c) => (c.type === 'BUTTONS' ? c.buttons : []));
+      for (const botao of botoes) {
+        if (botao.type !== 'URL') continue;
+        expect(botao.url).toMatch(/^https:\/\/[^{]+\{\{1\}\}$/);
+        expect(botao.example).toHaveLength(1);
+        expect(botao.example[0]).toMatch(/^https:\/\/[^{}]+$/);
+      }
     });
   });
 
