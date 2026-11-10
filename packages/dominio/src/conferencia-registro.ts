@@ -10,7 +10,7 @@
  * trezentas linhas que ninguém lê, empurrando para fora o que importa. O evento
  * da conferência é um só e nasce da apuração, quando o prazo fecha (3.7b).
  */
-import { and, eq, type Tx } from '@lumens/db';
+import { and, eq, estudantes, isNull, type Tx } from '@lumens/db';
 import { apoios, promessas, respostasConferencia } from '@lumens/db';
 import type { RespostaConferencia } from './conferencia';
 
@@ -72,7 +72,15 @@ export async function registrarRespostaConferencia(
   const [apoio] = await tx
     .select({ estudanteId: apoios.estudanteId })
     .from(apoios)
-    .where(and(eq(apoios.pautaId, promessa.pautaId), eq(apoios.estudanteId, estudanteId)))
+    .innerJoin(estudantes, eq(estudantes.id, apoios.estudanteId))
+    // Quem saiu do Lumens não responde mais; o apoio dela segue contando só na contagem pública.
+    .where(
+      and(
+        eq(apoios.pautaId, promessa.pautaId),
+        eq(apoios.estudanteId, estudanteId),
+        isNull(estudantes.saiuEm),
+      ),
+    )
     .limit(1);
 
   if (apoio === undefined) return { registrada: false, motivo: 'nao_apoiou' };

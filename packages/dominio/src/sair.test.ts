@@ -4,9 +4,11 @@ import {
   apoios,
   codigosVerificacao,
   conversas,
+  disparos,
   eq,
   estudantes,
   eventos,
+  inArray,
   isNull,
   papeisPauta,
   promessas,
@@ -19,6 +21,9 @@ import {
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from './fabricas';
+import { registrarApoio } from './apoio';
+import { registrarRespostaConferencia } from './conferencia-registro';
+import { adicionarCoOwner } from './owners';
 import { sairDoLumens } from './sair';
 
 let db: Db;
@@ -323,5 +328,208 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     if (!atualizado.saiuEm) throw new Error('saiuEm não definido');
     expect(atualizado.saiuEm.getTime()).toBeGreaterThanOrEqual(antes.getTime());
     expect(atualizado.saiuEm.getTime()).toBeLessThanOrEqual(depois.getTime());
+  });
+
+  it('apoia 3 pautas, sai: a contagem de cada uma não muda', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    const pautas = [await criarPauta(db), await criarPauta(db), await criarPauta(db)];
+    for (const pauta of pautas) {
+      await db
+        .insert(apoios)
+        .values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    }
+    const contar = async (pautaId: string) =>
+      (await db.select().from(apoios).where(eq(apoios.pautaId, pautaId))).length;
+    const antes = await Promise.all(pautas.map((p) => contar(p.id)));
+
+    await executarSaida(estudante.id);
+
+    expect(await Promise.all(pautas.map((p) => contar(p.id)))).toEqual(antes);
+    expect(antes).toEqual([1, 1, 1]);
+  });
+
+  it('depois de sair nenhuma coluna guarda telefone ou e-mail, e o HMAC antigo não acha ninguém', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    await db
+      .update(estudantes)
+      .set({
+        emailHmac: `email-hmac-${randomUUID()}`,
+        emailCifrado: `email-cifrado-${randomUUID()}`,
+      })
+      .where(eq(estudantes.id, estudante.id));
+    const [antes] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
+    if (!antes) throw new Error('estudante não encontrado');
+    const identidade = [
+      antes.telefoneHmac,
+      antes.telefoneCifrado,
+      antes.emailHmac,
+      antes.emailCifrado,
+    ] as string[];
+
+    await executarSaida(estudante.id);
+
+    const [depois] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
+    if (!depois) throw new Error('estudante não encontrado');
+    const valores = [
+      depois.telefoneHmac,
+      depois.telefoneCifrado,
+      depois.emailHmac,
+      depois.emailCifrado,
+    ];
+    for (const antigo of identidade) expect(valores).not.toContain(antigo);
+
+    const achados = await db
+      .select()
+      .from(estudantes)
+      .where(eq(estudantes.telefoneHmac, antes.telefoneHmac));
+    expect(achados).toHaveLength(0);
+  });
+
+  it('conversa e código de verificação do telefone somem, os de outro telefone ficam', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    const outro = await criarEstudanteVerificado(db);
+    for (const e of [estudante, outro]) {
+      await db
+        .insert(conversas)
+        .values({ telefoneHmac: e.telefoneHmac, passo: 'inicio', dados: {} });
+      await db.insert(codigosVerificacao).values({
+        telefoneHmac: e.telefoneHmac,
+        codigoHash: 'hash',
+        expiraEm: new Date(AGORA.getTime() + 600_000),
+      });
+    }
+
+    await executarSaida(estudante.id);
+
+    const conversasRestantes = await db
+      .select()
+      .from(conversas)
+      .where(inArray(conversas.telefoneHmac, [estudante.telefoneHmac, outro.telefoneHmac]));
+    expect(conversasRestantes.map((c) => c.telefoneHmac)).toEqual([outro.telefoneHmac]);
+    const codigosRestantes = await db
+      .select()
+      .from(codigosVerificacao)
+      .where(
+        inArray(codigosVerificacao.telefoneHmac, [estudante.telefoneHmac, outro.telefoneHmac]),
+      );
+    expect(codigosRestantes.map((c) => c.telefoneHmac)).toEqual([outro.telefoneHmac]);
+  });
+
+  it('owner que sai libera a vaga: papel encerrado e owner_removido sem identidade', async () => {
+    const owner = await criarEstudanteVerificado(db);
+    const pauta = await criarPauta(db);
+    await tornarOwner(db, pauta.id, owner.id);
+
+    await executarSaida(owner.id);
+
+    const ativos = await db
+      .select()
+      .from(papeisPauta)
+      .where(and(eq(papeisPauta.pautaId, pauta.id), isNull(papeisPauta.ate)));
+    expect(ativos).toHaveLength(0);
+    // A vaga está livre: outro apoiador entra como co-owner.
+    const novo = await criarEstudanteVerificado(db);
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: novo.id, origem: 'bot' });
+    expect(
+      await db.transaction((tx) =>
+        adicionarCoOwner(tx, { pautaId: pauta.id, estudanteId: novo.id, agora: AGORA }),
+      ),
+    ).toEqual({ adicionado: true });
+
+    const [evento] = await db
+      .select()
+      .from(eventos)
+      .where(and(eq(eventos.pautaId, pauta.id), eq(eventos.tipo, 'owner_removido')));
+    expect(evento?.dados).toEqual({ papel: 'owner' });
+    expect(JSON.stringify(evento)).not.toContain(owner.id);
+  });
+
+  it('quem saiu não apoia, não vira co-owner e não responde conferência', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    const pauta = await criarPauta(db);
+    const outraPauta = await criarPauta(db);
+    const curador = await criarCurador(db);
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    const [promessa] = await db
+      .insert(promessas)
+      .values({
+        pautaId: pauta.id,
+        resumo: 'Reforma do bebedouro',
+        dataEntrega: '2026-11-20',
+        fonte: 'Ofício 42/2026',
+        registradaPor: curador.id,
+        conferenciaAbreEm: AGORA,
+        conferenciaFechaEm: new Date(AGORA.getTime() + 86_400_000),
+      })
+      .returning();
+    if (!promessa) throw new Error('promessa não criada');
+
+    await executarSaida(estudante.id);
+
+    expect(
+      await db.transaction((tx) =>
+        registrarApoio(tx, { pautaId: outraPauta.id, estudanteId: estudante.id, origem: 'bot' }),
+      ),
+    ).toEqual({ registrado: false, motivo: 'estudante_nao_verificado' });
+    expect(
+      await db.transaction((tx) =>
+        adicionarCoOwner(tx, { pautaId: pauta.id, estudanteId: estudante.id, agora: AGORA }),
+      ),
+    ).toEqual({ adicionado: false, motivo: 'nao_apoiou' });
+    expect(
+      await db.transaction((tx) =>
+        registrarRespostaConferencia(tx, {
+          promessaId: promessa.id,
+          estudanteId: estudante.id,
+          resposta: 'sim',
+          agora: new Date(AGORA.getTime() + 1000),
+        }),
+      ),
+    ).toEqual({ registrada: false, motivo: 'nao_apoiou' });
+  });
+
+  it('cancela disparos pendentes e reservados do estudante para impedir mensagens após a saída (LGPD)', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    const pauta = await criarPauta(db);
+
+    const [pendente] = await db
+      .insert(disparos)
+      .values({
+        tipo: 'meta_batida',
+        aviso: pauta.id,
+        estudanteId: estudante.id,
+        modelo: 'lumens_meta_batida',
+      })
+      .returning();
+
+    const [reservado] = await db
+      .insert(disparos)
+      .values({
+        tipo: 'lembrete',
+        aviso: pauta.id,
+        estudanteId: estudante.id,
+        modelo: 'lumens_lembrete_prazo',
+        reservadoEm: new Date(AGORA.getTime() - 1000),
+      })
+      .returning();
+
+    if (!pendente || !reservado) throw new Error('disparos não criados');
+
+    const res = await executarSaida(estudante.id);
+    expect(res).toEqual({ saiu: true, pautasComVaga: [] });
+
+    const [pendenteAtualizado] = await db
+      .select()
+      .from(disparos)
+      .where(eq(disparos.id, pendente.id));
+    const [reservadoAtualizado] = await db
+      .select()
+      .from(disparos)
+      .where(eq(disparos.id, reservado.id));
+
+    expect(pendenteAtualizado?.falhouEm).toEqual(AGORA);
+    expect(pendenteAtualizado?.falha).toBe('estudante_saiu');
+    expect(reservadoAtualizado?.falhouEm).toEqual(AGORA);
+    expect(reservadoAtualizado?.falha).toBe('estudante_saiu');
   });
 });
