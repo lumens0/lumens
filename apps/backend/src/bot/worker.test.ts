@@ -1,4 +1,4 @@
-import { estudantes, sql, type Db } from '@lumens/db';
+import { eq, estudantes, papeisPauta, pautas, sql, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -25,6 +25,7 @@ import {
   BOT_WORK_OPTIONS,
   INCOMING_QUEUE_POLICY,
   inputOf,
+  instanteDaMensagem,
   logSender,
   processIncomingJob,
   registerIncomingWorker,
@@ -117,6 +118,77 @@ describe('inputOf', () => {
     ['áudio', {}, null],
   ])('%s', (_, conteudo, esperado) => {
     expect(inputOf(conteudo)).toEqual(esperado);
+  });
+});
+
+describe('instanteDaMensagem', () => {
+  const AGORA = new Date('2026-11-10T12:00:00.000Z');
+
+  it('usa o timestamp da Meta, em segundos', () => {
+    expect(instanteDaMensagem('1794000000', AGORA)).toEqual(new Date(1_794_000_000_000));
+  });
+
+  it.each([
+    ['vazio', ''],
+    ['ilegível', 'abc'],
+    ['zero', '0'],
+  ])('timestamp %s vale agora', (_c, t) => {
+    expect(instanteDaMensagem(t, AGORA)).toEqual(AGORA);
+  });
+
+  it('timestamp no futuro não adianta o relógio', () => {
+    expect(instanteDaMensagem('9999999999', AGORA)).toEqual(AGORA);
+  });
+});
+
+describe('atividade do owner', () => {
+  /** O estudante do PHONE_HMAC vira owner de `n` pautas, com a última atividade em `desde`. */
+  async function ownerDe(n: number, desde: Date) {
+    const [eu] = await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, PHONE_HMAC));
+    if (eu === undefined) throw new Error('sem estudante');
+    for (let i = 0; i < n; i++) {
+      const [pauta] = await db
+        .insert(pautas)
+        .values({
+          slug: `pauta-owner-${String(i)}`,
+          titulo: 'Bebedouro',
+          descricao: 'Quebrado.',
+          categoria: 'infraestrutura',
+          status: 'cobrando',
+          meta: 30,
+        })
+        .returning();
+      if (pauta === undefined) throw new Error('pauta não criada');
+      await db.insert(papeisPauta).values({
+        pautaId: pauta.id,
+        estudanteId: eu.id,
+        papel: 'owner',
+        ultimaAtividadeEm: desde,
+      });
+    }
+  }
+
+  const atividades = async () =>
+    (await db.select({ em: papeisPauta.ultimaAtividadeEm }).from(papeisPauta)).map((p) => p.em);
+
+  // O `job` dos testes manda timestamp 1700000000 (14/11/2023).
+  const QUANDO_ESCREVEU = new Date(1_700_000_000_000);
+
+  it('qualquer mensagem renova a atividade em todas as pautas que a pessoa cuida', async () => {
+    await ownerDe(2, new Date('2023-10-01T00:00:00.000Z'));
+
+    await processIncomingJob(texto('oi'), deps);
+
+    expect(await atividades()).toEqual([QUANDO_ESCREVEU, QUANDO_ESCREVEU]);
+  });
+
+  it('mensagem que esperou na fila não volta o relógio de quem já falou depois', async () => {
+    const depois = new Date('2023-12-01T00:00:00.000Z');
+    await ownerDe(1, depois);
+
+    await processIncomingJob(texto('oi'), deps);
+
+    expect(await atividades()).toEqual([depois]);
   });
 });
 

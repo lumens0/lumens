@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
 import type { ServicoDeFotos } from '../fotos/servico';
@@ -146,6 +147,12 @@ export async function processIncomingJob(
   }
   const input = inputOf(conteudo);
   return deps.db.transaction(async (tx) => {
+    // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
+    // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
+    await registrarAtividadePorTelefone(tx, {
+      telefoneHmac: data.phoneHmac,
+      agora: instanteDaMensagem(data.timestamp),
+    });
     const replies =
       input === null
         ? [UNSUPPORTED_TEXT]
@@ -170,6 +177,16 @@ export async function processIncomingJob(
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
+}
+
+/**
+ * Quando a pessoa escreveu, pelo `timestamp` da Meta (segundos). Uma mensagem que esperou na fila
+ * conta do momento em que foi mandada; timestamp ilegível ou no futuro vale como agora.
+ */
+export function instanteDaMensagem(timestamp: string, agora: Date = new Date()): Date {
+  const segundos = Number(timestamp);
+  if (!Number.isFinite(segundos) || segundos <= 0) return agora;
+  return new Date(Math.min(segundos * 1000, agora.getTime()));
 }
 
 type Boss = Pick<

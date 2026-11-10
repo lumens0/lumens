@@ -1,6 +1,8 @@
 import {
   and,
   apoios,
+  criarDb,
+  criarPool,
   disparos,
   eq,
   estudantes,
@@ -9,7 +11,7 @@ import {
   promessas,
   type Db,
 } from '@lumens/db';
-import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   abrirConferencia,
@@ -71,6 +73,10 @@ const responder = (
     registrarRespostaConferencia(tx, { promessaId, estudanteId, resposta, agora }),
   );
 
+/**
+ * Avisos de conferência com esta identidade. Filtra pelo tipo: `registrarPromessa` também põe na
+ * fila o aviso de resposta oficial com o id da promessa (SCRUM-117).
+ */
 const avisosDa = (aviso: string) =>
   db
     .select({ estudanteId: disparos.estudanteId, parametros: disparos.parametros })
@@ -263,4 +269,79 @@ describe('fecho da conferência', () => {
     });
     expect(await eventosDa(pautaId, 'conferencia_apurada')).toHaveLength(1);
   });
+});
+
+// Concorrência precisa de duas conexões ao mesmo tempo, o que o PGlite não tem.
+const URL_TESTE = process.env.DATABASE_URL_TESTE;
+if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe.skipIf(!URL_TESTE)('abertura da conferência com Postgres de verdade', () => {
+  it('duas aberturas ao mesmo tempo: só uma abre, e o fecho ainda reabre sem quórum', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    // Com tratador de erro: apagar o banco temporário derruba as conexões (57P01).
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real, { status: 'cobrando' });
+      const curador = await criarCurador(real);
+      for (let i = 0; i < 20; i++) {
+        const e = await criarEstudanteVerificado(real);
+        await real
+          .insert(apoios)
+          .values({ pautaId: pauta.id, estudanteId: e.id, origem: 'bot', criadoEm: depois(-DIA) });
+      }
+      const { promessaId } = await real.transaction((tx) =>
+        registrarPromessa(tx, {
+          pautaId: pauta.id,
+          resumo: 'abrir mais 40 lugares',
+          dataEntrega: '2026-11-20',
+          fonte: 'ofício',
+          registradaPor: curador.id,
+        }),
+      );
+
+      // A abre e segura a trava sem confirmar. B começa a ler enquanto A segura: é o caso em que
+      // a contagem de aberturas na mesma consulta da trava sairia com a foto de antes de A.
+      let soltarA: () => void = () => undefined;
+      const aSegura = new Promise<void>((r) => {
+        soltarA = r;
+      });
+      let avisarQueATravou: () => void = () => undefined;
+      const aTravou = new Promise<void>((r) => {
+        avisarQueATravou = r;
+      });
+      const a = real.transaction(async (tx) => {
+        const r = await abrirConferencia(tx, { promessaId, agora: depois(0) });
+        avisarQueATravou();
+        await aSegura;
+        return r;
+      });
+      await aTravou;
+      const b = real.transaction((tx) => abrirConferencia(tx, { promessaId, agora: depois(0) }));
+      await esperar(300); // B já está parado no FOR UPDATE
+      soltarA();
+      const [ra, rb] = await Promise.all([a, b]);
+
+      expect([ra.aberta, rb.aberta]).toEqual([true, false]);
+      expect(rb).toEqual({ aberta: false, motivo: 'ja_aberta' });
+      const aberturas = (
+        await real.select().from(eventos).where(eq(eventos.pautaId, pauta.id))
+      ).filter((e) => e.tipo === 'conferencia_aberta');
+      expect(aberturas).toHaveLength(1);
+
+      const fecho = await real.transaction((tx) =>
+        fecharConferencia(tx, { promessaId, agora: depois(7 * DIA) }),
+      );
+      expect(fecho).toMatchObject({ apurada: false, motivo: 'reaberta' });
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
 });

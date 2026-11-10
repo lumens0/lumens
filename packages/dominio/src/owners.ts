@@ -3,7 +3,17 @@
  * vaga, até 3 owners ativos (owner + co-owners); owner 30 dias sem responder perde o papel e a vaga
  * é oferecida aos apoiadores (RF-A03). A linha do papel nunca é apagada: sair é preencher `ate`.
  */
-import { and, apoios, eq, inArray, papeisPauta, pautas, sql, type Tx } from '@lumens/db';
+import {
+  and,
+  apoios,
+  eq,
+  estudantes,
+  inArray,
+  papeisPauta,
+  pautas,
+  sql,
+  type Tx,
+} from '@lumens/db';
 import { registrarEvento } from './eventos';
 
 export const LIMITE_DE_OWNERS = 3;
@@ -84,6 +94,35 @@ export async function registrarAtividadeOwner(
     .update(papeisPauta)
     .set({ ultimaAtividadeEm: agora })
     .where(and(eq(papeisPauta.pautaId, pautaId), eq(papeisPauta.estudanteId, estudanteId), ativo));
+}
+
+/**
+ * Qualquer mensagem ao bot conta como atividade em todas as pautas que a pessoa cuida (decisão 6
+ * de `docs/decisoes.md`: "nenhuma mensagem do owner ao bot em 30 dias"). Chamada pelo worker da
+ * conversa, na transação da mensagem, com o HMAC do telefone de quem escreveu.
+ *
+ * Sem isto, `ultima_atividade_em` ficaria parada no dia em que a pessoa virou owner, e o agendador
+ * avisaria e removeria quem conversa com o bot todo dia. Quem não é estudante ou não é owner ativo
+ * não muda nada. Devolve quantos papéis foram renovados.
+ */
+export async function registrarAtividadePorTelefone(
+  tx: Tx,
+  { telefoneHmac, agora = new Date() }: { telefoneHmac: string; agora?: Date },
+): Promise<number> {
+  const renovados = await tx
+    .update(papeisPauta)
+    .set({ ultimaAtividadeEm: agora })
+    .where(
+      and(
+        ativo,
+        sql`${papeisPauta.estudanteId} in (select ${estudantes.id} from ${estudantes}
+          where ${estudantes.telefoneHmac} = ${telefoneHmac})`,
+        // Mensagem atrasada na fila não volta o relógio de quem já falou depois.
+        sql`${papeisPauta.ultimaAtividadeEm} < ${agora.toISOString()}::timestamptz`,
+      ),
+    )
+    .returning({ pautaId: papeisPauta.pautaId });
+  return renovados.length;
 }
 
 /**
