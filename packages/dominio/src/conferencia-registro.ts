@@ -10,7 +10,7 @@
  * trezentas linhas que ninguém lê, empurrando para fora o que importa. O evento
  * da conferência é um só e nasce da apuração, quando o prazo fecha (3.7b).
  */
-import { and, eq, estudantes, isNull, type Tx } from '@lumens/db';
+import { and, eq, estudantes, type Tx } from '@lumens/db';
 import { apoios, promessas, respostasConferencia } from '@lumens/db';
 import type { RespostaConferencia } from './conferencia';
 

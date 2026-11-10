@@ -9,7 +9,6 @@ import {
   eq,
   estudantes,
   inArray,
-  isNull,
   papeisPauta,
   pautas,
   sql,
