@@ -1,6 +1,9 @@
-// Formato das views públicas (1.4), com os nomes de campo do esquema da T4.
-// Provisório até a T7 fechar os nomes: ajustar aqui e no exemplo.json juntos.
+import type { Pauta as PautaPublica } from '@lumens/contratos';
 
+export type { Bloco } from '@lumens/contratos';
+
+// Todos os status do esquema. A API só entrega os públicos (`STATUS_PUBLICOS` do contrato), mas o
+// site guarda os nove para a pill, o `FORA_DO_SITE` e as pautas de teste.
 export const STATUS_PAUTA = [
   'em_curadoria',
   'recusada',
@@ -15,50 +18,5 @@ export const STATUS_PAUTA = [
 
 export type StatusPauta = (typeof STATUS_PAUTA)[number];
 
-export interface Bloco {
-  slug: string;
-  nome: string;
-  base_estudantes: number;
-}
-
-export interface Owner {
-  papel: 'owner' | 'co_owner';
-  curso: string;
-  desde: string;
-}
-
-export interface Relato {
-  texto: string;
-  foto_chave: string | null;
-  moderado_em: string;
-}
-
-export interface Evento {
-  tipo: string;
-  dados: Record<string, unknown>;
-  criado_em: string;
-}
-
-export interface Pauta {
-  slug: string;
-  titulo: string;
-  descricao: string;
-  categoria: string;
-  status: StatusPauta;
-  /** null = pauta do campus inteiro. */
-  bloco_slug: string | null;
-  bloco_nome: string | null;
-  meta: number;
-  apoios: number;
-  criada_em: string;
-  aprovada_em: string | null;
-  meta_batida_em: string | null;
-  owners: Owner[];
-  relatos: Relato[];
-  eventos: Evento[];
-}
-
-export interface DadosExemplo {
-  blocos: Bloco[];
-  pautas: Pauta[];
-}
+/** Pauta do GET /pautas, com o status alargado para os nove do esquema. */
+export type Pauta = Omit<PautaPublica, 'status'> & { status: StatusPauta };
