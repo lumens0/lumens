@@ -1,19 +1,21 @@
 # SCRUM-191 · Verificação da empresa na Meta
 
 Spike · Parte 3 · 2026-11-02 · @JGSEIXAS
-**Situação:** proposta, aguardando aprovação da equipe na PR. Aprovada, vira regra e esta linha muda.
+**Situação:** decidido. O Lumens é um projeto acadêmico e **opera sem verificação empresarial**, no
+limite que a Meta dá a um portfólio não verificado. O caminho do DCE/CNPJ foi descartado.
+Formalizado neste documento em 2026-11-10.
 
 ## A pergunta
 
-Tem CNPJ? Quem submete? A urgência é alta porque a verificação demora a sair, e enquanto não sai o
-bot fica preso à cota de 250 da RNF06.
+Tem CNPJ? Quem submete? A urgência parecia alta porque a verificação demora a sair, e enquanto não
+sai o bot fica no limite de 250 da RNF06.
 
-## O que a Meta diz hoje
+## O que a Meta diz
 
-Lido na documentação oficial em 2026-11-02 (links no fim). Três pontos mudam o que a equipe vinha
+Lido na documentação oficial em 2026-11-02 (links no fim). Três pontos mudaram o que a equipe vinha
 assumindo:
 
-1. **A cota não é "250 conversas por dia".** É o número de **pessoas diferentes** que o bot alcança
+1. **O limite não é "250 conversas por dia".** É o número de **pessoas diferentes** que o bot alcança
    **fora da janela de atendimento**, numa **janela móvel de 24 horas**. Não zera à meia-noite, em
    fuso nenhum. Mensagem para quem escreveu ao bot nas últimas 24h não conta. Duas mensagens para a
    mesma pessoa dentro das 24h contam uma vez.
@@ -23,7 +25,7 @@ assumindo:
    a 2.000: verificar a empresa, verificação pelo parceiro (se o número tiver sido cadastrado por
    um provedor), ou **entregar 2.000 mensagens fora da janela de atendimento em 30 dias**, com
    modelos de boa qualidade. Depois de 2.000, o limite sobe sozinho (10 mil, 100 mil, ilimitado)
-   quando o bot usa metade da cota por sete dias com qualidade alta.
+   quando o bot usa metade dele por sete dias com qualidade alta.
 
 Para o Brasil, a verificação pede documento da pessoa jurídica. O documento central é o
 **cartão CNPJ**, normalmente acompanhado de comprovante como extrato bancário da empresa. Pessoa
@@ -32,56 +34,55 @@ física não verifica.
 Desde 1º de outubro de 2026 a Meta também cobra mensagens utilitárias, inclusive dentro da janela de
 atendimento. O portfólio precisa de um meio de pagamento cadastrado, e quem é dono do portfólio paga.
 
-## Tem CNPJ?
+## Decisão
 
-O Lumens não tem CNPJ próprio. As opções são usar o de alguém:
+**O Lumens não faz verificação empresarial.** O projeto é acadêmico, não tem CNPJ e não vai usar o
+de ninguém. O bot opera com o limite de um portfólio não verificado (hoje, 250 pessoas distintas por
+24h móveis) enquanto não houver necessidade real de mais.
 
-| Opção                                     | Avaliação                                                                                                                                                                                                                                                                 |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CNPJ da UFAL**                          | Descartada. O Lumens existe para estudantes cobrarem a universidade. Se o canal for da UFAL, quem é cobrado passa a ser dono do número, do portfólio e do histórico de mensagens. Além disso, o pedido passaria por setores da reitoria, sem prazo que a equipe controle. |
-| **CNPJ do DCE ou de um centro acadêmico** | Melhor encaixe. É uma entidade dos próprios estudantes, independente da administração. Depende de a entidade ter CNPJ ativo, conta bancária no nome dela e alguém da diretoria disposto a assumir o portfólio.                                                            |
-| **MEI de alguém da equipe**               | Descartada. Amarra o canal de toda a comunidade a uma pessoa física que vai se formar, e põe a conta da Meta no CPF dela.                                                                                                                                                 |
-| **Não verificar agora**                   | Viável. O bot funciona com 250 e pode subir para 2.000 pelo caminho das 2.000 entregas em 30 dias, sem documento nenhum.                                                                                                                                                  |
+O que isso significa na prática:
 
-## Decisão proposta
+- **Nenhum documento é submetido à Meta**, por ninguém da equipe nem por terceiros.
+- **O limite de 250 é uma restrição aceita**, não um problema a resolver. A fila (SCRUM-202) existe
+  para isso: quando o limite acaba, o aviso espera e sai depois, por prioridade.
+- **Ninguém persegue as 2.000 entregas em 30 dias.** Se o uso normal do bot levar a Meta a subir o
+  limite sozinha, basta mudar `META_LIMITE_PESSOAS` — sem deploy de código e sem documento.
 
-**Não bloquear o projeto na verificação.** Seguir os dois caminhos em paralelo:
+### Caminhos avaliados
 
-1. **Caminho principal: operar sem verificação.** Lançar com 250 e mirar as 2.000 entregas em 30
-   dias. Os avisos coletivos da Parte 3 são justamente o volume que leva até lá. Para isso, os
-   modelos precisam ser utilitários de verdade (SCRUM-193) e o bot não pode ser bloqueado em
-   massa: a qualidade conta na avaliação da Meta.
-2. **Caminho de reserva: verificação pelo DCE.** Perguntar ao DCE se ele tem CNPJ ativo e se aceita
-   ser o dono do portfólio. Se aceitar, a verificação acontece no portfólio dele, e a equipe entra
-   como administradora técnica.
+| Opção                                     | Resultado                                                                                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Não verificar**                         | **Escolhida.** O bot funciona com 250, e o volume de um projeto acadêmico cabe nisso com a fila.                                                                                                                         |
+| **CNPJ do DCE ou de um centro acadêmico** | **Descartada.** Era a reserva na proposta original. Dependeria de uma entidade de fora assumir o portfólio, os documentos e a conta da Meta de um projeto de disciplina. Ninguém da equipe abre essa conversa com o DCE. |
+| **CNPJ da UFAL**                          | Descartada. O Lumens existe para estudantes cobrarem a universidade. Se o canal for da UFAL, quem é cobrado passa a ser dono do número, do portfólio e do histórico de mensagens.                                        |
+| **MEI de alguém da equipe**               | Descartada. Amarra o canal a uma pessoa física que vai se formar, e põe a conta da Meta no CPF dela.                                                                                                                     |
 
-### Quem submete
+## Como o código reflete a decisão
 
-A verificação é submetida por quem é **administrador do portfólio de negócios** e tem os documentos
-da entidade. No caminho do DCE, é alguém da diretoria. A equipe não submete documento de terceiro.
+Conferido na `main` em 2026-11-10:
 
-O que a equipe faz:
+| O quê                                         | Onde                                                                                                 |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Limite em pessoas distintas, não em mensagens | `planejarEnvio` em `packages/dominio/src/envio.ts`: quem já foi alcançado não ocupa vaga nova.       |
+| Janela móvel de 24 horas, não dia civil       | `JANELA_META_MS` em `packages/dominio/src/fila.ts`: conta reserva ou envio das últimas 24h.          |
+| Limite padrão de portfólio não verificado     | `ORCAMENTO_SEM_VERIFICACAO = 250` em `envio.ts`; padrão de `META_LIMITE_PESSOAS` em `config/env.ts`. |
+| Limite muda sem deploy                        | `META_LIMITE_PESSOAS` no `.env`.                                                                     |
 
-- **Responsável pela conversa com o DCE:** @JGSEIXAS (dono desta spike), até a equipe indicar
-  outra pessoa.
-- **Responsável técnico pelo portfólio:** quem hoje administra o app da Meta usado pelo webhook
-  (SCRUM-97). A confirmar na PR.
+O parâmetro `jaIniciadasHoje` e o comentário "250 conversas por dia", que a proposta original
+apontava, não existem mais: a correção entrou com a fila persistida.
 
-## O que muda no código
+## Quando reabrir
 
-- **RNF06 e `envio.ts`:** o comentário fala em "250 conversas por dia" e o parâmetro se chama
-  `jaIniciadasHoje`. A política continua valendo, mas o contador precisa ser **pessoas distintas
-  alcançadas fora da janela de atendimento nas últimas 24h**, e não "envios desde a meia-noite". A
-  correção entra com a fila persistida da SCRUM-202.
-- **Limite configurável:** a cota não pode ficar fixa no código, porque muda sem deploy quando a
-  Meta sobe o nível. A Meta expõe o limite atual no campo
-  `whatsapp_business_manager_messaging_limit` (o antigo `messaging_limit_tier` está obsoleto).
+Só se o limite passar a impedir o uso de verdade: avisos ficando mais de três dias na fila, de forma
+recorrente (o mesmo gatilho da SCRUM-192). Nesse caso a primeira saída continua sendo a que não
+pede documento — o limite que sobe pelo volume entregue —, e não a verificação.
 
-## O que ainda depende de alguém
+## O que esta decisão não resolve
 
-- [ ] Perguntar ao DCE se tem CNPJ ativo e se aceita ser dono do portfólio.
-- [ ] Confirmar na PR quem administra o portfólio e o app da Meta hoje.
-- [ ] Cadastrar meio de pagamento no portfólio, com o dono definido acima.
+- **Meio de pagamento no portfólio.** A cobrança das mensagens utilitárias independe de verificação.
+  Cadastrar ou não um meio de pagamento, e em nome de quem, é decisão de quem é dono do portfólio e
+  não foi tomada aqui. Ela precisa estar resolvida antes da submissão das mensagens modelo: veja o
+  checklist em [`docs/meta/mensagens-modelo.md`](../meta/mensagens-modelo.md).
 
 ## Fontes
 
@@ -89,4 +90,4 @@ O que a equipe faz:
 - [Pricing on the WhatsApp Business Platform](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
 - Lista de documentos por país: [WATI](https://support.wati.io/en/articles/11463208-meta-business-verification-required-documents-by-country)
   e [Woztell](https://support.woztell.com/portal/en/kb/articles/meta-business-verification).
-  São provedores, não a Meta; conferir na Central de Ajuda da Meta na hora de submeter.
+  São provedores, não a Meta.
