@@ -8,7 +8,7 @@ import NextAuth from 'next-auth';
 import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
 import { createTransport } from 'nodemailer';
-import { adaptador, curadorAtivo } from './acesso';
+import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
 
 const QUINZE_MINUTOS = 15 * 60;
@@ -80,3 +80,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     },
   };
 });
+
+/**
+ * Quem está pedindo, conferido no banco. O JWT da sessão vale 7 dias; sem esta checagem, um
+ * curador desativado continuaria entrando até ele vencer. Toda rota e página do painel usa isto.
+ */
+export async function curadorDaSessao(): Promise<{ id: string; nome: string } | undefined> {
+  const id = (await auth())?.user?.id;
+  return id ? curadorAtivoPorId(servidor().db, id) : undefined;
+}
