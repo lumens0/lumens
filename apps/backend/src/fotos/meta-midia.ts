@@ -10,11 +10,10 @@
  * não guardar na memória um arquivo maior que o limite.
  */
 
+import { passaDoTamanhoMaximo } from './imagem';
+
 /** Versão da Graph API; a mesma do script das mensagens modelo (`scripts/modelos.ts`). */
 export const VERSAO_GRAPH = 'v23.0';
-
-/** Limite da task 2.6: fotos até 5 MB. */
-export const TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024;
 
 export class ErroDeMidia extends Error {
   constructor(
@@ -66,7 +65,7 @@ export async function baixarMidiaDaMeta(
     throw new ErroDeMidia('indisponivel', `Falha ao consultar a mídia: ${nomeDoErro(erro)}`);
   }
 
-  if (informacoes.tamanho > TAMANHO_MAXIMO_FOTO) {
+  if (passaDoTamanhoMaximo(informacoes.tamanho)) {
     throw new ErroDeMidia('tamanho', 'A foto passa do limite de tamanho.');
   }
 
@@ -82,7 +81,7 @@ export async function baixarMidiaDaMeta(
     throw new ErroDeMidia('indisponivel', `Falha ao baixar a mídia: ${nomeDoErro(erro)}`);
   }
 
-  if (bytes.length > TAMANHO_MAXIMO_FOTO) {
+  if (passaDoTamanhoMaximo(bytes.length)) {
     throw new ErroDeMidia('tamanho', 'A foto passa do limite de tamanho.');
   }
   return { bytes, mimeType: informacoes.mimeType };
