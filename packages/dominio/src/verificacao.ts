@@ -189,8 +189,7 @@ export async function apagarCodigo(db: Db, telefoneHmac: string): Promise<void> 
 }
 
 export type ResultadoVinculo =
-  | { vinculado: true; estudanteId: string }
-  | { vinculado: false; motivo: 'email_em_uso' };
+  { vinculado: true; estudanteId: string } | { vinculado: false; motivo: 'email_em_uso' };
 
 export interface NovoVinculo {
   telefoneHmac: string;
