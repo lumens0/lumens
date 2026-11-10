@@ -19,9 +19,8 @@ const pauta: Pauta = {
   criada_em: '2026-01-01T12:00:00Z',
   aprovada_em: '2026-01-02T12:00:00Z',
   meta_batida_em: null,
-  owners: [],
-  relatos: [],
-  eventos: [],
+  cursos_responsaveis: [],
+  proxima_etapa: null,
 };
 
 describe('botões do WhatsApp', () => {
