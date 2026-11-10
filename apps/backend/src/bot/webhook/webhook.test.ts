@@ -6,8 +6,8 @@ import type { FastifyInstance } from 'fastify';
 import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
-import { decifrar, type Chaves } from '../../cripto';
-import { FakeQueue, mensagensNaFila, prepararFilaFalsa } from '../../queue.fake';
+import { decifrar, hmacHex, type Chaves } from '../../cripto';
+import { FakeQueue, mensagensNaFila, prepararFilaFalsa, statusNaFila } from '../../queue.fake';
 import { hashPhone } from '../conversation/phone';
 import { FIXTURES_DIR } from '../sim/fixtures';
 import { signBody } from '../whatsapp/signature';
@@ -42,13 +42,11 @@ function textPayload(wamid = 'wamid.ABC', body = 'oi') {
   });
 }
 
-function statusPayload() {
+function statusPayload(status = 'delivered', extra: object = {}) {
   return payloadCom({
     messaging_product: 'whatsapp',
     metadata,
-    statuses: [
-      { id: 'wamid.OUT', status: 'delivered', timestamp: '1700000001', recipient_id: PHONE },
-    ],
+    statuses: [{ id: 'wamid.OUT', status, timestamp: '1700000001', recipient_id: PHONE, ...extra }],
   });
 }
 
@@ -194,10 +192,29 @@ describe('webhook da Meta', () => {
     expect(await jobs(db)).toHaveLength(1);
   });
 
-  it('evento de status → 200 e nada enfileirado', async () => {
+  it('evento de status → 200 e nenhuma mensagem enfileirada para a conversa', async () => {
     const res = await post(statusPayload());
     expect(res.statusCode).toBe(200);
     expect(await jobs(db)).toHaveLength(0);
+  });
+
+  it('status de entrega vai para o registro de entrega, sem o telefone (SCRUM-209)', async () => {
+    await post(statusPayload('failed', { errors: [{ code: 131026, title: 'undeliverable' }] }));
+
+    const [job] = await statusNaFila(db);
+    expect(job?.data).toEqual({
+      wamidHmac: hmacHex('wamid.OUT', chaves.hmac),
+      status: 'failed',
+      timestamp: '1700000001',
+      codigoErro: 131026,
+    });
+    expect(JSON.stringify(job?.data)).not.toContain(PHONE);
+  });
+
+  it('status sent é ignorado: o envio já foi gravado quando a Meta aceitou', async () => {
+    await post(statusPayload('sent'));
+
+    expect(await statusNaFila(db)).toHaveLength(0);
   });
 
   it('falha na fila → 500, nem dedup nem job ficam, e o retry enfileira', async () => {

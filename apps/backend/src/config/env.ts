@@ -97,6 +97,17 @@ const esquema = z
     META_APP_SECRET: obrigatoria,
     META_VERIFY_TOKEN: obrigatoria,
     META_PHONE_NUMBER_ID: obrigatoria,
+    /**
+     * Pessoas distintas que a Meta deixa o bot alcançar por 24h (RNF06). Começa em 250 e sobe
+     * quando a Meta sobe o nível do portfólio; muda aqui, sem deploy de código.
+     */
+    META_LIMITE_PESSOAS: comPadrao(
+      z.coerce
+        .number({ error: 'não é um número — veja o .env.example' })
+        .int()
+        .positive()
+        .default(250),
+    ),
 
     // E-mail do código de verificação
     EMAIL_HOST: obrigatoria,

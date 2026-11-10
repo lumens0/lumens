@@ -49,6 +49,12 @@ export const JOBS = {
   outgoingRepliesDead: 'outgoing-replies-dead',
   cleanupConversations: 'cleanup-expired-conversations',
   unblockConversations: 'unblock-conversations',
+  /** Gatilho do aviso de meta batida (3.2): enfileira na fila de disparos. */
+  avisoMetaBatida: 'aviso-meta-batida',
+  /** Envio em lotes da fila de disparos, dentro do limite da Meta (RNF06). */
+  envioDisparos: 'envio-disparos',
+  /** Status de entrega (delivered/read/failed) que o webhook recebeu de um envio. */
+  statusDeEnvio: 'status-de-envio',
   /** Gatilhos de data da Parte 3 (SCRUM-237): conferência, prazos e owner inativo. */
   gatilhosDeData: 'agendador-gatilhos',
 } as const;
