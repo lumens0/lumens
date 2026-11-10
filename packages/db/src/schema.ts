@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   customType,
@@ -286,6 +287,12 @@ export const eventos = pgTable(
     origem: origemEvento('origem').notNull(),
     publico: boolean('publico').notNull().default(false),
     criadoEm: instante('criado_em').notNull().defaultNow(),
+    /**
+     * Ordem de gravação. `criado_em` empata dentro de uma transação (o `now()` é o início dela) e
+     * o `id` é aleatório; é a `seq` que mantém, por exemplo, `status_alterado` antes de
+     * `pauta_aprovada` na linha do tempo.
+     */
+    seq: bigint('seq', { mode: 'number' }).notNull().generatedAlwaysAsIdentity(),
   },
   (t) => [
     index('evento_pauta_criado_em_idx').on(t.pautaId, t.criadoEm),

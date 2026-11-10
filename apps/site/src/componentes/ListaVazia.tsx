@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import type { Bloco } from '../dados/tipos';
+import { BotaoRelatar } from './BotaoWhatsApp';
 import estilos from './componentes.module.css';
 
 /** Lista sem pautas: no campus todo ou no bloco do filtro. */
 export function ListaVazia({ bloco }: { bloco: Bloco | undefined }) {
-  // Número do bot no wa.me, só dígitos. Sem ele, o botão de relatar não aparece.
-  const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_BOT;
   return (
     <div role="status" className={estilos.estado}>
       <p className={estilos.estadoTitulo}>
@@ -18,11 +17,8 @@ export function ListaVazia({ bloco }: { bloco: Bloco | undefined }) {
             Ver todos os blocos
           </Link>
         )}
-        {whatsapp && (
-          <a href={`https://wa.me/${whatsapp}`} className={estilos.botao}>
-            Relatar um problema
-          </a>
-        )}
+        {/* Sem número do bot configurado, o botão de relatar não aparece. */}
+        <BotaoRelatar />
       </div>
     </div>
   );

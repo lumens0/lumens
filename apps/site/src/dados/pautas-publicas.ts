@@ -1,7 +1,27 @@
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 // Pautas em curadoria ou recusadas nunca aparecem no site.
-const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
+export const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
+
+/**
+ * Status que não recebem apoio. Espelha `SEM_APOIO` de `packages/dominio/src/apoio.ts`, que não é
+ * exportado e puxa `@lumens/db` (servidor). Um teste lê o fonte do domínio e falha se as listas
+ * divergirem. `em_curadoria` e `recusada` nem chegam ao site, mas ficam aqui para a regra ser a mesma.
+ */
+export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set([
+  'em_curadoria',
+  'recusada',
+  'conquistada',
+]);
+
+export function aceitaApoio(status: StatusPauta): boolean {
+  return !SEM_APOIO.has(status);
+}
+
+/** Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus. */
+export function contextoDaPauta(categoria: string, blocoNome: string | null | undefined): string {
+  return `${categoria} · ${blocoNome ?? 'Todo o campus'}`;
+}
 
 /**
  * Pautas que o site mostra, na ordem da lista:

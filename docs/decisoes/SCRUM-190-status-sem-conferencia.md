@@ -1,7 +1,12 @@
 # SCRUM-190 · O que acontece quando a conferência fica sem quórum
 
 Spike · Parte 3 · 2026-11-02 · @JGSEIXAS
-**Situação:** proposta, aguardando aprovação da equipe na PR. Aprovada, vira regra e esta linha muda.
+**Situação:** substituída. A equipe decidiu outra coisa na SCRUM-80 (decisão 4 de
+[`docs/decisoes.md`](../decisoes.md)): a pauta continua em `prometido` e a conferência reabre uma
+única vez por mais sete dias. Se a segunda rodada também ficar sem quórum, a promessa fecha com
+`resultado = 'sem_quorum'` e a pauta segue em `prometido`. O status `sem_conferencia` proposto
+abaixo não foi criado. Implementado em `fecharConferencia` (SCRUM-238). O texto abaixo fica como
+registro da proposta.
 
 ## A pergunta
 
