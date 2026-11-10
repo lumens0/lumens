@@ -57,6 +57,13 @@
       "when": 1793927247130,
       "tag": "0007_busca_pautas_parecidas",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794267605974,
+      "tag": "0008_evento_seq",
+      "breakpoints": true
     }
   ]
 }
