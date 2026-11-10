@@ -8,6 +8,7 @@ import {
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
+  registrarFalhaDeEntrega,
   reservarLote,
   type NovoAviso,
 } from './fila';
@@ -291,6 +292,80 @@ describe('registro de entrega', () => {
 
     const falhou = await db.transaction((tx) =>
       registrarFalha(tx, { id, motivo: 'tarde demais', agora: depois(MINUTO) }),
+    );
+
+    expect(falhou).toBe(false);
+  });
+});
+
+describe('o que sai da fila sem ir para a Meta', () => {
+  const DIA = 24 * HORA;
+
+  it('o lote leva o telefone cifrado de cada destinatário', async () => {
+    const a = await estudante();
+    await enfileirar([aviso('meta_batida', a)]);
+
+    const [d] = await reservar(10, T0);
+
+    const [linha] = await db.select().from(estudantes).where(eq(estudantes.id, a));
+    expect(d?.telefoneCifrado).toBe(linha?.telefoneCifrado);
+  });
+
+  it('quem saiu do sistema não recebe, e o motivo fica registrado', async () => {
+    const [a, b] = [await estudante(), await estudante()];
+    await enfileirar([aviso('meta_batida', a), aviso('meta_batida', b)]);
+    await db.update(estudantes).set({ saiuEm: T0 }).where(eq(estudantes.id, a));
+
+    const lote = await reservar(10, depois(MINUTO));
+
+    expect(resumo(lote)).toEqual([`meta_batida:${b}`]);
+    const [linha] = await db.select().from(disparos).where(eq(disparos.estudanteId, a));
+    expect(linha?.falha).toBe('estudante_saiu');
+  });
+
+  it('aviso parado há mais de sete dias expira; lembrete não', async () => {
+    const [a, b] = [await estudante(), await estudante()];
+    await enfileirar([aviso('meta_batida', a), aviso('lembrete', b)], T0);
+
+    const lote = await reservar(10, depois(7 * DIA + MINUTO));
+
+    expect(resumo(lote)).toEqual([`lembrete:${b}`]);
+    const [linha] = await db.select().from(disparos).where(eq(disparos.estudanteId, a));
+    expect(linha?.falha).toBe('expirado');
+  });
+});
+
+describe('falha de entrega', () => {
+  async function umEnviado(wamidHmac: string) {
+    const a = await estudante();
+    await enfileirar([aviso('resposta_oficial', a)]);
+    const [d] = await reservar(10, T0);
+    await db.transaction((tx) => registrarEnvio(tx, { id: d?.id ?? '', wamidHmac, agora: T0 }));
+    return d?.id ?? '';
+  }
+
+  it('o envio aceito que não chegou ganha a falha e continua como enviado', async () => {
+    const id = await umEnviado('w-falha');
+
+    const falhou = await db.transaction((tx) =>
+      registrarFalhaDeEntrega(tx, {
+        wamidHmac: 'w-falha',
+        motivo: 'meta:131026',
+        agora: depois(MINUTO),
+      }),
+    );
+
+    expect(falhou).toBe(true);
+    const [linha] = await db.select().from(disparos).where(eq(disparos.id, id));
+    expect(linha).toMatchObject({ falha: 'meta:131026', enviadoEm: T0, entregueEm: null });
+  });
+
+  it('não marca falha em quem já recebeu', async () => {
+    await umEnviado('w-ok');
+    await db.transaction((tx) => registrarEntrega(tx, { wamidHmac: 'w-ok', agora: T0 }));
+
+    const falhou = await db.transaction((tx) =>
+      registrarFalhaDeEntrega(tx, { wamidHmac: 'w-ok', motivo: 'meta:131026', agora: T0 }),
     );
 
     expect(falhou).toBe(false);

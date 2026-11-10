@@ -4,6 +4,7 @@ import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto';
 import type { Logger } from '../../logger';
 import { JOBS, type JobQueue } from '../../queue';
 import { hashPhone } from '../conversation/phone';
+import type { StatusDeEnvioJob } from '../envio/worker';
 
 export interface ProcessDeps {
   db: Db;
@@ -15,6 +16,8 @@ export interface ProcessDeps {
 export interface ProcessResult {
   enqueued: number;
   duplicates: number;
+  /** Status de entrega repassados para o registro de entrega (SCRUM-209). */
+  statusesEnqueued: number;
   statusesIgnored: number;
   /** Mensagens que não são da pessoa falando com o bot (reação, aviso do sistema). */
   messagesIgnored: number;
@@ -83,7 +86,15 @@ const mudancaSchema = z.object({
     statuses: z.array(z.unknown()).optional(),
   }),
 });
-const statusSchema = z.object({ status: z.string() });
+const statusSchema = z.object({
+  id: z.string().min(1),
+  status: z.string(),
+  timestamp: texto,
+  errors: z.array(z.object({ code: z.number().optional() })).optional(),
+});
+
+/** Status que mudam o registro de entrega. `sent` só diz que saiu da Meta, e o envio já foi gravado. */
+const STATUS_DE_ENTREGA = new Set(['delivered', 'read', 'failed']);
 
 /**
  * Tipos de mensagem que não pedem resposta: reação (👍 numa mensagem do bot) e aviso do sistema
@@ -136,6 +147,7 @@ export async function processWebhookPayload(
   const result: ProcessResult = {
     enqueued: 0,
     duplicates: 0,
+    statusesEnqueued: 0,
     statusesIgnored: 0,
     messagesIgnored: 0,
     invalid: 0,
@@ -168,13 +180,17 @@ export async function processWebhookPayload(
       const { metadata, messages = [], statuses = [] } = mudanca.data.value;
 
       for (const statusBruto of statuses) {
-        // Status (sent/delivered/read/failed): apenas log, nunca vai para a fila.
         const status = statusSchema.safeParse(statusBruto);
-        deps.logger.info(
-          { status: status.success ? status.data.status : null },
-          'status recebido (ignorado)',
-        );
-        result.statusesIgnored++;
+        if (!status.success || !STATUS_DE_ENTREGA.has(status.data.status)) {
+          deps.logger.info(
+            { status: status.success ? status.data.status : null },
+            'status recebido (ignorado)',
+          );
+          result.statusesIgnored++;
+          continue;
+        }
+        await enfileirarStatus(status.data, deps);
+        result.statusesEnqueued++;
       }
 
       for (const mensagemBruta of messages) {
@@ -232,6 +248,25 @@ async function enfileirar(
     .child({ mensagem: wamidHmac.slice(0, 12) })
     .info({ type }, nova ? 'mensagem enfileirada' : 'mensagem duplicada, ignorando');
   return nova;
+}
+
+/**
+ * Repassa o status de entrega para o worker que grava o registro por pessoa (SCRUM-209).
+ *
+ * Vai só o HMAC do wamid: o wamid em claro e o `recipient_id` são o telefone. Não há dedup: gravar
+ * a mesma entrega duas vezes não muda nada (`registrarEntrega` é idempotente).
+ */
+async function enfileirarStatus(
+  status: z.infer<typeof statusSchema>,
+  deps: ProcessDeps,
+): Promise<void> {
+  const job: StatusDeEnvioJob = {
+    wamidHmac: hmacHex(status.id, deps.chaves.hmac),
+    status: status.status as StatusDeEnvioJob['status'],
+    timestamp: status.timestamp,
+    ...(status.errors?.[0]?.code === undefined ? {} : { codigoErro: status.errors[0].code }),
+  };
+  await deps.db.transaction((tx) => deps.queue.send(JOBS.statusDeEnvio, job, tx));
 }
 
 /** Apaga o dedup mais velho que a janela de reenvio da Meta; retorna quantos removeu. */
