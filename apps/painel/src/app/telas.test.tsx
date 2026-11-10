@@ -82,6 +82,7 @@ describe('tela da pauta', () => {
     expect(html).toContain('Bloco 12');
     expect(html).toContain('O bebedouro do térreo não funciona desde agosto.');
     expect(html).toContain('Sem foto');
+    expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab/linha-do-tempo"');
     expect(html).toContain('Aprovar pauta');
     expect(html).toContain('Recusar pauta');
     expect(html.match(/name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"/g)).toHaveLength(
