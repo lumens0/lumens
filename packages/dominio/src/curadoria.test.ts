@@ -1,4 +1,13 @@
-import { eq, eventos, papeisPauta, pautas, relatos, type Db } from '@lumens/db';
+import {
+  disparos,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  relatos,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { aprovarPauta, listarFilaDeCuradoria, recusarPauta } from './curadoria';
@@ -122,7 +131,70 @@ describe('aprovarPauta', () => {
   });
 });
 
+const filaDa = (pautaId: string) =>
+  db
+    .select({
+      tipo: disparos.tipo,
+      estudanteId: disparos.estudanteId,
+      modelo: disparos.modelo,
+      parametros: disparos.parametros,
+    })
+    .from(disparos)
+    .where(eq(disparos.aviso, pautaId));
+
 describe('recusarPauta', () => {
+  it('manda o motivo para quem criou a pauta pela fila, em uma linha só', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria', titulo: 'Bebedouro do bloco 12' });
+    const owner = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, motivo: 'Já existe\n  a pauta do bebedouro.' }),
+    );
+
+    expect(await filaDa(pauta.id)).toEqual([
+      {
+        tipo: 'recusa',
+        estudanteId: owner.id,
+        modelo: 'lumens_pauta_recusada',
+        parametros: ['Bebedouro do bloco 12', 'Já existe a pauta do bebedouro.'],
+      },
+    ]);
+  });
+
+  it('owner que saiu do sistema não recebe, e a recusa vale do mesmo jeito', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria' });
+    const owner = await criarEstudanteVerificado(db);
+    await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, owner.id));
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+
+    const r = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, motivo: 'Fora do escopo.' }),
+    );
+
+    expect(r).toEqual({ decidida: true });
+    expect(await filaDa(pauta.id)).toEqual([]);
+  });
+
+  it('recusa bloqueada ou repetida não manda aviso', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria' });
+    const owner = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+
+    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: '  ' }));
+    expect(await filaDa(pauta.id)).toEqual([]);
+
+    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: 'Duplicada.' }));
+    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: 'De novo.' }));
+    expect(await filaDa(pauta.id)).toHaveLength(1);
+  });
+
   it('grava o motivo e registra a recusa fora do site', async () => {
     const pauta = await novaEmCuradoria();
 

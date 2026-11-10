@@ -1,0 +1,1 @@
+ALTER TYPE "public"."tipo_disparo" ADD VALUE 'recusa';

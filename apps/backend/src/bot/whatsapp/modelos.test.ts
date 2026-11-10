@@ -9,12 +9,13 @@ function variaveis(texto: string): number[] {
 }
 
 describe('MODELOS (RNF04)', () => {
-  it('tem os cinco avisos do critério de aceite da SCRUM-193', () => {
+  it('tem os cinco avisos da SCRUM-193 e o de recusa da SCRUM-170', () => {
     expect(Object.keys(MODELOS).sort()).toEqual([
       'lumens_conferencia',
       'lumens_lembrete_prazo',
       'lumens_meta_batida',
       'lumens_owner_inativo',
+      'lumens_pauta_recusada',
       'lumens_resposta_oficial',
     ]);
   });

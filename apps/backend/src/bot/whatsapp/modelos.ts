@@ -2,7 +2,7 @@
  * Mensagens modelo da Parte 3 (RNF04).
  *
  * Fora da janela de atendimento de 24h, o bot só pode escrever primeiro com uma
- * mensagem modelo que a Meta aprovou antes. Os cinco avisos que o bot inicia
+ * mensagem modelo que a Meta aprovou antes. Os seis avisos que o bot inicia
  * moram aqui, num lugar só, porque o texto que a Meta aprovou e o código que
  * envia precisam concordar em nome, idioma e número de variáveis: qualquer
  * diferença e a Meta recusa o envio.
@@ -23,7 +23,8 @@ export type NomeModelo =
   | 'lumens_resposta_oficial'
   | 'lumens_conferencia'
   | 'lumens_lembrete_prazo'
-  | 'lumens_owner_inativo';
+  | 'lumens_owner_inativo'
+  | 'lumens_pauta_recusada';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -136,6 +137,20 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
       { tipo: 'QUICK_REPLY', texto: 'Quero continuar' },
       { tipo: 'QUICK_REPLY', texto: 'Quero sair' },
     ],
+  },
+
+  // Recusa na curadoria (RF-C02). Sem botão: pauta recusada não tem página no site.
+  lumens_pauta_recusada: {
+    nome: 'lumens_pauta_recusada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'responsaveis',
+    corpo:
+      'A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. ' +
+      'Se quiser, você pode mandar um novo relato por aqui.',
+    exemplos: ['Bebedouro quebrado no bloco 12', 'já existe uma pauta sobre o mesmo bebedouro'],
+    rodape: RODAPE,
+    botoes: [],
   },
 });
 
