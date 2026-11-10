@@ -4,7 +4,7 @@
 
 `packages/dominio/src/pautas-parecidas.test.ts` tem 16 pautas em 6 blocos (abertas, em curadoria,
 recusadas e encerradas) e 28 relatos: 21 que têm de achar uma pauta específica em primeiro lugar e
-7 que não podem achar nenhuma. Os 5 mais recentes (3 e 2) foram escritos pela equipe na fase de teste (SCRUM-144) e passam com os limiares atuais, que não foram alterados. Os relatos imitam o WhatsApp: sem acento, gíria ("ta", "pra"), erro
+7 que não podem achar nenhuma. Os 5 mais recentes (3 e 2) foram escritos pela equipe na fase de teste e passam com os limiares atuais, que não foram alterados. Os relatos imitam o WhatsApp: sem acento, gíria ("ta", "pra"), erro
 de digitação ("bibloteca", "bebedor"), sinônimo ("pcs", "circular", "postes apagados") e número de
 sala no meio.
 
@@ -17,7 +17,7 @@ Os limiares foram escolhidos rodando a mesma consulta num PostgreSQL 16 com essa
 | pontos ≥ 1 + metade da primeira (escolhida) |   23/23 |
 | a escolhida com similaridade 0,5            |   22/23 |
 
-**Para calibrar com relatos reais:** acrescente casos em `RELATOS` ou `SEM_PAUTA` e rode
+**Para calibrar com mais relatos:** acrescente casos em `RELATOS` ou `SEM_PAUTA` e rode
 `pnpm --filter @lumens/dominio test`. O teste diz qual relato deixou de achar a pauta certa.
 
 ## O que mais é exercitado
@@ -32,7 +32,7 @@ Os limiares foram escolhidos rodando a mesma consulta num PostgreSQL 16 com essa
 
 ## Lacunas conhecidas
 
-- Relatos de calibração escritos para o teste, não coletados de estudantes. A subtarefa de calibrar com relatos reais (SCRUM-144) segue pendente de coleta.
+- Relatos de calibração escritos para o teste, não coletados de estudantes.
 - A lista ainda não foi enviada a um WhatsApp de verdade (o sender da Meta não existe); os limites
   vêm da documentação da Cloud API.
 - `pnpm db:generate` deve responder "No schema changes" depois desta migração; o snapshot 0007 foi
