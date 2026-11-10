@@ -258,11 +258,24 @@ describe('experiência da pessoa', () => {
   });
 
   it('fim de fluxo mostra o menu de novo', async () => {
-    await send('oi');
-    await send('3');
-    await send('aluno@ufal.br');
-    await send('123456');
-    const replies = await send('Computação');
+    // A verificação (2.4) envia o código por e-mail: aqui, um e-mail falso que guarda o código.
+    let codigo = '';
+    const email = {
+      enviarCodigo: (_para: string, enviado: string) => {
+        codigo = enviado;
+        return Promise.resolve(true);
+      },
+    };
+    const sendComEmail = (text: string) =>
+      handleIncoming(
+        { phoneHmac: H, phoneCifrado: segredo.cifrar('5582999990000'), text },
+        { store, db, segredo, email, hmac: (valor) => `hmac-${valor}` },
+      );
+    await sendComEmail('oi');
+    await sendComEmail('3');
+    await sendComEmail('aluno@ufal.br');
+    await sendComEmail(codigo);
+    const replies = await sendComEmail('Computação');
     expect(replies.at(-1)).toBe(MENU_TEXT);
     expect((await store.get(H))?.step).toBe('MENU');
   });

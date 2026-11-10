@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   entrarNaPautaNova,
@@ -13,6 +14,7 @@ import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import { TRANSITIONS, type Step } from './steps';
 import { normalize } from './texto';
+import { EMAIL_QUESTION_TEXT, verifyAskCode, verifyAskEmail } from './verificacao';
 
 export { normalize } from './texto';
 export { PHOTO_ASK_TEXT, PHOTO_RECEIVED_TEXT } from './nova-pauta';
@@ -39,6 +41,12 @@ export interface StepContext {
   phoneHmac: string;
   /** Baixa, limpa e guarda a foto da pauta nova (2.6). Sem ele, a foto é recusada com aviso. */
   fotos?: ServicoDeFotos;
+  /** Envia o código de verificação (2.4). Sem ele, o código não sai e a pessoa é avisada. */
+  email?: ServicoDeEmail;
+  /** O telefone cifrado do job (CHAVE_CIFRA): o cadastro do estudante guarda assim (2.4). */
+  phoneCifrado?: string;
+  /** HMAC com a CHAVE_HMAC, o mesmo do `phoneHmac`: busca o e-mail sem guardá-lo em claro (2.4). */
+  hmac?: (valor: string) => string;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;
@@ -73,7 +81,7 @@ const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, ME
 /** Opções do menu que só mudam de passo. A "2" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
   '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
-  '3': { next: 'VERIFY_ASK_EMAIL', reply: 'Qual o seu e-mail institucional?' },
+  '3': { next: 'VERIFY_ASK_EMAIL', reply: EMAIL_QUESTION_TEXT },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -114,9 +122,9 @@ function placeholder(step: Step, story: string): StepHandler {
 export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,
   MENU: menu,
-  // TODO(2.4): verificação de e-mail institucional.
-  VERIFY_ASK_EMAIL: placeholder('VERIFY_ASK_EMAIL', '2.4'),
-  VERIFY_ASK_CODE: placeholder('VERIFY_ASK_CODE', '2.4'),
+  VERIFY_ASK_EMAIL: verifyAskEmail,
+  VERIFY_ASK_CODE: verifyAskCode,
+  // TODO(2.4): curso (próxima subtask).
   VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
   REPORT_ASK_TEXT: reportAskText,
   REPORT_ASK_BLOCK: reportAskBlock,
