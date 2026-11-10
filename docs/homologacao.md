@@ -215,6 +215,28 @@ Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
 
+### O que o site mostra quando ela está desligada
+
+O site continua no ar na Vercel, mas as páginas que leem a API (`/`, `/conquistas`, `/atividade`
+e `/p/{slug}`) respondem **HTTP 500** e mostram o estado de erro do `error.tsx`: um `role="alert"`
+com "Não deu para carregar as pautas." e o botão "Tentar de novo". As páginas que não leem a API
+(`/privacidade`, `/dev/componentes`) seguem respondendo 200.
+
+Isso é o comportamento esperado com a API fora do ar, não um defeito do site. Conferido em
+2026-11-10 em `https://lumens-ufal.vercel.app/`, com a VM desligada (o `deploy-backend` da `main`
+pulou a publicação).
+
+O HTML que o servidor devolve nesse caso vem vazio: quem desenha o estado de erro é o navegador.
+`curl` mostra só o 500; para ver o que a pessoa vê, abra a página num navegador.
+
+Para tirar a dúvida entre "ambiente desligado" e "defeito":
+
+1. Ligue a VM e espere `curl -s https://<DOMINIO>/saude` responder 200.
+2. Recarregue `https://lumens-ufal.vercel.app/` (ou toque em "Tentar de novo"). A lista tem que
+   aparecer.
+3. Se o `/saude` responde 200 e a home continua em erro, aí é configuração ou código: confira a
+   `LUMENS_API_URL` do projeto do site na Vercel e os logs da função na Vercel.
+
 ## Quando algo falha
 
 ```bash
