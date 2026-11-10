@@ -80,10 +80,12 @@ export {
   MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
+  buscarPautaDaCuradoria,
   listarFilaDeCuradoria,
+  listarPautasDaCuradoria,
   recusarPauta,
 } from './curadoria';
-export type { PautaNaFila, ResultadoDecisao } from './curadoria';
+export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './curadoria';
 
 export { listarLinhaDoTempo } from './linha-do-tempo';
 export type { EventoDaLinha } from './linha-do-tempo';
