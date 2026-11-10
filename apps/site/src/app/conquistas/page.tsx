@@ -11,10 +11,24 @@ export const metadata: Metadata = { title: 'Conquistas · Lumens' };
 
 const DIA_EM_MS = 24 * 60 * 60 * 1000;
 
-/** Dias corridos entre a criação da pauta e a conquista. `null` sem a data da conquista. */
+// `en-CA` formata como AAAA-MM-DD, que o `Date.parse` lê como meia-noite UTC daquele dia.
+const diaEmMaceio = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Maceio' });
+const diaDoCalendario = (instante: string) =>
+  Date.parse(diaEmMaceio.format(new Date(instante))) / DIA_EM_MS;
+
+/**
+ * Dias de calendário (em Maceió) entre a criação da pauta e a conquista, para bater com as datas
+ * mostradas. `null` sem uma das datas: API antiga sem `criada_em` não vira "NaN dias".
+ */
 function diasAteEntrega({ criada_em, conquistada_em }: Conquista): number | null {
-  if (!conquistada_em) return null;
-  return Math.floor((Date.parse(conquistada_em) - Date.parse(criada_em)) / DIA_EM_MS);
+  if (!conquistada_em || !criada_em) return null;
+  const dias = Math.round(diaDoCalendario(conquistada_em) - diaDoCalendario(criada_em));
+  return Number.isFinite(dias) ? dias : null;
+}
+
+function textoDias(dias: number): string {
+  if (dias === 0) return 'No mesmo dia';
+  return dias === 1 ? '1 dia' : `${formatarNumero(dias)} dias`;
 }
 
 function ItemConquista({ conquista }: { conquista: Conquista }) {
@@ -47,7 +61,7 @@ function ItemConquista({ conquista }: { conquista: Conquista }) {
         {dias !== null && (
           <div>
             <dt>Da criação à entrega</dt>
-            <dd>{dias === 1 ? '1 dia' : `${formatarNumero(dias)} dias`}</dd>
+            <dd>{textoDias(dias)}</dd>
           </div>
         )}
       </dl>
