@@ -1,10 +1,13 @@
 /**
  * RF-B04 · RN01 · Verificação pelo e-mail institucional (história 2.4).
  *
- * Só e-mail da UFAL prova que a pessoa é estudante: o domínio tem de ser `ufal.br` ou um
- * subdomínio dele (`ic.ufal.br`, `ctec.ufal.br`...). Função pura: o bot chama com a mensagem da
- * pessoa e transforma o motivo da recusa numa resposta.
+ * 1. `emailInstitucional` (SCRUM-134): só e-mail da UFAL prova que a pessoa é estudante. O
+ *    domínio tem de ser `ufal.br` ou um subdomínio dele (`ic.ufal.br`, `ctec.ufal.br`...).
+ * 2. `gerarCodigo` e `guardarCodigo` (SCRUM-135): o código de 6 dígitos que vai por e-mail. O
+ *    banco guarda só o hash, que vale 10 minutos; um pedido novo substitui o anterior.
  */
+import { createHash, randomInt } from 'node:crypto';
+import { codigosVerificacao, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -58,4 +61,47 @@ export function emailInstitucional(mensagem: string): ResultadoEmail {
   }
   if (!dominioDaUfal(dominio)) return { valido: false, motivo: 'fora_da_ufal' };
   return { valido: true, email };
+}
+
+/** Quantos dígitos tem o código enviado por e-mail. */
+export const DIGITOS_DO_CODIGO = 6;
+
+/** Quanto tempo o código vale depois de enviado. */
+export const CODIGO_EXPIRA_MS = 10 * 60_000;
+
+/** Código de 6 dígitos, de "000000" a "999999", com o gerador criptográfico do Node. */
+export function gerarCodigo(): string {
+  return String(randomInt(0, 10 ** DIGITOS_DO_CODIGO)).padStart(DIGITOS_DO_CODIGO, '0');
+}
+
+/**
+ * Hash SHA-256 do código, misturado ao telefone: o mesmo código em dois telefones dá hashes
+ * diferentes. O código em si nunca vai para o banco.
+ */
+export function hashDoCodigo(telefoneHmac: string, codigo: string): string {
+  return createHash('sha256').update(`${telefoneHmac}:${codigo}`).digest('hex');
+}
+
+/**
+ * Guarda o hash do código do telefone, válido por 10 minutos, e zera as tentativas. Um código
+ * novo para o mesmo telefone substitui o anterior: só vale o último enviado.
+ */
+export async function guardarCodigo(
+  db: Db,
+  {
+    telefoneHmac,
+    codigo,
+    agora = new Date(),
+  }: { telefoneHmac: string; codigo: string; agora?: Date },
+): Promise<{ expiraEm: Date }> {
+  const valores = {
+    codigoHash: hashDoCodigo(telefoneHmac, codigo),
+    expiraEm: new Date(agora.getTime() + CODIGO_EXPIRA_MS),
+    tentativas: 0,
+  };
+  await db
+    .insert(codigosVerificacao)
+    .values({ telefoneHmac, ...valores })
+    .onConflictDoUpdate({ target: codigosVerificacao.telefoneHmac, set: valores });
+  return { expiraEm: valores.expiraEm };
 }

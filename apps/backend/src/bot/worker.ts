@@ -2,6 +2,7 @@ import type { Db } from '@lumens/db';
 import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
+import type { ServicoDeEmail } from '../email/codigo';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
@@ -44,6 +45,8 @@ export interface WorkerDeps {
   chaves: Chaves;
   /** Fotos da pauta nova (2.6). */
   fotos?: ServicoDeFotos;
+  /** Código de verificação por e-mail (2.4). */
+  email?: ServicoDeEmail;
   handlers?: HandlerRegistry;
 }
 
@@ -163,6 +166,7 @@ export async function processIncomingJob(
               db: tx,
               segredo: segredoCom(deps.chaves.cifra),
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
+              ...(deps.email ? { email: deps.email } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );

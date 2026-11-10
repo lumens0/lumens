@@ -69,6 +69,10 @@ curl http://localhost:3001/pautas?limit=2
 Duas pautas em JSON significam processo **e** banco respondendo. Erro de conexão aqui é quase
 sempre o banco: confira o `pnpm db:up` e o `DATABASE_URL_LEITURA` do `.env`.
 
+No `pnpm dev`, o bot não envia e-mail: o código de verificação da 2.4 aparece no log do back-end
+("código de verificação (pnpm dev: e-mail não enviado)"). Fora dele, o código vai pelo SMTP do
+`.env` (`EMAIL_*`).
+
 Site e painel são apps separados, cada um na sua porta:
 
 ```bash
