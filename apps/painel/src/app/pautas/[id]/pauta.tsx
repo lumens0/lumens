@@ -84,6 +84,10 @@ export function Pauta({
       </dl>
       <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
 
+      <p>
+        <Link href={`/pautas/${pauta.id}/linha-do-tempo`}>Ver a linha do tempo</Link>
+      </p>
+
       {ACEITA_PROMESSA.includes(pauta.status) && (
         <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>
           Registrar resposta e promessa
