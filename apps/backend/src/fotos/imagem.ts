@@ -4,6 +4,15 @@ import sharp from 'sharp';
 export const FORMATOS_ACEITOS = ['jpeg', 'png', 'webp'] as const;
 export type FormatoAceito = (typeof FORMATOS_ACEITOS)[number];
 
+/**
+ * Limite de tamanho de uma foto: 5 MB. A regra mora aqui, num lugar só: o download da Meta
+ * (`meta-midia.ts`) e `removerMetadados` conferem com a mesma função.
+ */
+export const TAMANHO_MAXIMO_FOTO = 5 * 1024 * 1024;
+
+/** O arquivo passa do limite? Exatamente 5 MB ainda é aceito. */
+export const passaDoTamanhoMaximo = (bytes: number): boolean => bytes > TAMANHO_MAXIMO_FOTO;
+
 /** Qualidade usada ao recodificar JPEG e WebP (0–100). */
 const QUALIDADE = 85;
 
@@ -12,6 +21,14 @@ export class ErroImagemInvalida extends Error {
   constructor(mensagem: string) {
     super(mensagem);
     this.name = 'ErroImagemInvalida';
+  }
+}
+
+/** O arquivo passa de TAMANHO_MAXIMO_FOTO. */
+export class ErroImagemGrande extends ErroImagemInvalida {
+  constructor() {
+    super('Arquivo acima de 5 MB.');
+    this.name = 'ErroImagemGrande';
   }
 }
 
@@ -29,6 +46,7 @@ function ehFormatoAceito(formato: string): formato is FormatoAceito {
  *
  * @param entrada Conteúdo do arquivo enviado.
  * @returns Nova imagem, sem metadados.
+ * @throws {ErroImagemGrande} Se o arquivo passar de TAMANHO_MAXIMO_FOTO; nem chega a ser aberto.
  * @throws {ErroImagemInvalida} Se o arquivo estiver vazio, corrompido ou num
  *   formato fora de FORMATOS_ACEITOS.
  */
@@ -36,6 +54,7 @@ export async function removerMetadados(entrada: Buffer): Promise<Buffer> {
   if (!Buffer.isBuffer(entrada) || entrada.length === 0) {
     throw new ErroImagemInvalida('Arquivo vazio.');
   }
+  if (passaDoTamanhoMaximo(entrada.length)) throw new ErroImagemGrande();
 
   let formato: string;
   try {

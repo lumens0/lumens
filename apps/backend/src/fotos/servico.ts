@@ -9,7 +9,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
-import { removerMetadados } from './imagem';
+import { ErroImagemGrande, removerMetadados } from './imagem';
 import { ErroDeMidia, type MidiaBaixada } from './meta-midia';
 import type { Storage } from './storage';
 
@@ -71,7 +71,8 @@ export function criarServicoDeFotos({
         const { format } = await sharp(baixada.bytes).metadata();
         if (format !== tipo.formato) return { ok: false, motivo: 'formato' };
         limpa = await removerMetadados(baixada.bytes);
-      } catch {
+      } catch (erro) {
+        if (erro instanceof ErroImagemGrande) return { ok: false, motivo: 'tamanho' };
         // Corrompido ou não é imagem (o sharp não abre, ou `removerMetadados` recusa).
         return { ok: false, motivo: 'invalida' };
       }
