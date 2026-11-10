@@ -90,7 +90,9 @@ export async function registrarPromessa(
   await registrarEvento(tx, {
     pautaId,
     tipo: 'promessa_registrada',
-    dados: { promessa_id: promessa.id, data_entrega: dataEntrega },
+    // Resumo e fonte vão no evento para a página da pauta mostrar a resposta oficial (são públicos:
+    // a fonte já vai no aviso aos apoiadores). Promessas anteriores não têm as chaves.
+    dados: { promessa_id: promessa.id, data_entrega: dataEntrega, resumo, fonte },
     origem: 'curadoria',
   });
 
