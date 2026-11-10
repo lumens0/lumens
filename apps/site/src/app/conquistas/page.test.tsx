@@ -56,6 +56,26 @@ describe('/conquistas', () => {
     expect(await render()).toContain('>18/03/2026</time>');
   });
 
+  it('API antiga sem criada_em: esconde o prazo em vez de mostrar NaN', async () => {
+    const { criada_em: _, ...semCriacao } = DO_SEED;
+    vi.mocked(buscarConquistas).mockResolvedValue([semCriacao as Conquista]);
+    const html = await render();
+    expect(html).not.toContain('NaN');
+    expect(html).not.toContain('Da criação à entrega');
+    expect(html).toContain('>19/03/2026</time>');
+  });
+
+  it.each([
+    // 10/02 22h e 11/02 08h em Maceió: menos de 24 h, mas dias seguintes no calendário.
+    ['2026-02-11T01:00:00.000Z', '2026-02-11T11:00:00.000Z', '1 dia'],
+    ['2026-02-10T12:00:00.000Z', '2026-02-10T20:00:00.000Z', 'No mesmo dia'],
+    // 01h UTC do dia 12 ainda é dia 11 em Maceió.
+    ['2026-02-10T12:00:00.000Z', '2026-02-12T01:00:00.000Z', '1 dia'],
+  ])('dias pelo calendário de Maceió: %s → %s = %s', async (criada_em, conquistada_em, texto) => {
+    vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, criada_em, conquistada_em }]);
+    expect(await render()).toContain(`<dt>Da criação à entrega</dt><dd>${texto}</dd>`);
+  });
+
   it('sem a data da conquista, não inventa data nem prazo', async () => {
     vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, conquistada_em: null }]);
     const html = await render();
