@@ -19,9 +19,11 @@ if (!DATABASE_URL || !CHAVE_CIFRA || !CHAVE_HMAC) {
 
 const normalizado = email.trim().toLowerCase();
 const chaves = chavesDoEnv({ CHAVE_CIFRA, CHAVE_HMAC });
-if (chaves.cifra.length !== 32 || chaves.hmac.length !== 32) {
+// As mesmas regras do `env.ts` do servidor: 32 bytes cada e diferentes entre si (com a mesma
+// chave, quem tiver a do HMAC decifra os e-mails).
+if (chaves.cifra.length !== 32 || chaves.hmac.length !== 32 || chaves.cifra.equals(chaves.hmac)) {
   console.error(
-    'CHAVE_CIFRA e CHAVE_HMAC precisam ter 32 bytes em base64 (openssl rand -base64 32).',
+    'CHAVE_CIFRA e CHAVE_HMAC precisam ter 32 bytes em base64 cada (openssl rand -base64 32) e ser diferentes.',
   );
   process.exit(1);
 }
