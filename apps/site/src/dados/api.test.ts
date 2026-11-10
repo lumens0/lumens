@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buscarBlocos, buscarPauta, buscarPautas } from './api';
+import { buscarAtividade, buscarBlocos, buscarConquistas, buscarPauta, buscarPautas } from './api';
 
 const responder = (status: number, corpo: unknown = {}) =>
   vi.fn(() => Promise.resolve(new Response(JSON.stringify(corpo), { status })));
@@ -91,5 +91,37 @@ describe('buscarPautas e buscarBlocos', () => {
     vi.stubGlobal('fetch', responder(status));
     await expect(buscarPautas()).rejects.toThrow(String(status));
     await expect(buscarBlocos()).rejects.toThrow(String(status));
+  });
+});
+
+describe('buscarConquistas e buscarAtividade', () => {
+  beforeEach(() => vi.stubEnv('LUMENS_API_URL', 'http://api.teste'));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('conquistas devolve os itens', async () => {
+    const fetch = responder(200, { itens: [{ pauta_slug: 'a' }] });
+    vi.stubGlobal('fetch', fetch);
+    expect(await buscarConquistas()).toEqual([{ pauta_slug: 'a' }]);
+    expect(fetch).toHaveBeenCalledWith('http://api.teste/conquistas', { next: { revalidate: 30 } });
+  });
+
+  it('a página vira limit/offset: a 1 começa do zero, a 3 pula 40', async () => {
+    const fetch = responder(200, { itens: [], proximo: null });
+    vi.stubGlobal('fetch', fetch);
+    await buscarAtividade(1);
+    await buscarAtividade(3);
+    expect(fetch.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
+      'http://api.teste/atividade?limit=20&offset=0',
+      'http://api.teste/atividade?limit=20&offset=40',
+    ]);
+  });
+
+  it('500 lança erro (cai no error.tsx)', async () => {
+    vi.stubGlobal('fetch', responder(500));
+    await expect(buscarConquistas()).rejects.toThrow('500');
+    await expect(buscarAtividade(1)).rejects.toThrow('500');
   });
 });

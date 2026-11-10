@@ -33,6 +33,11 @@ const data = new Intl.DateTimeFormat('pt-BR', {
 
 export const formatarData = (instante: string) => data.format(new Date(instante));
 
+const dia = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Maceio' });
+
+/** Só a data, sem a hora, no fuso de Maceió. */
+export const formatarDia = (instante: string) => dia.format(new Date(instante));
+
 /** Eventos públicos na ordem em que a API manda (cronológica crescente). */
 export function LinhaDoTempo({ eventos }: { eventos: PautaDetalhe['linha_do_tempo'] }) {
   return (

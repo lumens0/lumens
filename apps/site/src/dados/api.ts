@@ -1,5 +1,14 @@
-import type { Bloco, Blocos, Pauta, PautaDetalhe, Pautas } from '@lumens/contratos';
-import { LIMITE_MAXIMO } from '@lumens/contratos';
+import type {
+  Atividade,
+  Bloco,
+  Blocos,
+  Conquista,
+  Conquistas,
+  Pauta,
+  PautaDetalhe,
+  Pautas,
+} from '@lumens/contratos';
+import { LIMITE_MAXIMO, LIMITE_PADRAO } from '@lumens/contratos';
 
 /** Endereço da API de leitura. Só no servidor: a variável não tem `NEXT_PUBLIC`. */
 function urlDaApi(): string {
@@ -64,4 +73,20 @@ export async function buscarPautas(bloco?: string): Promise<Pauta[]> {
     offset = pagina.proximo;
   }
   return pautas;
+}
+
+export async function buscarConquistas(): Promise<Conquista[]> {
+  return (await buscarJson<Conquistas>('/conquistas', 'as conquistas')).itens;
+}
+
+/** Eventos por página de `/atividade`: o padrão da API. */
+export const EVENTOS_POR_PAGINA = LIMITE_PADRAO;
+
+/** Uma página do feed de atividade, contada a partir de 1. */
+export async function buscarAtividade(pagina: number): Promise<Atividade> {
+  const query = new URLSearchParams({
+    limit: String(EVENTOS_POR_PAGINA),
+    offset: String((pagina - 1) * EVENTOS_POR_PAGINA),
+  });
+  return buscarJson<Atividade>(`/atividade?${query.toString()}`, 'a atividade');
 }

@@ -141,6 +141,8 @@ export const conquista = z.object({
   conquistada_em: instante.nullable(),
   apoios: z.number().int(),
   proposta_executada: z.boolean(),
+  /** Criação da pauta: o site conta os dias até a entrega. */
+  criada_em: instante,
 });
 export const conquistas = z.object({ itens: z.array(conquista) });
 export type Conquista = z.infer<typeof conquista>;
