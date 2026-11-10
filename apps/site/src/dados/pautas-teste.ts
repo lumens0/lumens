@@ -1,5 +1,5 @@
 // Pautas genéricas para testes e para a rota de rascunho dos componentes.
-// Não são dados do site: uma por status, com meta pela RN04 dos blocos do exemplo.json.
+// Não são dados do site: uma por status, com meta pela RN04 dos blocos de blocos-teste.json.
 import type { Pauta, StatusPauta } from './tipos';
 
 function pauta(
@@ -23,9 +23,8 @@ function pauta(
     aprovada_em:
       status === 'em_curadoria' || status === 'recusada' ? null : '2026-10-01T12:00:00-03:00',
     meta_batida_em: bateuMeta ? '2026-10-10T12:00:00-03:00' : null,
-    owners: [{ papel: 'owner', curso: 'Curso de teste', desde: '2026-10-01T10:00:00-03:00' }],
-    relatos: [],
-    eventos: [],
+    cursos_responsaveis: ['Curso de teste'],
+    proxima_etapa: null,
   };
 }
 

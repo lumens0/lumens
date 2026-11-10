@@ -4,21 +4,21 @@ import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
-import exemplo from '../dados/exemplo.json';
+import { buscarBlocos, buscarPautas } from '../dados/api';
 import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
-import type { DadosExemplo } from '../dados/tipos';
 import estilos from './page.module.css';
-
-// Dados de exemplo até a API de leitura (4.2b).
-const { blocos, pautas } = exemplo as DadosExemplo;
 
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{ bloco?: string | string[] }>;
 }) {
+  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
+  // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
+  const blocos = await buscarBlocos();
   const bloco = blocoDaUrl(blocos, (await searchParams).bloco);
-  const lista = pautasPublicas(pautas, bloco);
+  // A API já filtra e ordena; o `pautasPublicas` repete a regra como segunda barreira.
+  const lista = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
   const { abertas, apoios, conquistas } = totais(lista);
   return (
     <main className={estilos.pagina}>

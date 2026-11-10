@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import Erro from '../app/error';
-import exemplo from '../dados/exemplo.json';
+import exemplo from '../dados/blocos-teste.json';
 import { ListaVazia } from './ListaVazia';
 
 describe('estados da lista', () => {
