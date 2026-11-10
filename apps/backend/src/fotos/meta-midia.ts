@@ -37,6 +37,8 @@ export interface OpcoesDeDownload {
   fetch?: typeof fetch;
   /** Cada chamada desiste depois disso, para não segurar a conversa. */
   timeoutMs?: number;
+  /** Bytes. O padrão é o da foto; o PDF da resposta oficial usa o dele. */
+  tamanhoMaximo?: number;
 }
 
 const lerInformacoes = (dados: unknown): { url: string; mimeType: string; tamanho: number } => {
@@ -48,8 +50,10 @@ const lerInformacoes = (dados: unknown): { url: string; mimeType: string; tamanh
 
 export async function baixarMidiaDaMeta(
   mediaId: string,
-  { token, fetch: buscar = fetch, timeoutMs = 10_000 }: OpcoesDeDownload,
+  { token, fetch: buscar = fetch, timeoutMs = 10_000, tamanhoMaximo }: OpcoesDeDownload,
 ): Promise<MidiaBaixada> {
+  const passaDoLimite = (bytes: number) =>
+    tamanhoMaximo === undefined ? passaDoTamanhoMaximo(bytes) : bytes > tamanhoMaximo;
   const cabecalhos = { Authorization: `Bearer ${token}` };
 
   let informacoes: { url: string; mimeType: string; tamanho: number };
@@ -65,8 +69,8 @@ export async function baixarMidiaDaMeta(
     throw new ErroDeMidia('indisponivel', `Falha ao consultar a mídia: ${nomeDoErro(erro)}`);
   }
 
-  if (passaDoTamanhoMaximo(informacoes.tamanho)) {
-    throw new ErroDeMidia('tamanho', 'A foto passa do limite de tamanho.');
+  if (passaDoLimite(informacoes.tamanho)) {
+    throw new ErroDeMidia('tamanho', 'A mídia passa do limite de tamanho.');
   }
 
   let bytes: Buffer;
@@ -81,8 +85,8 @@ export async function baixarMidiaDaMeta(
     throw new ErroDeMidia('indisponivel', `Falha ao baixar a mídia: ${nomeDoErro(erro)}`);
   }
 
-  if (passaDoTamanhoMaximo(bytes.length)) {
-    throw new ErroDeMidia('tamanho', 'A foto passa do limite de tamanho.');
+  if (passaDoLimite(bytes.length)) {
+    throw new ErroDeMidia('tamanho', 'A mídia passa do limite de tamanho.');
   }
   return { bytes, mimeType: informacoes.mimeType };
 }

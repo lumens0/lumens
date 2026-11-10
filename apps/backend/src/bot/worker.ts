@@ -2,6 +2,7 @@ import type { Db } from '@lumens/db';
 import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, segredoCom, type Chaves } from '../cripto';
+import type { ServicoDeRespostas } from '../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
@@ -44,6 +45,8 @@ export interface WorkerDeps {
   chaves: Chaves;
   /** Fotos da pauta nova (2.6). */
   fotos?: ServicoDeFotos;
+  /** PDF da resposta oficial (3.6). */
+  respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
 }
 
@@ -125,6 +128,12 @@ export function inputOf(content: ConteudoMensagem): IncomingMessage | null {
   if (content.image) {
     return { text: '', image: { id: content.image.id, mimeType: content.image.mime_type } };
   }
+  if (content.document) {
+    return {
+      text: '',
+      document: { id: content.document.id, mimeType: content.document.mime_type },
+    };
+  }
   return null;
 }
 
@@ -163,6 +172,7 @@ export async function processIncomingJob(
               db: tx,
               segredo: segredoCom(deps.chaves.cifra),
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
+              ...(deps.respostas ? { respostas: deps.respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );

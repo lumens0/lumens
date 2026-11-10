@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   defaultHandlers,
@@ -18,6 +19,7 @@ export interface RouterDeps {
   db: Db;
   segredo: Segredo;
   fotos?: ServicoDeFotos;
+  respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
 }
 
@@ -26,6 +28,11 @@ export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em 
 
 /** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
 const STEPS_WITH_PHOTO: readonly Step[] = ['GREETING', 'NEW_ASK_PHOTO'];
+
+export const NEED_TEXT_FOR_FILE = 'Recebi o arquivo, mas agora preciso de uma resposta em texto.';
+
+/** O único passo que recebe arquivo: o PDF da resposta oficial (3.6). */
+const STEPS_WITH_DOCUMENT: readonly Step[] = ['OWNER_SEND_RESPONSE'];
 
 type GlobalCommand = 'menu' | 'cancelar';
 
@@ -67,9 +74,13 @@ export async function handleIncoming(
 
   if (msg.image && !STEPS_WITH_PHOTO.includes(state.step)) return [NEED_TEXT];
 
+  if (msg.document && !STEPS_WITH_DOCUMENT.includes(state.step)) return [NEED_TEXT_FOR_FILE];
+
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
-    : { text: msg.text };
+    : msg.document
+      ? { text: msg.text, document: msg.document }
+      : { text: msg.text };
   const result = await handlers[state.step]({
     state,
     input,
@@ -77,6 +88,7 @@ export async function handleIncoming(
     segredo,
     phoneHmac,
     ...(deps.fotos ? { fotos: deps.fotos } : {}),
+    ...(deps.respostas ? { respostas: deps.respostas } : {}),
   });
   assertTransition(state.step, result.next);
 
