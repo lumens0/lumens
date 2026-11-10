@@ -176,6 +176,27 @@ describe('planejarEnvio (RNF06)', () => {
       expect(plano.adiados[0]?.tipo).toBe('meta_batida');
     });
 
+    it('os avisos que só informam esperam a conferência (SCRUM-192)', () => {
+      // A decisão: tudo vai pelo WhatsApp, e o que só informa pode atrasar quando o limite
+      // aperta. Meta batida e resposta oficial chegaram antes e mesmo assim ficam para depois.
+      const pendentes = [
+        ...lote('meta_batida', 2, 0, 'pauta-a'),
+        ...lote('resposta_oficial', 2, 1, 'pauta-b').map((d, i) => ({
+          ...d,
+          destinatario: `outro-${String(i)}`,
+        })),
+        disparo('conf-1', 'conferencia', 'apoiador-1', 60),
+        disparo('conf-2', 'conferencia', 'apoiador-2', 60),
+      ];
+
+      const plano = planejarEnvio({ pendentes, limite: 2, alcancados: NINGUEM });
+
+      expect(ids(plano.enviarAgora)).toEqual(['conf-1', 'conf-2']);
+      expect(new Set(plano.adiados.map((d) => d.tipo))).toEqual(
+        new Set(['meta_batida', 'resposta_oficial']),
+      );
+    });
+
     it('dentro do mesmo tipo, quem chegou antes vai antes', () => {
       const pendentes = [
         disparo('tarde', 'meta_batida', 'a', 10),
