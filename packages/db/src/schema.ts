@@ -232,6 +232,21 @@ export const curadores = pgTable('curador', {
   ativo: boolean('ativo').notNull().default(true),
 });
 
+/**
+ * Tokens do link de login do painel (Auth.js, SCRUM-164). `identificador` é o HMAC do e-mail
+ * digitado, nunca o e-mail em claro, e `token` já chega com hash do Auth.js. A linha é apagada quando
+ * o link é usado (vale uma vez só) ou, vencida, no pedido de link seguinte.
+ */
+export const verificacoesLogin = pgTable(
+  'verificacao_login',
+  {
+    identificador: text('identificador').notNull(),
+    token: text('token').notNull(),
+    expiraEm: instante('expira_em').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identificador, t.token] })],
+);
+
 export const promessas = pgTable(
   'promessa',
   {
