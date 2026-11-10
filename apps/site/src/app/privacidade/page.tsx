@@ -31,8 +31,8 @@ export default function Privacidade() {
           UFAL e não fala em nome da universidade.
         </p>
         <p>
-          O sistema está em desenvolvimento. As pautas exibidas hoje no site são dados de exemplo, e
-          o bot ainda não executa os fluxos de verificação, relato e nova pauta — ele responde
+          O sistema está em desenvolvimento. As pautas exibidas no site vêm da base do Lumens, e o
+          bot ainda não executa os fluxos de verificação, relato e nova pauta — ele responde
           confirmando o recebimento. Mesmo assim,{' '}
           <strong>o que você envia chega e é guardado</strong>, então esta página descreve o que
           acontece de verdade hoje.
