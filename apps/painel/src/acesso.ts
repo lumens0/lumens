@@ -25,6 +25,18 @@ export async function curadorAtivo(
   return curador;
 }
 
+/** O curador da sessão, se ainda estiver ativo. Desativar tira o acesso já no pedido seguinte. */
+export async function curadorAtivoPorId(
+  db: Db,
+  id: string,
+): Promise<{ id: string; nome: string } | undefined> {
+  const [curador] = await db
+    .select({ id: curadores.id, nome: curadores.nome })
+    .from(curadores)
+    .where(and(eq(curadores.id, id), eq(curadores.ativo, true)));
+  return curador;
+}
+
 /**
  * Adapter mínimo do Auth.js: só o que o login por link pede com sessão em JWT. O "usuário" é o
  * curador; ninguém é criado pelo login (adicionar curador é pelo script).
@@ -45,10 +57,7 @@ export function adaptador(db: Db, chave: Buffer): Adapter {
     // No clique do link o Auth.js chama isto só com o id, para marcar `emailVerified` (que não
     // guardamos); o que voltar aqui vira a sessão, então o nome vem do banco.
     async updateUser({ id, email }) {
-      const [curador] = await db
-        .select({ nome: curadores.nome })
-        .from(curadores)
-        .where(eq(curadores.id, id));
+      const curador = await curadorAtivoPorId(db, id);
       return comoUsuario(id, curador?.nome ?? '', email ?? '');
     },
     createUser() {

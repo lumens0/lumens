@@ -1,8 +1,8 @@
 import { listarLinhaDoTempo } from '@lumens/dominio';
-import { auth, servidor } from '../../../../../auth';
+import { curadorDaSessao, servidor } from '../../../../../auth';
 import { criarGetEventos } from './eventos';
 
 export const GET = criarGetEventos({
-  autorizado: async () => (await auth()) !== null,
+  autorizado: async () => (await curadorDaSessao()) !== undefined,
   listar: (pautaId) => listarLinhaDoTempo(servidor().db, pautaId),
 });

@@ -4,9 +4,9 @@ import * as rota from './route';
 import { criarGetEventos } from './eventos';
 
 // A rota publicada com a sessão do Auth.js e o banco trocados: sem sessão, ou com a de um curador.
-const sessao = vi.hoisted(() => ({ atual: null as { user: { id: string } } | null }));
+const sessao = vi.hoisted(() => ({ atual: undefined as { id: string; nome: string } | undefined }));
 vi.mock('../../../../../auth', () => ({
-  auth: () => Promise.resolve(sessao.atual),
+  curadorDaSessao: () => Promise.resolve(sessao.atual),
   servidor: () => ({ db: {} }),
 }));
 vi.mock('@lumens/dominio', () => ({ listarLinhaDoTempo: () => Promise.resolve([]) }));
@@ -69,13 +69,14 @@ describe('rota de leitura da linha do tempo', () => {
     expect(listar).not.toHaveBeenCalled();
   });
 
-  it('a rota publicada só expõe GET, nega sem sessão e responde com sessão de curador', async () => {
+  it('a rota publicada só expõe GET, nega sem curador ativo e responde com ele', async () => {
     expect(Object.keys(rota)).toEqual(['GET']);
 
-    sessao.atual = null;
+    // Sem sessão, ou sessão de curador já desativado: `curadorDaSessao` não devolve ninguém.
+    sessao.atual = undefined;
     expect((await rota.GET(pedido(), contexto(ID))).status).toBe(401);
 
-    sessao.atual = { user: { id: 'curador-1' } };
+    sessao.atual = { id: 'curador-1', nome: 'Ana' };
     const res = await rota.GET(pedido(), contexto(ID));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ eventos: [] });

@@ -1,7 +1,7 @@
 import { curadores, eq, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { adaptador, curadorAtivo, hmacDoEmail } from './acesso';
+import { adaptador, curadorAtivo, curadorAtivoPorId, hmacDoEmail } from './acesso';
 import { destino } from './destino';
 
 const CHAVE = Buffer.alloc(32, 7);
@@ -29,6 +29,16 @@ describe('quem entra no painel', () => {
   it('e-mail fora da lista e curador desativado não entram', async () => {
     expect(await curadorAtivo(db, 'intruso@ufal.br', CHAVE)).toBeUndefined();
     expect(await curadorAtivo(db, 'caio@ufal.br', CHAVE)).toBeUndefined();
+  });
+
+  it('sessão de curador desativado deixa de valer no pedido seguinte', async () => {
+    const [caio] = await db
+      .select({ id: curadores.id })
+      .from(curadores)
+      .where(eq(curadores.nome, 'Caio'));
+
+    expect(await curadorAtivoPorId(db, ana)).toEqual({ id: ana, nome: 'Ana' });
+    expect(await curadorAtivoPorId(db, caio?.id ?? '')).toBeUndefined();
   });
 
   it('o adapter não conhece quem está fora da lista nem cria ninguém', async () => {
