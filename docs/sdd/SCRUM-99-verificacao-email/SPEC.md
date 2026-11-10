@@ -31,10 +31,28 @@
    novo, sem avançar.
 6. No `pnpm dev`, o e-mail não sai: o código aparece no log, para testar pelo simulador.
 
+## SCRUM-136 · Conferir o código, 5 tentativas e reenvio
+
+1. No passo `VERIFY_ASK_CODE`, o bot confere o código digitado. Espaço ou hífen no meio valem
+   ("123 456").
+2. **Certo:** responde "Código certo ✅", apaga o código (vale uma vez só) e vai para
+   `VERIFY_ASK_COURSE`, que ainda responde "em construção".
+3. **Errado:** gasta uma tentativa e diz quantas restam. No quinto erro, o código deixa de valer,
+   mesmo que a pessoa acerte depois.
+4. Texto que não é código, ou código com tamanho diferente de 6, não gasta tentativa: o bot
+   explica o que espera.
+5. **Vencido** (10 minutos): não vale, mesmo certo, e não gasta tentativa.
+6. **"reenviar"** (também "não chegou", "outro código"...) manda um código novo para o mesmo
+   e-mail, se já passaram 60 s do último envio; senão, diz quantos segundos faltam. O código novo
+   zera as tentativas e o anterior deixa de valer.
+7. Voltar ao menu e mandar o e-mail de novo também é um pedido de código: vale o mesmo intervalo de
+   60 s. Assim o bot não serve para encher a caixa de e-mail de alguém.
+8. Se o reenvio falhar, o código que não saiu é apagado e a pessoa pode tentar de novo na hora.
+   O mesmo vale para o primeiro envio.
+9. Sem o e-mail nos dados da conversa, o reenvio pede o e-mail de novo.
+
 ## Fora de escopo (próximas subtasks)
 
-- Conferir o código digitado; máximo de 5 tentativas; reenvio liberado após 60 s. Até lá,
-  `VERIFY_ASK_CODE` responde "em construção".
 - E-mail já usado por outro telefone (RN01) e o vínculo telefone ↔ e-mail.
 - Curso, marcar verificado e retomar o pedido.
 - E-mail testado em contas reais da UFAL (spam): depende do SMTP de produção.

@@ -4,7 +4,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   CODIGO_EXPIRA_MS,
   EMAIL_MAXIMO,
+  MAX_TENTATIVAS,
+  REENVIO_APOS_MS,
+  apagarCodigo,
+  conferirCodigo,
   emailInstitucional,
+  esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
   hashDoCodigo,
@@ -138,5 +143,105 @@ describe('guardarCodigo', () => {
     expect(
       (await db.select().from(codigosVerificacao)).filter((l) => l.telefoneHmac === 'tel-2'),
     ).toHaveLength(1);
+  });
+});
+
+describe('conferirCodigo e reenvio (SCRUM-136)', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+  }, 60_000);
+
+  const ENVIO = new Date('2026-11-10T12:00:00Z');
+  const depois = (ms: number) => new Date(ENVIO.getTime() + ms);
+  const linhaDe = async (telefoneHmac: string) =>
+    (await db.select().from(codigosVerificacao)).find((l) => l.telefoneHmac === telefoneHmac);
+
+  it('código certo: confere e apaga, porque vale uma vez só', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: ENVIO });
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: depois(1000) }),
+    ).toEqual({ certo: true });
+    expect(await linhaDe('c-1')).toBeUndefined();
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: depois(2000) }),
+    ).toEqual({ certo: false, motivo: 'sem_codigo' });
+  });
+
+  it('cada erro gasta uma tentativa; na quinta, acabam, e nem o certo vale mais', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-2', codigo: '123456', agora: ENVIO });
+    for (let erro = 1; erro <= MAX_TENTATIVAS; erro++) {
+      expect(
+        await conferirCodigo(db, { telefoneHmac: 'c-2', codigo: '000000', agora: depois(1000) }),
+      ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - erro });
+    }
+    expect((await linhaDe('c-2'))?.tentativas).toBe(MAX_TENTATIVAS);
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-2', codigo: '123456', agora: depois(1000) }),
+    ).toEqual({ certo: false, motivo: 'sem_tentativas' });
+    expect((await linhaDe('c-2'))?.tentativas).toBe(MAX_TENTATIVAS);
+  });
+
+  it('depois de 10 minutos o código vence, mesmo certo, e não gasta tentativa', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-3', codigo: '123456', agora: ENVIO });
+    expect(
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-3',
+        codigo: '123456',
+        agora: depois(CODIGO_EXPIRA_MS),
+      }),
+    ).toEqual({ certo: false, motivo: 'expirado' });
+    expect((await linhaDe('c-3'))?.tentativas).toBe(0);
+    expect(
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-3',
+        codigo: '123456',
+        agora: depois(CODIGO_EXPIRA_MS - 1),
+      }),
+    ).toEqual({ certo: true });
+  });
+
+  it('o código de um telefone não vale em outro', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-4', codigo: '123456', agora: ENVIO });
+    await guardarCodigo(db, { telefoneHmac: 'c-5', codigo: '654321', agora: ENVIO });
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-4', codigo: '654321', agora: depois(1000) }),
+    ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - 1 });
+  });
+
+  it('reenvio: espera 60 s desde o último envio; sem código, pode na hora', async () => {
+    expect(await esperaParaReenviar(db, { telefoneHmac: 'c-6', agora: ENVIO })).toBe(0);
+    await guardarCodigo(db, { telefoneHmac: 'c-6', codigo: '123456', agora: ENVIO });
+    expect(await esperaParaReenviar(db, { telefoneHmac: 'c-6', agora: ENVIO })).toBe(
+      REENVIO_APOS_MS,
+    );
+    expect(await esperaParaReenviar(db, { telefoneHmac: 'c-6', agora: depois(45_000) })).toBe(
+      15_000,
+    );
+    expect(
+      await esperaParaReenviar(db, { telefoneHmac: 'c-6', agora: depois(REENVIO_APOS_MS) }),
+    ).toBe(0);
+  });
+
+  it('código novo zera as tentativas e o antigo deixa de valer', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-7', codigo: '111111', agora: ENVIO });
+    for (let i = 0; i < MAX_TENTATIVAS; i++) {
+      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '000000', agora: depois(1000) });
+    }
+    await guardarCodigo(db, { telefoneHmac: 'c-7', codigo: '222222', agora: depois(60_000) });
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '111111', agora: depois(61_000) }),
+    ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - 1 });
+    expect(
+      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '222222', agora: depois(62_000) }),
+    ).toEqual({ certo: true });
+  });
+
+  it('apagarCodigo tira só o do telefone', async () => {
+    await guardarCodigo(db, { telefoneHmac: 'c-8', codigo: '123456', agora: ENVIO });
+    await guardarCodigo(db, { telefoneHmac: 'c-9', codigo: '123456', agora: ENVIO });
+    await apagarCodigo(db, 'c-8');
+    expect(await linhaDe('c-8')).toBeUndefined();
+    expect(await linhaDe('c-9')).toBeDefined();
   });
 });
