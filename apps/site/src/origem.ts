@@ -4,7 +4,9 @@ import { ORIGEM_SITE_PRODUCAO as PRODUCAO } from '@lumens/contratos';
 function urlOuNulo(valor: string | undefined): URL | null {
   if (!valor?.trim()) return null;
   try {
-    return new URL(valor.trim());
+    // `localhost:3000` não lança: vira esquema `localhost:`. Só http(s) serve de origem.
+    const url = new URL(valor.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url : null;
   } catch {
     return null;
   }

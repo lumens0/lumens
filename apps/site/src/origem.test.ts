@@ -25,6 +25,15 @@ describe('origemDoSite', () => {
     );
   });
 
+  it.each(['localhost:3000', 'ftp://x'])(
+    'LUMENS_SITE_URL %s (não http/https) é ignorada',
+    (valor) => {
+      expect(origem({ LUMENS_SITE_URL: valor, VERCEL_URL: 'p.vercel.app' })).toBe(
+        'https://p.vercel.app/',
+      );
+    },
+  );
+
   it('sem nenhuma das duas, usa produção', () => {
     expect(origem({ LUMENS_SITE_URL: ' ', VERCEL_URL: '' })).toBe(
       'https://lumens-ufal.vercel.app/',
