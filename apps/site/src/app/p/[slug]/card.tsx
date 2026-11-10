@@ -25,6 +25,9 @@ export const TAMANHO: Record<Formato, { width: number; height: number }> = {
  */
 const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
 
+/** Bloco em uma linha só na prévia: com o título em 3 linhas, não sobra altura para a segunda. */
+const LIMITE_BLOCO_OG = 55;
+
 const ROXO = '#5a22c8';
 const CINZA = '#5b4e75';
 
@@ -83,7 +86,7 @@ function cardOg(pauta: PautaDetalhe) {
       </div>
       <div style={{ ...caixa, flexGrow: 1, gap: 28, padding: '40px 48px', borderRadius: 36 }}>
         <div style={{ display: 'flex', fontSize: 30, color: CINZA }}>
-          {pauta.bloco_nome ?? 'Todo o campus'}
+          {tituloDoCard(pauta.bloco_nome ?? 'Todo o campus', LIMITE_BLOCO_OG)}
         </div>
         <div
           style={{
@@ -154,7 +157,14 @@ function Apoios({
 }) {
   const progresso = percentual(pauta.apoios, pauta.meta);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: Math.round((barra * 2) / 3) }}>
+    <div
+      style={{
+        display: 'flex',
+        flexShrink: 0,
+        flexDirection: 'column',
+        gap: Math.round((barra * 2) / 3),
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 20 }}>
         <span style={{ fontSize: numero, fontWeight: 700 }}>{formatarNumero(pauta.apoios)}</span>
         <span style={{ fontSize: legenda, color: CINZA }}>
