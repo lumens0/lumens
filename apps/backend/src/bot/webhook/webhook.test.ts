@@ -10,6 +10,7 @@ import { decifrar, hmacHex, type Chaves } from '../../cripto';
 import { FakeQueue, mensagensNaFila, prepararFilaFalsa, statusNaFila } from '../../queue.fake';
 import { hashPhone } from '../conversation/phone';
 import { FIXTURES_DIR } from '../sim/fixtures';
+import { PRAZO_META_MS, medirLatencia } from '../sim/latencia';
 import { signBody } from '../whatsapp/signature';
 import { DEDUP_TTL_MS, deleteOldDedup, conteudoDoJob } from './process';
 
@@ -160,6 +161,18 @@ describe('webhook da Meta', () => {
     // ...mas o worker consegue recuperar os dois para responder.
     expect(decifrar(job.data.phoneCifrado, chaves.cifra)).toBe(PHONE);
     expect(decifrar(job.data.wamidCifrado, chaves.cifra)).toBe('wamid.ABC');
+  });
+
+  it('responde dentro do prazo de 5 s da Meta, no caminho completo (dedup e fila)', async () => {
+    // Vinte mensagens diferentes, cada uma com assinatura, dedup e enqueue antes do 200. O limite
+    // é o prazo da própria Meta, não um número apertado: aqui o normal são poucos milissegundos.
+    const r = await medirLatencia(
+      async (i) => (await post(textPayload(`wamid.LATENCIA-${String(i)}`))).statusCode,
+      20,
+    );
+    expect(r.falhas).toBe(0);
+    expect(r.max).toBeLessThan(PRAZO_META_MS);
+    expect(await jobs(db)).toHaveLength(20);
   });
 
   it('POST com assinatura inválida → 401 e nada enfileirado', async () => {
