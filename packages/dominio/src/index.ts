@@ -152,3 +152,6 @@ export {
 } from './lembretes';
 
 export { diaEmMaceio, formatarDia } from './datas';
+
+export { DOMINIO_UFAL, EMAIL_MAXIMO, emailInstitucional, normalizarEmail } from './verificacao';
+export type { ResultadoEmail } from './verificacao';

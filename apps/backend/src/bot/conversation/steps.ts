@@ -44,7 +44,8 @@ export const Step = {
 export const TRANSITIONS: Record<Step, readonly Step[]> = {
   GREETING: ['MENU'],
   MENU: ['VERIFY_ASK_EMAIL', 'REPORT_ASK_TEXT', 'NEW_ASK_TITLE', 'OWNER_PICK_PAUTA', 'OWNER_PATHS'],
-  VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE'],
+  // 2.4: e-mail recusado pergunta de novo no mesmo passo.
+  VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
   VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE'],
   VERIFY_ASK_COURSE: ['MENU'],
   // Os passos do relato repetem a pergunta quando a resposta não serve (relato vazio, bloco que
