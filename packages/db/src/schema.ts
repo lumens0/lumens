@@ -233,8 +233,9 @@ export const curadores = pgTable('curador', {
 });
 
 /**
- * Tokens do link de login do painel (Auth.js, SCRUM-164). `identificador` é o e-mail digitado e
- * `token` já chega com hash do Auth.js. A linha é apagada quando o link é usado: vale uma vez só.
+ * Tokens do link de login do painel (Auth.js, SCRUM-164). `identificador` é o HMAC do e-mail
+ * digitado, nunca o e-mail em claro, e `token` já chega com hash do Auth.js. A linha é apagada quando
+ * o link é usado (vale uma vez só) ou, vencida, no pedido de link seguinte.
  */
 export const verificacoesLogin = pgTable(
   'verificacao_login',

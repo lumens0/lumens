@@ -3,7 +3,7 @@
  * achado pelo HMAC, nunca em claro. Fica fora do `auth.ts` para os testes não carregarem o Auth.js.
  */
 import { createHmac } from 'node:crypto';
-import { and, curadores, eq, verificacoesLogin, type Db } from '@lumens/db';
+import { and, curadores, eq, lt, verificacoesLogin, type Db } from '@lumens/db';
 import type { Adapter, AdapterUser } from 'next-auth/adapters';
 
 export const normalizarEmail = (email: string) => email.trim().toLowerCase();
@@ -63,10 +63,15 @@ export function adaptador(db: Db, chave: Buffer): Adapter {
     createUser() {
       throw new Error('O login não cria curador; use o script de adicionar curador.');
     },
+    // O e-mail entra como HMAC, nunca em claro. E cada link novo leva junto os vencidos que
+    // ninguém usou: a tabela não acumula pedidos esquecidos.
     async createVerificationToken(v) {
-      await db
-        .insert(verificacoesLogin)
-        .values({ identificador: v.identifier, token: v.token, expiraEm: v.expires });
+      await db.delete(verificacoesLogin).where(lt(verificacoesLogin.expiraEm, new Date()));
+      await db.insert(verificacoesLogin).values({
+        identificador: hmacDoEmail(v.identifier, chave),
+        token: v.token,
+        expiraEm: v.expires,
+      });
       return v;
     },
     // Apaga ao ler: o link vale uma vez só, mesmo com dois cliques ao mesmo tempo.
@@ -74,12 +79,13 @@ export function adaptador(db: Db, chave: Buffer): Adapter {
       const [usado] = await db
         .delete(verificacoesLogin)
         .where(
-          and(eq(verificacoesLogin.identificador, identifier), eq(verificacoesLogin.token, token)),
+          and(
+            eq(verificacoesLogin.identificador, hmacDoEmail(identifier, chave)),
+            eq(verificacoesLogin.token, token),
+          ),
         )
         .returning();
-      return usado
-        ? { identifier: usado.identificador, token: usado.token, expires: usado.expiraEm }
-        : null;
+      return usado ? { identifier, token: usado.token, expires: usado.expiraEm } : null;
     },
   };
 }
