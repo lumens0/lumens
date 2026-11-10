@@ -29,8 +29,8 @@
 
 ## Pendências
 
-- **Prazo da curadoria:** ainda não definido pela equipe. O resumo sai sem ele até alguém
-  preencher `CURADORIA.prazo` em `apps/backend/src/bot/conversation/nova-pauta.ts`.
+- ~~**Prazo da curadoria**~~: resolvido na SCRUM-148. O resumo avisa "em até 24 horas", lido do
+  `PRAZO_DE_CURADORIA_MS` do domínio (SCRUM-113), o mesmo da fila do painel.
 - **Retomar a pauta depois da verificação:** depende da 2.4.
 - **Emulador de S3 no `docker-compose`:** é da T20. Até lá, no `pnpm dev` a foto é recusada com
   aviso ("não consegui baixar a foto agora") e o "pular" funciona.
