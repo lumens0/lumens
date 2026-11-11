@@ -1,15 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { mensagensProcessadas, type Db } from '@lumens/db';
-import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { criarDb, criarPool, mensagensProcessadas, sql, type Db, type Tx } from '@lumens/db';
+import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import type { FastifyInstance } from 'fastify';
 import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { decifrar, hmacHex, type Chaves } from '../../cripto';
+import type { SendOptions } from '../../queue';
 import { FakeQueue, mensagensNaFila, prepararFilaFalsa, statusNaFila } from '../../queue.fake';
 import { hashPhone } from '../conversation/phone';
 import { FIXTURES_DIR } from '../sim/fixtures';
+import { PRAZO_META_MS, medirLatencia } from '../sim/latencia';
 import { signBody } from '../whatsapp/signature';
 import { DEDUP_TTL_MS, deleteOldDedup, conteudoDoJob } from './process';
 
@@ -160,6 +162,18 @@ describe('webhook da Meta', () => {
     // ...mas o worker consegue recuperar os dois para responder.
     expect(decifrar(job.data.phoneCifrado, chaves.cifra)).toBe(PHONE);
     expect(decifrar(job.data.wamidCifrado, chaves.cifra)).toBe('wamid.ABC');
+  });
+
+  it('responde dentro do prazo de 5 s da Meta, no caminho completo (dedup e fila)', async () => {
+    // Vinte mensagens diferentes, cada uma com assinatura, dedup e enqueue antes do 200. O limite
+    // é o prazo da própria Meta, não um número apertado: aqui o normal são poucos milissegundos.
+    const r = await medirLatencia(
+      async (i) => (await post(textPayload(`wamid.LATENCIA-${String(i)}`))).statusCode,
+      20,
+    );
+    expect(r.falhas).toBe(0);
+    expect(r.max).toBeLessThan(PRAZO_META_MS);
+    expect(await jobs(db)).toHaveLength(20);
   });
 
   it('POST com assinatura inválida → 401 e nada enfileirado', async () => {
@@ -373,4 +387,64 @@ describe('webhook da Meta', () => {
     if (!job) throw new Error('nada foi enfileirado');
     expect(conteudoDoJob(job.data, chaves)).toEqual({ text: { body: 'buraco no bloco 12' } });
   });
+});
+
+// Concorrência precisa de duas conexões ao mesmo tempo, o que o PGlite não tem.
+const URL_TESTE = process.env.DATABASE_URL_TESTE;
+if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
+
+/** Fila que demora a gravar: a segunda cópia chega com a transação da primeira ainda aberta. */
+class FilaLenta extends FakeQueue {
+  override async send(name: string, data: object, tx: Tx, options?: SendOptions) {
+    await tx.execute(sql`select pg_sleep(0.2)`);
+    return super.send(name, data, tx, options);
+  }
+}
+
+describe.skipIf(!URL_TESTE)('webhook com Postgres de verdade', () => {
+  it('o mesmo wamid em dois POST simultâneos → enfileira uma vez (RNF07)', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    // Com tratador de erro: apagar o banco temporário derruba as conexões (57P01), e uma conexão
+    // sem tratador derruba a suíte.
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const db = criarDb(pool);
+    const app = await buildApp({
+      config,
+      db,
+      queue: new FilaLenta(),
+      logger: pino({ level: 'silent' }),
+      chaves,
+      leitura: { ...leitura, db },
+    });
+    try {
+      await prepararFilaFalsa(db);
+      // Abre as duas conexões antes da corrida, para os dois POST começarem juntos.
+      await Promise.all([pool.query('select pg_sleep(0.05)'), pool.query('select pg_sleep(0.05)')]);
+      const body = JSON.stringify(textPayload('wamid.CORRIDA'));
+      const post = () =>
+        app.inject({
+          method: 'POST',
+          url: '/webhook',
+          payload: body,
+          headers: {
+            'content-type': 'application/json',
+            'x-hub-signature-256': signBody(body, config.appSecret),
+          },
+        });
+
+      const respostas = await Promise.all([post(), post()]);
+
+      expect(respostas.map((res) => res.statusCode)).toEqual([200, 200]);
+      expect(await jobs(db)).toHaveLength(1);
+      expect(await db.select().from(mensagensProcessadas)).toHaveLength(1);
+    } finally {
+      await app.close();
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
 });

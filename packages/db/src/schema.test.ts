@@ -479,7 +479,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(17);
+    expect(rows).toHaveLength(19);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 

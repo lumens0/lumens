@@ -16,6 +16,7 @@
 import { blocos, eq, type Db } from '@lumens/db';
 import {
   DESCRICAO_MAXIMA,
+  PRAZO_DE_CURADORIA_MS,
   TITULO_MAXIMO,
   criarPauta,
   listarBlocos,
@@ -67,10 +68,10 @@ export function descriptionTooLongText(tamanho: number): string {
 }
 
 /**
- * Prazo da curadoria mostrado no resumo, ex.: "até 3 dias úteis". `null` enquanto a equipe não
- * definir: o resumo sai sem o prazo.
+ * O prazo da curadoria no resumo. Vem do mesmo `PRAZO_DE_CURADORIA_MS` que a fila do painel usa
+ * (SCRUM-113): se a equipe mudar o prazo no domínio, o bot acompanha.
  */
-export const CURADORIA: { prazo: string | null } = { prazo: null };
+export const CURADORIA_PRAZO_TEXT = `A curadoria responde em até ${String(PRAZO_DE_CURADORIA_MS / 3_600_000)} horas.`;
 
 const SKIP_WORDS = new Set(['pular', 'nao', 'sem foto']);
 
@@ -121,8 +122,7 @@ export async function entrarNaPautaNova(
   antes: Resposta[] = [],
 ): Promise<StepResult> {
   if ((await estudanteVerificado(db, phoneHmac)) === undefined) {
-    // TODO(2.4): ao terminar a verificação, retomar o `pendingCommand` 'nova-pauta' indo para
-    // NEW_ASK_TITLE (falta a transição VERIFY_ASK_COURSE → NEW_ASK_TITLE em steps.ts).
+    // Ao fim da verificação (2.4), `verifyAskCourse` vê o `pendingCommand` e volta para cá.
     return {
       next: 'VERIFY_ASK_EMAIL',
       data: { pendingCommand: { kind: 'nova-pauta' } },
@@ -275,7 +275,7 @@ export async function resumo(
     `*Foto:* ${pauta.comFoto ? 'sim' : 'não'}`,
     '',
     'Antes de aparecer no site, a curadoria confere a pauta. Você recebe uma mensagem quando ela for aprovada ou recusada.',
+    CURADORIA_PRAZO_TEXT,
   ];
-  if (CURADORIA.prazo !== null) linhas.push(`A curadoria responde ${CURADORIA.prazo}.`);
   return linhas.join('\n');
 }

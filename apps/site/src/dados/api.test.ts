@@ -92,6 +92,16 @@ describe('buscarPautas e buscarBlocos', () => {
     await expect(buscarPautas()).rejects.toThrow(String(status));
     await expect(buscarBlocos()).rejects.toThrow(String(status));
   });
+
+  it('API fora do ar (a conexão falha) lança erro, que cai no error.tsx', async () => {
+    // É o caso da homologação desligada: o fetch nem recebe resposta.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+    );
+    await expect(buscarBlocos()).rejects.toThrow('fetch failed');
+    await expect(buscarPautas()).rejects.toThrow('fetch failed');
+  });
 });
 
 describe('buscarConquistas e buscarAtividade', () => {

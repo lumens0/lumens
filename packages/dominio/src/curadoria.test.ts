@@ -10,13 +10,21 @@ import {
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { aprovarPauta, listarFilaDeCuradoria, recusarPauta } from './curadoria';
-import { criarBloco, criarEstudanteVerificado, criarPauta } from './fabricas';
+import {
+  aprovarPauta,
+  buscarPautaDaCuradoria,
+  listarFilaDeCuradoria,
+  listarPautasDaCuradoria,
+  recusarPauta,
+} from './curadoria';
+import { criarBloco, criarCurador, criarEstudanteVerificado, criarPauta } from './fabricas';
 
 let db: Db;
+let curadorId: string;
 
 beforeAll(async () => {
   db = await criarBancoEmMemoria();
+  curadorId = (await criarCurador(db)).id;
 });
 
 const novaEmCuradoria = (criadaEm = new Date()) =>
@@ -94,15 +102,58 @@ describe('listarFilaDeCuradoria', () => {
   });
 });
 
+describe('buscarPautaDaCuradoria', () => {
+  it('traz a pauta em qualquer status, com o motivo quando foi recusada', async () => {
+    const bloco = await criarBloco(db);
+    const pauta = await criarPauta(db, { status: 'em_curadoria', blocoId: bloco.id });
+
+    expect(await buscarPautaDaCuradoria(db, pauta.id)).toMatchObject({
+      id: pauta.id,
+      bloco: bloco.nome,
+      status: 'em_curadoria',
+      motivoRecusa: null,
+    });
+
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Duplicada.' }),
+    );
+    expect(await buscarPautaDaCuradoria(db, pauta.id)).toMatchObject({
+      status: 'recusada',
+      motivoRecusa: 'Duplicada.',
+    });
+  });
+
+  it('pauta que não existe', async () => {
+    expect(
+      await buscarPautaDaCuradoria(db, '00000000-0000-0000-0000-000000000000'),
+    ).toBeUndefined();
+  });
+
+  it('a lista geral traz pautas de todos os status', async () => {
+    const nova = await criarPauta(db, { status: 'em_curadoria' });
+    const cobrando = await criarPauta(db, { status: 'cobrando' });
+
+    const ids = (await listarPautasDaCuradoria(db)).map((p) => p.id);
+
+    expect(ids).toEqual(expect.arrayContaining([nova.id, cobrando.id]));
+  });
+});
+
 describe('aprovarPauta', () => {
   it('leva para juntando_apoios e registra pauta_aprovada pública', async () => {
     const pauta = await novaEmCuradoria();
     const agora = new Date('2030-01-02T12:00:00.000Z');
 
-    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, agora }));
+    const r = await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, agora }),
+    );
 
     expect(r).toEqual({ decidida: true });
-    expect(await pautaDa(pauta.id)).toMatchObject({ status: 'juntando_apoios', aprovadaEm: agora });
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      status: 'juntando_apoios',
+      aprovadaEm: agora,
+      decididaPor: curadorId,
+    });
     expect(await eventosDa(pauta.id)).toEqual(
       expect.arrayContaining([
         { tipo: 'status_alterado', origem: 'curadoria', publico: true },
@@ -113,10 +164,12 @@ describe('aprovarPauta', () => {
 
   it('pauta já decidida não muda nem ganha evento', async () => {
     const pauta = await novaEmCuradoria();
-    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: 'Duplicada.' }));
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Duplicada.' }),
+    );
     const antes = await eventosDa(pauta.id);
 
-    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id }));
+    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
 
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
     expect((await pautaDa(pauta.id))?.status).toBe('recusada');
@@ -125,7 +178,7 @@ describe('aprovarPauta', () => {
 
   it('pauta que não existe', async () => {
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: '00000000-0000-0000-0000-000000000000' }),
+      aprovarPauta(tx, { pautaId: '00000000-0000-0000-0000-000000000000', curadorId }),
     );
     expect(r).toEqual({ decidida: false, motivo: 'pauta_inexistente' });
   });
@@ -151,7 +204,11 @@ describe('recusarPauta', () => {
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
 
     await db.transaction((tx) =>
-      recusarPauta(tx, { pautaId: pauta.id, motivo: 'Já existe\n  a pauta do bebedouro.' }),
+      recusarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        motivo: 'Já existe\n  a pauta do bebedouro.',
+      }),
     );
 
     expect(await filaDa(pauta.id)).toEqual([
@@ -173,7 +230,7 @@ describe('recusarPauta', () => {
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
 
     const r = await db.transaction((tx) =>
-      recusarPauta(tx, { pautaId: pauta.id, motivo: 'Fora do escopo.' }),
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Fora do escopo.' }),
     );
 
     expect(r).toEqual({ decidida: true });
@@ -187,11 +244,15 @@ describe('recusarPauta', () => {
       .insert(papeisPauta)
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
 
-    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: '  ' }));
+    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: '  ' }));
     expect(await filaDa(pauta.id)).toEqual([]);
 
-    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: 'Duplicada.' }));
-    await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo: 'De novo.' }));
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Duplicada.' }),
+    );
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'De novo.' }),
+    );
     expect(await filaDa(pauta.id)).toHaveLength(1);
   });
 
@@ -199,13 +260,18 @@ describe('recusarPauta', () => {
     const pauta = await novaEmCuradoria();
 
     const r = await db.transaction((tx) =>
-      recusarPauta(tx, { pautaId: pauta.id, motivo: '  Já existe a pauta do bebedouro.  ' }),
+      recusarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        motivo: '  Já existe a pauta do bebedouro.  ',
+      }),
     );
 
     expect(r).toEqual({ decidida: true });
     expect(await pautaDa(pauta.id)).toMatchObject({
       status: 'recusada',
       motivoRecusa: 'Já existe a pauta do bebedouro.',
+      decididaPor: curadorId,
     });
     expect(await eventosDa(pauta.id)).toEqual(
       expect.arrayContaining([
@@ -218,7 +284,9 @@ describe('recusarPauta', () => {
   it.each(['', '   '])('recusa sem motivo (%j) é bloqueada e nada muda', async (motivo) => {
     const pauta = await novaEmCuradoria();
 
-    const r = await db.transaction((tx) => recusarPauta(tx, { pautaId: pauta.id, motivo }));
+    const r = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo }),
+    );
 
     expect(r).toEqual({ decidida: false, motivo: 'motivo_obrigatorio' });
     expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
