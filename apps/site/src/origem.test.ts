@@ -16,6 +16,25 @@ describe('origemDoSite', () => {
     );
   });
 
+  it('no deploy de produção, usa o domínio de produção, não a URL protegida do deploy', () => {
+    const vercel = {
+      VERCEL_ENV: 'production',
+      VERCEL_URL: 'lumens-85vsvhhxa-sther00s-projects.vercel.app',
+      VERCEL_PROJECT_PRODUCTION_URL: 'lumens-ufal.vercel.app',
+    };
+    expect(origem(vercel)).toBe('https://lumens-ufal.vercel.app/');
+    expect(origem({ ...vercel, LUMENS_SITE_URL: 'https://lumens.teste' })).toBe(
+      'https://lumens.teste/',
+    );
+    // Produção sem o domínio de produção (variável vazia): cai no deploy atual, não lança.
+    expect(origem({ ...vercel, VERCEL_PROJECT_PRODUCTION_URL: ' ' })).toBe(
+      'https://lumens-85vsvhhxa-sther00s-projects.vercel.app/',
+    );
+    expect(origem({ ...vercel, VERCEL_ENV: 'preview' })).toBe(
+      'https://lumens-85vsvhhxa-sther00s-projects.vercel.app/',
+    );
+  });
+
   it('LUMENS_SITE_URL sem esquema não lança: cai no próximo da ordem', () => {
     expect(origem({ LUMENS_SITE_URL: 'lumens-ufal.vercel.app' })).toBe(
       'https://lumens-ufal.vercel.app/',

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatarNumero } from '../componentes/BarraApoios';
 import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
@@ -7,6 +8,9 @@ import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
 import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
 import estilos from './page.module.css';
+import { metadadosDaMarca } from '../metadados';
+
+export const metadata: Metadata = metadadosDaMarca({ caminho: '/' });
 
 export default async function Home({
   searchParams,

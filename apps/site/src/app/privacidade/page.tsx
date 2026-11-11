@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
+import { metadadosDaMarca } from '../../metadados';
 import Link from 'next/link';
 import estilos from './page.module.css';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = metadadosDaMarca({
+  caminho: '/privacidade',
   title: 'Política de privacidade · Lumens',
   description: 'Que dados o Lumens coleta, como protege e o que aparece no site público.',
-};
+});
 
 // Esta página descreve o comportamento REAL do sistema, não intenções. Cada
 // afirmação abaixo corresponde a código em produção; a referência está no
