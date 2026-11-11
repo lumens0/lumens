@@ -1,17 +1,18 @@
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
+import { STATUS } from '../StatusPill';
 import { PREDIOS } from './predios';
 
-/** Cores do protótipo. Cobrança, promessa e entrega em parte dividem a mesma: "seguimos cobrando". */
+/** A luz de cada status vem do StatusPill: o mapa e os cards falam a mesma cor. */
 const COR: Record<Exclude<StatusPauta, 'em_curadoria' | 'recusada' | 'conquistada'>, string> = {
-  juntando_apoios: '#7B3FE4',
-  meta_batida: '#2F6FDB',
-  cobrando: '#E89A00',
-  prometido: '#E89A00',
-  entregue_em_parte: '#E89A00',
-  descumprida: '#D92D20',
+  juntando_apoios: STATUS.juntando_apoios.ponto,
+  meta_batida: STATUS.meta_batida.ponto,
+  cobrando: STATUS.cobrando.ponto,
+  prometido: STATUS.prometido.ponto,
+  entregue_em_parte: STATUS.entregue_em_parte.ponto,
+  descumprida: STATUS.descumprida.ponto,
 };
-const SO_CONQUISTAS = '#13865B';
-const SEM_PAUTAS = '#9C90B5';
+const SO_CONQUISTAS = STATUS.conquistada.ponto;
+const SEM_PAUTAS = '#9ea2b8';
 
 export const LEGENDA = [
   { cor: COR.juntando_apoios, rotulo: 'Juntando apoios' },

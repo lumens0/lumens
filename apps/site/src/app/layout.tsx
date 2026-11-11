@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
+import { Cabecalho } from '../componentes/Cabecalho';
 import { metadadosDaMarca } from '../metadados';
 import { origemDoSite } from '../origem';
 import './globals.css';
@@ -9,37 +10,23 @@ import './globals.css';
 // fonts.gstatic.com durante o build, e uma falha de rede no runner quebra o
 // `check` — que hoje é pré-requisito do `deploy`. Ver src/fontes/README.md.
 //
-// Os três arquivos são variáveis, então um `weight` em faixa cobre todos os
-// pesos usados hoje (Outfit 600/700/800, JetBrains Mono 500/600) sem arquivo
-// novo. A faixa tem de bater com a do arquivo: declarar 100..900 num arquivo
-// que vai até 800 faz o navegador sintetizar o peso que falta.
+// Bricolage Grotesque nos títulos (cara de cartaz, com eixo de tamanho óptico) e Instrument Sans
+// no texto, nos números e nas datas. A faixa de `weight` bate com a de cada arquivo variável.
 
 const titulo = localFont({
-  src: '../fontes/outfit-latin-var.woff2',
-  weight: '100 900',
+  src: '../fontes/bricolage-grotesque-latin-var.woff2',
+  weight: '200 800',
   display: 'swap',
   variable: '--fonte-titulo',
   fallback: ['system-ui', 'sans-serif'],
 });
 
 const corpo = localFont({
-  src: '../fontes/inter-latin-var.woff2',
-  weight: '100 900',
+  src: '../fontes/instrument-sans-latin-var.woff2',
+  weight: '400 700',
   display: 'swap',
   variable: '--fonte-corpo',
   fallback: ['system-ui', 'sans-serif'],
-});
-
-const rotulo = localFont({
-  src: '../fontes/jetbrains-mono-latin-var.woff2',
-  weight: '100 800',
-  display: 'swap',
-  variable: '--fonte-rotulo',
-  fallback: ['ui-monospace', 'monospace'],
-  // O ajuste automático de métricas só conhece Arial e Times New Roman, ambas
-  // proporcionais. Aplicá-lo a uma monoespaçada desalinharia os rótulos em vez
-  // de reduzir o pulo de layout.
-  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
@@ -51,8 +38,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${titulo.variable} ${corpo.variable} ${rotulo.variable}`}>
-      <body>{children}</body>
+    <html lang="pt-BR" className={`${titulo.variable} ${corpo.variable}`}>
+      <body>
+        <Cabecalho />
+        {children}
+      </body>
     </html>
   );
 }

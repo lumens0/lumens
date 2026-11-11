@@ -1,0 +1,99 @@
+.cabecalho {
+  --tinta: #f5f3ff;
+  --tinta-2: #c9cbe3;
+  --superficie-2: rgb(255 255 255 / 8%);
+
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(20 25 54 / 92%);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  color: var(--tinta);
+}
+
+.faixa {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 64px;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font:
+    700 21px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+/* A assinatura: uma janela acesa. */
+.janela {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--luz);
+  box-shadow: 0 0 12px 2px rgb(255 194 61 / 55%);
+}
+
+.abas {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.aba {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14.5px;
+  color: var(--tinta-2);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color var(--rapido) var(--curva),
+    background-color var(--rapido) var(--curva);
+}
+
+.aba:hover {
+  color: var(--tinta);
+  background: var(--superficie-2);
+}
+
+.aba[aria-current='page'] {
+  color: var(--tinta);
+  background: var(--superficie-2);
+}
+
+.acao {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .faixa {
+    flex-wrap: wrap;
+    gap: 0 12px;
+    padding: 8px 16px 4px;
+    justify-content: space-between;
+  }
+
+  .abas {
+    order: 3;
+    flex-basis: 100%;
+    margin: 4px -8px 0;
+  }
+}

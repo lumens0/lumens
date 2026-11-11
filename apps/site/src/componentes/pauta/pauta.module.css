@@ -1,38 +1,65 @@
-/* Página da pauta: mobile-first, legível a partir de 360 px. */
+/* Página da pauta: cabeçalho solto, o placar de apoios em destaque e as seções em cards. */
 .pagina {
-  max-width: 720px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: var(--espaco);
-  display: flex;
-  flex-direction: column;
-  gap: var(--espaco);
+  padding: 40px 24px 64px;
   overflow-wrap: anywhere;
 }
 
-.cabecalho,
-.secao {
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: var(--espaco);
+.faixa {
+  margin: -40px 0 24px;
+  padding: 40px 0 48px;
+}
+
+.pagina > * {
+  animation: surgir var(--entrada) var(--curva) both;
+}
+
+.pagina > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.pagina > :nth-child(n + 3) {
+  animation-delay: 120ms;
+}
+
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 16px;
+  color: var(--tinta-2);
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+  transition: color var(--rapido) var(--curva);
+}
+
+.voltar:hover {
+  color: var(--tinta);
+}
+
+.cabecalho {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .titulo {
   margin: 0;
   font:
-    700 1.5em var(--fonte-titulo),
+    700 46px/1.04 var(--fonte-titulo),
     sans-serif;
-  line-height: 1.2;
-  text-wrap: pretty;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
-.descricao,
-.texto {
-  margin: 0;
-  line-height: 1.5;
+.linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
 }
 
 .owners {
@@ -41,16 +68,235 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 4px 16px;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.descricao {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  font-size: 17px;
+  line-height: 1.55;
   color: var(--tinta-2);
-  font-weight: 600;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.fantasma {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--raio-controle);
+  border: 1px solid var(--borda-forte);
+  background: transparent;
+  color: var(--tinta);
+  font-weight: 500;
+  font-size: 14px;
+  text-decoration: none;
+  transition: border-color var(--rapido) var(--curva);
+}
+
+.fantasma:hover {
+  border-color: var(--tinta-3);
+}
+
+.nota {
+  flex: 1 1 240px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.secao {
+  margin-top: 16px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .secaoTitulo {
   margin: 0;
   font:
-    700 1.125em var(--fonte-titulo),
+    700 22px var(--fonte-titulo),
     sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.texto {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.vazio,
+.curso {
+  margin: 0;
+  color: var(--tinta-3);
+  font-size: 13.5px;
+}
+
+/* O placar: o número de apoios é o momento da página. */
+.placar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.numero {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.grande {
+  font:
+    800 72px/0.95 var(--fonte-titulo),
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+
+.de {
+  font-size: 15px;
+  color: var(--tinta-3);
+}
+
+.trilho {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+
+.preenchimento {
+  height: 100%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--luz), var(--luz-forte));
+  transform-origin: left;
+  animation: encher-placar 1100ms var(--curva) 200ms both;
+}
+
+@keyframes encher-placar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.proxima {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--luz-fundo);
+  font-size: 14.5px;
+}
+
+.proximaTitulo {
+  display: inline;
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--luz-tinta);
+}
+
+.proximaTitulo::after {
+  content: ': ';
+}
+
+.proxima > .texto {
+  display: inline;
+}
+
+.proxima > .vazio {
+  margin-top: 4px;
+}
+
+/* Resposta oficial recebida: o card fica verde. */
+.resposta {
+  background: #eef6f0;
+  border-color: rgb(46 125 79 / 25%);
+}
+
+.resposta .secaoTitulo {
+  color: #1f5c39;
+}
+
+.caminhos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.caminho {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--fundo);
+}
+
+.caminhoTipo {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.chip::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+.chipJuntando::before {
+  background: #4f8cff;
+}
+
+.chipEsperando::before {
+  background: #ffa41b;
+}
+
+.chipFeito::before {
+  background: #2ec27e;
+}
+
+.regra {
+  margin: 4px 0 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--tinta);
+  color: #f6f4ef;
+  font-size: 14px;
+}
+
+.regra b {
+  color: var(--luz);
+  font-weight: 600;
 }
 
 .lista {
@@ -59,27 +305,17 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .relato {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--borda);
-}
-
-.relato:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.curso,
-.vazio {
-  margin: 0;
-  color: var(--tinta-2);
-  font-size: 0.875em;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--fundo);
+  font-size: 15px;
 }
 
 .foto {
@@ -88,41 +324,83 @@
   border-radius: 8px;
 }
 
-.evento {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* Linha do tempo: janelas ligadas por um traço; a última, ainda acesa. */
+.tempo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.caminhoTipo {
-  font-weight: 700;
+.tempo li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.tempo li::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 18px;
+  bottom: 0;
+  width: 2px;
+  background: var(--borda);
+}
+
+.tempo li:last-child {
+  padding-bottom: 0;
+}
+
+.tempo li:last-child::before {
+  display: none;
+}
+
+.marco,
+.marcoAtual {
+  width: 12px;
+  height: 12px;
+  margin: 5px 4px 0;
+  border-radius: 3px;
+  font-size: 0;
+}
+
+.marco {
+  background: var(--tinta-3);
+}
+
+.marcoAtual {
+  background: var(--luz);
+  box-shadow: 0 0 0 4px var(--luz-fundo);
 }
 
 .data {
-  font:
-    600 0.8125em var(--fonte-rotulo),
-    monospace;
-  color: var(--tinta-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
 }
 
-@media (min-width: 600px) {
+.rodape {
+  margin: 24px 0 0;
+  font-size: 13.5px;
+  color: var(--tinta-3);
+}
+
+@media (max-width: 640px) {
   .pagina {
-    padding: calc(var(--espaco) * 2);
+    padding: 20px 16px 48px;
   }
 
   .titulo {
-    font-size: 1.875em;
+    font-size: 34px;
   }
-}
 
-.voltar {
-  display: inline-block;
-  margin-bottom: 12px;
-  color: var(--primaria-forte);
-  font-weight: 600;
-  text-decoration: none;
-}
+  .grande {
+    font-size: 56px;
+  }
 
-.voltar:hover {
-  text-decoration: underline;
+  .secao {
+    padding: 20px;
+  }
 }
