@@ -83,8 +83,22 @@ motivo (os dados já estão na chave nova) e não altera nada.
 
 Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`):
 
-1. **Pare o bot** (`docker compose -f docker-compose.prod.yml stop backend`) para esvaziar a fila
-   e não gravar dado novo com a chave antiga durante a troca.
+1. **Pare o bot e confira que a fila está vazia.** Parar o back-end não esvazia a fila: os jobs do
+   pg-boss continuam no banco, cifrados com a chave antiga, e depois da troca não decifram mais.
+   Escolha um horário sem movimento e pare o back-end
+   (`docker compose -f docker-compose.prod.yml stop backend`). Com ele parado, a Meta não consegue
+   entregar o webhook e reenvia as mensagens novas depois, então nada se perde. Abra o banco
+   (`docker compose -f docker-compose.prod.yml exec postgres psql -U <usuário> -d <banco>`) e
+   rode:
+
+   ```sql
+   select name, count(*) from pgboss.job
+   where state in ('created', 'retry', 'active') group by name;
+   ```
+
+   Se vier alguma linha, suba o back-end de novo (`... start backend`), espere uns minutos para ele
+   processar e repita este passo. Só siga com a consulta vazia.
+
 2. **Faça backup do banco.** O repositório não traz rotina de backup; faça um `pg_dump` do banco
    antes de continuar e guarde fora da VM.
 3. **Gere a chave nova** com `openssl rand -base64 32`, diferente da `CHAVE_HMAC` e da
