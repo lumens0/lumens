@@ -92,6 +92,11 @@ describe('aviso de privacidade (SCRUM-175)', () => {
     expect(PRIVACY_NOTICE_TEXT).toContain('*sair*');
     expect(PRIVACY_NOTICE_TEXT).toContain('/privacidade');
   });
+
+  it('o aviso diz a base legal e quando a pessoa consente (SCRUM-174)', () => {
+    expect(PRIVACY_NOTICE_TEXT).toContain('LGPD, art. 7º, I');
+    expect(PRIVACY_NOTICE_TEXT).toContain('Ao se verificar, você concorda');
+  });
 });
 
 describe("comando 'sair' (SCRUM-176)", () => {

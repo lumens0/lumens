@@ -33,32 +33,38 @@ export default function Privacidade() {
           UFAL e não fala em nome da universidade.
         </p>
         <p>
-          O sistema está em desenvolvimento. As pautas exibidas no site vêm da base do Lumens, e o
-          bot ainda não executa os fluxos de verificação, relato e nova pauta — ele responde
-          confirmando o recebimento. Mesmo assim,{' '}
-          <strong>o que você envia chega e é guardado</strong>, então esta página descreve o que
-          acontece de verdade hoje.
+          O sistema está em desenvolvimento, mas o que você envia ao bot chega e é guardado. Por
+          isso esta página descreve o que acontece de verdade hoje, não o que está planejado.
         </p>
       </section>
 
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>O que coletamos</h2>
-        <p>Pela conversa no WhatsApp:</p>
+        {/* Verificação: apps/backend/src/bot/conversation/verificacao.ts (2.4) */}
+        <p>De quem conversa com o bot:</p>
         <ul>
           <li>
-            <strong>Seu número de telefone</strong>, que chega junto com a mensagem
+            <strong>Seu número de telefone</strong>, que chega junto com cada mensagem
           </li>
           <li>
-            <strong>O conteúdo das mensagens que você envia</strong>, qualquer que seja — texto,
-            e-mail que você digite, ou o identificador de uma foto
+            <strong>As mensagens que você envia</strong> e as respostas do bot, cifradas. Veja em
+            &ldquo;Quanto tempo guardamos&rdquo; por quanto tempo
           </li>
         </ul>
-        <p>
-          Os passos que pedem e-mail institucional, curso e relato{' '}
-          <strong>ainda não estão implementados</strong>. Não há, hoje, verificação de domínio de
-          e-mail nem envio de código: se você digitar um endereço, ele é apenas guardado como
-          qualquer outra mensagem. Não tratamos ninguém como estudante verificado.
-        </p>
+        <p>Se você se verificar como estudante:</p>
+        <ul>
+          <li>
+            <strong>Seu e-mail institucional</strong> (<code>@ufal.br</code>), para onde mandamos um
+            código. O código é guardado só como resumo irreversível e vale por pouco tempo
+          </li>
+          <li>
+            <strong>Seu curso</strong>, escolhido numa lista
+          </li>
+          <li>
+            <strong>O que você faz no Lumens</strong>: os apoios que dá, os relatos que envia e as
+            pautas que cria ou de que cuida
+          </li>
+        </ul>
       </section>
 
       {/* AES-256-GCM e HMAC-SHA256: apps/backend/src/cripto.ts */}
@@ -66,36 +72,66 @@ export default function Privacidade() {
         <h2 className={estilos.secaoTitulo}>Como protegemos</h2>
         <ul>
           <li>
-            <strong>Seu telefone é cifrado</strong> no banco, com AES-256-GCM, assim como o conteúdo
-            das mensagens e as respostas que o bot envia.
+            <strong>Seu telefone e seu e-mail são cifrados</strong> no banco, com AES-256-GCM, assim
+            como o conteúdo das mensagens e as respostas que o bot envia.
           </li>
           <li>
             <strong>A busca pelo seu telefone não decifra nada.</strong> Guardamos também um código
             irreversível derivado do número (HMAC-SHA256), e é por ele que o sistema reencontra sua
             conversa.
           </li>
+        </ul>
+      </section>
+
+      {/* Conversa: CONVERSATION_TTL_MS em store.ts e a limpeza de limpeza-conversas.ts.
+          Filas: padrões do pg-boss, que o Lumens não muda (BOT_QUEUE_OPTIONS em bot/worker.ts):
+          deleteAfterSeconds = 7 dias depois de concluído; retentionSeconds = 14 dias sem processar. */}
+      <section className={estilos.secao}>
+        <h2 className={estilos.secaoTitulo}>Quanto tempo guardamos</h2>
+        <ul>
           <li>
-            <strong>O estado da conversa dura 24 horas.</strong> Depois disso ele expira, e uma
-            rotina diária apaga o que expirou.
+            <strong>O passo em que sua conversa está</strong> (o que o bot já perguntou e o que você
+            respondeu) dura 24 horas. Depois expira, e uma rotina diária apaga o que expirou.
+          </li>
+          <li>
+            <strong>Cada mensagem passa por uma fila de processamento</strong>, que guarda uma cópia
+            cifrada dela e do seu telefone. A cópia é apagada automaticamente{' '}
+            <strong>7 dias depois</strong> de a mensagem ser respondida, ou em até{' '}
+            <strong>14 dias</strong> se o processamento falhar. O mesmo vale para as respostas do
+            bot.
+          </li>
+          <li>
+            <strong>O cadastro</strong> (telefone, e-mail e curso) fica até você enviar{' '}
+            <strong>sair</strong>.
           </li>
         </ul>
       </section>
 
-      {/* removerMetadados existe em apps/backend/src/fotos/imagem.ts, mas o fluxo ainda não a
-          chama: newAskPhoto guarda só o id da mídia (TODO 2.6 em handlers.ts). Enquanto for
-          assim, este aviso fica. Ao integrar, mover a foto para a seção acima. */}
+      {/* baixar → removerMetadados → guardar: apps/backend/src/fotos/servico.ts */}
       <section className={estilos.secao}>
-        <h2 className={estilos.secaoTitulo}>Atenção com fotos</h2>
+        <h2 className={estilos.secaoTitulo}>Fotos</h2>
         <p>
-          <strong>Hoje não removemos os metadados das fotos.</strong> Quando você envia uma imagem,
-          guardamos apenas o identificador dela, e o arquivo permanece nos servidores do WhatsApp
-          como você enviou — com EXIF, e possivelmente com a localização de onde a foto foi tirada.
+          A foto que você manda para uma pauta nova é publicada com ela. Antes de guardar,{' '}
+          <strong>removemos os metadados</strong> do arquivo (EXIF), inclusive a localização de onde
+          a foto foi tirada. Mesmo assim, confira se a imagem não mostra rosto, placa ou documento
+          de alguém.
+        </p>
+      </section>
+
+      {/* Decisão e texto do aviso: docs/decisoes/SCRUM-174-aviso-de-privacidade.md */}
+      <section className={estilos.secao}>
+        <h2 className={estilos.secaoTitulo}>Base legal</h2>
+        <p>
+          O Lumens trata seus dados com base no seu <strong>consentimento</strong> (Lei Geral de
+          Proteção de Dados, art. 7º, I). O bot mostra um aviso no primeiro contato, antes de
+          qualquer cadastro, e você consente quando se verifica: ao digitar seu e-mail institucional
+          e o código que mandamos para ele.
         </p>
         <p>
-          A remoção de metadados já existe em código, mas ainda não está ligada ao recebimento. Até
-          que esteja,{' '}
-          <strong>evite enviar fotos cuja localização ou data você não queira registrar</strong>.
-          Esta página será atualizada quando isso mudar.
+          Antes de se verificar, guardamos só o necessário para responder a quem nos procurou: o
+          telefone e as mensagens, pelos prazos de &ldquo;Quanto tempo guardamos&rdquo;, sem
+          cadastro. Você pode retirar o consentimento a qualquer momento, do mesmo jeito simples:
+          enviando <strong>sair</strong>.
         </p>
       </section>
 
@@ -153,6 +189,11 @@ export default function Privacidade() {
           Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
           hora, apagamos seu telefone e seu e-mail (inclusive as versões cifradas), sua conversa e o
           código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
+        </p>
+        <p>
+          As cópias cifradas das suas mensagens recentes na fila de processamento não são apagadas
+          na hora: elas saem sozinhas nos prazos de &ldquo;Quanto tempo guardamos&rdquo; (até 7
+          dias, ou 14 se algo falhou). Até lá ficam cifradas e servem só para o bot responder.
         </p>
         <p>
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
