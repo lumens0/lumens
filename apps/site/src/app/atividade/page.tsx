@@ -3,9 +3,14 @@ import Link from 'next/link';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarData, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
 import { buscarAtividade } from '../../dados/api';
+import { metadadosDaMarca } from '../../metadados';
 import estilos from '../page.module.css';
 
-export const metadata: Metadata = { title: 'Atividade · Lumens' };
+export const metadata: Metadata = metadadosDaMarca({
+  caminho: '/atividade',
+  title: 'Atividade · Lumens',
+  description: 'O que mudou por último nas pautas estudantis da UFAL.',
+});
 
 // Teto para a página da URL: além dele o offset nem cabe numa conta segura.
 const PAGINA_MAXIMA = 100_000;
