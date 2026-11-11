@@ -256,14 +256,17 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     return matchMedia('(min-width: 721px)').matches ? { ...v, x: v.x + v.w * 0.18 } : v;
   };
 
+  // O teclado chama direto; o clique passa por `clicarPredio`, que ignora o clique do fim do arraste.
   const abrirPredio = (p: Predio) => {
-    if (arrastou.current) return;
     if (sel?.predio?.id === p.id) {
       setSel(null);
       return;
     }
     setSel({ predio: p, bloco: porPredio.get(p.id) });
     setAlvo(focar(p));
+  };
+  const clicarPredio = (p: Predio) => {
+    if (!arrastou.current) abrirPredio(p);
   };
   const abrirBloco = (m: MarcadorDoBloco) => {
     const p = m.predio ? PREDIOS.find((x) => x.id === m.predio) : undefined;
@@ -337,7 +340,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                   onClick={
                     p.sigla
                       ? () => {
-                          abrirPredio(p);
+                          clicarPredio(p);
                         }
                       : fechar
                   }

@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { STATUS_PAUTA } from '../dados/tipos';
 import { PAUTAS_TESTE } from '../dados/pautas-teste';
 import { BarraApoios, formatarNumero, percentual } from './BarraApoios';
 import { CardPauta } from './CardPauta';
+import { contarAte } from './Numero';
 import { STATUS, StatusPill } from './StatusPill';
 
 // Contraste WCAG 2.x entre duas cores #RRGGBB.
@@ -66,4 +67,33 @@ describe('StatusPill', () => {
 it('textos do card sobre fundo branco têm contraste AA', () => {
   expect(contraste('#5B4E75', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // legenda
   expect(contraste('#5A22C8', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // categoria · bloco
+});
+
+describe('contarAte', () => {
+  it('troca para zero na hora quando o novo total é zero', () => {
+    const vistos: number[] = [];
+    contarAte(0, (n) => vistos.push(n), false);
+    expect(vistos).toEqual([0]);
+  });
+
+  it('com movimento reduzido, mostra o novo total sem animar', () => {
+    const vistos: number[] = [];
+    contarAte(57, (n) => vistos.push(n), true);
+    expect(vistos).toEqual([57]);
+  });
+
+  it('com movimento, anima até o valor final', () => {
+    const quadros: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => quadros.push(f));
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    vi.spyOn(performance, 'now').mockReturnValue(0);
+    const vistos: number[] = [];
+    contarAte(120, (n) => vistos.push(n), false);
+    expect(vistos).toEqual([]);
+    quadros.shift()?.(450);
+    quadros.shift()?.(900);
+    expect(vistos.at(-1)).toBe(120);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });
