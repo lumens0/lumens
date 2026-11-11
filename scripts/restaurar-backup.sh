@@ -35,8 +35,9 @@ BANCO_ORIGEM=${ORIGEM-$("${COMPOSE[@]}" exec -T postgres sh -c 'echo "$POSTGRES_
 faltando=$(echo "SELECT string_agg(papel, ', ') FROM unnest(ARRAY['lumens_app', 'lumens_site']) AS papel WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = papel);" | psql_em postgres)
 if [[ -n "$faltando" ]]; then
   echo "Faltam os papéis $faltando neste Postgres: o backup traz permissões para eles." >&2
-  echo "Provisione antes (docs/backup.md, \"Restaurar de verdade\", passo 2):" >&2
-  echo "  docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:provision" >&2
+  # Só o provision não basta: ele conecta no banco da aplicação, que pode ter sido apagado. O
+  # passo 2 recria o banco vazio antes, quando falta.
+  echo "Siga o passo 2 de \"Restaurar de verdade\" no docs/backup.md: garante o banco e provisiona os papéis." >&2
   exit 1
 fi
 

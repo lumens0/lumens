@@ -95,26 +95,33 @@ tabela, a origem inexistente e o backup truncado (que tem de falhar):
 Use só quando o banco de produção estiver perdido ou corrompido. **Isto substitui o banco.**
 
 1. Escolha o backup: `ls -lh /var/backups/lumens/diario /var/backups/lumens/semanal`.
-2. Garanta os logins `lumens_app` e `lumens_site`. O backup traz as permissões deles, e num
-   Postgres novo (volume perdido) eles não existem: sem este passo, até um backup íntegro falha no
-   primeiro `GRANT`. É idempotente, então rode sempre:
+2. Garanta o banco `lumens` e os logins `lumens_app` e `lumens_site`. O backup traz as permissões
+   dos logins, e num Postgres novo (volume perdido) eles não existem: sem este passo, até um backup
+   íntegro falha no primeiro `GRANT`. O `db:provision` conecta no banco da aplicação, então ele
+   precisa existir antes, nem que vazio (o caso de alguém ter apagado o banco). Os dois comandos
+   podem rodar sempre: o primeiro não mexe num banco que já existe, e o segundo é idempotente.
 
    ```bash
-   cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:provision
+   cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao exec -T postgres sh -c 'createdb -U "$POSTGRES_USER" "$POSTGRES_DB" 2>/dev/null && echo "Banco recriado, vazio." || echo "O banco já existe."'
+   ```
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:provision
    ```
 
 3. Teste esse arquivo antes: `./scripts/restaurar-backup.sh <arquivo>`. Se falhar, escolha outro.
-   O script recusa de cara, com o comando acima na mensagem, se o passo 2 ficou para trás.
+   O script recusa de cara, apontando para o passo 2, se os logins ainda não existem.
 4. Pare quem escreve no banco:
 
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.producao stop backend painel
    ```
 
-5. Recrie o banco e restaure (o `pg_restore` lê o arquivo pelo stdin):
+5. Recrie o banco e restaure (o `pg_restore` lê o arquivo pelo stdin). O `--if-exists` cobre o
+   banco que já não existe:
 
    ```bash
-   docker compose -f docker-compose.prod.yml --env-file .env.producao exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+   docker compose -f docker-compose.prod.yml --env-file .env.producao exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" --if-exists --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
    ```
 
    ```bash
