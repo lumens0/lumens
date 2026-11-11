@@ -23,9 +23,14 @@ const COLUNAS = [
 
 const BOM = '\uFEFF';
 
-/** Aspas só onde precisa, dobrando as que já existem (RFC 4180). */
+/**
+ * Aspas só onde precisa, dobrando as que já existem (RFC 4180). Texto que começa como fórmula
+ * (`=`, `+`, `-`, `@`, tab ou CR) ganha um `'` na frente: o título vem de estudante, e o Excel e o
+ * Sheets executariam a fórmula ao abrir o arquivo.
+ */
 function campo(valor: string | number | null): string {
-  const texto = valor === null ? '' : String(valor);
+  const bruto = valor === null ? '' : String(valor);
+  const texto = typeof valor === 'string' && /^[=+\-@\t\r]/.test(bruto) ? `'${bruto}` : bruto;
   return /[;"\r\n]/.test(texto) ? `"${texto.replaceAll('"', '""')}"` : texto;
 }
 
