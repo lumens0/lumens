@@ -14,7 +14,7 @@ import { propostasAbertas, registrarVoluntario } from '@lumens/dominio';
 import { z } from 'zod';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
-import { lista, type Resposta } from './resposta';
+import { botoes, lista, type Resposta } from './resposta';
 import { normalize } from './texto';
 import { EMAIL_QUESTION_TEXT } from './verificacao';
 
@@ -36,6 +36,19 @@ export const ALREADY_VOLUNTEER_TEXT = 'Você já está na lista de voluntários 
 export const PROPOSAL_LOST_TEXT =
   'Não consegui recuperar a pauta da proposta. Escolha 4 no menu de novo.';
 export const PICK_PROPOSAL_TEXT = 'Esta pauta tem mais de uma proposta aberta. Em qual vai ajudar?';
+
+/**
+ * Confirmação do "Vou ajudar" que veio pelo slug: entre abrir o link e mandar a mensagem, a
+ * proposta que a pessoa viu pode ter sido feita e outra publicada. O botão leva o id da proposta
+ * mostrada aqui, então só entra na lista quem confirmou aquela.
+ */
+export function confirmVolunteerText(p: {
+  descricao: string;
+  pessoasNecessarias: number;
+  voluntarios: number;
+}) {
+  return `Você quer entrar na lista de voluntários desta proposta?\n\n"${p.descricao}"\n${String(p.voluntarios)} de ${String(p.pessoasNecessarias)} voluntários`;
+}
 
 const MAX_TEXTO = 280;
 export const MAX_PESSOAS = 50;
@@ -100,7 +113,10 @@ export const proposalAskText: StepHandler = ({ input, state, segredo }) => {
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Acha a proposta: pelo id (linha da lista) ou pela pauta do link do site. */
+/**
+ * Acha a proposta: pelo id (botão de confirmação ou linha da lista) ou pela pauta do link do site.
+ * Pelo link, nunca registra direto: pede para confirmar ou escolher, sempre com o id no botão.
+ */
 async function propostaDoAlvo(
   db: Db,
   alvo: string,
@@ -116,7 +132,17 @@ async function propostaDoAlvo(
   const abertas = pauta === undefined ? [] : await propostasAbertas(db, pauta.id);
   const [unica] = abertas;
   if (unica === undefined) return { texto: NO_PROPOSAL_TEXT };
-  if (abertas.length === 1) return unica;
+  if (abertas.length === 1) {
+    return {
+      escolher: botoes({
+        corpo: confirmVolunteerText(unica),
+        botoes: [
+          { id: `ajudar ${unica.id}`, titulo: 'Vou ajudar' },
+          { id: 'menu', titulo: 'Voltar ao menu' },
+        ],
+      }),
+    };
+  }
   return {
     escolher: lista({
       corpo: PICK_PROPOSAL_TEXT,
