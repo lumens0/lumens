@@ -60,7 +60,9 @@ Sem argumento usa o diário mais novo; passe o caminho de um `.dump` para testar
 confere:
 
 - contagem de pautas, apoios e eventos igual à da origem (difere se houve atividade depois do
-  backup: rode logo depois de um backup para comparar);
+  backup: rode logo depois de um backup para comparar). Essa comparação só **avisa**: se a origem
+  estiver fora do ar ou incompleta, o teste segue com as checagens abaixo. `ORIGEM=<banco>` compara
+  com outro banco, e `ORIGEM=` (vazio) pula a comparação;
 - o trigger que impede `UPDATE` na tabela `evento` (RN11) continua ativo no banco restaurado;
 - as views públicas (`v_pauta_publica`, `v_resumo`) respondem.
 
@@ -79,6 +81,13 @@ REPO_DIR=$PWD BACKUP_DIR=/tmp/lumens-backup COMPOSE="docker compose --env-file .
 
 ```bash
 REPO_DIR=$PWD BACKUP_DIR=/tmp/lumens-backup COMPOSE="docker compose --env-file .env.database" ./scripts/restaurar-backup.sh
+```
+
+Ao mudar os scripts, rode o teste de regressão. Ele cobre a restauração normal, a origem sem uma
+tabela, a origem inexistente e o backup truncado (que tem de falhar):
+
+```bash
+./scripts/testar-restauracao.sh
 ```
 
 ## Restaurar de verdade (incidente)
