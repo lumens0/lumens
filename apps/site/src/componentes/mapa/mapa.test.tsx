@@ -1,9 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { Pauta, StatusPauta } from '../../dados/tipos';
+import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
-import { PREDIOS } from './predios';
-import { lugaresDoMapa, maisUrgente } from './urgencia';
+import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
 let n = 0;
 const pauta = (status: StatusPauta, apoios: number, bloco: string | null = 'bloco-18'): Pauta =>
@@ -15,90 +14,81 @@ const pauta = (status: StatusPauta, apoios: number, bloco: string | null = 'bloc
     apoios,
     meta: 300,
     bloco_slug: bloco,
-    bloco_nome: bloco === null ? null : `Nome de ${bloco}`,
+    bloco_nome: bloco,
     criada_em: '2026-11-01T12:00:00.000Z',
   }) as Pauta;
 
+const bloco = (slug: string, nome = slug): Bloco => ({ slug, nome }) as Bloco;
+const cor = (rotulo: string) => LEGENDA.find((l) => l.rotulo === rotulo)?.cor;
+
 describe('pauta mais urgente', () => {
-  it('descumprida vence cobrança, que vence juntando apoios, que vence conquista', () => {
-    const lista = [pauta('conquistada', 900), pauta('juntando_apoios', 50), pauta('cobrando', 10)];
+  it('descumprida vence cobrança, que vence meta batida, que vence juntando apoios', () => {
+    const lista = [pauta('juntando_apoios', 500), pauta('meta_batida', 50), pauta('cobrando', 10)];
     expect(maisUrgente(lista)?.status).toBe('cobrando');
     expect(maisUrgente([...lista, pauta('descumprida', 1)])?.status).toBe('descumprida');
   });
 
-  it('no empate de status, vence a de mais apoios', () => {
-    const a = pauta('juntando_apoios', 40);
-    const b = pauta('juntando_apoios', 120);
+  it('no empate de peso, vence a de mais apoios; conquistada não é aberta', () => {
+    const a = pauta('cobrando', 40);
+    const b = pauta('prometido', 120);
     expect(maisUrgente([a, b])).toBe(b);
-  });
-
-  it('lista vazia não tem urgente', () => {
-    expect(maisUrgente([])).toBeUndefined();
+    expect(maisUrgente([pauta('conquistada', 900)])).toBeUndefined();
   });
 });
 
-describe('lugares do mapa', () => {
-  it('liga a pauta ao prédio pelo slug do bloco', () => {
-    const lugares = lugaresDoMapa([pauta('cobrando', 10, 'bloco-18')]);
-    const bloco18 = lugares.find((l) => l.predio?.id === 18);
-    expect(bloco18?.pautas).toHaveLength(1);
-    expect(bloco18?.urgente?.status).toBe('cobrando');
+describe('marcadores do mapa', () => {
+  it('cor e linha do bloco saem da pauta aberta mais urgente, com as conquistas no fim', () => {
+    const [m] = marcadoresDoMapa(
+      [bloco('bloco-18', 'Bloco 18')],
+      [pauta('juntando_apoios', 10), pauta('descumprida', 5), pauta('conquistada', 300)],
+    );
+    expect(m).toMatchObject({
+      abertas: 2,
+      cor: cor('Promessa descumprida'),
+      linha: '2 pautas abertas · Promessa descumprida · 1 conquista',
+      predio: 18,
+    });
   });
 
-  it('bloco sem desenho e pauta de todo o campus aparecem só na lista', () => {
-    const lugares = lugaresDoMapa([
-      pauta('cobrando', 10, 'bloco-novo'),
-      pauta('prometido', 5, null),
-    ]);
-    expect(lugares.find((l) => l.nome === 'Nome de bloco-novo')?.predio).toBeUndefined();
-    expect(lugares.find((l) => l.nome === 'Todo o campus')?.pautas).toHaveLength(1);
+  it('bloco só com conquistas e bloco vazio têm cores próprias', () => {
+    const [soConquista, vazio] = marcadoresDoMapa(
+      [bloco('bloco-18'), bloco('biblioteca-central')],
+      [pauta('conquistada', 300, 'bloco-18')],
+    );
+    expect(soConquista).toMatchObject({ cor: cor('Só conquistas'), abertas: 0 });
+    expect(vazio).toMatchObject({ cor: cor('Sem pautas'), linha: 'Nenhuma pauta aberta' });
   });
 
-  it('a lista começa pelo lugar mais urgente', () => {
-    const lugares = lugaresDoMapa([
-      pauta('conquistada', 500, 'engenharias'),
-      pauta('descumprida', 3, 'residencia-universitaria'),
-      pauta('cobrando', 40, 'artes'),
-    ]).filter((l) => l.pautas.length > 0);
-    expect(lugares.map((l) => l.urgente?.status)).toEqual([
-      'descumprida',
-      'cobrando',
-      'conquistada',
-    ]);
+  it('bloco sem prédio no desenho fica só na lista', () => {
+    const [m] = marcadoresDoMapa([bloco('bloco-novo', 'Bloco Novo')], []);
+    expect(m?.predio).toBeUndefined();
   });
 
-  it('todo prédio do desenho tem id único e pelo menos um retângulo', () => {
-    expect(new Set(PREDIOS.map((p) => p.id)).size).toBe(PREDIOS.length);
-    expect(PREDIOS.every((p) => p.retangulos.length > 0)).toBe(true);
+  it('o painel recebe as abertas primeiro, a mais urgente no topo, e as conquistas no fim', () => {
+    const conquista = pauta('conquistada', 900);
+    const juntando = pauta('juntando_apoios', 10);
+    const cobrando = pauta('cobrando', 5);
+    const [m] = marcadoresDoMapa([bloco('bloco-18')], [conquista, juntando, cobrando]);
+    expect(m?.pautas).toEqual([cobrando, juntando, conquista]);
   });
 });
 
 describe('mapa do campus', () => {
-  it('a lista tem a mesma informação do mapa: lugar, quantidade, status mais urgente e cada pauta', () => {
-    const p1 = pauta('descumprida', 30, 'bloco-18');
-    const p2 = pauta('juntando_apoios', 80, 'bloco-18');
-    const html = renderToStaticMarkup(<MapaDoCampus lugares={lugaresDoMapa([p1, p2])} />);
-
-    expect(html).toContain('Bloco 18 · João de Deus · Salas de Aula');
-    expect(html).toContain('2 pautas');
-    expect(html).toContain('a mais urgente está como Descumprida');
-    expect(html).toContain('Mais urgente:');
-    expect(html).toContain(`href="/p/${p1.slug}"`);
-    expect(html).toContain(`href="/p/${p2.slug}"`);
-  });
-
-  it('prédio com pauta é botão no mapa; prédio sem pauta não', () => {
+  it('prédio ligado a bloco é botão; a lista e a legenda têm a mesma informação', () => {
     const html = renderToStaticMarkup(
-      <MapaDoCampus lugares={lugaresDoMapa([pauta('cobrando', 1, 'bloco-18')])} />,
+      <MapaDoCampus
+        marcadores={marcadoresDoMapa(
+          [bloco('bloco-18', 'Bloco 18'), bloco('bloco-novo', 'Bloco Novo')],
+          [pauta('descumprida', 5)],
+        )}
+      />,
     );
 
     expect(html.match(/<g[^>]*role="button"/g)).toHaveLength(1);
-    expect(html).toContain('Reitoria: sem pautas');
-  });
-
-  it('sem pautas abertas, a lista avisa', () => {
-    expect(renderToStaticMarkup(<MapaDoCampus lugares={lugaresDoMapa([])} />)).toContain(
-      'Nenhuma pauta aberta por enquanto.',
-    );
+    expect(html).toContain('Bloco 18: 1 pauta aberta · Promessa descumprida');
+    expect(html).toContain('Bloco Novo');
+    expect(html).toContain('A mesma informação, em lista');
+    expect(html).toContain('Promessa descumprida');
+    expect(html).toContain('Escolha um bloco');
   });
 });

@@ -1,31 +1,72 @@
-.mapa {
+.pagina {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--espaco);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--primaria-forte);
+  font:
+    600 12.5px 'JetBrains Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lead {
+  margin: 0;
+  color: var(--tinta-2);
+  font-size: 15px;
+}
+
+.palco {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
-  gap: var(--espaco);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.mapa {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: #f4f1f9;
 }
 
 .desenho {
+  display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  background: var(--trilho);
+  aspect-ratio: 1968 / 1103;
 }
 
 .chao {
-  fill: #f7f4fc;
+  fill: #f4f1f9;
 }
 
 .via {
-  fill: #ddd5ec;
+  fill: #fff;
+  stroke: #d9d0ea;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Prédio sem bloco: neutro. Com bloco, a cor vem do style do <g>, que ganha desta regra. */
+.predio,
+.escolhido {
+  fill: #e4dcf3;
+  stroke: #bfb3d6;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: stroke-width 0.15s;
 }
 
 .predio rect,
 .escolhido rect {
-  fill: var(--superficie);
-  stroke: #c9bde3;
-  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
 }
 
 .predio[role='button'],
@@ -33,100 +74,165 @@
   cursor: pointer;
 }
 
-/* Depois das regras de prédio: ganha delas e não aparece. */
-.predio .areaDeClique,
-.escolhido .areaDeClique {
-  fill: transparent;
-  stroke: none;
-}
-
-.predio[role='button']:hover rect,
-.predio:focus-visible rect {
-  stroke-width: 4;
-}
-
-.escolhido rect {
-  stroke-width: 6;
-}
-
-.predio:focus-visible,
-.escolhido:focus-visible {
+.predio[role='button']:hover,
+.predio:focus-visible {
+  stroke-width: 3;
   outline: none;
 }
 
-.lista {
-  padding: var(--espaco);
+.escolhido {
+  stroke-width: 4;
+  outline: none;
+}
+
+.verCampus {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 7px 12px;
   border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  background: var(--superficie);
-}
-
-.tituloLista {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
-}
-
-.voltar {
-  margin-bottom: 12px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--primaria-forte);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(30 20 51 / 18%);
+  color: var(--tinta);
   font: inherit;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.lugares,
+.painel {
+  padding: 16px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: #fff;
+}
+
+.tituloPainel {
+  margin: 4px 0 6px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.detalhe {
+  margin: 0;
+  color: var(--tinta-2);
+  font-size: 13px;
+}
+
+.vazio {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--trilho);
+  color: var(--tinta-2);
+  font-size: 13px;
+}
+
 .pautas {
   display: grid;
-  gap: 12px;
-  margin: 0;
+  gap: 10px;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.pautas {
+.pauta {
+  display: grid;
+  justify-items: start;
   gap: 4px;
-  margin-top: 6px;
-  font-size: 0.9375rem;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
 }
 
-.lugar {
+.pauta a {
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+.ponto {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  color: var(--tinta-2);
+  font-size: 13px;
+  list-style: none;
+}
+
+.legenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tituloLista {
+  margin: 18px 0 0;
+  font-size: 17px;
+}
+
+.lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linha {
   display: flex;
   width: 100%;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--tinta);
   font: inherit;
-  font-weight: 700;
   text-align: left;
   cursor: pointer;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--tinta);
+  text-decoration: none;
 }
 
-.contagem {
-  color: var(--tinta-2);
-  font-weight: 400;
+.linha[aria-pressed='true'] {
+  border-color: var(--primaria-forte);
+  box-shadow: 0 0 0 1px var(--primaria-forte);
 }
 
-.urgente {
-  margin: 4px 0 0;
+.linha b {
+  display: block;
+  font-size: 14px;
+}
+
+.linha span span {
+  display: block;
   color: var(--tinta-2);
-  font-size: 0.875rem;
+  font-size: 12.5px;
 }
 
 @media (max-width: 760px) {
-  .mapa {
+  .palco,
+  .lista {
     grid-template-columns: 1fr;
   }
 }
 
-/* O mapa precisa de mais largura que a coluna de leitura do resto do site. */
-.pagina {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--espaco);
+.sigla {
+  fill: var(--tinta-2);
+  stroke: none;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
 }
