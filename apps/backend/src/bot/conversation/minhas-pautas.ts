@@ -17,13 +17,19 @@
  * Fala.BR e comunidade ficam disponíveis a qualquer momento, inclusive antes da meta (RN05), e um
  * não bloqueia o outro (RN07): cada um tem o seu botão enquanto não estiver aberto. Abrir caminho
  * não muda o status da pauta (quem leva a `cobrando` é o protocolo, RN08).
+ *
+ * Com a comunidade aberta, entra a proposta (3.5): "Propor solução" sem proposta aberta e "Proposta
+ * feita" com uma. Os passos da proposta estão em `proposta.ts`.
  */
-import { eq, pautas, type Db } from '@lumens/db';
+import { and, eq, pautas, propostas, type Db } from '@lumens/db';
 import {
   STATUS_COM_CAMINHOS,
   abrirCaminho,
   caminhosDaPauta,
   pautasDoOwner,
+  propostasAbertas,
+  publicarProposta,
+  registrarExecucaoProposta,
   prepararParaProtocolar,
   textoFalaBrDaPauta,
   type CaminhoDaPauta,
@@ -35,6 +41,23 @@ import { pedirProtocolo } from './protocolo-falabr';
 import { pedirResposta } from './resposta-oficial';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
 import { LIMITES_DOS_BOTOES, botoes, lista, type BotaoDeResposta, type Resposta } from './resposta';
+import {
+  ALREADY_DONE_TEXT,
+  BOTAO_PROPOR,
+  UUID,
+  botaoFeita,
+  DONE_TEXT,
+  LIMPAR_PROPOSTA,
+  MAX_PESSOAS,
+  PEOPLE_INVALID_TEXT,
+  PROPOSAL_ASK_TEXT,
+  PROPOSAL_LOST_TEXT,
+  PUBLISHED_TEXT,
+  dadosDaProposta,
+  pediuFeita,
+  pediuProposta,
+  propostaDoBotaoFeita,
+} from './proposta';
 import { normalize } from './texto';
 
 type TipoEscolhido = 'falabr' | 'comunidade';
@@ -50,6 +73,8 @@ export const PAUTA_CLOSED_TEXT = 'Esta pauta não aceita caminhos novos agora.';
 export const DATA_LOST_TEXT =
   'Não consegui recuperar a pauta escolhida. Escolha 4 no menu de novo.';
 export const ALL_OPEN_TEXT = 'Os dois caminhos já estão abertos nesta pauta.';
+export const PROPOSAL_ALREADY_OPEN_TEXT =
+  'Esta pauta já tem uma proposta aberta. Quando ela for feita, toque em "Proposta feita".';
 export const INDEPENDENT_TEXT =
   'Os caminhos são independentes: abra um, o outro ou os dois, quando quiser, mesmo antes da meta.';
 export const NEXT_STEP_TEXT = 'O que você quer fazer agora?';
@@ -168,14 +193,16 @@ function opcoes(corpo: string, acoes: readonly BotaoDeResposta[]): Resposta {
 }
 
 /**
- * O estado dos dois caminhos da pauta e as opções do que ainda dá para fazer. Sem nenhuma, só o
- * texto: não há mais o que escolher.
+ * O estado dos dois caminhos da pauta e as opções do que ainda dá para fazer; com a comunidade
+ * aberta, a proposta e o botão dela (3.5). Sem nenhuma opção, só o texto: não há mais o que
+ * escolher.
  */
 export async function estadoDosCaminhos(
   db: Db,
   pauta: { id: string; titulo: string },
 ): Promise<{ resposta: Resposta; acoes: BotaoDeResposta[] }> {
   const existentes = await caminhosDaPauta(db, pauta.id);
+  const abertas = await propostasAbertas(db, pauta.id);
   const linhas = [`*${pauta.titulo}*`, ''];
   const faltam: TipoEscolhido[] = [];
   for (const tipo of TIPOS) {
@@ -190,6 +217,21 @@ export async function estadoDosCaminhos(
   }
 
   const acoes = acoesDaPauta(existentes, faltam);
+  // 3.5: com a comunidade aberta, a proposta aberta e o botão de propor ou de marcar como feita.
+  if (!faltam.includes('comunidade')) {
+    for (const p of abertas) {
+      linhas.push(
+        `• Proposta: ${p.descricao} (${String(p.voluntarios)} de ${String(p.pessoasNecessarias)} voluntários)`,
+      );
+    }
+    const [aberta] = abertas;
+    acoes.push(
+      aberta === undefined
+        ? { id: BOTAO_PROPOR, titulo: 'Propor solução' }
+        : { id: botaoFeita(aberta.id), titulo: 'Proposta feita' },
+    );
+  }
+
   if (acoes.length === 0) {
     return { resposta: [...linhas, '', ALL_OPEN_TEXT].join('\n'), acoes };
   }
@@ -315,6 +357,35 @@ export const ownerPaths: StepHandler = async (ctx) => {
   if (protocoloPedido(input.text)) return pedirProtocolo(db, pauta);
   if (respostaPedida(input.text)) return pedirResposta(db, pauta);
 
+  if (pediuProposta(input.text) || pediuFeita(input.text)) {
+    const comunidade = (await caminhosDaPauta(db, pauta.id)).some((c) => c.tipo === 'comunidade');
+    const [aberta] = await propostasAbertas(db, pauta.id);
+    if (!comunidade) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
+    if (pediuProposta(input.text)) {
+      if (aberta !== undefined) return mostrarCaminhos(db, pauta, [PROPOSAL_ALREADY_OPEN_TEXT]);
+      return {
+        next: 'PROPOSAL_ASK_TEXT',
+        data: { pautaId: pauta.id },
+        replies: [PROPOSAL_ASK_TEXT],
+      };
+    }
+    // O botão leva o id da proposta que a pessoa viu: um toque antigo não marca outra, publicada
+    // depois. Digitado ("feita"), vale a aberta.
+    const alvo = propostaDoBotaoFeita(input.text) ?? aberta?.id;
+    if (alvo === undefined || !UUID.test(alvo)) {
+      return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
+    }
+    const [daPauta] = await db
+      .select({ id: propostas.id })
+      .from(propostas)
+      .where(and(eq(propostas.id, alvo), eq(propostas.pautaId, pauta.id)));
+    if (daPauta === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
+    const feita = await db.transaction((tx) =>
+      registrarExecucaoProposta(tx, { propostaId: daPauta.id }),
+    );
+    return mostrarCaminhos(db, pauta, [feita.executada ? DONE_TEXT : ALREADY_DONE_TEXT]);
+  }
+
   const tipo = caminhoPedido(input.text);
   if (tipo === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
 
@@ -334,6 +405,56 @@ export const ownerPaths: StepHandler = async (ctx) => {
   }
   const depois = tipo === 'falabr' ? await textoDaManifestacao(db, pauta.id) : [];
   return mostrarCaminhos(db, pauta, [OPENED_TEXT[tipo], ...depois]);
+};
+
+/** Quantas pessoas a proposta precisa: com o número, publica e volta ao estado dos caminhos. */
+export const proposalAskPeople: StepHandler = async ({ input, state, db, segredo, phoneHmac }) => {
+  const texto = normalize(input.text);
+  const pessoas = /^\d+$/.test(texto) ? Number(texto) : NaN;
+  if (!(pessoas >= 1 && pessoas <= MAX_PESSOAS)) {
+    return { next: 'PROPOSAL_ASK_PEOPLE', replies: [PEOPLE_INVALID_TEXT] };
+  }
+  const lidos = dadosDaProposta.safeParse(state.data);
+  if (!lidos.success || lidos.data.propostaCifrada === undefined) {
+    return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [PROPOSAL_LOST_TEXT] };
+  }
+  const { pautaId, propostaCifrada } = lidos.data;
+  const estudanteId = await estudanteVerificado(db, phoneHmac);
+  if (estudanteId === undefined) {
+    return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [LOST_OWNER_TEXT] };
+  }
+
+  const r = await db.transaction((tx) =>
+    publicarProposta(tx, {
+      pautaId,
+      porEstudanteId: estudanteId,
+      descricao: segredo.decifrar(propostaCifrada),
+      pessoasNecessarias: pessoas,
+      apenasUmaAberta: true,
+    }),
+  );
+  if (!r.publicada && r.motivo === 'ja_tem_aberta') {
+    const [daProposta] = await db
+      .select({ id: pautas.id, titulo: pautas.titulo })
+      .from(pautas)
+      .where(eq(pautas.id, pautaId));
+    if (daProposta !== undefined) {
+      const fim = await mostrarCaminhos(db, daProposta, [PROPOSAL_ALREADY_OPEN_TEXT]);
+      return { ...fim, data: { ...fim.data, propostaCifrada: undefined } };
+    }
+  }
+  if (!r.publicada) {
+    const recusa = r.motivo === 'nao_e_owner' ? LOST_OWNER_TEXT : PAUTA_CLOSED_TEXT;
+    return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [recusa] };
+  }
+  const [pauta] = await db
+    .select({ id: pautas.id, titulo: pautas.titulo })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId));
+  if (pauta === undefined)
+    return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [PUBLISHED_TEXT] };
+  const fim = await mostrarCaminhos(db, pauta, [PUBLISHED_TEXT]);
+  return { ...fim, data: { ...fim.data, propostaCifrada: undefined } };
 };
 
 /** O botão "Registrar protocolo", ou o pedido digitado ("protocolo", "registrar protocolo"). */
