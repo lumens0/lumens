@@ -16,6 +16,7 @@
     "modelos": "tsx --env-file-if-exists=../../.env scripts/modelos.ts",
     "latencia": "tsx --env-file-if-exists=../../.env scripts/latencia-webhook.ts",
     "curador": "tsx --env-file-if-exists=../../.env scripts/curador.ts",
+    "api:leitura": "tsx --env-file-if-exists=../../.env scripts/api-leitura.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.database ../../node_modules/vitest/vitest.mjs run --passWithNoTests --hookTimeout=30000"
   },
