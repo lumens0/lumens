@@ -16,6 +16,7 @@ import { hashPhone } from './phone';
 import { CANCEL_TEXT, handleIncoming, NEED_TEXT } from './router';
 import { assertTransition, InvalidTransitionError, STEPS, Step, TRANSITIONS } from './steps';
 import { ConversationStore } from './store';
+import { PRIVACY_NOTICE_TEXT } from './privacidade';
 
 const CHAVE = Buffer.alloc(32, 7);
 const PHONE = '5582999990000';
@@ -87,7 +88,7 @@ describe('steps', () => {
 
 describe('router', () => {
   it('usuário novo recebe saudação + menu e fica em MENU', async () => {
-    expect(await send('oi')).toEqual([GREETING_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(st?.expiresAt.getTime()).toBe(clock.getTime() + 24 * HOUR);
@@ -155,7 +156,7 @@ describe('router', () => {
     await store.save(H, 'NEW_ASK_PLACE', { title: 'x' });
     advance(25 * HOUR);
     expect(await store.get(H)).toBeNull();
-    expect(await send('oi')).toEqual([GREETING_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(st?.data).toEqual({});
@@ -310,6 +311,6 @@ describe('experiência da pessoa', () => {
   });
 
   it('foto como primeira mensagem recebe a saudação', async () => {
-    expect(await sendFoto()).toEqual([GREETING_TEXT, MENU_TEXT]);
+    expect(await sendFoto()).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
   });
 });

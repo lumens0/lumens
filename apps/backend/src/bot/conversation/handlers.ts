@@ -9,6 +9,7 @@ import {
   newAskTitle,
 } from './nova-pauta';
 import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
+import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -59,6 +60,8 @@ export interface StepResult {
   next: Step;
   data?: DataPatch;
   replies: Resposta[];
+  /** 5.7: em vez de gravar o passo, apaga a conversa (a pessoa saiu ou não tinha cadastro). */
+  apagarConversa?: boolean;
 }
 
 /** Pode ser síncrono; os que consultam o banco (2.5 em diante) são assíncronos. */
@@ -76,7 +79,11 @@ export const MENU_TEXT = [
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
-const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
+// 5.7: o aviso de privacidade vai sempre no primeiro contato, antes do menu.
+const greeting: StepHandler = () => ({
+  next: 'MENU',
+  replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT],
+});
 
 /** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
@@ -120,4 +127,5 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  LEAVE_CONFIRM: leaveConfirm,
 };
