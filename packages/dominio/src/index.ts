@@ -164,6 +164,9 @@ export {
 
 export { diaEmMaceio, formatarDia } from './datas';
 
+export { sairDoLumens } from './sair';
+export type { ResultadoSaida } from './sair';
+
 export {
   CODIGO_EXPIRA_MS,
   DIGITOS_DO_CODIGO,
