@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * Testes ponta a ponta do site (SCRUM-28). Sobem dois servidores: a API de leitura real sobre o
- * banco com o seed (dados fixos) e o site já construído (`next build`, com a flag do "Apoiar").
+ * banco com o seed (dados fixos) e o site já construído (`next build`).
  */
 const API = 'http://127.0.0.1:3101';
 const SITE = 'http://127.0.0.1:3100';

@@ -22,11 +22,9 @@ describe('estados da lista', () => {
     expect(html).toContain('href="/"');
   });
 
-  it('relatar um problema abre o WhatsApp do bot só com o número e a flag', () => {
+  it('relatar um problema abre o WhatsApp do bot quando o número está configurado', () => {
     expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).not.toContain('wa.me');
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
-    expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).not.toContain('wa.me');
-    vi.stubEnv('NEXT_PUBLIC_FLAG_RELATAR', '1');
     const html = renderToStaticMarkup(<ListaVazia bloco={undefined} />);
     expect(html).toContain('href="https://wa.me/5582999999999?text=nova%20pauta"');
     expect(html).toContain('aria-label="Relatar um problema do campus pelo WhatsApp"');
