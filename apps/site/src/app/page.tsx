@@ -70,6 +70,10 @@ export default async function Home({
           <Link href="/conquistas">Conquistas</Link>
           <Link href="/atividade">Atividade</Link>
           <Link href="/privacidade">Política de privacidade</Link>
+          {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}
+          <a href="/dados.csv" download>
+            Dados abertos (CSV)
+          </a>
         </nav>
       </footer>
     </main>
