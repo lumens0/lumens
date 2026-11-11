@@ -10,7 +10,7 @@
  */
 import { CODIGO_EXPIRA_MS } from '@lumens/dominio';
 import { createTransport } from 'nodemailer';
-import type { Logger } from '../logger';
+import type { Logger } from '../infra/logger';
 
 export interface ServicoDeEmail {
   /** `true` se o servidor de e-mail aceitou a mensagem; `false` se falhou (a pessoa tenta de novo). */

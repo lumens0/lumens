@@ -82,7 +82,7 @@ describe('filtro por bloco', () => {
 describe('SEM_APOIO', () => {
   it('é a mesma lista de SEM_APOIO do domínio (packages/dominio/src/apoio.ts)', () => {
     const fonte = readFileSync(
-      new URL('../../../../packages/dominio/src/apoio.ts', import.meta.url),
+      new URL('../../../../packages/dominio/src/pauta/apoio.ts', import.meta.url),
       'utf-8',
     );
     const declaracao =

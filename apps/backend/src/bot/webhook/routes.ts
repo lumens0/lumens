@@ -1,8 +1,8 @@
 import type { Db } from '@lumens/db';
 import type { FastifyPluginCallback } from 'fastify';
-import type { Chaves } from '../../cripto';
-import { resumoDoErro, type Logger } from '../../logger';
-import type { JobQueue } from '../../queue';
+import type { Chaves } from '../../cripto/cifra';
+import { resumoDoErro, type Logger } from '../../infra/logger';
+import type { JobQueue } from '../../infra/queue';
 import { verifySignature } from '../whatsapp/signature';
 import { processWebhookPayload, type ProcessResult } from './process';
 

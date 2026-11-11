@@ -14,7 +14,7 @@ import {
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { RELATO_MAXIMO } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { segredoCom } from '../../cripto/cifra';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import {
   ASK_ATTACH_REPORT_TEXT,

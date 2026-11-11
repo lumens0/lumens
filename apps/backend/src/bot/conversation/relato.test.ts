@@ -1,7 +1,7 @@
 import { blocos, conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { segredoCom } from '../../cripto/cifra';
 import { MENU_TEXT } from './handlers';
 import { hashPhone } from './phone';
 import {

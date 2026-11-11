@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { criarLogger } from '../../logger';
+import { criarLogger } from '../../infra/logger';
 import { montarMensagemModelo } from './mensagem-modelo';
 import { ErroDaMeta, graphSender, logModeloSender, VERSAO_GRAPH } from './sender';
 

@@ -11,7 +11,7 @@ import {
 import { CODIGO_EXPIRA_MS, MAX_TENTATIVAS, REENVIO_APOS_MS, hashDoCodigo } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { hmacHex, segredoCom } from '../../cripto';
+import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { ASK_WRITE_REPORT_TEXT, supportedText } from './apoio';
 import { MENU_TEXT } from './handlers';

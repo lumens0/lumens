@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../app';
-import { FakeQueue } from '../queue.fake';
+import { FakeQueue } from '../infra/queue.fake';
 
 // Varredura de identidade (SCRUM-89): rede de segurança da RNF01 e da RN03. Diferente do
 // `api.test.ts`, que confere o contrato rota a rota, aqui NINGUÉM lista as rotas à mão: as

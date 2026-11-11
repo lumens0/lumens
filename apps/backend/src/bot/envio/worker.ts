@@ -8,9 +8,9 @@ import {
   reservarLote,
 } from '@lumens/dominio';
 import type { Job, PgBoss } from 'pg-boss';
-import { decifrar, hmacHex, type Chaves } from '../../cripto';
-import { resumoDoErro, type Logger } from '../../logger';
-import { JOBS } from '../../queue';
+import { decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
+import { resumoDoErro, type Logger } from '../../infra/logger';
+import { JOBS } from '../../infra/queue';
 import { montarMensagemModelo, ParametrosInvalidosError } from './mensagem-modelo';
 import { ErroDaMeta, type ModeloSender } from './sender';
 

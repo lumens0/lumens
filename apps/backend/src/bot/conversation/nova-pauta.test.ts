@@ -10,7 +10,7 @@ import {
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { segredoCom } from '../../cripto/cifra';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import { MENU_TEXT } from './handlers';
 import {

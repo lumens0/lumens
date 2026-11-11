@@ -2,15 +2,15 @@ import { eq, estudantes, papeisPauta, pautas, sql, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cifrar, type Chaves } from '../cripto';
-import { JOBS, StaleJobError } from '../queue';
+import { cifrar, type Chaves } from '../cripto/cifra';
+import { JOBS, StaleJobError } from '../infra/queue';
 import {
   FakeQueue,
   jobsConcluidos,
   mortasNaFila,
   prepararFilaFalsa,
   respostasNaFila,
-} from '../queue.fake';
+} from '../infra/queue.fake';
 import {
   defaultHandlers,
   GREETING_TEXT,

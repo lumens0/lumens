@@ -33,10 +33,10 @@ import {
 import { buildListReply, buildTextMessage } from './bot/sim/payloads';
 import { signPayload } from './bot/sim/send';
 import { registerIncomingWorker, registerReplyWorker, respostasDoJob } from './bot/worker';
-import type { Chaves } from './cripto';
+import type { Chaves } from './cripto/cifra';
 import type { ServicoDeEmail } from './email/codigo';
-import { criarPgBossRuntime } from './pg-boss';
-import { filaPgBoss } from './queue';
+import { criarPgBossRuntime } from './infra/pg-boss';
+import { filaPgBoss } from './infra/queue';
 
 const URL_TESTE = process.env.DATABASE_URL_TESTE;
 const URL_APLICACAO = process.env.DATABASE_URL;

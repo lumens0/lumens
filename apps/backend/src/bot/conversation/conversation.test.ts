@@ -2,8 +2,8 @@ import { conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CLEANUP_CRON, CLEANUP_TZ, registerCleanupJob } from '../../agendador/limpeza-conversas';
-import { segredoCom } from '../../cripto';
-import { JOBS } from '../../queue';
+import { segredoCom } from '../../cripto/cifra';
+import { JOBS } from '../../infra/queue';
 import {
   defaultHandlers,
   GREETING_TEXT,
