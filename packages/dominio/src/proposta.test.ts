@@ -1,5 +1,5 @@
-import { eq, eventos, pautas, type Db } from '@lumens/db';
-import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { criarDb, criarPool, eq, eventos, pautas, voluntarios, type Db } from '@lumens/db';
+import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarEstudanteVerificado, criarPauta, tornarOwner } from './fabricas';
 import {
@@ -8,6 +8,7 @@ import {
   registrarExecucaoProposta,
   registrarVoluntario,
 } from './proposta';
+import { transicionarStatus } from './status';
 
 let db: Db;
 
@@ -122,4 +123,72 @@ describe('registrarVoluntario (RF-B16)', () => {
     ).toEqual({ registrado: false, motivo: 'proposta_inexistente' });
     expect(await propostasAbertas(db, pauta.id)).toEqual([]);
   });
+});
+
+// Concorrência precisa de duas conexões ao mesmo tempo, o que o PGlite não tem.
+const URL_TESTE = process.env.DATABASE_URL_TESTE;
+if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
+
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe.skipIf(!URL_TESTE)('registrarVoluntario com Postgres de verdade', () => {
+  it('a pauta terminando ao mesmo tempo: o voluntário espera e é recusado', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    // Com tratador de erro: apagar o banco temporário derruba as conexões (57P01).
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real, { status: 'prometido' });
+      const owner = await criarEstudanteVerificado(real);
+      await tornarOwner(real, pauta.id, owner.id);
+      const r = await real.transaction((tx) =>
+        publicarProposta(tx, {
+          pautaId: pauta.id,
+          porEstudanteId: owner.id,
+          descricao: 'Mutirão',
+          pessoasNecessarias: 2,
+        }),
+      );
+      if (!r.publicada) throw new Error('não publicou');
+      const estudante = await criarEstudanteVerificado(real);
+
+      // A apuração conclui a pauta e segura a trava sem confirmar; o voluntário chega nesse meio.
+      let soltarA: () => void = () => undefined;
+      const aSegura = new Promise<void>((s) => {
+        soltarA = s;
+      });
+      let avisarQueATravou: () => void = () => undefined;
+      const aTravou = new Promise<void>((s) => {
+        avisarQueATravou = s;
+      });
+      const a = real.transaction(async (tx) => {
+        await transicionarStatus(tx, {
+          pautaId: pauta.id,
+          para: 'conquistada',
+          origem: 'agendador',
+        });
+        avisarQueATravou();
+        await aSegura;
+      });
+      await aTravou;
+      const b = real.transaction((tx) =>
+        registrarVoluntario(tx, { propostaId: r.propostaId, estudanteId: estudante.id }),
+      );
+      await esperar(300); // B já está parado no FOR SHARE
+      soltarA();
+      const [, rb] = await Promise.all([a, b]);
+
+      expect(rb).toEqual({ registrado: false, motivo: 'proposta_encerrada' });
+      expect(
+        await real.select().from(voluntarios).where(eq(voluntarios.propostaId, r.propostaId)),
+      ).toEqual([]);
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
 });

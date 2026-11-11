@@ -78,7 +78,9 @@ export async function registrarVoluntario(
   tx: Tx,
   { propostaId, estudanteId }: { propostaId: string; estudanteId: string },
 ): Promise<ResultadoVoluntario> {
-  // FOR SHARE: a execução (FOR UPDATE) espera; voluntário aceito aqui conta na proposta aberta.
+  // FOR SHARE nas duas linhas: a execução da proposta e `transicionarStatus` (ambas FOR UPDATE)
+  // esperam, então o voluntário não entra numa proposta feita nem numa pauta que acabou de terminar.
+  // Vários "Vou ajudar" ao mesmo tempo não esperam um pelo outro.
   const [proposta] = await tx
     .select({
       descricao: propostas.descricao,
@@ -89,7 +91,7 @@ export async function registrarVoluntario(
     .from(propostas)
     .innerJoin(pautas, eq(pautas.id, propostas.pautaId))
     .where(eq(propostas.id, propostaId))
-    .for('share', { of: propostas });
+    .for('share', { of: [propostas, pautas] });
 
   if (proposta === undefined) return { registrado: false, motivo: 'proposta_inexistente' };
   if (proposta.status !== 'aberta' || !STATUS_COM_CAMINHOS.includes(proposta.statusPauta)) {
