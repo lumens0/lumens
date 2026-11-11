@@ -10,7 +10,7 @@
  * trezentas linhas que ninguém lê, empurrando para fora o que importa. O evento
  * da conferência é um só e nasce da apuração, quando o prazo fecha (3.7b).
  */
-import { and, eq, type Tx } from '@lumens/db';
+import { and, eq, estudantes, type Tx } from '@lumens/db';
 import { apoios, promessas, respostasConferencia } from '@lumens/db';
 import type { RespostaConferencia } from './conferencia';
 
@@ -68,6 +68,16 @@ export async function registrarRespostaConferencia(
     return { registrada: false, motivo: 'conferencia_encerrada' };
   }
   if (agora < promessa.abreEm) return { registrada: false, motivo: 'conferencia_nao_abriu' };
+
+  // FOR UPDATE no estudante: serializa com sairDoLumens para impedir resposta de quem está saindo.
+  const [estudante] = await tx
+    .select({ saiuEm: estudantes.saiuEm })
+    .from(estudantes)
+    .where(eq(estudantes.id, estudanteId))
+    .for('update');
+  if (estudante === undefined || estudante.saiuEm !== null) {
+    return { registrada: false, motivo: 'nao_apoiou' };
+  }
 
   const [apoio] = await tx
     .select({ estudanteId: apoios.estudanteId })

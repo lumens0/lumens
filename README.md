@@ -36,20 +36,52 @@ lumens/
 
 ## Documentação
 
-| Página                                            | Para quê                                                  |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar |
-| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                    |
-| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova  |
-| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome               |
-| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão |
-| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                  |
-| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto       |
-| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta               |
+| Página                                            | Para quê                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------- |
+| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar       |
+| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                          |
+| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova        |
+| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome                     |
+| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão       |
+| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                        |
+| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto             |
+| [Backup do banco](docs/backup.md)                 | backup diário, teste de restauração e o que fazer num incidente |
+| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta                     |
 
 **Regra da equipe:** nenhum módulo grava direto numa tabela de negócio. Todos chamam funções de
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
 transação.
+
+## Endereços da homologação
+
+São dois lugares: o **site** fica na Vercel; o **back-end** (API e webhook) e o **painel** ficam na
+VM da Azure, atrás do Caddy, que emite o HTTPS. Na VM, os dois nomes vêm do mesmo `DOMINIO` do
+`.env.producao` (hoje `lumens-ufal.duckdns.org`): o back-end responde no nome puro e o painel em
+`painel.` na frente.
+
+| Endereço                                                                                | O que é                                     | Onde roda             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------- | --------------------- |
+| [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app)                                | site público, para quem acompanha as pautas | Vercel                |
+| [painel.lumens-ufal.duckdns.org](https://painel.lumens-ufal.duckdns.org)                | painel de curadoria (login por e-mail)      | VM, serviço `painel`  |
+| [lumens-ufal.duckdns.org/saude](https://lumens-ufal.duckdns.org/saude)                  | saúde do back-end e do banco                | VM, serviço `backend` |
+| [lumens-ufal.duckdns.org/resumo](https://lumens-ufal.duckdns.org/resumo) e demais rotas | API de leitura que o site consome           | VM, serviço `backend` |
+| `https://lumens-ufal.duckdns.org/webhook`                                               | webhook da Meta (WhatsApp)                  | VM, serviço `backend` |
+
+O que esperar de cada um:
+
+- **`https://lumens-ufal.duckdns.org/` responde 404, e isso é normal.** O nome puro é só a API: o
+  back-end não tem página na raiz. Para ver se está de pé, abra `/saude`; as rotas de leitura
+  (`/resumo`, `/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas`, `/atividade`) estão em
+  [docs/api.md](docs/api.md).
+- **`/webhook` aberto no navegador responde 403.** Ele só aceita o handshake da Meta com o
+  `META_VERIFY_TOKEN` e mensagens assinadas com o `META_APP_SECRET`.
+- **O painel manda para `/login`** enquanto não há sessão. Só entra quem está na tabela `curador`
+  (veja [Painel de curadoria](#painel-de-curadoria)).
+- **`lumens-hazel.vercel.app`** é o nome antigo do site. Ainda responde, mas não use em links.
+
+Fora do ar? A VM fica desligada quando ninguém está usando, para economizar o crédito da Azure: os
+endereços da VM param de responder e o site perde os dados. Para religar, veja
+[docs/homologacao.md](docs/homologacao.md).
 
 ## Como rodar
 
@@ -198,20 +230,18 @@ Homologação: [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app). O ender
 `lumens-hazel.vercel.app` continua respondendo, mas é o nome que a Vercel gerou sozinha quando
 `lumens.vercel.app` já estava tomado — use o novo em links, cartões e mensagens (SCRUM-242).
 
-Até o ambiente da AWS (1.1b), o site e o painel são publicados na Vercel pelo GitHub Actions.
-Após o `check` passar na `main`, o job `deploy` publica os projetos `lumens` e `lumens-painel`
-pela Vercel CLI. Isso mantém o deploy automático no plano Hobby mesmo com o repositório na
+Até o ambiente da AWS (1.1b), o site é publicado na Vercel pelo GitHub Actions.
+Após o `check` passar na `main`, o job `deploy` publica o projeto `lumens` pela Vercel CLI. Isso mantém o deploy automático no plano Hobby mesmo com o repositório na
 organização `lumens0`. O status e os logs do deploy ficam no GitHub Actions e na Vercel.
 
-O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-`VERCEL_SITE_PROJECT_ID` e `VERCEL_PAINEL_PROJECT_ID`. Na Vercel, os diretórios raiz dos
-projetos continuam sendo `apps/site` e `apps/painel`, respectivamente.
+O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_SITE_PROJECT_ID`.
+Na Vercel, o diretório raiz do projeto continua sendo `apps/site`.
 
-O **back-end** vai para uma máquina virtual, por `docker compose`, no job `deploy-backend`:
+O **back-end** e o **painel** vão para uma máquina virtual, por `docker compose`, no job
+`deploy-backend`:
 migração primeiro, em comando separado, e só então a nova versão sobe — migração que falha
 deixa a anterior servindo. Como montar a máquina, qual nuvem e por quê, e quais secrets são
-exigidos está em [docs/homologacao.md](docs/homologacao.md). O site e o painel continuam na
-Vercel.
+exigidos está em [docs/homologacao.md](docs/homologacao.md). O site continua na Vercel.
 
 ## Painel de curadoria
 
@@ -226,7 +256,7 @@ pnpm --filter @lumens/painel build   # build de produção
 ```
 
 O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
-`.env`. Na Vercel, as mesmas variáveis vão no projeto do painel.
+`.env`. Na homologação, elas vêm do `.env.producao` da VM.
 
 **Adicionar um curador** (ou reativar quem saiu):
 
@@ -240,10 +270,14 @@ O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as 
 
 Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
-Homologação: [lumens-painel.vercel.app](https://lumens-painel.vercel.app).
+Homologação: `https://painel.<DOMINIO>`, na mesma VM do banco. O painel não fica na Vercel
+porque o Postgres da homologação não tem porta publicada: fora da rede do `docker compose`,
+ninguém o alcança. Para cadastrar curador lá, rode o script dentro da VM, pelo contêiner do
+back-end (que já tem o `.env.producao`):
 
-Na Vercel, o projeto do painel usa `apps/painel` como diretório raiz. Assim, site e painel têm
-deploys e configurações independentes mesmo compartilhando o monorepo.
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+```
 
 ## Bot (parte 2)
 
@@ -279,11 +313,10 @@ Pendências da parte 2:
   que decifra o telefone e chama a Cloud API. Uma resposta é texto, mensagem de lista ou mensagem
   com botões (`src/bot/conversation/resposta.ts`), que viram `interactive.type = "list"` (uma
   seção só) e `interactive.type = "button"` (os caminhos da 3.3).
-- Handlers da história 2.4 (verificação) são placeholders (`TODO` em
-  `src/bot/conversation/handlers.ts`). Ao terminar, a verificação deve retomar o
-  `pendingCommand` `nova-pauta` deixado pela 2.6 (`TODO(2.4)` em
-  `src/bot/conversation/nova-pauta.ts`). O apoio da 2.7 entra no `TODO(2.7)` de
-  `src/bot/conversation/relato.ts`.
+- A verificação (2.4) está completa no bot (`src/bot/conversation/verificacao.ts`) e retoma a
+  pauta nova da 2.6. Falta testar o e-mail do código num SMTP de verdade e em contas reais da
+  UFAL. O apoio da 2.7 entra no `TODO(2.7)` de `src/bot/conversation/relato.ts` e retoma o
+  `pendingCommand` `apoiar` (`TODO(2.7)` em `verificacao.ts`).
 - A foto da pauta nova (2.6) é baixada da Meta com o `META_TOKEN` e guardada no
   `S3_BUCKET_FOTOS`. Sem emulador de S3 no `docker-compose` (T20), no `pnpm dev` a foto é
   recusada com aviso e o "pular" continua funcionando.

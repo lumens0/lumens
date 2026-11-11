@@ -14,6 +14,7 @@ export const STEPS = [
   'NEW_ASK_PHOTO',
   'OWNER_PICK_PAUTA',
   'OWNER_PATHS',
+  'LEAVE_CONFIRM',
 ] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -38,15 +39,19 @@ export const Step = {
   NEW_ASK_PHOTO: 'NEW_ASK_PHOTO',
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
   OWNER_PATHS: 'OWNER_PATHS',
+  LEAVE_CONFIRM: 'LEAVE_CONFIRM',
 } as const satisfies { [K in Step]: K };
 
 /** Próximos passos permitidos a partir de cada passo (fora os globais). */
 export const TRANSITIONS: Record<Step, readonly Step[]> = {
   GREETING: ['MENU'],
   MENU: ['VERIFY_ASK_EMAIL', 'REPORT_ASK_TEXT', 'NEW_ASK_TITLE', 'OWNER_PICK_PAUTA', 'OWNER_PATHS'],
-  VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE'],
-  VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE'],
-  VERIFY_ASK_COURSE: ['MENU'],
+  // 2.4: e-mail recusado pergunta de novo no mesmo passo.
+  VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
+  // 2.4: código errado, vencido ou "reenviar" ficam no passo; sem o e-mail na conversa, volta a ele.
+  VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
+  // 2.4: curso fora da lista pergunta de novo; verificado, retoma a pauta nova ou volta ao menu.
+  VERIFY_ASK_COURSE: ['MENU', 'VERIFY_ASK_COURSE', 'NEW_ASK_TITLE', 'VERIFY_ASK_EMAIL'],
   // Os passos do relato repetem a pergunta quando a resposta não serve (relato vazio, bloco que
   // não existe, escolha fora da lista).
   REPORT_ASK_TEXT: ['REPORT_ASK_BLOCK', 'REPORT_PICK_SIMILAR', 'REPORT_ASK_TEXT'],
@@ -63,10 +68,12 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // mesmo passo depois de abrir um (o outro continua disponível) e voltam ao menu com os dois.
   OWNER_PICK_PAUTA: ['OWNER_PATHS', 'OWNER_PICK_PAUTA', 'MENU'],
   OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
+  // 5.7: confirmado ou não, a conversa volta ao menu (ou é apagada, se a pessoa saiu).
+  LEAVE_CONFIRM: ['MENU'],
 };
 
-/** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar'). */
-export const GLOBAL_TARGETS: readonly Step[] = ['GREETING', 'MENU'];
+/** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar', 'sair'). */
+export const GLOBAL_TARGETS: readonly Step[] = ['GREETING', 'MENU', 'LEAVE_CONFIRM'];
 
 export class InvalidTransitionError extends Error {
   readonly from: Step;

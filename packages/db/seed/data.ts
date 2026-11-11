@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { CURSOS } from '../src/cursos';
 import type {
   NovoApoio,
   NovoBloco,
@@ -38,17 +39,6 @@ function data(dia: number, hora = 12): Date {
     `2026-02-${String(dia).padStart(2, '0')}T${String(hora).padStart(2, '0')}:00:00.000Z`,
   );
 }
-
-const cursos = [
-  'Administração',
-  'Arquitetura e Urbanismo',
-  'Ciência da Computação',
-  'Direito',
-  'Enfermagem',
-  'Engenharia Civil',
-  'Jornalismo',
-  'Pedagogia',
-] as const;
 
 const idsBloco = {
   bloco18: uuid(1, 1),
@@ -108,7 +98,7 @@ export const estudantesSeed = Array.from({ length: QUANTIDADE_ESTUDANTES }, (_, 
     telefoneCifrado: placeholderCifrado('telefone', telefoneFicticio),
     emailHmac: hmac(`email:${emailFicticio}`),
     emailCifrado: placeholderCifrado('email', emailFicticio),
-    curso: cursos[indice % cursos.length],
+    curso: CURSOS[indice % CURSOS.length],
     verificadoEm: data(1, 9),
   };
 }) satisfies Array<NovoEstudante & { id: string }>;

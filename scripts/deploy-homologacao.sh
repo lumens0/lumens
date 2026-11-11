@@ -37,6 +37,13 @@ if grep -qE '^[[:space:]]*(POSTGRES_PASSWORD|DATABASE_URL_MIGRACAO)=' .env.produ
   exit 1
 fi
 
+# Sem AUTH_SECRET o painel sobe, mas todo login responde 500 (MissingSecret do Auth.js).
+# Melhor parar aqui, com a causa no log, do que publicar um painel que não deixa ninguém entrar.
+if ! grep -qE '^[[:space:]]*AUTH_SECRET=[^[:space:]]+' .env.producao; then
+  echo "::error::.env.producao não tem AUTH_SECRET. Gere com: openssl rand -base64 32" >&2
+  exit 1
+fi
+
 echo "--> Atualizando o código para $REF"
 git fetch --prune origin
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
@@ -53,8 +60,17 @@ echo "--> Migrando o banco"
 # tabela ausente, longe da causa.
 "${COMPOSE[@]}" run --build --rm migracao
 
-echo "--> Subindo back-end e Caddy"
+echo "--> Subindo back-end, painel e Caddy"
 "${COMPOSE[@]}" up -d --build
+
+echo "--> Reiniciando o Caddy para ler o Caddyfile novo"
+# O `up` só recria contêiner cuja imagem ou configuração mudou, e o do Caddy (caddy:2) quase
+# nunca muda: ele seguiria com o Caddyfile antigo na memória. Pior, o arquivo é montado
+# sozinho e o `git reset --hard` o recria com outro inode, então nem um `caddy reload` dentro
+# do contêiner o enxergaria — o bind mount continua preso ao arquivo velho. O restart refaz a
+# montagem. Foi assim que painel.<DOMINIO> ficou sem bloco e o TLS respondia "internal error".
+# Os certificados ficam no volume caddy-data, então reiniciar não pede emissão nova.
+"${COMPOSE[@]}" restart caddy
 
 echo "--> Limpando imagens antigas"
 # Sem isto o disco da t3.micro enche depois de alguns deploys e o build seguinte falha

@@ -18,6 +18,7 @@ import {
   type HandlerRegistry,
 } from './conversation/handlers';
 import type { Resposta } from './conversation/resposta';
+import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
 import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
@@ -195,7 +196,11 @@ describe('atividade do owner', () => {
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
     const entrada = texto('oi');
-    expect(await processIncomingJob(entrada, deps)).toEqual([GREETING_TEXT, MENU_TEXT]);
+    expect(await processIncomingJob(entrada, deps)).toEqual([
+      GREETING_TEXT,
+      PRIVACY_NOTICE_TEXT,
+      MENU_TEXT,
+    ]);
 
     expect(await passo()).toBe('MENU');
     const [saida] = await respostasNaFila(db);
@@ -205,7 +210,7 @@ describe('processIncomingJob', () => {
       phoneNumberId: 'PNID',
       wamidHmac: entrada.data.wamidHmac,
     });
-    expect(await respostas()).toEqual([[GREETING_TEXT, MENU_TEXT]]);
+    expect(await respostas()).toEqual([[GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]]);
     expect(await jobsConcluidos(db)).toEqual([{ name: JOBS.incomingMessage, id: entrada.id }]);
   });
 
