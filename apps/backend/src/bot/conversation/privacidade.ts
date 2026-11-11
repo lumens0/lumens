@@ -10,7 +10,7 @@
  */
 import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { eq, estudantes } from '@lumens/db';
-import { sairDoLumens } from '@lumens/dominio';
+import { apagarCodigo, sairDoLumens } from '@lumens/dominio';
 import type { StepContext, StepHandler, StepResult } from './handlers';
 import { normalize } from './texto';
 
@@ -33,7 +33,7 @@ export const LEFT_TEXT =
   'Pronto, você saiu do Lumens. Apagamos seu telefone, seu e-mail e esta conversa. Se quiser voltar, é só mandar uma mensagem e se verificar de novo.';
 
 export const NOTHING_TO_DELETE_TEXT =
-  'Você não tem cadastro no Lumens, então não há vínculo para apagar. Apaguei esta conversa.';
+  'Você não tem cadastro no Lumens, então não há vínculo para apagar. Apaguei esta conversa e o código de verificação, se havia um.';
 
 export const STAYED_TEXT = 'Ok, você continua no Lumens.';
 
@@ -48,9 +48,14 @@ async function estudanteDoTelefone(ctx: StepContext): Promise<string | undefined
   return estudante !== undefined && estudante.saiuEm === null ? estudante.id : undefined;
 }
 
-/** "sair" de qualquer passo. Sem cadastro, só apaga a conversa; com cadastro, pede confirmação. */
+/**
+ * "sair" de qualquer passo. Sem cadastro, apaga a conversa e o código de verificação; com cadastro,
+ * pede confirmação. O código existe sem cadastro: o `verifyAskEmail` o grava antes de o
+ * `verifyAskCode` criar o estudante, e ele guarda o HMAC do telefone.
+ */
 export async function pedirSaida(ctx: StepContext): Promise<StepResult> {
   if ((await estudanteDoTelefone(ctx)) === undefined) {
+    await apagarCodigo(ctx.db, ctx.phoneHmac);
     return { next: 'MENU', replies: [NOTHING_TO_DELETE_TEXT], apagarConversa: true };
   }
   return { next: 'LEAVE_CONFIRM', replies: [LEAVE_CONFIRM_TEXT] };
@@ -64,6 +69,9 @@ export const leaveConfirm: StepHandler = async (ctx) => {
   if (estudanteId !== undefined) {
     // Savepoint na transação da mensagem, como o `criarPauta` da 2.6.
     await ctx.db.transaction((tx) => sairDoLumens(tx, { estudanteId }));
+  } else {
+    // O cadastro sumiu no meio: o `sairDoLumens` não roda, então o código sai aqui.
+    await apagarCodigo(ctx.db, ctx.phoneHmac);
   }
   return { next: 'MENU', replies: [LEFT_TEXT], apagarConversa: true };
 };

@@ -1,8 +1,9 @@
-import { apoios, conversas, eq, estudantes, pautas, type Db } from '@lumens/db';
+import { apoios, codigosVerificacao, conversas, eq, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { registrarApoio } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { hmacHex, segredoCom } from '../../cripto';
+import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import { GREETING_TEXT, MENU_TEXT } from './handlers';
 import { hashPhone } from './phone';
@@ -25,10 +26,19 @@ const segredo = segredoCom(CHAVE);
 let db: Db;
 let store: ConversationStore;
 // Como o worker: cada mensagem numa transação, para o savepoint do sairDoLumens valer.
+// E-mail falso: a verificação (2.4) grava o código e "envia" sem SMTP.
+const email: ServicoDeEmail = { enviarCodigo: () => Promise.resolve(true) };
+const hmac = (valor: string) => hmacHex(valor, CHAVE);
 const send = (text: string) =>
   db.transaction((tx) =>
-    handleIncoming({ phoneHmac: H, text }, { store: store.withDb(tx), db: tx, segredo }),
+    handleIncoming(
+      { phoneHmac: H, text },
+      { store: store.withDb(tx), db: tx, segredo, email, hmac },
+    ),
   );
+
+const codigoPendente = async () =>
+  (await db.select().from(codigosVerificacao).where(eq(codigosVerificacao.telefoneHmac, H)))[0];
 
 const conversa = async () =>
   (await db.select().from(conversas).where(eq(conversas.telefoneHmac, H)))[0];
@@ -88,6 +98,20 @@ describe("comando 'sair' (SCRUM-176)", () => {
   it('sem cadastro, não há o que confirmar: apaga a conversa', async () => {
     await send('oi');
     expect(await send('sair')).toEqual([NOTHING_TO_DELETE_TEXT]);
+    expect(await conversa()).toBeUndefined();
+  });
+
+  it('sem cadastro, apaga também o código de verificação pedido e não usado', async () => {
+    await send('oi');
+    await send('3');
+    await send('aluno@ufal.br');
+    expect(await codigoPendente()).toBeDefined();
+    expect((await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, H))).length).toBe(
+      0,
+    );
+
+    expect(await send('sair')).toEqual([NOTHING_TO_DELETE_TEXT]);
+    expect(await codigoPendente()).toBeUndefined();
     expect(await conversa()).toBeUndefined();
   });
 
