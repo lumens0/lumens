@@ -24,8 +24,9 @@ fi
 psql_em() {
   "${COMPOSE[@]}" exec -T postgres sh -c "psql -v ON_ERROR_STOP=1 -X -q -t -A -U \"\$POSTGRES_USER\" -d $1"
 }
+# Banco com que comparar as contagens. Padrão: o da aplicação. ORIGEM= (vazio) pula a comparação.
 # Sem stdin (</dev/null): dentro de um pipe, o `docker exec` comeria o SQL destinado ao psql.
-BANCO_ORIGEM=$("${COMPOSE[@]}" exec -T postgres sh -c 'echo "$POSTGRES_DB"' </dev/null | tr -d '\r')
+BANCO_ORIGEM=${ORIGEM-$("${COMPOSE[@]}" exec -T postgres sh -c 'echo "$POSTGRES_DB"' </dev/null | tr -d '\r')}
 
 limpar() { echo "DROP DATABASE IF EXISTS $TEMPORARIO WITH (FORCE);" | psql_em postgres; }
 trap limpar EXIT
@@ -38,13 +39,23 @@ echo "CREATE DATABASE $TEMPORARIO;" | psql_em postgres
   <"$arquivo"
 
 CONTAGEM="SELECT (SELECT count(*) FROM pauta) || ' pautas, ' || (SELECT count(*) FROM apoio) || ' apoios, ' || (SELECT count(*) FROM evento) || ' eventos';"
-na_origem=$(echo "$CONTAGEM" | psql_em "$BANCO_ORIGEM")
 restaurado=$(echo "$CONTAGEM" | psql_em "$TEMPORARIO")
-echo "    origem:     $na_origem"
 echo "    restaurado: $restaurado"
-if [[ "$na_origem" != "$restaurado" ]]; then
-  # Diferença pode ser só movimento depois do backup: compare com a hora do arquivo antes de alarmar.
-  echo "AVISO: as contagens diferem. Se houve atividade depois do backup, isso é esperado." >&2
+
+# A comparação com a origem é informativa e NÃO pode derrubar o teste: num incidente a origem é
+# justamente o banco perdido ou corrompido (docs/backup.md, "Restaurar de verdade", passo 2), e
+# é aí que mais importa saber se o backup presta. As checagens abaixo, no restaurado, seguem
+# obrigatórias.
+if [[ -z "$BANCO_ORIGEM" ]]; then
+  echo "    origem:     comparação pulada (ORIGEM vazio)"
+elif na_origem=$(echo "$CONTAGEM" | psql_em "$BANCO_ORIGEM" 2>/dev/null); then
+  echo "    origem:     $na_origem"
+  if [[ "$na_origem" != "$restaurado" ]]; then
+    # Diferença pode ser só movimento depois do backup: compare com a hora do arquivo antes de alarmar.
+    echo "AVISO: as contagens diferem. Se houve atividade depois do backup, isso é esperado." >&2
+  fi
+else
+  echo "AVISO: não deu para contar na origem ($BANCO_ORIGEM): ela está fora do ar ou incompleta. Seguindo só com as checagens do backup." >&2
 fi
 
 echo "--> Conferindo o trigger da linha do tempo e as views"
