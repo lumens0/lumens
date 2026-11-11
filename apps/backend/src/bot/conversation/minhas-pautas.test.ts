@@ -27,10 +27,12 @@ import {
   PAUTA_NOT_FOUND_TEXT,
   PICK_PATH_AGAIN_TEXT,
   PICK_PAUTA_TEXT,
+  PROPOSAL_ALREADY_OPEN_TEXT,
   alreadyOpenText,
 } from './minhas-pautas';
 import { hashPhone } from './phone';
 import {
+  ALREADY_DONE_TEXT,
   ALREADY_VOLUNTEER_TEXT,
   DONE_TEXT,
   NEED_VERIFY_TEXT,
@@ -466,7 +468,12 @@ describe('proposta da comunidade (3.5)', () => {
     expect(botoesEm(r).corpo).toContain(
       '• Proposta: Mutirão para pintar as faixas (0 de 2 voluntários)',
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:falabr', 'proposta:feita', 'menu']);
+    const [publicada] = await propostasDe();
+    expect(idsDosBotoes(r)).toEqual([
+      'caminho:falabr',
+      `proposta:feita:${publicada?.id ?? ''}`,
+      'menu',
+    ]);
     expect(await passo()).toBe('OWNER_PATHS');
     expect(await dados()).not.toHaveProperty('propostaCifrada');
     expect(await propostasDe()).toMatchObject([
@@ -528,7 +535,7 @@ describe('proposta da comunidade (3.5)', () => {
 
   it('marcar feita vira conquista parcial: a pauta continua sendo cobrada (RN09)', async () => {
     await publicar();
-    const r = await send('proposta:feita');
+    const r = await send('feita');
 
     expect(r[0]).toBe(DONE_TEXT);
     expect(idsDosBotoes(r)).toEqual(['caminho:falabr', 'proposta:nova', 'menu']);
@@ -543,6 +550,72 @@ describe('proposta da comunidade (3.5)', () => {
     // Depois de feita, ninguém mais entra na lista dela.
     const [proposta] = await propostasDe();
     expect(await send(`ajudar ${proposta?.id ?? ''}`)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_TEXT]);
+  });
+
+  /** Outro telefone, verificado e co-owner da mesma pauta. */
+  async function coOwner() {
+    const [outro] = await db
+      .insert(estudantes)
+      .values({ telefoneHmac: OUTRO, telefoneCifrado: 'y', verificadoEm: new Date() })
+      .returning({ id: estudantes.id });
+    if (!outro) throw new Error('estudante não inserido');
+    await db.insert(papeisPauta).values({ pautaId, estudanteId: outro.id, papel: 'co_owner' });
+    await sendOutro('oi');
+  }
+
+  it('dois responsáveis propondo ao mesmo tempo: só a primeira proposta entra', async () => {
+    await coOwner();
+    await send('4');
+    await send('caminho:comunidade');
+    await sendOutro('4');
+    // Os dois começam antes de qualquer um publicar.
+    expect(await send('proposta:nova')).toEqual([PROPOSAL_ASK_TEXT]);
+    expect(await sendOutro('proposta:nova')).toEqual([PROPOSAL_ASK_TEXT]);
+    await send('Mutirão para pintar as faixas');
+    await sendOutro('Rifa para comprar tinta');
+    expect((await send('2'))[0]).toBe(PUBLISHED_TEXT);
+
+    const r = await sendOutro('3');
+    expect(r[0]).toBe(PROPOSAL_ALREADY_OPEN_TEXT);
+    expect((await store.get(OUTRO))?.step).toBe('OWNER_PATHS');
+    expect((await store.get(OUTRO))?.data).not.toHaveProperty('propostaCifrada');
+    expect(await propostasDe()).toMatchObject([{ descricao: 'Mutirão para pintar as faixas' }]);
+  });
+
+  it('botão "Proposta feita" antigo não marca a proposta publicada depois', async () => {
+    await coOwner();
+    const r = await publicar();
+    const botaoAntigo = idsDosBotoes(r).find((id) => id.startsWith('proposta:feita:')) ?? '';
+
+    // O co-owner marca a primeira como feita e publica outra.
+    await sendOutro('4');
+    expect((await sendOutro(botaoAntigo))[0]).toBe(DONE_TEXT);
+    await sendOutro('proposta:nova');
+    await sendOutro('Rifa para comprar tinta');
+    expect((await sendOutro('3'))[0]).toBe(PUBLISHED_TEXT);
+
+    // O owner toca no botão que recebeu antes: nada muda na proposta nova.
+    expect((await send(botaoAntigo))[0]).toBe(ALREADY_DONE_TEXT);
+    const segunda = (await propostasDe()).find((p) => p.descricao === 'Rifa para comprar tinta');
+    expect(segunda?.status).toBe('aberta');
+    const tipos = (
+      await db.select({ tipo: eventos.tipo }).from(eventos).where(eq(eventos.pautaId, pautaId))
+    ).map((e) => e.tipo);
+    expect(tipos.filter((t) => t === 'proposta_executada')).toHaveLength(1);
+  });
+
+  it('botão com id de proposta de outra pauta não marca nada', async () => {
+    await publicar();
+    const outraPauta = await pautaDe(eu, 'Bebedouro');
+    const [estranha] = await db
+      .insert(propostas)
+      .values({ pautaId: outraPauta, descricao: 'Outra', pessoasNecessarias: 1 })
+      .returning({ id: propostas.id });
+
+    expect((await send(`proposta:feita:${estranha?.id ?? ''}`))[0]).toBe(PICK_PATH_AGAIN_TEXT);
+    expect((await send('proposta:feita:nao-e-uuid'))[0]).toBe(PICK_PATH_AGAIN_TEXT);
+    const [nela] = await db.select().from(propostas).where(eq(propostas.pautaId, outraPauta));
+    expect(nela?.status).toBe('aberta');
   });
 });
 
