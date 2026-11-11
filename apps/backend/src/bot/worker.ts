@@ -3,6 +3,7 @@ import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto';
 import type { ServicoDeEmail } from '../email/codigo';
+import type { ServicoDeRespostas } from '../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
@@ -47,6 +48,8 @@ export interface WorkerDeps {
   fotos?: ServicoDeFotos;
   /** Código de verificação por e-mail (2.4). */
   email?: ServicoDeEmail;
+  /** PDF da resposta oficial (3.6). */
+  respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
 }
 
@@ -128,6 +131,12 @@ export function inputOf(content: ConteudoMensagem): IncomingMessage | null {
   if (content.image) {
     return { text: '', image: { id: content.image.id, mimeType: content.image.mime_type } };
   }
+  if (content.document) {
+    return {
+      text: '',
+      document: { id: content.document.id, mimeType: content.document.mime_type },
+    };
+  }
   return null;
 }
 
@@ -168,6 +177,7 @@ export async function processIncomingJob(
               hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
               ...(deps.email ? { email: deps.email } : {}),
+              ...(deps.respostas ? { respostas: deps.respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );

@@ -56,6 +56,15 @@ const conteudoSchema = z.object({
       caption: texto.optional(),
     })
     .optional(),
+  // PDF da resposta oficial que o owner encaminha (3.6). O nome do arquivo fica de fora: pode ter o
+  // nome de quem manifestou, e o bot não precisa dele.
+  document: z
+    .object({
+      id: texto,
+      mime_type: texto,
+      sha256: texto.optional(),
+    })
+    .optional(),
   interactive: z
     .object({
       type: texto,
