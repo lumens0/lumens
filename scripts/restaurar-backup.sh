@@ -28,6 +28,18 @@ psql_em() {
 # Sem stdin (</dev/null): dentro de um pipe, o `docker exec` comeria o SQL destinado ao psql.
 BANCO_ORIGEM=${ORIGEM-$("${COMPOSE[@]}" exec -T postgres sh -c 'echo "$POSTGRES_DB"' </dev/null | tr -d '\r')}
 
+# O dump traz os GRANTs para os logins restritos (o --no-owner não os tira; só o --no-acl tiraria,
+# e aí o banco restaurado sairia sem as permissões da aplicação). Num Postgres novo, com o volume
+# perdido, esses papéis não existem e o pg_restore falharia no primeiro GRANT — parecendo backup
+# ruim. Melhor parar antes, dizendo o que fazer.
+faltando=$(echo "SELECT string_agg(papel, ', ') FROM unnest(ARRAY['lumens_app', 'lumens_site']) AS papel WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = papel);" | psql_em postgres)
+if [[ -n "$faltando" ]]; then
+  echo "Faltam os papéis $faltando neste Postgres: o backup traz permissões para eles." >&2
+  echo "Provisione antes (docs/backup.md, \"Restaurar de verdade\", passo 2):" >&2
+  echo "  docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:provision" >&2
+  exit 1
+fi
+
 limpar() { echo "DROP DATABASE IF EXISTS $TEMPORARIO WITH (FORCE);" | psql_em postgres; }
 trap limpar EXIT
 
@@ -43,7 +55,7 @@ restaurado=$(echo "$CONTAGEM" | psql_em "$TEMPORARIO")
 echo "    restaurado: $restaurado"
 
 # A comparação com a origem é informativa e NÃO pode derrubar o teste: num incidente a origem é
-# justamente o banco perdido ou corrompido (docs/backup.md, "Restaurar de verdade", passo 2), e
+# justamente o banco perdido ou corrompido (docs/backup.md, "Restaurar de verdade", passo 3), e
 # é aí que mais importa saber se o backup presta. As checagens abaixo, no restaurado, seguem
 # obrigatórias.
 if [[ -z "$BANCO_ORIGEM" ]]; then
