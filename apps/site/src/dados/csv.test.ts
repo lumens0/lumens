@@ -40,6 +40,14 @@ describe('CSV de dados abertos', () => {
     expect(linhas(csv)[1]?.startsWith('"Bebedouro ""novo""; já";')).toBe(true);
   });
 
+  it.each(['=HYPERLINK("x")', '+1', '-2+3', '@SUM(A1)'])(
+    'título que começa como fórmula (%s) vira texto',
+    (titulo) => {
+      const linha = linhas(gerarCsv([{ ...base, titulo }]))[1] ?? '';
+      expect(linha.replace(/^"/, '').startsWith(`'${titulo.slice(0, 1)}`)).toBe(true);
+    },
+  );
+
   it('não leva descrição nem os cursos de quem está por trás da pauta', () => {
     const csv = gerarCsv([
       { ...base, descricao: 'texto livre', cursos_responsaveis: ['Medicina'] },
