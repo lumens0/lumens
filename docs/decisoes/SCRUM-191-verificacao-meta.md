@@ -61,12 +61,12 @@ O que isso significa na prática:
 
 Conferido na `main` em 2026-11-10:
 
-| O quê                                         | Onde                                                                                                 |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Limite em pessoas distintas, não em mensagens | `planejarEnvio` em `packages/dominio/src/envio.ts`: quem já foi alcançado não ocupa vaga nova.       |
-| Janela móvel de 24 horas, não dia civil       | `JANELA_META_MS` em `packages/dominio/src/fila.ts`: conta reserva ou envio das últimas 24h.          |
-| Limite padrão de portfólio não verificado     | `ORCAMENTO_SEM_VERIFICACAO = 250` em `envio.ts`; padrão de `META_LIMITE_PESSOAS` em `config/env.ts`. |
-| Limite muda sem deploy                        | `META_LIMITE_PESSOAS` no `.env`.                                                                     |
+| O quê                                         | Onde                                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Limite em pessoas distintas, não em mensagens | `planejarEnvio` em `packages/dominio/src/avisos/envio.ts`: quem já foi alcançado não ocupa vaga nova. |
+| Janela móvel de 24 horas, não dia civil       | `JANELA_META_MS` em `packages/dominio/src/avisos/fila.ts`: conta reserva ou envio das últimas 24h.    |
+| Limite padrão de portfólio não verificado     | `ORCAMENTO_SEM_VERIFICACAO = 250` em `envio.ts`; padrão de `META_LIMITE_PESSOAS` em `config/env.ts`.  |
+| Limite muda sem deploy                        | `META_LIMITE_PESSOAS` no `.env`.                                                                      |
 
 O parâmetro `jaIniciadasHoje` e o comentário "250 conversas por dia", que a proposta original
 apontava, não existem mais: a correção entrou com a fila persistida.

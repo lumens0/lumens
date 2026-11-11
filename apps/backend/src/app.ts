@@ -3,7 +3,7 @@ import { SLUG_MAX } from '@lumens/contratos';
 import { sql } from '@lumens/db';
 import { apiPlugin, type ApiPluginOptions } from './api';
 import { webhookPlugin, type WebhookPluginOptions } from './bot/webhook/routes';
-import { resumoDoErro } from './logger';
+import { resumoDoErro } from './infra/logger';
 
 export type AppDeps = WebhookPluginOptions & {
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */

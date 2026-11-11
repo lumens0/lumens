@@ -1,4 +1,4 @@
-# Backup diário do Postgres da homologação (SCRUM-95). Instalação: docs/backup.md.
+# Backup diário do Postgres da homologação (SCRUM-95). Instalação: docs/operacao/backup.md.
 [Unit]
 Description=Backup do banco do Lumens
 Requires=docker.service

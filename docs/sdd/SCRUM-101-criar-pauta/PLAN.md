@@ -1,6 +1,6 @@
 # PLAN — SCRUM-101
 
-## 1. Domínio: `criarPauta` (`packages/dominio/src/pauta.ts`)
+## 1. Domínio: `criarPauta` (`packages/dominio/src/pauta/pauta.ts`)
 
 Uma transação, quatro gravações: a pauta (`em_curadoria`, meta de `calcularMeta`, categoria
 `a_classificar`), o papel `owner` do criador, o primeiro relato (texto da 2.5 ou a descrição, com a

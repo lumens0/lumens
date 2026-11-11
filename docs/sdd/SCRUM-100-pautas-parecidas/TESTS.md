@@ -2,7 +2,7 @@
 
 ## Calibração
 
-`packages/dominio/src/pautas-parecidas.test.ts` tem 16 pautas em 6 blocos (abertas, em curadoria,
+`packages/dominio/src/pauta/pautas-parecidas.test.ts` tem 16 pautas em 6 blocos (abertas, em curadoria,
 recusadas e encerradas) e 28 relatos: 21 que têm de achar uma pauta específica em primeiro lugar e
 7 que não podem achar nenhuma. Os 5 mais recentes (3 e 2) foram escritos pela equipe na fase de teste e passam com os limiares atuais, que não foram alterados. Os relatos imitam o WhatsApp: sem acento, gíria ("ta", "pra"), erro
 de digitação ("bibloteca", "bebedor"), sinônimo ("pcs", "circular", "postes apagados") e número de

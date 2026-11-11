@@ -13,7 +13,7 @@ import {
 import type { Db } from '@lumens/db';
 import type { FastifyPluginCallback, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { resumoDoErro } from '../logger';
+import { resumoDoErro } from '../infra/logger';
 import {
   buscarPauta,
   buscarResumo,

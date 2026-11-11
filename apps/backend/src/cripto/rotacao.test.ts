@@ -1,7 +1,7 @@
 import { curadores, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cifrar, decifrar } from '../cripto';
+import { cifrar, decifrar } from './cifra';
 import { rotacionarCifra } from './rotacao';
 
 const CHAVE_A = Buffer.alloc(32, 1);

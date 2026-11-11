@@ -3,7 +3,7 @@
 // Lê DATABASE_URL, CHAVE_CIFRA e CHAVE_HMAC do .env da raiz. O e-mail vai cifrado e com HMAC, que
 // é como o painel acha o curador no login: `apps/painel/src/acesso.ts` faz o mesmo cálculo.
 import { criarCliente, curadores } from '@lumens/db';
-import { chavesDoEnv, cifrar, hmacHex } from '../src/cripto';
+import { chavesDoEnv, cifrar, hmacHex } from '../src/cripto/cifra';
 
 const [email, nome] = process.argv.slice(2);
 const { DATABASE_URL, CHAVE_CIFRA, CHAVE_HMAC } = process.env;

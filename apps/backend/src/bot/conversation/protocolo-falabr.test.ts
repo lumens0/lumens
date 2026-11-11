@@ -2,7 +2,7 @@ import { caminhos, eq, estudantes, papeisPauta, pautas, type Db } from '@lumens/
 import { calcularPrazo, diaEmMaceio } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { segredoCom } from '../../cripto/cifra';
 import { LOST_OWNER_TEXT } from './minhas-pautas';
 import { hashPhone } from './phone';
 import {

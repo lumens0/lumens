@@ -1,5 +1,5 @@
 import { curadores, eq, estudantes, type Db } from '@lumens/db';
-import { cifrar, decifrar } from '../cripto';
+import { cifrar, decifrar } from './cifra';
 
 const PREFIXO_LAPIDE = 'saiu:';
 

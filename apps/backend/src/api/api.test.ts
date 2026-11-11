@@ -16,7 +16,7 @@ import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { buildApp } from '../app';
-import { FakeQueue } from '../queue.fake';
+import { FakeQueue } from '../infra/queue.fake';
 import { apiPlugin, CACHE_PUBLICO } from './routes';
 
 // Os valores esperados saem do seed escrito à mão (`packages/db/seed/data.ts`) e das asserções

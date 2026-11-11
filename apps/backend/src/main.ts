@@ -8,15 +8,15 @@ import { graphSender, logModeloSender } from './bot/envio/sender';
 import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
 import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
 import { carregarEnv, type Env } from './config/env';
-import { chavesDoEnv } from './cripto';
+import { chavesDoEnv } from './cripto/cifra';
 import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
 import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
 import { criarStorageS3 } from './fotos/storage';
-import { criarLogger, resumoDoErro } from './logger';
-import { criarPgBossRuntime } from './pg-boss';
-import { filaPgBoss } from './queue';
+import { criarLogger, resumoDoErro } from './infra/logger';
+import { criarPgBossRuntime } from './infra/pg-boss';
+import { filaPgBoss } from './infra/queue';
 
 /**
  * Sem limite, um banco travado deixaria a transação de uma mensagem pendurada: o heartbeat segue

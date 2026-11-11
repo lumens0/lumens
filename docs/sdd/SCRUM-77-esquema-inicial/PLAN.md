@@ -5,7 +5,7 @@ Data: 2026-10-26. Entrega: @sthefanyblima.
 
 ## Abordagem
 
-Adicionar Drizzle ORM e drizzle-kit a packages/db, usando o driver pg e migrações SQL versionadas. Separar a construção do cliente da leitura de ambiente dos comandos: importar tabelas e tipos não abre conexão. Criar esquema novo sem modificar dados existentes nem executar reset do Docker. Preparar documentação ER versionável em docs/database e documentação SDD da entrega em docs/sdd, sem configurar Tour para a equipe.
+Adicionar Drizzle ORM e drizzle-kit a packages/db, usando o driver pg e migrações SQL versionadas. Separar a construção do cliente da leitura de ambiente dos comandos: importar tabelas e tipos não abre conexão. Criar esquema novo sem modificar dados existentes nem executar reset do Docker. Preparar documentação ER versionável em docs/arquitetura e documentação SDD da entrega em docs/sdd, sem configurar Tour para a equipe.
 
 ## Fontes e decisões
 
@@ -44,7 +44,7 @@ Adicionar Drizzle ORM e drizzle-kit a packages/db, usando o driver pg e migraç�
 2. Schema e migração: packages/db/src/schema.ts, cliente explícito e exportações; packages/db/migrations com SQL e metadados Drizzle. Índice parcial em promessa, FKs RESTRICT e índices sem redundâncias com prefixos de PKs. tsvector STORED gerado com configuração portuguese explicitada; GIN. Revisar SQL gerado.
 3. Execução e CI: runner encerra pool em sucesso/erro. CI cria lumens_test pelo SQL já usado pelo Docker, executa db:migrate no banco lumens vazio antes dos testes. Não alterar nome do job check. A suíte conecta por DATABASE_URL_TESTE e cria uma base temporária com nome aleatório prefixado lumens_test_scrum77_; tanto tabelas public quanto journal drizzle ficam nessa base, incluindo a prova do CLI real com URL temporária no ambiente do subprocesso. O ambiente local/CI fornecido usa o usuário administrador do serviço; a suíte requer CREATEDB explicitamente e falha com orientação se faltar. Encerrar todos os pools/subprocessos e remover somente a base temporária de nome validado; nunca resetar lumens ou lumens_test. Local sem banco de teste deve falhar com orientação; CI não permite pular integração.
 4. Verificação: Vitest contra PostgreSQL real para migração, defaults, enums, restrições, FKs, busca e reaplicação; prova de tipos em packages/dominio com dependência workspace de @lumens/db. Testes verificam código de erro e constraint, não apenas qualquer exceção. Múltiplos testes não compartilham transação já abortada.
-5. Documentação: docs/database/schema.md com Mermaid ER, tabela de status técnico, contratos de campos e pontos para T7; README com comandos e pré-requisitos. Persistir a SDD da entrega em docs/sdd, sem ZIP nem política Tour. Executar pnpm check e revisão independente proporcional ao risco antes da entrega.
+5. Documentação: docs/arquitetura/banco.md com Mermaid ER, tabela de status técnico, contratos de campos e pontos para T7; README com comandos e pré-requisitos. Persistir a SDD da entrega em docs/sdd, sem ZIP nem política Tour. Executar pnpm check e revisão independente proporcional ao risco antes da entrega.
 
 ## Testes
 

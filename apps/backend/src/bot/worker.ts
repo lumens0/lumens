@@ -1,12 +1,12 @@
 import type { Db } from '@lumens/db';
 import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
-import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto';
+import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto/cifra';
 import type { ServicoDeEmail } from '../email/codigo';
 import type { ServicoDeRespostas } from '../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../fotos/servico';
-import { resumoDoErro, type Logger } from '../logger';
-import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../queue';
+import { resumoDoErro, type Logger } from '../infra/logger';
+import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../infra/queue';
 import type { HandlerRegistry, IncomingMessage } from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { handleIncoming } from './conversation/router';

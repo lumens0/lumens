@@ -2,7 +2,7 @@ import type { Db } from '@lumens/db';
 import type { PgBoss } from 'pg-boss';
 import type { ConversationStore } from '../bot/conversation/store';
 import { deleteOldDedup } from '../bot/webhook/process';
-import { JOBS } from '../queue';
+import { JOBS } from '../infra/queue';
 
 export const CLEANUP_CRON = '0 4 * * *';
 export const CLEANUP_TZ = 'America/Maceio';

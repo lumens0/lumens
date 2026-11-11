@@ -2,7 +2,7 @@ import { disparos, eq, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { registrarApoio } from '@lumens/dominio';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { criarLogger } from '../logger';
+import { criarLogger } from '../infra/logger';
 import { avisarMetasBatidas } from './aviso-meta-batida';
 
 let db: Db;

@@ -2,8 +2,8 @@ import { disparos, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { enfileirarDisparos, renovarReserva, reservarLote } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { cifrar, hmacHex, type Chaves } from '../../cripto';
-import { criarLogger } from '../../logger';
+import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
+import { criarLogger } from '../../infra/logger';
 import type { MensagemModelo } from './mensagem-modelo';
 import { ErroDaMeta, type ModeloSender } from './sender';
 import {
