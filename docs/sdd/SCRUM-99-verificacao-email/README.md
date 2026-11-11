@@ -16,8 +16,9 @@ A história é entregue por subtask, uma branch e uma PR para cada.
 | SCRUM-137 | Vincular telefone ↔ e-mail (RN01); e-mail já usado        | `feat/SCRUM-137-vincular-email`     | #107          |
 | SCRUM-138 | Curso numa lista; marcar verificado; retomar o pedido     | `feat/SCRUM-138-curso-verificado`   | esta PR       |
 
-Com a SCRUM-138, a história fica completa no bot. Falta, fora do código, testar o e-mail do código
-num SMTP de verdade e em contas reais da UFAL (critério "não cai no spam").
+Com a SCRUM-138, a história fica completa no bot. O critério "não cai no spam" foi testado numa
+conta real da UFAL na SCRUM-139: o e-mail sai pelo SMTP do Google da conta `@ic.ufal.br`, porque
+pela Brevo o Gmail mostra alerta de falsificação (detalhes em [TESTS.md](TESTS.md)).
 
 ## Documentos
 

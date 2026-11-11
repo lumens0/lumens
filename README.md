@@ -331,8 +331,9 @@ Pendências da parte 2:
   com botões (`src/bot/conversation/resposta.ts`), que viram `interactive.type = "list"` (uma
   seção só) e `interactive.type = "button"` (os caminhos da 3.3).
 - A verificação (2.4) está completa no bot (`src/bot/conversation/verificacao.ts`) e retoma a
-  pauta nova da 2.6. Falta testar o e-mail do código num SMTP de verdade e em contas reais da
-  UFAL. O apoio da 2.7 entra no `TODO(2.7)` de `src/bot/conversation/relato.ts` e retoma o
+  pauta nova da 2.6. O e-mail do código foi testado numa conta real da UFAL (SCRUM-139): sai
+  pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo (ver
+  `docs/sdd/SCRUM-99-verificacao-email/TESTS.md`). Falta testar numa segunda conta. O apoio da 2.7 entra no `TODO(2.7)` de `src/bot/conversation/relato.ts` e retoma o
   `pendingCommand` `apoiar` (`TODO(2.7)` em `verificacao.ts`).
 - A foto da pauta nova (2.6) é baixada da Meta com o `META_TOKEN` e guardada no
   `S3_BUCKET_FOTOS`. Sem emulador de S3 no `docker-compose` (T20), no `pnpm dev` a foto é
