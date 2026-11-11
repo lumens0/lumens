@@ -1,6 +1,8 @@
 import {
   and,
   apoios,
+  caminhos,
+  documentosResposta,
   criarDb,
   criarPool,
   disparos,
@@ -310,6 +312,122 @@ describe('registrarPromessa (RN13)', () => {
       tipo: 'resposta_oficial',
       modelo: 'lumens_resposta_oficial',
       parametros: ['Lâmpadas do bloco B', 'Resposta no Fala.BR', pauta.slug],
+    });
+  });
+
+  describe('resposta oficial registrada (3.6, SCRUM-221)', () => {
+    async function comFalaBrProtocolado() {
+      const pauta = await criarPauta(db, { status: 'cobrando' });
+      const curador = await criarCurador(db);
+      const [caminho] = await db
+        .insert(caminhos)
+        .values({ pautaId: pauta.id, tipo: 'falabr', status: 'aberto', protocolo: 'OUV-1' })
+        .returning();
+      if (caminho === undefined) throw new Error('caminho não criado');
+      return { pauta, curador, caminhoId: caminho.id };
+    }
+
+    it('registra resposta_oficial_recebida no caminho Fala.BR, antes da promessa', async () => {
+      const { pauta, curador, caminhoId } = await comFalaBrProtocolado();
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      const tipos = (await eventosDa(pauta.id)).map((e) => e.tipo);
+      expect(tipos.indexOf('resposta_oficial_recebida')).toBeLessThan(
+        tipos.indexOf('promessa_registrada'),
+      );
+      const [evento] = (await eventosDa(pauta.id)).filter(
+        (e) => e.tipo === 'resposta_oficial_recebida',
+      );
+      expect(evento?.dados).toEqual({ caminho_id: caminhoId });
+    });
+
+    it('sem caminho Fala.BR protocolado, só a promessa entra na linha do tempo', async () => {
+      const pauta = await criarPauta(db, { status: 'cobrando' });
+      const curador = await criarCurador(db);
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      expect((await eventosDa(pauta.id)).map((e) => e.tipo)).not.toContain(
+        'resposta_oficial_recebida',
+      );
+    });
+
+    it('o PDF diz o caminho: Fala.BR protocolado depois do envio não leva a resposta', async () => {
+      // Regressão: o evento ia para o protocolado mais recente, que ainda não tinha resposta.
+      const { pauta, curador, caminhoId: respondido } = await comFalaBrProtocolado();
+      const owner = await criarEstudanteVerificado(db);
+      await db.insert(documentosResposta).values({
+        pautaId: pauta.id,
+        caminhoId: respondido,
+        enviadoPor: owner.id,
+        arquivoChave: `respostas/a-${pauta.id}.pdf`,
+      });
+      await db.insert(caminhos).values({
+        pautaId: pauta.id,
+        tipo: 'falabr',
+        status: 'aberto',
+        protocolo: 'OUV-2',
+        abertoEm: new Date(Date.now() + 60_000),
+      });
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      const respostas = (await eventosDa(pauta.id)).filter(
+        (e) => e.tipo === 'resposta_oficial_recebida',
+      );
+      expect(respostas.map((e) => e.dados)).toEqual([{ caminho_id: respondido }]);
+    });
+
+    it('sem PDF e com dois Fala.BR protocolados, não arrisca: só a promessa entra', async () => {
+      const { pauta, curador } = await comFalaBrProtocolado();
+      await db
+        .insert(caminhos)
+        .values({ pautaId: pauta.id, tipo: 'falabr', status: 'aberto', protocolo: 'OUV-2' });
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      expect((await eventosDa(pauta.id)).map((e) => e.tipo)).not.toContain(
+        'resposta_oficial_recebida',
+      );
+    });
+
+    it('os PDFs do owner ainda soltos ficam ligados à promessa; os já ligados não mudam', async () => {
+      const { pauta, curador, caminhoId } = await comFalaBrProtocolado();
+      const owner = await criarEstudanteVerificado(db);
+      const anterior = await db.transaction((tx) =>
+        registrarPromessa(tx, nova(pauta.id, curador.id, '2026-11-01')),
+      );
+      await db.update(pautas).set({ status: 'descumprida' }).where(eq(pautas.id, pauta.id));
+      const [velho, novo] = await db
+        .insert(documentosResposta)
+        .values([
+          {
+            pautaId: pauta.id,
+            caminhoId,
+            enviadoPor: owner.id,
+            arquivoChave: `respostas/velho-${pauta.id}.pdf`,
+            promessaId: anterior.promessaId,
+          },
+          {
+            pautaId: pauta.id,
+            caminhoId,
+            enviadoPor: owner.id,
+            arquivoChave: `respostas/novo-${pauta.id}.pdf`,
+          },
+        ])
+        .returning();
+
+      const r = await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      expect(r.documentosLigados).toBe(1);
+      const docs = await db
+        .select()
+        .from(documentosResposta)
+        .where(eq(documentosResposta.pautaId, pauta.id));
+      const porId = new Map(docs.map((d) => [d.id, d.promessaId]));
+      expect(porId.get(velho?.id ?? '')).toBe(anterior.promessaId);
+      expect(porId.get(novo?.id ?? '')).toBe(r.promessaId);
     });
   });
 
