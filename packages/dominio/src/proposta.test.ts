@@ -78,6 +78,25 @@ describe('publicarProposta (RF-B14)', () => {
     });
     expect(await propostasAbertas(db, pauta.id)).toEqual([]);
   });
+
+  it('com apenasUmaAberta, recusa a segunda enquanto a primeira está aberta', async () => {
+    const { pauta, owner } = await pautaComOwner();
+    const nova = () =>
+      db.transaction((tx) =>
+        publicarProposta(tx, {
+          pautaId: pauta.id,
+          porEstudanteId: owner.id,
+          descricao: 'Rifa',
+          pessoasNecessarias: 1,
+          apenasUmaAberta: true,
+        }),
+      );
+    expect(await nova()).toMatchObject({ publicada: true });
+    expect(await nova()).toEqual({ publicada: false, motivo: 'ja_tem_aberta' });
+    // Sem a opção, o domínio aceita mais de uma (o site lista todas).
+    expect(await publicar(pauta.id, owner.id)).toMatchObject({ publicada: true });
+    expect(await propostasAbertas(db, pauta.id)).toHaveLength(2);
+  });
 });
 
 describe('registrarVoluntario (RF-B16)', () => {

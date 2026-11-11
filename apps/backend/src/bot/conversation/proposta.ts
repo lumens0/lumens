@@ -31,6 +31,7 @@ export const NEED_VERIFY_TEXT =
   'Para entrar na lista de voluntários, primeiro preciso verificar que você é estudante da UFAL.';
 export const NO_PROPOSAL_TEXT = 'Esta pauta não tem proposta aberta agora.';
 export const PROPOSAL_CLOSED_TEXT = 'Esta proposta já foi feita ou não aceita mais voluntários.';
+export const ALREADY_DONE_TEXT = 'Esta proposta já estava marcada como feita.';
 export const ALREADY_VOLUNTEER_TEXT = 'Você já está na lista de voluntários desta proposta.';
 export const PROPOSAL_LOST_TEXT =
   'Não consegui recuperar a pauta da proposta. Escolha 4 no menu de novo.';
@@ -40,7 +41,9 @@ const MAX_TEXTO = 280;
 export const MAX_PESSOAS = 50;
 
 export const BOTAO_PROPOR = 'proposta:nova';
+/** Prefixo do botão "Proposta feita"; o id da proposta vem depois, para o toque valer só para ela. */
 export const BOTAO_FEITA = 'proposta:feita';
+export const botaoFeita = (propostaId: string) => `${BOTAO_FEITA}:${propostaId}`;
 
 export function volunteerText(p: {
   descricao: string;
@@ -65,7 +68,13 @@ export function pediuProposta(texto: string): boolean {
 /** O pedido "Proposta feita" (botão ou digitado). */
 export function pediuFeita(texto: string): boolean {
   const t = normalize(texto);
-  return texto.trim() === BOTAO_FEITA || t === 'feita' || t === 'proposta feita';
+  return texto.trim().startsWith(BOTAO_FEITA) || t === 'feita' || t === 'proposta feita';
+}
+
+/** Id da proposta no botão "Proposta feita"; `undefined` quando foi digitado (vale a aberta). */
+export function propostaDoBotaoFeita(texto: string): string | undefined {
+  const m = /^proposta:feita:(\S+)$/.exec(texto.trim());
+  return m?.[1];
 }
 
 export const dadosDaProposta = z.object({
@@ -89,7 +98,7 @@ export const proposalAskText: StepHandler = ({ input, state, segredo }) => {
   };
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Acha a proposta: pelo id (linha da lista) ou pela pauta do link do site. */
 async function propostaDoAlvo(
