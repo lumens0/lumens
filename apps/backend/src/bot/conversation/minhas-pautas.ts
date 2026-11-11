@@ -358,8 +358,10 @@ function textoPedido(resposta: string): boolean {
 }
 
 /**
- * O texto da manifestação: a explicação, o que o anti-nome mexeu (RN08) e, por último e sozinho, o
- * texto, para o owner copiar a mensagem inteira sem levar junto o que não é para colar.
+ * O texto da manifestação: o que o anti-nome mexeu (RN08), a explicação e, por último e sozinho, o
+ * texto, para o owner copiar a mensagem inteira sem levar junto o que não é para colar. A
+ * explicação diz "copie a próxima mensagem": ela fica colada no texto, depois dos avisos — senão
+ * quem segue a instrução copia o aviso no lugar da manifestação.
  *
  * Dado pessoal certo já sai trocado por `[removido]`; possível nome de pessoa fica no texto, com o
  * aviso para conferir. Se ainda assim o texto não passar, ele não é entregue.
@@ -375,5 +377,5 @@ async function textoDaManifestacao(db: Db, pautaId: string): Promise<Resposta[]>
   if (pronto.removidos.length > 0) avisos.push(removedText(pronto.removidos.length));
   const suspeitos = [...new Set(pronto.suspeitos.map((s) => s.trecho))];
   if (suspeitos.length > 0) avisos.push(suspectText(suspeitos));
-  return [FALABR_TEXT_INTRO, ...avisos, pronto.texto];
+  return [...avisos, FALABR_TEXT_INTRO, pronto.texto];
 }
