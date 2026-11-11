@@ -191,9 +191,11 @@ export default function Privacidade() {
           código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
         </p>
         <p>
-          As cópias cifradas das suas mensagens recentes na fila de processamento não são apagadas
-          na hora: elas saem sozinhas nos prazos de &ldquo;Quanto tempo guardamos&rdquo; (até 7
-          dias, ou 14 se algo falhou). Até lá ficam cifradas e servem só para o bot responder.
+          {/* apagarFilasDoTelefone: apps/backend/src/bot/filas-do-telefone.ts */}
+          As cópias cifradas das suas mensagens na fila de processamento também são apagadas na
+          hora. As duas últimas (o seu &ldquo;sim&rdquo; e a nossa confirmação) somem logo depois de
+          a confirmação ser enviada. Se o envio dela falhar, essa cópia segue o prazo de
+          &ldquo;Quanto tempo guardamos&rdquo;.
         </p>
         <p>
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já

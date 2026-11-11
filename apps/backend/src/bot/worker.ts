@@ -11,6 +11,7 @@ import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
+import { apagarFilasDoTelefone } from './filas-do-telefone';
 import { conteudoDoJob, type ConteudoMensagem, type IncomingMessageJob } from './webhook/process';
 
 /** Respostas a entregar para uma conversa (fila JOBS.outgoingReplies). */
@@ -149,6 +150,7 @@ export async function processIncomingJob(
     throw new MensagemIlegivelError(erro);
   }
   const input = inputOf(conteudo);
+  let saiu = false;
   return deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
@@ -169,6 +171,9 @@ export async function processIncomingJob(
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
               ...(deps.email ? { email: deps.email } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
+              aoSair: () => {
+                saiu = true;
+              },
             },
           );
     const outgoing: OutgoingReplies = {
@@ -178,7 +183,15 @@ export async function processIncomingJob(
       wamidHmac: data.wamidHmac,
       repliesCifradas: cifrar(JSON.stringify(replies), deps.chaves.cifra),
     };
-    await deps.queue.send(JOBS.outgoingReplies, outgoing, tx);
+    const idDaResposta = await deps.queue.send(JOBS.outgoingReplies, outgoing, tx);
+    // 5.7: quem saiu não deixa cópia das mensagens nas filas. Fica só o que ainda precisa
+    // terminar (esta mensagem e a resposta de saída), marcado para sumir logo depois.
+    if (saiu) {
+      await apagarFilasDoTelefone(tx, {
+        phoneHmac: data.phoneHmac,
+        manter: idDaResposta === null ? [job.id] : [job.id, idDaResposta],
+      });
+    }
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
