@@ -1,4 +1,5 @@
 import type { Db } from '@lumens/db';
+import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
@@ -9,13 +10,15 @@ import {
   newAskTitle,
 } from './nova-pauta';
 import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
+import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
 import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
 import { ownerSendResponse } from './resposta-oficial';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
-import { TRANSITIONS, type Step } from './steps';
+import type { Step } from './steps';
 import { normalize } from './texto';
+import { entrarNaVerificacao, verifyAskCode, verifyAskCourse, verifyAskEmail } from './verificacao';
 
 export { normalize } from './texto';
 export { PHOTO_ASK_TEXT, PHOTO_RECEIVED_TEXT } from './nova-pauta';
@@ -44,6 +47,12 @@ export interface StepContext {
   phoneHmac: string;
   /** Baixa, limpa e guarda a foto da pauta nova (2.6). Sem ele, a foto é recusada com aviso. */
   fotos?: ServicoDeFotos;
+  /** Envia o código de verificação (2.4). Sem ele, o código não sai e a pessoa é avisada. */
+  email?: ServicoDeEmail;
+  /** O telefone cifrado do job (CHAVE_CIFRA): o cadastro do estudante guarda assim (2.4). */
+  phoneCifrado?: string;
+  /** HMAC com a CHAVE_HMAC, o mesmo do `phoneHmac`: busca o e-mail sem guardá-lo em claro (2.4). */
+  hmac?: (valor: string) => string;
   /** Baixa e guarda o PDF da resposta oficial (3.6). Sem ele, o arquivo é recusado com aviso. */
   respostas?: ServicoDeRespostas;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
@@ -58,6 +67,8 @@ export interface StepResult {
   next: Step;
   data?: DataPatch;
   replies: Resposta[];
+  /** 5.7: em vez de gravar o passo, apaga a conversa (a pessoa saiu ou não tinha cadastro). */
+  apagarConversa?: boolean;
 }
 
 /** Pode ser síncrono; os que consultam o banco (2.5 em diante) são assíncronos. */
@@ -75,12 +86,15 @@ export const MENU_TEXT = [
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
-const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
+// 5.7: o aviso de privacidade vai sempre no primeiro contato, antes do menu.
+const greeting: StepHandler = () => ({
+  next: 'MENU',
+  replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT],
+});
 
-/** Opções do menu que só mudam de passo. A "2" e a "4" consultam o banco: veja `menu`. */
+/** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
   '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
-  '3': { next: 'VERIFY_ASK_EMAIL', reply: 'Qual o seu e-mail institucional?' },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -98,33 +112,19 @@ const menu: StepHandler = (ctx) => {
   const t = normalize(ctx.input.text);
   const escolha = MENU_ALIASES[t] ?? t;
   if (escolha === '2') return entrarNaPautaNova(ctx);
+  if (escolha === '3') return entrarNaVerificacao(ctx);
   if (escolha === '4') return entrarEmMinhasPautas(ctx);
   const opt = MENU_OPTIONS[escolha];
   if (!opt) return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
   return { next: opt.next, replies: [opt.reply] };
 };
 
-/**
- * Placeholder: avança para o primeiro próximo passo permitido. Não ecoa a entrada: a resposta
- * vai para a fila e para o log, e a entrada pode ser o e-mail ou o relato da pessoa.
- */
-function placeholder(step: Step, story: string): StepHandler {
-  // TODO(story): substituir pelo handler real.
-  const next = TRANSITIONS[step][0];
-  if (!next) throw new Error(`${step} não tem próximo passo em TRANSITIONS`);
-  return () => ({
-    next,
-    replies: [`[${step} — em construção, história ${story}] Recebi sua mensagem.`],
-  });
-}
-
 export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,
   MENU: menu,
-  // TODO(2.4): verificação de e-mail institucional.
-  VERIFY_ASK_EMAIL: placeholder('VERIFY_ASK_EMAIL', '2.4'),
-  VERIFY_ASK_CODE: placeholder('VERIFY_ASK_CODE', '2.4'),
-  VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
+  VERIFY_ASK_EMAIL: verifyAskEmail,
+  VERIFY_ASK_CODE: verifyAskCode,
+  VERIFY_ASK_COURSE: verifyAskCourse,
   REPORT_ASK_TEXT: reportAskText,
   REPORT_ASK_BLOCK: reportAskBlock,
   REPORT_PICK_SIMILAR: reportPickSimilar,
@@ -134,6 +134,7 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  LEAVE_CONFIRM: leaveConfirm,
   OWNER_ASK_PROTOCOL: ownerAskProtocol,
   OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
   OWNER_SEND_RESPONSE: ownerSendResponse,

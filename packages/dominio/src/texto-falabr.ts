@@ -134,6 +134,22 @@ export function gerarTextoFalaBr(
   return { texto, anonimato: conferirAnonimato(texto, opcoes) };
 }
 
+/**
+ * Junta os trechos que se sobrepõem ou se encostam, em ordem. Dois nomes conhecidos podem se
+ * cruzar ("Ana Maria Fernanda" e "Maria Fernanda Silva" em "Ana Maria Fernanda Silva"): trocados
+ * um de cada vez, o segundo usaria posições que o primeiro já mudou, e apagaria texto que não é
+ * nome — um "não" logo depois inverteria o sentido da manifestação.
+ */
+function intervalosUnidos(achados: readonly Achado[]): { inicio: number; fim: number }[] {
+  const unidos: { inicio: number; fim: number }[] = [];
+  for (const { inicio, fim } of [...achados].sort((a, b) => a.inicio - b.inicio)) {
+    const ultimo = unidos.at(-1);
+    if (ultimo !== undefined && inicio <= ultimo.fim) ultimo.fim = Math.max(ultimo.fim, fim);
+    else unidos.push({ inicio, fim });
+  }
+  return unidos;
+}
+
 /** O que fica no lugar de um trecho com dado pessoal. */
 export const MARCA_DE_REMOVIDO = '[removido]';
 
@@ -166,8 +182,8 @@ export function prepararParaProtocolar(
 
   // De trás para a frente: trocar um trecho não muda a posição dos que vêm antes dele.
   let texto = gerado.texto;
-  for (const achado of [...removidos].sort((a, b) => b.inicio - a.inicio)) {
-    texto = texto.slice(0, achado.inicio) + MARCA_DE_REMOVIDO + texto.slice(achado.fim);
+  for (const { inicio, fim } of intervalosUnidos(removidos).reverse()) {
+    texto = texto.slice(0, inicio) + MARCA_DE_REMOVIDO + texto.slice(fim);
   }
 
   const depois = conferirAnonimato(texto, opcoes);

@@ -9,6 +9,7 @@ import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
 import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
 import { carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto';
+import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
 import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
@@ -107,6 +108,19 @@ async function iniciar(env: Env): Promise<void> {
         logger.warn(mensagem);
       },
     });
+    // No `pnpm dev` o código aparece no log; fora dele, vai pelo SMTP do `.env`.
+    const email = MODO_DEV
+      ? logEmail(logger)
+      : criarEmailSmtp({
+          host: env.EMAIL_HOST,
+          porta: env.EMAIL_PORT,
+          usuario: env.EMAIL_USUARIO,
+          senha: env.EMAIL_SENHA,
+          remetente: env.EMAIL_REMETENTE,
+          avisar: (mensagem) => {
+            logger.warn(mensagem);
+          },
+        });
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
@@ -124,7 +138,16 @@ async function iniciar(env: Env): Promise<void> {
     });
     await registerStatusWorker(boss, { db, logger });
     await registerGatilhosJob(boss, { db, logger });
-    await registerIncomingWorker(boss, { db, store, queue, logger, chaves, fotos, respostas });
+    await registerIncomingWorker(boss, {
+      db,
+      store,
+      queue,
+      logger,
+      chaves,
+      fotos,
+      email,
+      respostas,
+    });
     await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
 
     const app = await buildApp({
