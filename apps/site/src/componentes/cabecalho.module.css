@@ -1,93 +1,99 @@
 .cabecalho {
-  background: var(--superficie);
-  border-bottom: 1px solid var(--borda);
+  --tinta: #f5f3ff;
+  --tinta-2: #c9cbe3;
+  --superficie-2: rgb(255 255 255 / 8%);
+
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(20 25 54 / 92%);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  color: var(--tinta);
 }
 
 .faixa {
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 32px;
+  min-height: 64px;
 }
 
 .marca {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 54px;
+  gap: 10px;
   font:
-    800 20px var(--fonte-titulo),
+    700 21px var(--fonte-titulo),
     sans-serif;
   letter-spacing: -0.02em;
   color: var(--tinta);
   text-decoration: none;
-  white-space: nowrap;
 }
 
-.orbe {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 50%,
-    #ffd84d 0,
-    #ffb020 34%,
-    var(--primaria) 38%,
-    var(--primaria-forte) 100%
-  );
-  flex: 0 0 auto;
-}
-
-.ponto {
-  color: #e89a00;
+/* A assinatura: uma janela acesa. */
+.janela {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--luz);
+  box-shadow: 0 0 12px 2px rgb(255 194 61 / 55%);
 }
 
 .abas {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .aba {
+  position: relative;
   display: flex;
   align-items: center;
-  min-height: 54px;
+  min-height: 36px;
   padding: 0 12px;
-  border-bottom: 3px solid transparent;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 500;
   font-size: 14.5px;
   color: var(--tinta-2);
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    color var(--rapido) var(--curva),
+    background-color var(--rapido) var(--curva);
 }
 
 .aba:hover {
   color: var(--tinta);
+  background: var(--superficie-2);
 }
 
 .aba[aria-current='page'] {
-  border-color: var(--primaria);
   color: var(--tinta);
+  background: var(--superficie-2);
 }
 
 .acao {
   flex: 0 0 auto;
 }
 
-/* No celular a marca e o botão ficam na primeira linha e as abas descem para a segunda. */
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .faixa {
     flex-wrap: wrap;
     gap: 0 12px;
+    padding: 8px 16px 4px;
     justify-content: space-between;
   }
 
   .abas {
     order: 3;
     flex-basis: 100%;
+    margin: 4px -8px 0;
   }
 }

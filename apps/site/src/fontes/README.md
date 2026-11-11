@@ -21,33 +21,25 @@ ajustadas, que reduz o pulo de layout enquanto a fonte carrega. O
 `next/font/local` não faz isso sozinho, então o `layout.tsx` declara `fallback`
 em cada família.
 
-Na JetBrains Mono o `adjustFontFallback` está **desligado de propósito**: o
-ajuste automático só conhece Arial e Times New Roman, ambas proporcionais, e
-colocá-las na frente de `ui-monospace` desalinharia os rótulos — pior que o
-pulo que se quer evitar. Nas outras duas ele fica ligado, e o Next calcula as
-métricas a partir dos próprios arquivos.
+Nas duas famílias o `adjustFontFallback` fica ligado, e o Next calcula as métricas a partir dos
+próprios arquivos.
 
 ## Origem
 
 Baixados do Google Fonts, bloco `/* latin */` do CSS de cada família.
 
-| arquivo                          | família        | faixa de pesos | origem                                                                        |
-| -------------------------------- | -------------- | -------------- | ----------------------------------------------------------------------------- |
-| `inter-latin-var.woff2`          | Inter          | 100–900        | `fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2`    |
-| `outfit-latin-var.woff2`         | Outfit         | 100–900        | `fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2`                   |
-| `jetbrains-mono-latin-var.woff2` | JetBrains Mono | 100–800        | `fonts.gstatic.com/s/jetbrainsmono/v24/tDbV2o-flEEny0FZhsfKu5WU4xD7OwE.woff2` |
+| arquivo                               | família             | faixa de pesos | origem                                                                                   |
+| ------------------------------------- | ------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `bricolage-grotesque-latin-var.woff2` | Bricolage Grotesque | 200–800        | `fonts.gstatic.com/s/bricolagegrotesque/v9/3y996as8bTXq_nANBjzKo3IeZx8z6up5L-iNGQ.woff2` |
+| `instrument-sans-latin-var.woff2`     | Instrument Sans     | 400–700        | `fonts.gstatic.com/s/instrumentsans/v4/pxicypc9vsFDm051Uf6KVwgkfoSbT2lB.woff2`           |
 
 Para atualizar, pegue a URL do bloco `latin` em
 `https://fonts.googleapis.com/css2?family=<Família>:wght@<faixa>&display=swap`
 com User-Agent de navegador moderno — sem isso o Google devolve `ttf` em vez de
 `woff2`. Confira se a faixa de pesos mudou e ajuste o `weight` no `layout.tsx`.
 
-**A Inter tem uma segunda cópia** em `apps/painel/src/fontes/`, byte a byte
-igual a esta. Ao atualizá-la aqui, copie para lá — o teste
-`apps/painel/src/fontes/copia-da-inter.test.ts` falha se as duas divergirem.
-
 ## Licença
 
-As três famílias são SIL Open Font License 1.1, que permite redistribuir desde
+As duas famílias são SIL Open Font License 1.1, que permite redistribuir desde
 que o texto da licença acompanhe os arquivos. Os `*-OFL.txt` desta pasta são
 isso — não remova.

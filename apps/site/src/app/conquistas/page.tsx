@@ -94,12 +94,14 @@ export default async function PaginaConquistas() {
   const conquistas = await buscarConquistas();
   return (
     <main className={estilos.pagina}>
-      <p className={estilos.sobretitulo}>Memorial · Campus A. C. Simões</p>
-      <h1 className={estilos.titulo}>O que os estudantes já conquistaram</h1>
-      <p className={estilos.subtitulo}>
-        Cada conquista foi confirmada por quem apoiou. Fica aqui mesmo quando as gestões do DA e do
-        DCE mudam.
-      </p>
+      <div className={[estilos.faixa, 'noite'].join(' ')}>
+        <p className={estilos.sobretitulo}>Memorial · Campus A. C. Simões</p>
+        <h1 className={estilos.titulo}>O que os estudantes já conquistaram</h1>
+        <p className={estilos.subtitulo}>
+          Cada conquista foi confirmada por quem apoiou. Fica aqui mesmo quando as gestões do DA e
+          do DCE mudam.
+        </p>
+      </div>
       {conquistas.length === 0 ? (
         <div role="status" className={componentes.estado}>
           <p className={componentes.estadoTitulo}>Ainda não tem conquista.</p>

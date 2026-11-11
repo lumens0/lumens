@@ -11,8 +11,10 @@ import estilos from './pauta.module.css';
 export function ConteudoPauta({ pauta }: { pauta: PautaDetalhe }) {
   return (
     <main className={estilos.pagina}>
-      <Voltar />
-      <CabecalhoPauta pauta={pauta} />
+      <div className={[estilos.faixa, 'noite'].join(' ')}>
+        <Voltar />
+        <CabecalhoPauta pauta={pauta} />
+      </div>
       <div className={estilos.secao}>
         <PlacarDeApoios pauta={pauta} />
         <ProximaEtapa pauta={pauta} />

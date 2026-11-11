@@ -51,10 +51,15 @@ describe('BarraApoios', () => {
 });
 
 describe('StatusPill', () => {
-  it.each(STATUS_PAUTA)('%s mostra o rótulo escrito com contraste AA', (status) => {
-    const { rotulo, fundo, texto } = STATUS[status];
+  it.each(STATUS_PAUTA)('%s mostra o rótulo escrito, não só a cor da janela', (status) => {
+    const { rotulo } = STATUS[status];
     expect(renderToStaticMarkup(<StatusPill status={status} />)).toContain(rotulo);
-    expect(contraste(fundo, texto)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('o rótulo do status tem contraste AA sobre o card e sobre o fundo', () => {
+    expect(contraste('#4F4A45', '#FFFEFB')).toBeGreaterThanOrEqual(4.5);
+    expect(contraste('#4F4A45', '#F6F4EF')).toBeGreaterThanOrEqual(4.5);
+    expect(contraste('#6B645D', '#F6F4EF')).toBeGreaterThanOrEqual(4.5); // texto mudo
   });
 });
 
