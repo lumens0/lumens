@@ -8,28 +8,28 @@ Tratar a entrega atual como preparação verificável da reunião: consolidar co
 
 ## Fontes e decisões
 
-- **Regra vigente:** conteúdo da SCRUM-80 fornecido por @sthefanyblima em 2026-11-03; schema em `packages/db/src/schema.ts`; migrations `0000`–`0003`; seed da SCRUM-79; exports de `packages/dominio/src/index.ts`; contrato detalhado da T4 em `docs/database/schema.md`.
+- **Regra vigente:** conteúdo da SCRUM-80 fornecido por @sthefanyblima em 2026-11-03; schema em `packages/db/src/schema.ts`; migrations `0000`–`0003`; seed da SCRUM-79; exports de `packages/dominio/src/index.ts`; contrato detalhado da T4 em `docs/arquitetura/banco.md`.
 - **Limite da fonte:** comentários, pai/épico e vínculos do Jira não foram consultados; a reunião e seus participantes ainda não foram informados.
-- **Contradições:** a divergência entre especificação e roteiro sobre `descumprida` foi resolvida pela dev em 2026-11-03: volta para `cobrando`; somente uma nova promessa leva a `prometido`. `docs/database/schema.md` chamava T5/T6 de pendentes e foi atualizado conforme migrations e seed presentes.
+- **Contradições:** a divergência entre especificação e roteiro sobre `descumprida` foi resolvida pela dev em 2026-11-03: volta para `cobrando`; somente uma nova promessa leva a `prometido`. `docs/arquitetura/banco.md` chamava T5/T6 de pendentes e foi atualizado conforme migrations e seed presentes.
 - **Suposições:** a reunião ainda não ocorreu ou sua ata não foi fornecida; responsável por confirmar: @sthefanyblima; custo se errado: preencher a ata e, se necessário, acrescentar os ajustes aprovados antes de congelar a versão.
 - **Fora de escopo:** implementar domínio futuro da T8/T9, escolher serviços AWS da T20, avisar a equipe, fazer merge na `main`, declarar critérios organizacionais concluídos ou alterar banco/seed sem pedido aprovado.
 
 ## Cobertura dos critérios
 
-| Critério e fonte                                  | Resultado observável esperado                                                                            | Passo | Prova planejada                                                                            |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------ |
-| Material da apresentação (SCRUM-80)               | `docs/esquema.md` contém ER, 9 status, transições, exports do domínio e o catálogo final de 16 eventos   | 1     | inspeção por listas independentes extraídas do ticket e do código; links locais resolvidos |
-| Decisões 1–9 (SCRUM-80)                           | `docs/decisoes.md` marca 1 e 2 como decididas e 3–9 como pendentes, com proposta e campo de resultado    | 2     | busca/contagem da tabela e revisão do estado de cada linha                                 |
-| Partes 2–5 (critério de aceite)                   | existem quatro linhas distintas com ciência, representante e necessidade, sem confirmação pré-preenchida | 2     | inspeção da matriz e busca pelos quatro identificadores                                    |
-| Escrita pelo domínio e ajustes (contexto/etapa 4) | material proíbe escrita direta e descreve quando criar migração nova e atualizar seed                    | 1, 2  | busca pelos contratos e revisão contra `docs/database/schema.md`                           |
-| Sem validação inventada (escopo confirmado)       | documento se identifica como preparação e mantém reunião, decisões e pedidos como `PENDENTE`             | 1, 2  | busca por estados e revisão de afirmações de estabilidade                                  |
-| Referências e gates (critério de aceite)          | referências locais apontam para arquivos existentes; documentação formata; gates existentes não regridem | 3     | script de links/nomes, `pnpm format:check` e `pnpm check` conforme ambiente                |
+| Critério e fonte                                  | Resultado observável esperado                                                                                                     | Passo | Prova planejada                                                                            |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------ |
+| Material da apresentação (SCRUM-80)               | `docs/arquitetura/esquema-e-contratos.md` contém ER, 9 status, transições, exports do domínio e o catálogo final de 16 eventos    | 1     | inspeção por listas independentes extraídas do ticket e do código; links locais resolvidos |
+| Decisões 1–9 (SCRUM-80)                           | `docs/decisoes/SCRUM-80-decisoes-da-equipe.md` marca 1 e 2 como decididas e 3–9 como pendentes, com proposta e campo de resultado | 2     | busca/contagem da tabela e revisão do estado de cada linha                                 |
+| Partes 2–5 (critério de aceite)                   | existem quatro linhas distintas com ciência, representante e necessidade, sem confirmação pré-preenchida                          | 2     | inspeção da matriz e busca pelos quatro identificadores                                    |
+| Escrita pelo domínio e ajustes (contexto/etapa 4) | material proíbe escrita direta e descreve quando criar migração nova e atualizar seed                                             | 1, 2  | busca pelos contratos e revisão contra `docs/arquitetura/banco.md`                         |
+| Sem validação inventada (escopo confirmado)       | documento se identifica como preparação e mantém reunião, decisões e pedidos como `PENDENTE`                                      | 1, 2  | busca por estados e revisão de afirmações de estabilidade                                  |
+| Referências e gates (critério de aceite)          | referências locais apontam para arquivos existentes; documentação formata; gates existentes não regridem                          | 3     | script de links/nomes, `pnpm format:check` e `pnpm check` conforme ambiente                |
 
 ## Passos
 
-1. Criar o roteiro curto da apresentação com ER, contratos de status/transição, inventário do domínio, eventos propostos, visibilidade e regra de escrita — `docs/esquema.md`.
-2. Criar a ata editável com metadados da reunião, matriz das partes 2–5, decisões 1–9 e protocolo para pedidos que exijam migration/seed — `docs/decisoes.md`.
-3. Atualizar somente a seção de pendências do contrato da T4 para refletir T5/T6 implementadas e apontar para os artefatos da T7; validar links, formatação, tipos e testes existentes — `docs/database/schema.md`.
+1. Criar o roteiro curto da apresentação com ER, contratos de status/transição, inventário do domínio, eventos propostos, visibilidade e regra de escrita — `docs/arquitetura/esquema-e-contratos.md`.
+2. Criar a ata editável com metadados da reunião, matriz das partes 2–5, decisões 1–9 e protocolo para pedidos que exijam migration/seed — `docs/decisoes/SCRUM-80-decisoes-da-equipe.md`.
+3. Atualizar somente a seção de pendências do contrato da T4 para refletir T5/T6 implementadas e apontar para os artefatos da T7; validar links, formatação, tipos e testes existentes — `docs/arquitetura/banco.md`.
 
 ## Testes
 
@@ -37,7 +37,7 @@ Tratar a entrega atual como preparação verificável da reunião: consolidar co
 
 - **Documentação:** conferir por script que os nove status do schema e os quinze eventos do ticket aparecem no material, que as partes 2–5 têm linhas próprias e que links locais resolvem para arquivos existentes.
 - **Seed:** o plano e o oráculo do teste de regressão do payload mínimo ficam em `.agent/working/WORKING_TESTS.md`.
-- **Formatação:** `pnpm exec prettier --check docs/esquema.md docs/decisoes.md docs/database/schema.md` deve terminar com código zero.
+- **Formatação:** `pnpm exec prettier --check docs/arquitetura/esquema-e-contratos.md docs/decisoes/SCRUM-80-decisoes-da-equipe.md docs/arquitetura/banco.md` deve terminar com código zero.
 - **Regressão:** `pnpm typecheck`, `pnpm lint` e `pnpm test`; qualquer falha preexistente fora das linhas tocadas será relatada sem correção lateral.
 
 ## Impactos e verificação

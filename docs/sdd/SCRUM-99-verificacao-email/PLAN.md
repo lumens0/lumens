@@ -2,7 +2,7 @@
 
 ## SCRUM-134
 
-- **Domínio** (`packages/dominio/src/verificacao.ts`): `emailInstitucional(mensagem)` é uma função
+- **Domínio** (`packages/dominio/src/estudante/verificacao.ts`): `emailInstitucional(mensagem)` é uma função
   pura que acha o endereço e devolve `{ valido: true, email }` ou o motivo da recusa. A regra do
   domínio da UFAL fica no domínio, não no bot, porque o vínculo telefone ↔ e-mail (RN01) e o
   painel podem precisar dela. `normalizarEmail` é a mesma normalização do painel (`acesso.ts`):

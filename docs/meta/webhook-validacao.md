@@ -27,7 +27,7 @@ Quem faz precisa de:
 - acesso de administrador ao app da Meta usado pelo bot (developers.facebook.com);
 - o `META_VERIFY_TOKEN` e o `META_APP_SECRET` do `.env.producao` da homologação;
 - a homologação **ligada** (ela fica desligada por padrão: veja
-  [Ligar e desligar](../homologacao.md#ligar-e-desligar)).
+  [Ligar e desligar](../operacao/homologacao.md#ligar-e-desligar)).
 
 Confira que o back-end está no ar antes de abrir o painel:
 

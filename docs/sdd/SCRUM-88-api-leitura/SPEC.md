@@ -26,7 +26,7 @@ e-mail, HMAC, cifra, `estudante_id` ou outro id interno (RNF01).
 `{ itens, proximo }`, com `proximo` = offset da página seguinte ou `null`; listas sem paginação,
 `{ itens }`. Erros respondem `{ erro }`.
 
-A referência completa (campos, exemplos, cabeçalhos) está em [`docs/api.md`](../../api.md).
+A referência completa (campos, exemplos, cabeçalhos) está em [`docs/arquitetura/api.md`](../../arquitetura/api.md).
 
 ## Critérios de aceitação
 

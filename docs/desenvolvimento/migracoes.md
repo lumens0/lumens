@@ -61,7 +61,7 @@ dentro. Separe comandos com `--> statement-breakpoint`.
 
 Dois exemplos reais no repositório:
 
-- [`0005_indice_atividade_publica.sql`](../packages/db/migrations/0005_indice_atividade_publica.sql) —
+- [`0005_indice_atividade_publica.sql`](../../packages/db/migrations/0005_indice_atividade_publica.sql) —
   índice parcial do feed de atividade, uma linha só:
 
   ```sql
@@ -69,7 +69,7 @@ Dois exemplos reais no repositório:
   USING btree ("criado_em" DESC NULLS FIRST) WHERE "evento"."publico";
   ```
 
-- [`0002_evento_append_only.sql`](../packages/db/migrations/0002_evento_append_only.sql) — função
+- [`0002_evento_append_only.sql`](../../packages/db/migrations/0002_evento_append_only.sql) — função
   mais três triggers que tornam a tabela `evento` append-only (`UPDATE`, `DELETE` e `TRUNCATE`
   levantam exceção). É por isso que nenhum teste limpa a linha do tempo com `TRUNCATE evento`.
 
@@ -79,21 +79,21 @@ sem avisar** — daí a revisão do passo 3.
 ## Views e enums
 
 As views públicas (`v_pauta_publica`, `v_atividade`, …) vivem só na migração custom
-[`0006_views_publicas.sql`](../packages/db/migrations/0006_views_publicas.sql), fora do `schema.ts`.
+[`0006_views_publicas.sql`](../../packages/db/migrations/0006_views_publicas.sql), fora do `schema.ts`.
 Mexer numa coluna ou num enum que elas usam quebra o `db:migrate` com
 `cannot drop … because other objects depend on it`.
 
 O passo a passo (dropar a view, aplicar a mudança, recriar a view com `security_barrier`, refazer o
 `GRANT SELECT … TO "lumens_site"`) está em
-[Migrações que mexem no que as views usam](../packages/db/README.md#migrações-que-mexem-no-que-as-views-usam),
+[Migrações que mexem no que as views usam](../../packages/db/README.md#migrações-que-mexem-no-que-as-views-usam),
 no README do `@lumens/db`. **Status novo** em `status_pauta` ainda exige decidir se é público e
 classificá-lo em `views-publicas.test.ts`, ou o teste de classificação falha.
 
 Campo novo numa view **não** chega ao site sozinho: ele também precisa entrar no contrato zod de
 `@lumens/contratos` e na consulta da rota — veja
-[Mudando o contrato](api.md#mudando-o-contrato). E nunca exponha telefone, e-mail, HMAC, cifra ou
+[Mudando o contrato](../arquitetura/api.md#mudando-o-contrato). E nunca exponha telefone, e-mail, HMAC, cifra ou
 id. A varredura de identidade da SCRUM-89 quebra o build se isso acontecer; ela é descrita em
-[docs/api.md](api.md).
+[docs/arquitetura/api.md](../arquitetura/api.md).
 
 ## Reverter
 
@@ -113,6 +113,6 @@ desfazer. São dois casos diferentes:
 ## Em seguida
 
 - [Como rodar local](rodar-local.md)
-- [Como usar o domínio](../packages/dominio/README.md) — quem grava nas tabelas
-- [Contrato do banco](database/schema.md) — diagrama ER, campos e status
-- [`@lumens/db`](../packages/db/README.md) — papéis, views e seed em detalhe
+- [Como usar o domínio](../../packages/dominio/README.md) — quem grava nas tabelas
+- [Contrato do banco](../arquitetura/banco.md) — diagrama ER, campos e status
+- [`@lumens/db`](../../packages/db/README.md) — papéis, views e seed em detalhe

@@ -2,7 +2,7 @@
 
 ## Estratégia
 
-Teste de integração em PostgreSQL real, junto do seed existente. O oráculo vem do contrato em `docs/esquema.md`, não da implementação: para cada um dos nove status, deve existir exatamente um evento `pauta_criada` com `dados = { status: 'em_curadoria' }`.
+Teste de integração em PostgreSQL real, junto do seed existente. O oráculo vem do contrato em `docs/arquitetura/esquema-e-contratos.md`, não da implementação: para cada um dos nove status, deve existir exatamente um evento `pauta_criada` com `dados = { status: 'em_curadoria' }`.
 
 ## Casos
 

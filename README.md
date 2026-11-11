@@ -13,41 +13,64 @@ Projeto da disciplina Projeto e Desenvolvimento de Sistemas (PDS) · IC · UFAL.
 - **Back-end:** Node.js + TypeScript (bot, agendador e API num serviço só)
 - **Banco:** PostgreSQL
 - **Site e painel:** dois apps Next.js separados
-- **Nuvem:** AWS
-- **Monorepo:** pnpm workspaces · **Testes:** Vitest · **Qualidade:** ESLint + Prettier
+- **Hospedagem:** site na Vercel; back-end, painel e banco numa VM da Azure, atrás do Caddy
+  (por que não a AWS: [homologação](docs/operacao/homologacao.md))
+- **Monorepo:** pnpm workspaces · **Testes:** Vitest e Playwright · **Qualidade:** ESLint + Prettier
 
 ## Estrutura
 
+As dependências apontam para dentro: os apps usam `@lumens/dominio`, que usa `@lumens/db`. Nenhum
+pacote importa um app, e só o domínio grava nas tabelas de negócio.
+
 ```
 lumens/
-├── apps/
-│   ├── backend/          Node.js + TypeScript
-│   │   ├── src/bot/        webhook da Meta e conversas      (partes 2 e 3)
-│   │   ├── src/agendador/  rotinas por data                 (parte 3)
-│   │   └── src/api/        leitura pública e curadoria      (partes 1 e 5)
-│   ├── site/             Next.js: site público              (parte 4)
-│   └── painel/           Next.js: painel de curadoria       (parte 5)
-├── docker/init/          scripts SQL do banco local         (parte 1)
-└── packages/
-    ├── contratos/        tipos da API de leitura pública    (parte 1)
-    ├── db/               esquema, migrações, views, seed    (parte 1)
-    └── dominio/          regras de negócio + testes         (parte 1)
+├── apps/                       o que roda (cada um com o seu package.json)
+│   ├── backend/                Fastify: bot, agendador e API num serviço só
+│   │   ├── scripts/              comandos de manutenção (curador, simulador, rotação de chave)
+│   │   └── src/
+│   │       ├── bot/              webhook da Meta, conversas e envio      (partes 2 e 3)
+│   │       ├── agendador/        rotinas por data                        (parte 3)
+│   │       ├── api/              API de leitura pública do site          (parte 1)
+│   │       ├── fotos/ email/     adaptadores de mídia e de e-mail
+│   │       ├── cripto/           cifra, HMAC e rotação de chave
+│   │       ├── config/           leitura e validação do ambiente
+│   │       └── infra/            logger, filas (pg-boss)
+│   ├── site/                   Next.js: site público                     (parte 4)
+│   └── painel/                 Next.js: painel de curadoria              (parte 5)
+├── packages/                   bibliotecas internas, sem servidor próprio
+│   ├── dominio/                regras de negócio, por contexto           (parte 1)
+│   │   └── src/                  pauta/ caminhos/ conferencia/ avisos/ estudante/ compartilhado/
+│   ├── db/                     esquema Drizzle, migrações, views, seed   (parte 1)
+│   └── contratos/              tipos zod da API de leitura pública       (parte 1)
+├── docs/                       documentação (índice em docs/README.md)
+├── scripts/                    backup, restauração e deploy da VM (+ unidades systemd)
+├── docker/init/                SQL que cria o banco de teste no Postgres local
+├── docker-compose.yml          Postgres local
+├── docker-compose.prod.yml     homologação: Postgres, back-end, painel e Caddy
+├── Dockerfile · Caddyfile      imagem do back-end e proxy HTTPS da VM
+└── .github/workflows/          CI, deploy e avisos de revisão
 ```
+
+`scripts/`, o `docker-compose.prod.yml` e o `Caddyfile` ficam na raiz de propósito: a VM e o
+systemd chamam esses caminhos direto (`/opt/lumens/scripts/...`).
 
 ## Documentação
 
-| Página                                            | Para quê                                                                 |
-| ------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar                |
-| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                                   |
-| [Chaves de criptografia](docs/chaves.md)          | para que serve cada chave, como gerar, rotacionar e o que fazer se vazar |
-| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova                 |
-| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome                              |
-| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão                |
-| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                                 |
-| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto                      |
-| [Backup do banco](docs/backup.md)                 | backup diário, teste de restauração e o que fazer num incidente          |
-| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta                              |
+O índice completo está em [docs/README.md](docs/README.md). Os mais usados:
+
+| Página                                                       | Para quê                                                                 |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| [Como rodar local](docs/desenvolvimento/rodar-local.md)      | do clone ao servidor respondendo, e o que fazer se travar                |
+| [Como criar uma migração](docs/desenvolvimento/migracoes.md) | mudar o banco sem quebrar o de ninguém                                   |
+| [Como usar o domínio](packages/dominio/README.md)            | as regras de negócio: o que existe e como criar uma nova                 |
+| [API de leitura pública](docs/arquitetura/api.md)            | rotas, campos e exemplos que o site consome                              |
+| [Contrato do banco](docs/arquitetura/banco.md)               | diagrama ER, campos, status e decisões da primeira versão                |
+| [`@lumens/db`](packages/db/README.md)                        | papéis, views públicas e seed em detalhe                                 |
+| [Decisões do projeto](docs/decisoes/README.md)               | o que já foi decidido, e por quê                                         |
+| [Homologação](docs/operacao/homologacao.md)                  | a VM, os secrets e o deploy                                              |
+| [Backup do banco](docs/operacao/backup.md)                   | backup diário, teste de restauração e o que fazer num incidente          |
+| [Chaves de criptografia](docs/operacao/chaves.md)            | para que serve cada chave, como gerar, rotacionar e o que fazer se vazar |
+| [Simulador do bot](apps/backend/SIMULADOR.md)                | testar o webhook sem celular nem conta Meta                              |
 
 **Regra da equipe:** nenhum módulo grava direto numa tabela de negócio. Todos chamam funções de
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
@@ -73,7 +96,7 @@ O que esperar de cada um:
 - **`https://lumens-ufal.duckdns.org/` responde 404, e isso é normal.** O nome puro é só a API: o
   back-end não tem página na raiz. Para ver se está de pé, abra `/saude`; as rotas de leitura
   (`/resumo`, `/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas`, `/atividade`) estão em
-  [docs/api.md](docs/api.md).
+  [docs/arquitetura/api.md](docs/arquitetura/api.md).
 - **`/webhook` aberto no navegador responde 403.** Ele só aceita o handshake da Meta com o
   `META_VERIFY_TOKEN` e mensagens assinadas com o `META_APP_SECRET`.
 - **O painel manda para `/login`** enquanto não há sessão. Só entra quem está na tabela `curador`
@@ -82,11 +105,11 @@ O que esperar de cada um:
 
 Fora do ar? A VM fica desligada quando ninguém está usando, para economizar o crédito da Azure: os
 endereços da VM param de responder e o site perde os dados. Para religar, veja
-[docs/homologacao.md](docs/homologacao.md).
+[docs/operacao/homologacao.md](docs/operacao/homologacao.md).
 
 ## Como rodar
 
-Passo a passo completo, com os problemas comuns: [docs/rodar-local.md](docs/rodar-local.md).
+Passo a passo completo, com os problemas comuns: [docs/desenvolvimento/rodar-local.md](docs/desenvolvimento/rodar-local.md).
 O resumo:
 
 Pré-requisitos: **Node.js 24 LTS** (veja `.nvmrc`), **pnpm 10** e **Docker Desktop**.
@@ -166,7 +189,7 @@ criação do volume. Se editar algum deles, use `pnpm db:reset`.
 ### Esquema e migrações
 
 Como criar uma migração, revisar o SQL gerado e mexer no que as views usam:
-[docs/migracoes.md](docs/migracoes.md).
+[docs/desenvolvimento/migracoes.md](docs/desenvolvimento/migracoes.md).
 
 ```bash
 pnpm db:migrate   # aplica as migrações da aplicação e do pg-boss pela URL administrativa
@@ -177,7 +200,7 @@ pnpm db:seed      # aplica a massa fictícia pela URL restrita da aplicação
 Para reconstruir o ambiente completo com dados para o site e a curadoria, use `pnpm db:fresh`.
 Esse comando é destrutivo: ele remove o volume configurado antes de migrar e popular o banco.
 
-O [contrato do banco](docs/database/schema.md) contém o diagrama ER, campos, status e decisões
+O [contrato do banco](docs/arquitetura/banco.md) contém o diagrama ER, campos, status e decisões
 da primeira versão. O esquema e os tipos de leitura/inserção são exportados por `@lumens/db`.
 As migrações SQL e os metadados do Drizzle ficam em `packages/db/migrations/`.
 
@@ -190,8 +213,8 @@ desenvolvimento e usa apenas contatos fictícios.
 A tabela `evento` é append-only; correções e o reset local estão documentados no
 [README de `@lumens/db`](packages/db/README.md).
 
-A versão do PostgreSQL é fixada no `docker-compose.yml` e precisa acompanhar a do banco de
-homologação, que será definida na T20.
+A versão do PostgreSQL é fixada no `docker-compose.yml` e precisa acompanhar a do
+`docker-compose.prod.yml` da homologação: mude as duas juntas.
 
 ### Variáveis de ambiente
 
@@ -247,9 +270,9 @@ Homologação: [lumens-ufal.vercel.app](https://lumens-ufal.vercel.app). O ender
 `lumens-hazel.vercel.app` continua respondendo, mas é o nome que a Vercel gerou sozinha quando
 `lumens.vercel.app` já estava tomado — use o novo em links, cartões e mensagens (SCRUM-242).
 
-Até o ambiente da AWS (1.1b), o site é publicado na Vercel pelo GitHub Actions.
-Após o `check` passar na `main`, o job `deploy` publica o projeto `lumens` pela Vercel CLI. Isso mantém o deploy automático no plano Hobby mesmo com o repositório na
-organização `lumens0`. O status e os logs do deploy ficam no GitHub Actions e na Vercel.
+O site é publicado na Vercel pelo GitHub Actions: depois que o `check` passa na `main`, o job
+`deploy-site` publica o projeto `lumens` pela Vercel CLI. Isso mantém o deploy automático no plano
+Hobby mesmo com o repositório na organização `lumens0`. O status e os logs do deploy ficam no GitHub Actions e na Vercel.
 
 O repositório precisa dos secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_SITE_PROJECT_ID`.
 Na Vercel, o diretório raiz do projeto continua sendo `apps/site`.
@@ -258,7 +281,7 @@ O **back-end** e o **painel** vão para uma máquina virtual, por `docker compos
 `deploy-backend`:
 migração primeiro, em comando separado, e só então a nova versão sobe — migração que falha
 deixa a anterior servindo. Como montar a máquina, qual nuvem e por quê, e quais secrets são
-exigidos está em [docs/homologacao.md](docs/homologacao.md). O site continua na Vercel.
+exigidos está em [docs/operacao/homologacao.md](docs/operacao/homologacao.md). O site continua na Vercel.
 
 ## Painel de curadoria
 
@@ -324,28 +347,30 @@ apenas quantas respostas saíram, porque uma resposta pode repetir o que a pesso
 Em produção não há `.env` nem devDependencies: o ambiente vem da hospedagem e o servidor sobe
 com `pnpm --filter @lumens/backend start` (migrações: `pnpm db:migrate`).
 
+Os **avisos** (mensagens modelo da fila `disparo`) já saem pela Cloud API da Meta
+(`src/bot/envio/`); o webhook foi validado no painel da Meta em 2026-11-10
+([evidências](docs/meta/webhook-validacao.md)). A verificação por e-mail (2.4) e o apoio com foto
+(2.7) estão completos no bot.
+
 Pendências da parte 2:
 
-- Envio das respostas pela API da Meta: trocar o `logSender` (`src/bot/worker.ts`) por um sender
-  que decifra o telefone e chama a Cloud API. Uma resposta é texto, mensagem de lista ou mensagem
-  com botões (`src/bot/conversation/resposta.ts`), que viram `interactive.type = "list"` (uma
-  seção só) e `interactive.type = "button"` (os caminhos da 3.3).
-- A verificação (2.4) está completa no bot (`src/bot/conversation/verificacao.ts`) e retoma a
-  pauta nova da 2.6. O e-mail do código foi testado numa conta real da UFAL (SCRUM-139): sai
-  pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo (ver
-  `docs/sdd/SCRUM-99-verificacao-email/TESTS.md`). Falta testar numa segunda conta. O apoio da 2.7 entra no `TODO(2.7)` de `src/bot/conversation/relato.ts` e retoma o
-  `pendingCommand` `apoiar` (`TODO(2.7)` em `verificacao.ts`).
-- A foto da pauta nova (2.6) é baixada da Meta com o `META_TOKEN` e guardada no
-  `S3_BUCKET_FOTOS`. Sem emulador de S3 no `docker-compose` (T20), no `pnpm dev` a foto é
-  recusada com aviso e o "pular" continua funcionando.
-- Verificar o webhook no painel da Meta e medir resposta < 5 s (critério de pronto da 2.1).
+- **Respostas da conversa pela API da Meta:** o `registerReplyWorker` ainda usa o `logSender`
+  (`src/bot/worker.ts`). Falta um sender que decifra o telefone e chama a Cloud API. Uma resposta
+  é texto, lista ou botões (`src/bot/conversation/resposta.ts`), que viram
+  `interactive.type = "list"` (uma seção só) e `interactive.type = "button"` (os caminhos da 3.3).
+- **E-mail do código numa segunda conta:** o envio foi testado numa conta real da UFAL
+  (SCRUM-139) e sai pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo
+  (`docs/sdd/SCRUM-99-verificacao-email/TESTS.md`).
+- **Bucket das fotos:** o código baixa a foto da Meta, tira os metadados e grava no
+  `S3_BUCKET_FOTOS`, mas a homologação ainda não tem bucket, então a foto é recusada com aviso e o
+  "pular" continua funcionando ([SCRUM-251](docs/decisoes/SCRUM-251-fotos-sem-storage.md)).
 
 ## API de leitura pública
 
 O mesmo servidor do `pnpm dev` (`:3001`) serve a API REST só de leitura do site: `GET /resumo`,
 `/blocos`, `/pautas`, `/pautas/:slug`, `/conquistas` e `/atividade`, sem login, pelo login
 `lumens_site` (`DATABASE_URL_LEITURA`). As origens aceitas no CORS vêm de `CORS_ORIGENS`. Rotas,
-campos e exemplos: [docs/api.md](docs/api.md). Os tipos das respostas ficam em `@lumens/contratos`.
+campos e exemplos: [docs/arquitetura/api.md](docs/arquitetura/api.md). Os tipos das respostas ficam em `@lumens/contratos`.
 
 ## Como contribuir
 

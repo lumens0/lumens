@@ -9,8 +9,8 @@ Uma pessoa da equipe abre o material da SCRUM-80 e encontra, numa página curta,
 
 ## Critérios de aceitação
 
-- [x] `docs/esquema.md` apresenta o ER derivado do schema atual, os nove status e transições decididas, as funções públicas atuais do domínio e o catálogo final de 16 eventos (os 15 propostos mais `pauta_criada`) com visibilidade definida.
-- [x] `docs/decisoes.md` registra Node.js + TypeScript, AWS + PostgreSQL e mantém decisões 3 a 9 com situação, proposta e espaço inequívoco para o resultado da equipe.
+- [x] `docs/arquitetura/esquema-e-contratos.md` apresenta o ER derivado do schema atual, os nove status e transições decididas, as funções públicas atuais do domínio e o catálogo final de 16 eventos (os 15 propostos mais `pauta_criada`) com visibilidade definida.
+- [x] `docs/decisoes/SCRUM-80-decisoes-da-equipe.md` registra Node.js + TypeScript, AWS + PostgreSQL e mantém decisões 3 a 9 com situação, proposta e espaço inequívoco para o resultado da equipe.
 - [x] O registro possui uma seção por parte 2, 3, 4 e 5 para confirmar presença/ciência e anotar necessidades ou declarar que não há pedidos.
 - [x] A documentação afirma o contrato de escrita apenas pelo domínio e orienta migração nova + atualização do seed somente quando um pedido aprovado alterar dados persistidos.
 - [x] Nenhuma validação, decisão ou ajuste de schema é inventado: enquanto não houver ata da reunião, os itens dependentes dela permanecem `PENDENTE` e o material não se apresenta como versão estável congelada.
@@ -28,5 +28,5 @@ O conteúdo e os links foram conferidos. Com PostgreSQL 17 temporário e papel r
 ## Padrões aplicáveis
 
 - `AGENTS.md`: mudança simples e cirúrgica; `.agent/patterns/` prevaleceria, mas está vazio; não corrigir falhas preexistentes fora do escopo.
-- `docs/database/schema.md`: schema executável em `packages/db/src/schema.ts`; migrações aplicadas são imutáveis; alteração de persistência exige nova migração.
+- `docs/arquitetura/banco.md`: schema executável em `packages/db/src/schema.ts`; migrações aplicadas são imutáveis; alteração de persistência exige nova migração.
 - `andrej-karpathy-skills:karpathy-guidelines`: não inventar decisões, não criar abstrações ou artefatos sem necessidade e definir provas observáveis.

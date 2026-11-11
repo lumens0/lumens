@@ -60,7 +60,7 @@ pnpm dev
 ```
 
 Back-end em `http://localhost:3001`: o webhook da Meta e a
-[API de leitura pública](api.md). Conferir que está de pé:
+[API de leitura pública](../arquitetura/api.md). Conferir que está de pé:
 
 ```bash
 curl http://localhost:3001/pautas?limit=2
@@ -163,7 +163,7 @@ estado estranho, `pnpm db:fresh` recria do zero — **destrutivo**, apaga o volu
 ## Em seguida
 
 - [Como criar uma migração](migracoes.md)
-- [Como usar o domínio](../packages/dominio/README.md)
-- [API de leitura pública](api.md)
-- [Contrato do banco](database/schema.md) e [`@lumens/db`](../packages/db/README.md)
-- [Decisões do projeto](decisoes.md)
+- [Como usar o domínio](../../packages/dominio/README.md)
+- [API de leitura pública](../arquitetura/api.md)
+- [Contrato do banco](../arquitetura/banco.md) e [`@lumens/db`](../../packages/db/README.md)
+- [Decisões do projeto](../decisoes/SCRUM-80-decisoes-da-equipe.md)

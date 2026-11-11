@@ -4,7 +4,7 @@
  * - **Prazo do Fala.BR:** cinco dias antes de vencer o prazo dos 30+30, quem cuida da pauta recebe
  *   o lembrete, enquanto não chegar resposta oficial.
  * - **Owner inativo:** no dia 25 sem mensagem ao bot, o owner recebe um aviso preventivo; no dia
- *   30, perde o papel (decisão 6 de `docs/decisoes.md`, RF-A03). A remoção exige o aviso: quem
+ *   30, perde o papel (decisão 6 de `docs/decisoes/SCRUM-80-decisoes-da-equipe.md`, RF-A03). A remoção exige o aviso: quem
  *   não foi avisado há pelo menos cinco dias não sai, mesmo passado o dia 30 (SCRUM-239).
  *
  * Tudo aqui só enfileira na fila de envio (`fila.ts`), que decide quando sai dentro do limite da

@@ -117,7 +117,7 @@ Outros enums: `papel_na_pauta` = owner/co_owner; `origem_apoio` = bot/site;
 
 `categoria`, `caminho.status` e `promessa.resultado` continuam sendo textos sem catálogo fechado.
 `evento.tipo` também permanece `text` no banco, mas seus nomes e sua visibilidade foram fechados no
-[catálogo da T7](../esquema.md#tipos-de-evento-decididos). O domínio deve validar esse contrato; o
+[catálogo da T7](esquema-e-contratos.md#tipos-de-evento-decididos). O domínio deve validar esse contrato; o
 banco ainda não o restringe por enum ou constraint.
 
 ## Índices e invariantes
@@ -192,9 +192,9 @@ SQLSTATE e constraint, além da busca, metadados e consumo de tipos pelo domíni
 - T5 concluída: a migration `0002_evento_append_only.sql` bloqueia UPDATE, DELETE e TRUNCATE em
   `evento`.
 - T6 concluída: `pnpm db:fresh` aplica as migrations e carrega o seed com uma pauta por status.
-- T7 em validação: o [material da apresentação](../esquema.md) consolida o diagrama, status,
+- T7 em validação: o [material da apresentação](esquema-e-contratos.md) consolida o diagrama, status,
   transições, funções e eventos decididos. Participantes e pedidos devem ser registrados
-  na [ata de decisões](../decisoes.md); enquanto ela estiver pendente, o contrato não está congelado.
+  na [ata de decisões](../decisoes/SCRUM-80-decisoes-da-equipe.md); enquanto ela estiver pendente, o contrato não está congelado.
 - Confirmar nomes reais dos blocos e base DIACOM antes do seed definitivo.
 - Domínio/agendador: expiração em dez minutos, máximo de tentativas, retenção de 24h,
   máximo de responsáveis ativos e transições. Os campos existem; as rotinas não estão nesta task.

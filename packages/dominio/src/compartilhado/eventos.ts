@@ -1,7 +1,7 @@
 /**
  * Linha do tempo da pauta (RN11): toda ação do domínio registra um evento na mesma transação.
  *
- * Os tipos e o `dados` mínimo de cada um são o catálogo da T7 (`docs/esquema.md`, "Tipos de evento
+ * Os tipos e o `dados` mínimo de cada um são o catálogo da T7 (`docs/arquitetura/esquema-e-contratos.md`, "Tipos de evento
  * decididos"). A tabela `evento` só aceita inserção; esta é a única porta de escrita nela.
  */
 import { eventos, type PapelPauta, type StatusPauta, type Tx } from '@lumens/db';

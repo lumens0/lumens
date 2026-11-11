@@ -181,12 +181,12 @@ pede gente, com `tipo = 'proposta'`. Colunas que não se aplicam ao tipo da linh
 
 Eventos públicos de pautas públicas. Filtre por `pauta_slug` e ordene por `criado_em`.
 
-| Coluna       | Tipo        | Conteúdo                                                                                    |
-| ------------ | ----------- | ------------------------------------------------------------------------------------------- |
-| `pauta_slug` | text        |                                                                                             |
-| `tipo`       | text        | um dos tipos do [catálogo da T7](../../docs/esquema.md#tipos-de-evento-decididos)           |
-| `dados`      | jsonb       | payload do catálogo sem as chaves `id` e `*_id` (ex.: `caminho_id`); `{}` se não for objeto |
-| `criado_em`  | timestamptz |                                                                                             |
+| Coluna       | Tipo        | Conteúdo                                                                                                  |
+| ------------ | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `pauta_slug` | text        |                                                                                                           |
+| `tipo`       | text        | um dos tipos do [catálogo da T7](../../docs/arquitetura/esquema-e-contratos.md#tipos-de-evento-decididos) |
+| `dados`      | jsonb       | payload do catálogo sem as chaves `id` e `*_id` (ex.: `caminho_id`); `{}` se não for objeto               |
+| `criado_em`  | timestamptz |                                                                                                           |
 
 ### `v_conquista`
 

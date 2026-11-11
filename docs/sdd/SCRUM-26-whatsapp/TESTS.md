@@ -3,7 +3,7 @@
 Linguagem/framework: TypeScript, Vitest, `renderToStaticMarkup`
 Exemplos do repo usados como base: `apps/site/src/componentes/estados.test.tsx` (`vi.stubEnv`)
 Oráculo: ticket SCRUM-26, `encodeURIComponent` conferido à mão e a regra `SEM_APOIO` de
-`packages/dominio/src/apoio.ts`.
+`packages/dominio/src/pauta/apoio.ts`.
 
 ## Casos — helper (`apps/site/src/whatsapp.test.ts`)
 
@@ -40,7 +40,7 @@ Oráculo: ticket SCRUM-26, `encodeURIComponent` conferido à mão e a regra `SEM
 
 ## Casos — regra de apoio (`apps/site/src/dados/pautas-publicas.test.ts`)
 
-- [sincronia] **`SEM_APOIO` do site** é igual ao `SEM_APOIO` de `packages/dominio/src/apoio.ts`: o
+- [sincronia] **`SEM_APOIO` do site** é igual ao `SEM_APOIO` de `packages/dominio/src/pauta/apoio.ts`: o
   teste lê o fonte do domínio e compara os status; se as listas divergirem, o CI falha.
 
 ## Lacunas conhecidas

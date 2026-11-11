@@ -44,4 +44,4 @@
 ## Padrões aplicáveis
 
 - Nenhum catálogo `.agent/patterns/`. Segue `apps/site/src/componentes/` e o contrato de
-  `docs/api.md`.
+  `docs/arquitetura/api.md`.

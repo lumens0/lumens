@@ -16,7 +16,7 @@ local e homologação), **nunca em log, commit, print ou chat**. O back-end não
 
 ## O que cada chave protege
 
-**`CHAVE_CIFRA`** (`apps/backend/src/cripto.ts`, saída em base64: IV de 12 bytes, tag de 16, texto
+**`CHAVE_CIFRA`** (`apps/backend/src/cripto/cifra.ts`, saída em base64: IV de 12 bytes, tag de 16, texto
 cifrado). Colunas `*_cifrado`:
 
 - `estudante.telefone_cifrado` e `estudante.email_cifrado`
@@ -104,7 +104,7 @@ sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualqu
    As filas de mortas (`incoming-message-dead` e `outgoing-replies-dead`) ficam de fora: nenhum
    consumidor as lê, então subir o back-end não as esvazia. Elas guardam mensagens que o bot já
    descartou, só para investigar, e saem sozinhas em até 14 dias
-   ([retenção nas filas](decisoes/SCRUM-174-aviso-de-privacidade.md)). Depois da troca não
+   ([retenção nas filas](../decisoes/SCRUM-174-aviso-de-privacidade.md)). Depois da troca não
    decifram mais. Confira quantas há:
 
    ```sql
@@ -184,4 +184,4 @@ curador pelo valor novo.
 ## Em seguida
 
 - [Homologação](homologacao.md) — onde fica o `.env.producao`
-- [Como rodar local](rodar-local.md) — o `.env` do desenvolvimento
+- [Como rodar local](../desenvolvimento/rodar-local.md) — o `.env` do desenvolvimento

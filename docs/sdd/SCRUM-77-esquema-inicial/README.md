@@ -9,7 +9,7 @@ chaves/índices, busca em português, migração SQL editável e tipos TypeScrip
 `@lumens/db`. Os comandos públicos são `pnpm db:migrate` e `pnpm db:generate`.
 
 A [spec](SPEC.md) preserva os campos e critérios recebidos. O [plano](PLAN.md) foi aprovado
-explicitamente pela dev antes da implementação. O [contrato do banco](../../database/schema.md)
+explicitamente pela dev antes da implementação. O [contrato do banco](../../arquitetura/banco.md)
 detalha o ER, nulabilidade, defaults e pontos para validação da equipe.
 
 ## Decisões
