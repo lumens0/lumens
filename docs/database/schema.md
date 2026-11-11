@@ -27,6 +27,7 @@ erDiagram
   estudante ||--o{ resposta_conferencia : responde
   pauta ||--o{ evento : registra
   estudante ||--o{ disparo : recebe
+  caminho ||--o{ documento_resposta : recebe
   codigo_verificacao {
     text telefone_hmac PK
     text codigo_hash
@@ -76,6 +77,7 @@ da cifra. Os campos sem tipo indicado são `text`, exceto FKs UUID e enums lista
 | mensagem_processada  | wamid_hmac, recebida_em                                                                                                                           | nenhum                                                              | PK wamid_hmac; recebida_em = now()                                                                  |
 | curador              | id, email_hmac, email_cifrado, nome, ativo (boolean)                                                                                              | nenhum                                                              | PK id; email_hmac único; ativo = true                                                               |
 | disparo              | id, tipo, aviso, estudante_id, modelo, parametros (JSONB), enfileirado_em, reservado_em, enviado_em, wamid_hmac, entregue_em, falhou_em, falha    | reservado_em, enviado_em, wamid_hmac, entregue_em, falhou_em, falha | PK id; (tipo, aviso, estudante_id) único; wamid_hmac único; parametros = []; enfileirado_em = now() |
+| documento_resposta   | id, pauta_id, caminho_id, enviado_por, arquivo_chave, recebido_em, promessa_id                                                                    | promessa_id                                                         | PK id; arquivo_chave único; recebido_em = now()                                                     |
 
 A chave de `papel_pauta` inclui `desde` para preservar mandatos históricos. O limite de três
 responsáveis ativos pertence ao domínio; a migração não o implementa.
@@ -151,6 +153,14 @@ entrega por pessoa: a linha não é apagada depois de sair. Quem escreve nela é
   envio conta porque é dele que a Meta mede as 24h, e ele acontece depois da reserva.
 - **`parametros`** guarda os valores das variáveis da mensagem modelo. Só dado público da pauta;
   quem recebe sai do `estudante_id`.
+
+## PDF da resposta oficial
+
+SCRUM-220 · 3.6. `documento_resposta` registra o PDF que o owner encaminhou pelo bot: de que pauta e
+de que caminho Fala.BR (com protocolo) ele é, e quem mandou. O arquivo fica no storage, na pasta
+`respostas/` do mesmo bucket das fotos, e **não é público**: a resposta da ouvidoria pode trazer o
+nome de quem manifestou. A curadoria lê o PDF e registra o resumo (5.4); `promessa_id` liga o PDF à
+resposta registrada (SCRUM-221). A escrita passa por `registrarDocumentoDeResposta` no domínio.
 
 ## Uso e verificação
 
