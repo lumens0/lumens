@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { connection } from 'next/server';
 import { MapaDoCampus } from '../../componentes/mapa/MapaDoCampus';
 import estilos from '../../componentes/mapa/mapa.module.css';
@@ -30,14 +29,6 @@ export default async function Mapa() {
       </p>
 
       <MapaDoCampus marcadores={marcadores} />
-
-      <footer className={pagina.rodape}>
-        <nav aria-label="Mais do Lumens" className={pagina.navegacao}>
-          <Link href="/">Todas as pautas</Link>
-          <Link href="/conquistas">Conquistas</Link>
-          <Link href="/atividade">Atividade</Link>
-        </nav>
-      </footer>
     </main>
   );
 }

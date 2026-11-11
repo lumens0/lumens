@@ -1,20 +1,43 @@
 .pagina {
-  max-width: 640px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: var(--espaco);
+  padding: 20px 24px 32px;
+}
+
+/* Linha de contexto acima do título, em fonte de rótulo. */
+.sobretitulo {
+  margin: 0;
+  font:
+    600 12.5px var(--fonte-rotulo),
+    monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primaria-forte);
 }
 
 .titulo {
-  margin: 0;
+  margin: 4px 0 8px;
   font:
-    800 1.75em var(--fonte-titulo),
+    800 28px/1.15 var(--fonte-titulo),
     sans-serif;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .subtitulo {
-  margin: 4px 0 var(--espaco);
-  color: var(--tinta-2);
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: #3d3150;
+}
+
+@media (max-width: 640px) {
+  .pagina {
+    padding: 16px 16px 28px;
+  }
+
+  .titulo {
+    font-size: 24px;
+  }
 }
 
 .lista {
@@ -25,28 +48,37 @@
   gap: 12px;
 }
 
+/* Cards de pauta lado a lado quando cabe; a lista de atividade continua em uma coluna. */
+.grade {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.grade > li {
+  display: flex;
+}
+
+.grade > li > * {
+  flex: 1;
+}
+
 .totais {
-  margin-bottom: var(--espaco);
-  padding: 12px var(--espaco);
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
+  margin: 16px 0;
 }
 
 .totaisTitulo {
   margin: 0 0 8px;
   font:
-    600 0.8125em var(--fonte-rotulo),
+    600 12px var(--fonte-rotulo),
     monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--primaria-forte);
+  color: var(--tinta-2);
 }
 
 .totais dl {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   margin: 0;
 }
 
@@ -54,18 +86,32 @@
 .totais dl div {
   display: flex;
   flex-direction: column-reverse;
+  padding: 12px 16px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
 }
 
 .totais dt {
-  font-size: 0.8125em;
+  font-size: 13px;
   color: var(--tinta-2);
 }
 
 .totais dd {
   margin: 0;
   font:
-    800 1.5em var(--fonte-titulo),
+    800 28px/1.1 var(--fonte-titulo),
     sans-serif;
+}
+
+@media (max-width: 480px) {
+  .totais dl div {
+    padding: 10px 12px;
+  }
+
+  .totais dd {
+    font-size: 22px;
+  }
 }
 
 .rodape {
@@ -104,4 +150,93 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 16px;
+}
+
+/* Conquistas como memorial: o ano à esquerda, o resto ao lado. */
+.memorial {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.memorialCorpo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ano {
+  font:
+    800 22px/1 var(--fonte-titulo),
+    sans-serif;
+  color: var(--primaria-forte);
+}
+
+/* Atividade: marca, pauta e o que mudou, e a data à direita. */
+.evento {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+}
+
+.icone,
+.iconeFeito {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.icone {
+  background: var(--primaria);
+}
+
+.iconeFeito {
+  background: #13865b;
+}
+
+.eventoPauta {
+  display: block;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.eventoPauta:hover {
+  text-decoration: underline;
+}
+
+.eventoTexto {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: #3d3150;
+}
+
+.quando {
+  font:
+    600 12px var(--fonte-rotulo),
+    monospace;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .evento {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .quando {
+    grid-column: 2;
+  }
 }

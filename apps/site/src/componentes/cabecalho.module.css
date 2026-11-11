@@ -1,0 +1,93 @@
+.cabecalho {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+}
+
+.faixa {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 54px;
+  font:
+    800 20px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.orbe {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    #ffd84d 0,
+    #ffb020 34%,
+    var(--primaria) 38%,
+    var(--primaria-forte) 100%
+  );
+  flex: 0 0 auto;
+}
+
+.ponto {
+  color: #e89a00;
+}
+
+.abas {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.aba {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 12px;
+  border-bottom: 3px solid transparent;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--tinta-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.aba:hover {
+  color: var(--tinta);
+}
+
+.aba[aria-current='page'] {
+  border-color: var(--primaria);
+  color: var(--tinta);
+}
+
+.acao {
+  flex: 0 0 auto;
+}
+
+/* No celular a marca e o botão ficam na primeira linha e as abas descem para a segunda. */
+@media (max-width: 640px) {
+  .faixa {
+    flex-wrap: wrap;
+    gap: 0 12px;
+    justify-content: space-between;
+  }
+
+  .abas {
+    order: 3;
+    flex-basis: 100%;
+  }
+}

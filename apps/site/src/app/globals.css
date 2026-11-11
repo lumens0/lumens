@@ -1,6 +1,6 @@
 /* Tokens do protótipo (Lumens Pautas). */
 :root {
-  --fundo: #e7e1f2;
+  --fundo: #f7f4fb;
   --superficie: #fff;
   --tinta: #1e1433;
   --tinta-2: #5b4e75;
@@ -8,6 +8,9 @@
   --primaria: #7b3fe4;
   --primaria-forte: #5a22c8;
   --trilho: #ede7f7;
+  --lilas: #f3effa;
+  --whatsapp: #008069;
+  --whatsapp-forte: #006b58;
 
   --raio: 16px;
   --espaco: 16px;

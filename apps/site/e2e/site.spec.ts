@@ -94,7 +94,9 @@ test('o card da pauta é um PNG de 1080 × 1920', async ({ request }) => {
 
 test('conquistas lista a pauta conquistada e leva até ela', async ({ page }) => {
   await page.goto('/conquistas');
-  await expect(page.getByRole('heading', { level: 1, name: 'Conquistas' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'O que os estudantes já conquistaram' }),
+  ).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(1);
   await page.getByRole('link', { name: CONQUISTA.titulo, exact: true }).click();
   await expect(page).toHaveURL(`/p/${CONQUISTA.slug}`);

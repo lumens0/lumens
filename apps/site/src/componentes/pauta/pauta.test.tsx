@@ -136,11 +136,11 @@ describe('página da pauta: seções', () => {
       />,
     );
     expect(html).toContain('Fala.BR');
-    expect(html).toContain('Status: <strong>Em andamento</strong>');
+    expect(html).toMatch(/<strong class="[^"]*">Em andamento<\/strong>/);
     expect(html).toContain('Protocolo 2026-123');
     expect(html).toContain('Prazo de resposta: 10/03/2026');
     expect(html).toContain('Proposta da comunidade');
-    expect(html).toContain('Status: <strong>Juntando voluntários</strong>');
+    expect(html).toMatch(/<strong class="[^"]*">Juntando voluntários<\/strong>/);
     expect(html).toContain('4 de 10 voluntários');
     // Só a proposta aberta pede voluntário.
     expect(html.match(/\?text=ajudar%20faixa/g)).toHaveLength(1);
@@ -152,12 +152,12 @@ describe('página da pauta: seções', () => {
       renderToStaticMarkup(
         <Caminhos caminhos={[{ ...CAMINHO, status: 'aguardando_reuniao' }]} slug="x" />,
       ),
-    ).toContain('<strong>aguardando reuniao</strong>');
+    ).toMatch(/<strong class="[^"]*">aguardando reuniao<\/strong>/);
   });
 
   it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
-    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>← Voltar<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>.*Voltar<\/a>/);
   });
 
   it('sem caminhos, explica que o owner ainda vai escolher', () => {

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatarNumero } from '../componentes/BarraApoios';
-import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
@@ -29,10 +28,12 @@ export default async function Home({
   const { abertas, apoios, conquistas } = totais(lista);
   return (
     <main className={estilos.pagina}>
-      <h1 className={estilos.titulo}>Lumens</h1>
-      <p className={estilos.subtitulo}>Da reclamação à pauta.</p>
-      {/* Com a lista vazia, o botão aparece na própria ListaVazia. */}
-      {lista.length > 0 && <BotaoRelatar />}
+      <p className={estilos.sobretitulo}>Campus A. C. Simões · pautas estudantis</p>
+      <h1 className={estilos.titulo}>O que os estudantes estão pedindo</h1>
+      <p className={estilos.subtitulo}>
+        Tudo o que entra pelo WhatsApp vira registro público aqui. Qualquer pessoa acompanha, sem
+        login.
+      </p>
       <FiltroBloco blocos={blocos} atual={bloco?.slug} />
       {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
       <section className={estilos.totais} aria-labelledby="totais-titulo" aria-live="polite">
@@ -57,7 +58,7 @@ export default async function Home({
       {lista.length === 0 ? (
         <ListaVazia bloco={bloco} />
       ) : (
-        <ul className={estilos.lista}>
+        <ul className={[estilos.lista, estilos.grade].join(' ')}>
           {lista.map((pauta) => (
             <li key={pauta.slug}>
               <CardPauta pauta={pauta} />
@@ -67,9 +68,6 @@ export default async function Home({
       )}
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
-          <Link href="/mapa">Mapa do campus</Link>
-          <Link href="/conquistas">Conquistas</Link>
-          <Link href="/atividade">Atividade</Link>
           <Link href="/privacidade">Política de privacidade</Link>
           {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}
           <a href="/dados.csv" download>
