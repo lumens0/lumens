@@ -72,7 +72,7 @@ convertido em JSON Schema de resposta, para o Fastify serializar só os campos d
 4. Registrar o módulo em `app.ts` e abrir/fechar o pool de leitura em `main.ts`.
 5. Testes de integração com `fastify.inject` sobre PGlite com migrações, seed e
    `SET ROLE lumens_site`; teste de contrato.
-6. Documentar as rotas em `docs/api.md` e apontar para ela no README da raiz.
+6. Documentar as rotas em `docs/arquitetura/api.md` e apontar para ela no README da raiz.
 7. Medir `/pautas/:slug` localmente com o seed.
 
 ## Impactos e verificação

@@ -8,7 +8,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import type { SendOptions } from '../../infra/queue';
-import { FakeQueue, mensagensNaFila, prepararFilaFalsa, statusNaFila } from '../../infra/queue.fake';
+import {
+  FakeQueue,
+  mensagensNaFila,
+  prepararFilaFalsa,
+  statusNaFila,
+} from '../../infra/queue.fake';
 import { hashPhone } from '../conversation/phone';
 import { FIXTURES_DIR } from '../sim/fixtures';
 import { PRAZO_META_MS, medirLatencia } from '../sim/latencia';

@@ -12,7 +12,7 @@ endurece `lumens_app`, mudando só o nome e a variável da senha. Na migração,
 ## Fontes e decisões
 
 - **Regra vigente:** ticket SCRUM-87; schema de `packages/db/src/schema.ts`; catálogo de eventos e
-  status da T7 em `docs/esquema.md`; precedente de papel/grants da SCRUM-78 (`0003`, `app-role.ts`,
+  status da T7 em `docs/arquitetura/esquema-e-contratos.md`; precedente de papel/grants da SCRUM-78 (`0003`, `app-role.ts`,
   `provision-app-role.ts`).
 - **Senha fora da migração:** como `lumens_app`, o login é criado por `pnpm db:provision` com a senha
   de `POSTGRES_SITE_PASSWORD`; a migração só concede privilégios e falha se o papel não existir.

@@ -2,11 +2,11 @@
 
 > **Estado: PREPARAÇÃO.** Este material ainda não representa a versão estável da T7. A validação
 > das partes 2 a 5 e as decisões pendentes devem ser registradas em
-> [`decisoes.md`](decisoes.md) antes do congelamento.
+> [`decisoes.md`](../decisoes/SCRUM-80-decisoes-da-equipe.md) antes do congelamento.
 
-Fontes executáveis: [`schema.ts`](../packages/db/src/schema.ts),
-[`migrations/`](../packages/db/migrations/) e [`index.ts` do domínio](../packages/dominio/src/index.ts).
-O contrato detalhado da T4 continua em [`database/schema.md`](database/schema.md).
+Fontes executáveis: [`schema.ts`](../../packages/db/src/schema.ts),
+[`migrations/`](../../packages/db/migrations/) e [`index.ts` do domínio](../../packages/dominio/src/index.ts).
+O contrato detalhado da T4 continua em [`database/schema.md`](banco.md).
 
 ## Roteiro da apresentação (15–20 min)
 
@@ -42,7 +42,7 @@ As tabelas operacionais `codigo_verificacao`, `conversa` e `mensagem_processada`
 FK às entidades do diagrama. Suas chaves de telefone e wamid usam HMAC, e o código de verificação
 usa hash. `conversa` também mantém estado e payload privado em JSONB; o banco não garante cifra nem
 valida automaticamente dados pessoais nesse payload. A lista de campos, nulabilidade, índices e
-constraints está no [contrato da T4](database/schema.md#campos-nulabilidade-e-defaults).
+constraints está no [contrato da T4](banco.md#campos-nulabilidade-e-defaults).
 
 ## Status e transições
 
@@ -116,7 +116,7 @@ de escrita abaixo são a proposta de contrato a fechar com as partes; os nomes e
 | `removerOwner`             | encerrar um mandato sem apagar o histórico                     | `owner_removido`                |
 | `aprovarRelato`            | concluir a moderação e liberar o relato                        | `relato_aprovado`               |
 
-A auditoria técnica dos consumidores está em [`decisoes.md`](decisoes.md). A confirmação humana de
+A auditoria técnica dos consumidores está em [`decisoes.md`](../decisoes/SCRUM-80-decisoes-da-equipe.md). A confirmação humana de
 cada parte continua obrigatória antes de declarar que a apresentação ocorreu.
 
 ### Contrato de escrita

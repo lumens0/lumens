@@ -18,7 +18,7 @@
 | [`PLAN.md`](PLAN.md)   | Como foi planejado: abordagem, passos, riscos e divergências de padrão assumidas.          |
 | [`TESTS.md`](TESTS.md) | Estratégia de testes: casos, oráculo de cada um, lacunas conhecidas.                       |
 
-Referência das rotas para quem consome a API: [`docs/api.md`](../../api.md).
+Referência das rotas para quem consome a API: [`docs/arquitetura/api.md`](../../arquitetura/api.md).
 
 ## Aprovação
 
@@ -41,7 +41,7 @@ Pendente.
       `Vary: Origin` e nunca `*`.
 - [x] `Cache-Control: public, max-age=30, stale-while-revalidate=30` no `200` e `no-store` nos erros.
 - [x] `CORS_ORIGENS` em `.env.example` e na validação do ambiente.
-- [x] Rotas documentadas em `docs/api.md`, com exemplos do seed.
+- [x] Rotas documentadas em `docs/arquitetura/api.md`, com exemplos do seed.
 - [x] `/pautas/:slug` abaixo de 300 ms localmente com o seed.
 - [x] `pnpm check` (typecheck, lint, format e testes) passou com PostgreSQL 17 local provisionado: 790 testes, 58 deles da API.
 

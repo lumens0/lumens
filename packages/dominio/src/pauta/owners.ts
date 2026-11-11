@@ -108,7 +108,7 @@ export async function registrarAtividadeOwner(
 
 /**
  * Qualquer mensagem ao bot conta como atividade em todas as pautas que a pessoa cuida (decisão 6
- * de `docs/decisoes.md`: "nenhuma mensagem do owner ao bot em 30 dias"). Chamada pelo worker da
+ * de `docs/decisoes/SCRUM-80-decisoes-da-equipe.md`: "nenhuma mensagem do owner ao bot em 30 dias"). Chamada pelo worker da
  * conversa, na transação da mensagem, com o HMAC do telefone de quem escreveu.
  *
  * Sem isto, `ultima_atividade_em` ficaria parada no dia em que a pessoa virou owner, e o agendador

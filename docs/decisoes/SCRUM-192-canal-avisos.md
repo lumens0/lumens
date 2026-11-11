@@ -50,10 +50,10 @@ portfólio não verificado sem perseguir esse volume. Os quatro motivos acima ba
 
 Conferido na `main` em 2026-11-10:
 
-- **Um canal só.** A fila (`packages/dominio/src/fila.ts`, tabela `disparo`) guarda o nome da
+- **Um canal só.** A fila (`packages/dominio/src/avisos/fila.ts`, tabela `disparo`) guarda o nome da
   mensagem modelo e os parâmetros; não existe coluna de canal nem envio de aviso por e-mail. O
   `EMAIL_*` do backend continua servindo só ao código de verificação e ao login do painel.
-- **A ordem de saída** é a de `PRIORIDADE` em `packages/dominio/src/envio.ts`:
+- **A ordem de saída** é a de `PRIORIDADE` em `packages/dominio/src/avisos/envio.ts`:
 
   | Ordem | Tipo               | Avisos                           | Por que nesta posição                                                              |
   | ----: | ------------------ | -------------------------------- | ---------------------------------------------------------------------------------- |
@@ -105,4 +105,4 @@ Reabrir esta decisão se acontecer qualquer um destes:
 
 - [Messaging limits](https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits)
 - [Template categorization](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/template-categorization)
-- Esquema: [`docs/database/schema.md`](../database/schema.md)
+- Esquema: [`docs/arquitetura/banco.md`](../arquitetura/banco.md)

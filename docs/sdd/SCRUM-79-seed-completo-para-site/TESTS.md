@@ -5,7 +5,7 @@
 
 Aprovado em: 2026-11-02 por @sthefanyblima
 Linguagem/framework: TypeScript, Vitest e PostgreSQL real
-Exemplos do repo usados como base: `packages/db/src/schema.test.ts`, `packages/db/src/privileges.test.ts`, `packages/dominio/src/meta.test.ts`
+Exemplos do repo usados como base: `packages/db/src/schema.test.ts`, `packages/db/src/privileges.test.ts`, `packages/dominio/src/pauta/meta.test.ts`
 Oráculo: SCRUM-79, `WORKING_SPEC.md`, `WORKING_PLAN.md` e pares literais da RN04
 
 Os testes não importarão os arrays do seed para obter valores esperados e não dependerão da ordem de execução.

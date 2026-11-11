@@ -67,7 +67,7 @@ export default function Privacidade() {
         </ul>
       </section>
 
-      {/* AES-256-GCM e HMAC-SHA256: apps/backend/src/cripto.ts */}
+      {/* AES-256-GCM e HMAC-SHA256: apps/backend/src/cripto/cifra.ts */}
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>Como protegemos</h2>
         <ul>

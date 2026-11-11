@@ -3,7 +3,7 @@
 > **Estado: REUNIÃO PENDENTE.** Não marque a T7 como estável nem avise a equipe enquanto os campos
 > obrigatórios desta ata não estiverem preenchidos e os ajustes aprovados não estiverem no CI.
 
-Material da apresentação: [`esquema.md`](esquema.md).
+Material da apresentação: [`esquema.md`](../arquitetura/esquema-e-contratos.md).
 
 ## Reunião
 
@@ -46,7 +46,7 @@ válida; célula vazia ou `PENDENTE` não é confirmação.
 - Catálogo final: **DECIDIDO — os quinze tipos propostos mais `pauta_criada`**.
 - Não públicos: `pauta_criada`, `pauta_recusada` e o `status_alterado` que leva a `recusada`.
 - Sempre públicos: treze tipos. `status_alterado` é público nas demais transições.
-- Payload mínimo por tipo: **DECIDIDO** no [catálogo do esquema](esquema.md#payloads-mínimos).
+- Payload mínimo por tipo: **DECIDIDO** no [catálogo do esquema](../arquitetura/esquema-e-contratos.md#payloads-mínimos).
 
 Resultado final dos nomes e da visibilidade: **DECIDIDO**.
 

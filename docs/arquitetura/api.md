@@ -1,7 +1,7 @@
 # API de leitura pública
 
 SCRUM-88 · T15. API REST **só de leitura** e **sem login** sobre as
-[views públicas](../packages/db/README.md#views-públicas-contrato-com-o-site) (SCRUM-87 · T14). É o
+[views públicas](../../packages/db/README.md#views-públicas-contrato-com-o-site) (SCRUM-87 · T14). É o
 contrato entre o banco e o site (parte 4): o site lê pautas, relatos, caminhos, conquistas e a
 atividade por aqui, nunca pelas tabelas.
 
@@ -12,7 +12,7 @@ atividade por aqui, nunca pelas tabelas.
   recebe `permission denied` (`42501`) em qualquer tabela, então nenhuma rota consegue ler
   telefone, e-mail, HMAC ou `estudante_id`, nem por bug (RNF01).
 - **Só `GET`:** não existe rota de escrita.
-- **Contrato:** os esquemas zod do pacote [`@lumens/contratos`](../packages/contratos/src/index.ts).
+- **Contrato:** os esquemas zod do pacote [`@lumens/contratos`](../../packages/contratos/src/index.ts).
   O back-end converte cada esquema em JSON Schema de resposta, e o Fastify descarta todo campo que
   não está declarado. Uma coluna nova numa view **não** chega ao site até ser declarada no contrato.
 
@@ -111,7 +111,7 @@ Cada item de `itens`:
 | `proxima_etapa`       | string, nulo   | texto pronto, derivado do status; nulo em `conquistada`                                 |
 
 Os textos de `proxima_etapa` estão na
-[tabela de `v_pauta_publica`](../packages/db/README.md#v_pauta_publica).
+[tabela de `v_pauta_publica`](../../packages/db/README.md#v_pauta_publica).
 
 `GET /pautas?limit=2`:
 
@@ -169,24 +169,24 @@ Uma pauta pública com relatos, caminhos e linha do tempo.
 
 Todos os campos de um item de `/pautas`, mais:
 
-| Campo                            | Tipo           | Conteúdo                                                                |
-| -------------------------------- | -------------- | ----------------------------------------------------------------------- |
-| `relatos[].texto`                | string         | só relatos aprovados                                                    |
-| `relatos[].foto_chave`           | string, nulo   | chave da foto no armazenamento (T20)                                    |
-| `relatos[].curso`                | string, nulo   | curso de quem relatou, nunca quem é                                     |
-| `relatos[].moderado_em`          | instante, nulo | quando o relato foi aprovado                                            |
-| `caminhos[].tipo`                | string         | `falabr`, `comunidade`, `representante` ou `proposta`                   |
-| `caminhos[].status`              | string         | texto livre do caminho; na proposta, `aberta` ou `executada`            |
-| `caminhos[].protocolo`           | string, nulo   | protocolo do Fala.BR                                                    |
-| `caminhos[].prazo`               | data, nulo     | prazo de resposta (`AAAA-MM-DD`)                                        |
-| `caminhos[].aberto_em`           | instante, nulo | nulo na proposta                                                        |
-| `caminhos[].descricao`           | string, nulo   | o que a proposta pede; nulo nos demais tipos                            |
-| `caminhos[].pessoas_necessarias` | int, nulo      | só na proposta                                                          |
-| `caminhos[].voluntarios`         | int, nulo      | quantos já se voluntariaram; só na proposta                             |
-| `caminhos[].executada_em`        | instante, nulo | só na proposta                                                          |
-| `linha_do_tempo[].tipo`          | string         | tipo do [catálogo da T7](esquema.md#tipos-de-evento-decididos)          |
-| `linha_do_tempo[].dados`         | objeto         | payload do catálogo sem as chaves `id` e `*_id`; `{}` se não for objeto |
-| `linha_do_tempo[].criado_em`     | instante       |                                                                         |
+| Campo                            | Tipo           | Conteúdo                                                                   |
+| -------------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `relatos[].texto`                | string         | só relatos aprovados                                                       |
+| `relatos[].foto_chave`           | string, nulo   | chave da foto no armazenamento (T20)                                       |
+| `relatos[].curso`                | string, nulo   | curso de quem relatou, nunca quem é                                        |
+| `relatos[].moderado_em`          | instante, nulo | quando o relato foi aprovado                                               |
+| `caminhos[].tipo`                | string         | `falabr`, `comunidade`, `representante` ou `proposta`                      |
+| `caminhos[].status`              | string         | texto livre do caminho; na proposta, `aberta` ou `executada`               |
+| `caminhos[].protocolo`           | string, nulo   | protocolo do Fala.BR                                                       |
+| `caminhos[].prazo`               | data, nulo     | prazo de resposta (`AAAA-MM-DD`)                                           |
+| `caminhos[].aberto_em`           | instante, nulo | nulo na proposta                                                           |
+| `caminhos[].descricao`           | string, nulo   | o que a proposta pede; nulo nos demais tipos                               |
+| `caminhos[].pessoas_necessarias` | int, nulo      | só na proposta                                                             |
+| `caminhos[].voluntarios`         | int, nulo      | quantos já se voluntariaram; só na proposta                                |
+| `caminhos[].executada_em`        | instante, nulo | só na proposta                                                             |
+| `linha_do_tempo[].tipo`          | string         | tipo do [catálogo da T7](esquema-e-contratos.md#tipos-de-evento-decididos) |
+| `linha_do_tempo[].dados`         | objeto         | payload do catálogo sem as chaves `id` e `*_id`; `{}` se não for objeto    |
+| `linha_do_tempo[].criado_em`     | instante       |                                                                            |
 
 Os relatos vêm por `moderado_em` crescente; os caminhos por `aberto_em` crescente (a proposta, sem
 `aberto_em`, por último), com `tipo` no desempate.
@@ -450,7 +450,7 @@ a depender de zod.
 ## Mudando o contrato
 
 1. Se a mudança precisa de coluna nova, crie a migração custom da view (veja
-   [Migrações que mexem no que as views usam](../packages/db/README.md#migrações-que-mexem-no-que-as-views-usam)).
+   [Migrações que mexem no que as views usam](../../packages/db/README.md#migrações-que-mexem-no-que-as-views-usam)).
 2. Declare o campo no esquema em `packages/contratos/src/index.ts`. Sem isso, o Fastify descarta o
    campo e o site não o recebe.
 3. Atualize a consulta em `apps/backend/src/api/`, os testes da rota e esta página.

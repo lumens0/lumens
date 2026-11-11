@@ -42,7 +42,7 @@ Pendente.
 
 ## Dívida técnica aceita
 
-- A lista de status sem apoio existe em dois lugares (`packages/dominio/src/apoio.ts` e
+- A lista de status sem apoio existe em dois lugares (`packages/dominio/src/pauta/apoio.ts` e
   `apps/site/src/dados/pautas-publicas.ts`); um teste compara as duas e falha se divergirem.
 - O bot ainda não interpreta `apoiar <slug>`, `ajudar <id>` nem `nova pauta` (2.7 / SCRUM-102 e
   3.5 / SCRUM-197): até lá, o link abre a conversa com o texto, mas a ação depende do bot.

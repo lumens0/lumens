@@ -8,7 +8,7 @@ Criar dados escritos à mão e geradores determinísticos, tipados pelos `Novo*`
 
 ## Fontes e decisões
 
-- **Regra vigente:** conteúdo da SCRUM-79 fornecido por @sthefanyblima em 2026-11-02; schema atual de `packages/db/src/schema.ts`; regra RN04 em `packages/dominio/src/meta.ts`.
+- **Regra vigente:** conteúdo da SCRUM-79 fornecido por @sthefanyblima em 2026-11-02; schema atual de `packages/db/src/schema.ts`; regra RN04 em `packages/dominio/src/pauta/meta.ts`.
 - **Limite da fonte:** comentários do Jira, pai/épico e o mapa da DIACOM não estavam disponíveis; os nomes dos blocos serão explicitamente fictícios e marcados para futura conferência.
 - **Contradições:** nenhuma. O schema já oferece todas as tabelas e constraints necessárias.
 - **Suposições:** status desde `meta_batida` representam pautas que alcançaram a meta e, portanto, recebem apoios `>= meta`; pautas anteriores ficam abaixo da meta. Responsável por confirmar: @sthefanyblima; custo se errado: ajustar somente contagens dos dados do seed.

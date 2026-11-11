@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Backup diário do Postgres da homologação (SCRUM-95). Roda DENTRO da VM, pelo timer do systemd
-# (docs/backup.md), ou na mão.
+# (docs/operacao/backup.md), ou na mão.
 #
 #   Uso: ./scripts/backup-banco.sh
 #
@@ -9,7 +9,7 @@
 # publicada, e nada aqui precisa dela.
 #
 # O backup NÃO contém CHAVE_CIFRA nem CHAVE_HMAC (ficam só no .env.producao). Sem elas, os
-# telefones e e-mails restaurados não decifram — veja "Chaves" no docs/backup.md.
+# telefones e e-mails restaurados não decifram — veja "Chaves" no docs/operacao/backup.md.
 set -Eeuo pipefail
 
 REPO_DIR=${REPO_DIR:-/opt/lumens}

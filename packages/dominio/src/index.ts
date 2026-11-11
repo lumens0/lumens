@@ -2,9 +2,19 @@ export { META_MAXIMA, META_MINIMA, calcularMeta } from './pauta/meta';
 export type { BlocoParaMeta } from './pauta/meta';
 
 export { conferirAnonimato } from './compartilhado/anonimato';
-export type { Achado, MotivoAchado, OpcoesDeConferencia, Severidade, Veredicto } from './compartilhado/anonimato';
+export type {
+  Achado,
+  MotivoAchado,
+  OpcoesDeConferencia,
+  Severidade,
+  Veredicto,
+} from './compartilhado/anonimato';
 
-export { MARCA_DE_REMOVIDO, gerarTextoFalaBr, prepararParaProtocolar } from './caminhos/texto-falabr';
+export {
+  MARCA_DE_REMOVIDO,
+  gerarTextoFalaBr,
+  prepararParaProtocolar,
+} from './caminhos/texto-falabr';
 export type { PautaParaTexto, TextoFalaBr, TextoParaProtocolar } from './caminhos/texto-falabr';
 export { textoFalaBrDaPauta } from './caminhos/texto-falabr-da-pauta';
 
@@ -35,7 +45,11 @@ export type {
 
 export { interpretarResposta } from './conferencia/conferencia';
 export { registrarRespostaConferencia } from './conferencia/conferencia-registro';
-export type { MotivoRecusa, RegistroDeResposta, ResultadoRegistro } from './conferencia/conferencia-registro';
+export type {
+  MotivoRecusa,
+  RegistroDeResposta,
+  ResultadoRegistro,
+} from './conferencia/conferencia-registro';
 
 export {
   LIMITE_PARECIDAS,
@@ -75,7 +89,12 @@ export { ErroDeRegra } from './compartilhado/erros';
 export type { CodigoErroDeRegra } from './compartilhado/erros';
 
 export { TIPOS_EVENTO, registrarEvento } from './compartilhado/eventos';
-export type { DadosPorTipo, NovoEventoDeDominio, OrigemEvento, TipoEvento } from './compartilhado/eventos';
+export type {
+  DadosPorTipo,
+  NovoEventoDeDominio,
+  OrigemEvento,
+  TipoEvento,
+} from './compartilhado/eventos';
 
 export {
   MODELO_PAUTA_RECUSADA,
@@ -120,8 +139,18 @@ export type { NovoRelatoDoEstudante, ResultadoRelato } from './pauta/relato';
 export { processarUmaVez } from './compartilhado/processar-uma-vez';
 export type { ResultadoProcessamento } from './compartilhado/processar-uma-vez';
 
-export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos/caminhos';
-export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos/caminhos';
+export {
+  STATUS_COM_CAMINHOS,
+  abrirCaminho,
+  caminhosDaPauta,
+  pautasDoOwner,
+} from './caminhos/caminhos';
+export type {
+  CaminhoDaPauta,
+  NovoCaminho,
+  PautaDoOwner,
+  ResultadoCaminho,
+} from './caminhos/caminhos';
 
 export {
   propostasAbertas,

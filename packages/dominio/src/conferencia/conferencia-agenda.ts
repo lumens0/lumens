@@ -7,7 +7,7 @@
  * - **abrir:** na data de entrega, registra `conferencia_aberta` e põe na fila de envio o aviso
  *   para cada apoiador;
  * - **fechar:** passada a janela, apura pela `encerrarConferencia` — ou, se a primeira rodada
- *   ficar sem quórum, reabre uma única vez por mais sete dias (decisão 4 de `docs/decisoes.md`).
+ *   ficar sem quórum, reabre uma única vez por mais sete dias (decisão 4 de `docs/decisoes/SCRUM-80-decisoes-da-equipe.md`).
  *
  * As duas são idempotentes e se guiam pelo estado, não pelo horário em que rodam: um agendador
  * que ficou fora do ar faz na volta o que deixou de fazer (SCRUM-239).

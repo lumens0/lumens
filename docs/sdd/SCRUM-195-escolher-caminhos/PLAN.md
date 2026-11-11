@@ -1,6 +1,6 @@
 # PLAN — SCRUM-195
 
-## 1. Domínio (`packages/dominio/src/caminhos.ts`)
+## 1. Domínio (`packages/dominio/src/caminhos/caminhos.ts`)
 
 - `abrirCaminho` confere o status da pauta depois do owner e recusa com `pauta_fechada` fora de
   `STATUS_COM_CAMINHOS`. Não olha a meta nem os outros caminhos.
