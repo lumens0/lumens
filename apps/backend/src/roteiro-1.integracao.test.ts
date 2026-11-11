@@ -9,15 +9,18 @@
  *
  * Roda no `pnpm test` do CI (SCRUM-178), que já tem o Postgres e as URLs do banco.
  */
-import { criarDb, criarPool, estudantes, type Db } from '@lumens/db';
+import { apoios, blocos, criarDb, criarPool, eq, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoTemporario } from '@lumens/db/teste';
 import type { FastifyInstance } from 'fastify';
 import type { PgBoss } from 'pg-boss';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
+import { ASK_ATTACH_REPORT_TEXT, SUPPORT_DONE_TEXT, supportedText } from './bot/conversation/apoio';
 import { estudanteVerificado } from './bot/conversation/estudante';
 import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
+import { PRIVACY_NOTICE_TEXT } from './bot/conversation/privacidade';
+import { REPORT_PROMPT_TEXT } from './bot/conversation/relato';
 import { hashPhone } from './bot/conversation/phone';
 import type { Resposta } from './bot/conversation/resposta';
 import { ConversationStore } from './bot/conversation/store';
@@ -51,6 +54,18 @@ let pool: ReturnType<typeof criarPool>;
 let boss: PgBoss;
 let app: FastifyInstance;
 let apagarBanco: () => Promise<void>;
+/** Conexão de administrador do banco temporário: só para montar a fixture e conferir no fim. */
+let admin: Db;
+let poolAdmin: ReturnType<typeof criarPool>;
+
+/** A pauta que o relato vai encontrar, aberta para apoio, no Bloco 18. */
+const PAUTA = {
+  slug: 'bebedouros-no-bloco-18',
+  titulo: 'Bebedouros funcionando no Bloco 18',
+  descricao: 'Consertar os bebedouros quebrados do bloco e manter a manutenção em dia.',
+  meta: 120,
+};
+let pautaId: string;
 
 /** O que o bot mandou, na ordem em que saiu da fila. */
 const enviadas: Resposta[] = [];
@@ -93,6 +108,24 @@ beforeAll(async () => {
   if (!URL_TESTE || !URL_APLICACAO) return;
   const banco = await criarBancoTemporario(URL_TESTE);
   apagarBanco = banco.apagar;
+  poolAdmin = criarPool(banco.url, { conexaoMs: 5000, consultaMs: 15_000 }, () => undefined);
+  admin = criarDb(poolAdmin);
+  const [bloco] = await admin
+    .insert(blocos)
+    .values({ slug: 'bloco-18', nome: 'Bloco 18', baseEstudantes: 600 })
+    .returning({ id: blocos.id });
+  const [pauta] = await admin
+    .insert(pautas)
+    .values({
+      ...PAUTA,
+      blocoId: bloco?.id,
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      aprovadaEm: new Date(),
+    })
+    .returning({ id: pautas.id });
+  if (pauta === undefined) throw new Error('fixture não criada');
+  pautaId = pauta.id;
   const url = new URL(banco.url);
   const credenciais = new URL(URL_APLICACAO);
   url.username = credenciais.username;
@@ -137,40 +170,75 @@ afterAll(async () => {
   await app.close();
   await boss.stop({ graceful: false });
   await pool.end();
+  await poolAdmin.end();
   await apagarBanco();
 }, 30_000);
 
-describe.skipIf(!URL_TESTE || !URL_APLICACAO)('roteiro 1: verificar e apoiar', () => {
-  it('primeiro contato recebe a saudação e o menu', async () => {
-    const respostas = await texto('oi', 2);
-    expect(respostas[0]).toBe(GREETING_TEXT);
-    expect(respostas.at(-1)).toBe(MENU_TEXT);
-  });
+// Cada passo é uma ida e volta pela fila (webhook → worker → resposta): 5 s do padrão é justo demais.
+describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
+  'roteiro 1: verificar e apoiar',
+  { timeout: 30_000 },
+  () => {
+    it('primeiro contato recebe a saudação, o aviso de privacidade e o menu', async () => {
+      expect(await texto('oi', 3)).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    });
 
-  it('verifica com o e-mail da UFAL, o código e o curso', async () => {
-    expect(await texto('3', 1)).toEqual([EMAIL_QUESTION_TEXT]);
-    expect(await texto(EMAIL, 1)).toEqual([CODE_SENT_TEXT]);
-    expect(codigo).toMatch(/^\d+$/);
+    it('verifica com o e-mail da UFAL, o código e o curso', async () => {
+      expect(await texto('3', 1)).toEqual([EMAIL_QUESTION_TEXT]);
+      expect(await texto(EMAIL, 1)).toEqual([CODE_SENT_TEXT]);
+      expect(codigo).toMatch(/^\d+$/);
 
-    const aposCodigo = await texto(codigo ?? '', 2);
-    expect(aposCodigo[0]).toBe(CODE_OK_TEXT);
+      const aposCodigo = await texto(codigo ?? '', 2);
+      expect(aposCodigo[0]).toBe(CODE_OK_TEXT);
 
-    const aposCurso = await mandar(
-      buildListReply({ id: 'curso:Direito', title: 'Direito', from: TELEFONE }),
-      1,
-    );
-    expect(aposCurso[0]).toBe(VERIFIED_TEXT);
-  });
+      const aposCurso = await mandar(
+        buildListReply({ id: 'curso:Direito', title: 'Direito', from: TELEFONE }),
+        1,
+      );
+      expect(aposCurso[0]).toBe(VERIFIED_TEXT);
+    });
 
-  it('o cadastro fica verificado, sem telefone nem e-mail em claro', async () => {
-    expect(await estudanteVerificado(db, hashPhone(TELEFONE, chaves.hmac))).toBeDefined();
-    const [linha] = await db.select().from(estudantes);
-    expect(linha).toMatchObject({ curso: 'Direito', saiuEm: null });
-    expect(JSON.stringify(linha)).not.toContain(TELEFONE);
-    expect(JSON.stringify(linha)).not.toContain(EMAIL);
-  });
+    it('o cadastro fica verificado, sem telefone nem e-mail em claro', async () => {
+      expect(await estudanteVerificado(db, hashPhone(TELEFONE, chaves.hmac))).toBeDefined();
+      const [linha] = await db.select().from(estudantes);
+      expect(linha).toMatchObject({ curso: 'Direito', saiuEm: null });
+      expect(JSON.stringify(linha)).not.toContain(TELEFONE);
+      expect(JSON.stringify(linha)).not.toContain(EMAIL);
+    });
 
-  // Depende do apoio pelo bot (2.7, SCRUM-102): hoje o bot não interpreta `apoiar <slug>`.
-  // Quando a 2.7 entrar, este passo manda o comando do botão do site e confere a contagem.
-  it.todo('apoia uma pauta pelo comando do site e o apoio entra na contagem');
-});
+    it('relata o problema, acha a pauta parecida e apoia (2.5 + 2.7)', async () => {
+      expect(await texto('1', 1)).toEqual([REPORT_PROMPT_TEXT]);
+
+      // O relato cita o bloco: o bot vai direto às pautas parecidas, sem perguntar o bloco.
+      const [lista] = await texto('o bebedouro do bloco 18 está quebrado', 1);
+      if (typeof lista !== 'object' || lista.tipo !== 'lista') {
+        throw new Error('esperava a lista de pautas parecidas');
+      }
+      expect(lista.linhas.map((l) => l.id)).toContain(`pauta:${pautaId}`);
+
+      // "É essa": o apoio conta na hora, com o placar.
+      const aposEscolher = await mandar(
+        buildListReply({ id: `pauta:${pautaId}`, title: PAUTA.titulo, from: TELEFONE }),
+        2,
+      );
+      expect(aposEscolher).toEqual([
+        supportedText(PAUTA.titulo, 1, PAUTA.meta),
+        ASK_ATTACH_REPORT_TEXT,
+      ]);
+
+      expect(await texto('não', 2)).toEqual([SUPPORT_DONE_TEXT, MENU_TEXT]);
+    });
+
+    it('o apoio está no banco, ligado ao estudante verificado', async () => {
+      const estudanteId = await estudanteVerificado(db, hashPhone(TELEFONE, chaves.hmac));
+      const doApoio = await admin.select().from(apoios).where(eq(apoios.pautaId, pautaId));
+      expect(doApoio).toHaveLength(1);
+      expect(doApoio[0]).toMatchObject({ estudanteId, origem: 'bot' });
+    });
+
+    // O botão "Apoiar" do site manda `apoiar <slug>`, e quem interpreta o comando é a 2.8
+    // (SCRUM-103, regex na SCRUM-153), que ainda não entrou. Quando entrar, este passo manda o
+    // comando do botão e confere a contagem.
+    it.todo('apoia uma pauta pelo comando do botão do site (2.8)');
+  },
+);
