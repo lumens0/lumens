@@ -1,0 +1,12 @@
+# Dispara o lumens-backup.service uma vez por dia.
+[Unit]
+Description=Backup diário do banco do Lumens
+
+[Timer]
+OnCalendar=*-*-* 12:00:00 America/Maceio
+# A VM fica desligada fora de uso: Persistent faz o backup perdido rodar logo depois do boot.
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
