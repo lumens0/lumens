@@ -32,6 +32,7 @@ import {
 import { z } from 'zod';
 import { estudanteVerificado } from './estudante';
 import { pedirProtocolo } from './protocolo-falabr';
+import { pedirResposta } from './resposta-oficial';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
 import { LIMITES_DOS_BOTOES, botoes, lista, type BotaoDeResposta, type Resposta } from './resposta';
 import { normalize } from './texto';
@@ -102,6 +103,7 @@ const PAUTA_ROW_PREFIX = 'pauta:';
 const PATH_BUTTON_PREFIX = 'caminho:';
 export const TEXT_BUTTON_ID = 'texto:falabr';
 export const PROTOCOL_BUTTON_ID = 'protocolo:falabr';
+export const RESPONSE_BUTTON_ID = 'resposta:falabr';
 const MENU_BUTTON: BotaoDeResposta = { id: 'menu', titulo: 'Voltar ao menu' };
 const TIPOS: readonly TipoEscolhido[] = ['falabr', 'comunidade'];
 
@@ -115,6 +117,9 @@ function pautaIdDaConversa(data: unknown): string | undefined {
 
 /** Tira da conversa tudo o que os passos do owner guardam, inclusive os do protocolo. */
 export const LIMPAR: DataPatch = { pautaId: undefined, caminhoId: undefined, protocolo: undefined };
+
+/** Os passos que voltam ao estado dos caminhos tiram o que guardaram, menos a pauta. */
+export const LIMPAR_PASSO: DataPatch = { caminhoId: undefined, protocolo: undefined };
 
 const dataBR = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Maceio' });
 
@@ -143,6 +148,10 @@ function acoesDaPauta(existentes: readonly CaminhoDaPauta[], faltam: readonly Ti
   if (existentes.some((c) => c.tipo === 'falabr' && c.protocolo === null)) {
     acoes.push({ id: TEXT_BUTTON_ID, titulo: 'Texto do Fala.BR' });
     acoes.push({ id: PROTOCOL_BUTTON_ID, titulo: 'Registrar protocolo' });
+  }
+  // Com protocolo, a resposta da ouvidoria pode chegar a qualquer momento: o owner encaminha o PDF.
+  if (existentes.some((c) => c.tipo === 'falabr' && c.protocolo !== null)) {
+    acoes.push({ id: RESPONSE_BUTTON_ID, titulo: 'Enviar resposta (PDF)' });
   }
   return acoes;
 }
@@ -304,6 +313,7 @@ export const ownerPaths: StepHandler = async (ctx) => {
     return mostrarCaminhos(db, pauta, await textoDaManifestacao(db, pauta.id));
   }
   if (protocoloPedido(input.text)) return pedirProtocolo(db, pauta);
+  if (respostaPedida(input.text)) return pedirResposta(db, pauta);
 
   const tipo = caminhoPedido(input.text);
   if (tipo === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
@@ -331,6 +341,13 @@ function protocoloPedido(resposta: string): boolean {
   if (resposta.trim() === PROTOCOL_BUTTON_ID) return true;
   const letras = normalize(resposta).replace(/[^a-z]/g, '');
   return letras === 'protocolo' || letras === 'registrarprotocolo';
+}
+
+/** O botão "Enviar resposta (PDF)", ou o pedido digitado ("resposta", "enviar resposta"). */
+function respostaPedida(resposta: string): boolean {
+  if (resposta.trim() === RESPONSE_BUTTON_ID) return true;
+  const letras = normalize(resposta).replace(/[^a-z]/g, '');
+  return letras === 'resposta' || letras === 'enviarresposta' || letras === 'enviarrespostapdf';
 }
 
 /** O botão "Texto do Fala.BR", ou o pedido digitado ("texto", "texto do fala br"). */
