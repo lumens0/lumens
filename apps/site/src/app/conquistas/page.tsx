@@ -37,40 +37,51 @@ function textoDias(dias: number): string {
   return dias === 1 ? '1 dia' : `${formatarNumero(dias)} dias`;
 }
 
+/** O ano da conquista, que abre o item como num memorial. Sem data, a da criação da pauta. */
+function anoDaConquista({ conquistada_em, criada_em }: Conquista): string {
+  const instante = conquistada_em ?? criada_em;
+  return instante ? diaEmMaceio.format(new Date(instante)).slice(0, 4) : '';
+}
+
 function ItemConquista({ conquista }: { conquista: Conquista }) {
   const id = `conquista-${conquista.pauta_slug}`;
   const dias = diasAteEntrega(conquista);
   return (
-    <article className={componentes.card} aria-labelledby={id}>
-      {conquista.bloco_nome && <span className={componentes.contexto}>{conquista.bloco_nome}</span>}
-      <h2 id={id} className={componentes.titulo}>
-        <Link href={`/p/${conquista.pauta_slug}`}>{conquista.titulo}</Link>
-      </h2>
-      {conquista.proposta_executada && (
-        <span className={componentes.selo}>Solução da comunidade</span>
-      )}
-      <dl className={estilos.fatos}>
-        {conquista.conquistada_em && (
-          <div>
-            <dt>Conquistada em</dt>
-            <dd>
-              <time dateTime={conquista.conquistada_em}>
-                {formatarDia(conquista.conquistada_em)}
-              </time>
-            </dd>
-          </div>
+    <article className={[componentes.card, estilos.memorial].join(' ')} aria-labelledby={id}>
+      <span className={estilos.ano} aria-hidden="true">
+        {anoDaConquista(conquista)}
+      </span>
+      <div className={estilos.memorialCorpo}>
+        {conquista.bloco_nome && <span className={componentes.onde}>{conquista.bloco_nome}</span>}
+        {conquista.proposta_executada && (
+          <span className={componentes.selo}>Solução da comunidade</span>
         )}
-        <div>
-          <dt>Apoios</dt>
-          <dd>{formatarNumero(conquista.apoios)}</dd>
-        </div>
-        {dias !== null && (
+        <h2 id={id} className={componentes.titulo}>
+          <Link href={`/p/${conquista.pauta_slug}`}>{conquista.titulo}</Link>
+        </h2>
+        <dl className={estilos.fatos}>
+          {conquista.conquistada_em && (
+            <div>
+              <dt>Conquistada em</dt>
+              <dd>
+                <time dateTime={conquista.conquistada_em}>
+                  {formatarDia(conquista.conquistada_em)}
+                </time>
+              </dd>
+            </div>
+          )}
           <div>
-            <dt>Da criação à entrega</dt>
-            <dd>{textoDias(dias)}</dd>
+            <dt>Apoios</dt>
+            <dd>{formatarNumero(conquista.apoios)}</dd>
           </div>
-        )}
-      </dl>
+          {dias !== null && (
+            <div>
+              <dt>Da criação à entrega</dt>
+              <dd>{textoDias(dias)}</dd>
+            </div>
+          )}
+        </dl>
+      </div>
     </article>
   );
 }
@@ -83,11 +94,12 @@ export default async function PaginaConquistas() {
   const conquistas = await buscarConquistas();
   return (
     <main className={estilos.pagina}>
-      <p>
-        <Link href="/">← Todas as pautas</Link>
+      <p className={estilos.sobretitulo}>Memorial · Campus A. C. Simões</p>
+      <h1 className={estilos.titulo}>O que os estudantes já conquistaram</h1>
+      <p className={estilos.subtitulo}>
+        Cada conquista foi confirmada por quem apoiou. Fica aqui mesmo quando as gestões do DA e do
+        DCE mudam.
       </p>
-      <h1 className={estilos.titulo}>Conquistas</h1>
-      <p className={estilos.subtitulo}>Pautas que o campus cobrou e conseguiu.</p>
       {conquistas.length === 0 ? (
         <div role="status" className={componentes.estado}>
           <p className={componentes.estadoTitulo}>Ainda não tem conquista.</p>

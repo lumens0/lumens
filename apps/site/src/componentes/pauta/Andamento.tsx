@@ -68,8 +68,8 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
       ? texto(aberta, 'fecha_em')
       : undefined;
   return (
-    <section className={estilos.secao} aria-labelledby="proxima-titulo">
-      <h2 id="proxima-titulo" className={estilos.secaoTitulo}>
+    <section className={estilos.proxima} aria-labelledby="proxima-titulo">
+      <h2 id="proxima-titulo" className={estilos.proximaTitulo}>
         Próxima etapa
       </h2>
       <p className={estilos.texto}>
@@ -98,7 +98,10 @@ export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
   const resumo = texto(promessa, 'resumo') ?? texto(resposta, 'resumo');
   const fonte = texto(promessa, 'fonte') ?? texto(resposta, 'fonte');
   return (
-    <section className={estilos.secao} aria-labelledby="resposta-titulo">
+    <section
+      className={recebida ? [estilos.secao, estilos.resposta].join(' ') : estilos.secao}
+      aria-labelledby="resposta-titulo"
+    >
       <h2 id="resposta-titulo" className={estilos.secaoTitulo}>
         Resposta oficial
       </h2>

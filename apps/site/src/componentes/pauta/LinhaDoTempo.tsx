@@ -48,13 +48,21 @@ export function LinhaDoTempo({ eventos }: { eventos: PautaDetalhe['linha_do_temp
       {eventos.length === 0 ? (
         <p className={estilos.vazio}>Ainda não tem acontecimento registrado.</p>
       ) : (
-        <ol className={estilos.lista}>
+        <ol className={estilos.tempo}>
           {eventos.map((evento, i) => (
-            <li key={i} className={estilos.evento}>
-              <time dateTime={evento.criado_em} className={estilos.data}>
-                {formatarData(evento.criado_em)}
-              </time>
-              <span>{rotuloEvento(evento.tipo)}</span>
+            <li key={i}>
+              <span
+                className={i === eventos.length - 1 ? estilos.marcoAtual : estilos.marco}
+                aria-hidden="true"
+              >
+                {i === eventos.length - 1 ? '•' : '✓'}
+              </span>
+              <div>
+                <p className={estilos.texto}>{rotuloEvento(evento.tipo)}</p>
+                <time dateTime={evento.criado_em} className={estilos.data}>
+                  {formatarData(evento.criado_em)}
+                </time>
+              </div>
             </li>
           ))}
         </ol>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
+import { Cabecalho } from '../componentes/Cabecalho';
 import { metadadosDaMarca } from '../metadados';
 import { origemDoSite } from '../origem';
 import './globals.css';
@@ -52,7 +53,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={`${titulo.variable} ${corpo.variable} ${rotulo.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Cabecalho />
+        {children}
+      </body>
     </html>
   );
 }

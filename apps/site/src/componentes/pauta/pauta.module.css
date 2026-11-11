@@ -1,38 +1,47 @@
-/* Página da pauta: mobile-first, legível a partir de 360 px. */
+/* Página da pauta, no desenho do protótipo: cabeçalho solto e seções em cards brancos. */
 .pagina {
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: var(--espaco);
-  display: flex;
-  flex-direction: column;
-  gap: var(--espaco);
+  padding: 20px 24px 32px;
   overflow-wrap: anywhere;
 }
 
-.cabecalho,
-.secao {
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: var(--espaco);
+.voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 6px;
+  color: var(--primaria-forte);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.voltar:hover {
+  text-decoration: underline;
+}
+
+.cabecalho {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .titulo {
   margin: 0;
   font:
-    700 1.5em var(--fonte-titulo),
+    800 28px/1.15 var(--fonte-titulo),
     sans-serif;
-  line-height: 1.2;
-  text-wrap: pretty;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
-.descricao,
-.texto {
-  margin: 0;
-  line-height: 1.5;
+.linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
 }
 
 .owners {
@@ -41,16 +50,213 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 4px 12px;
+  font-size: 14px;
   color: var(--tinta-2);
+}
+
+.descricao {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #3d3150;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.fantasma {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--borda);
+  background: var(--superficie);
+  color: var(--tinta);
   font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.fantasma:hover {
+  border-color: var(--primaria);
+}
+
+.nota {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--tinta-2);
+}
+
+.secao {
+  margin-top: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .secaoTitulo {
   margin: 0;
   font:
-    700 1.125em var(--fonte-titulo),
+    700 17px var(--fonte-titulo),
     sans-serif;
+}
+
+.texto {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.vazio,
+.curso {
+  margin: 0;
+  color: var(--tinta-2);
+  font-size: 13.5px;
+}
+
+/* Placar de apoios: número grande, meta ao lado e a barra embaixo. */
+.placar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.numero {
+  margin: 0;
+}
+
+.grande {
+  font:
+    800 34px/1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.de {
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.trilho {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--trilho);
+  overflow: hidden;
+}
+
+.preenchimento {
+  height: 100%;
+  background: var(--primaria);
+}
+
+.proxima {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--lilas);
+  font-size: 14px;
+}
+
+.proximaTitulo {
+  display: inline;
+  margin: 0;
+  font-size: 14px;
+  color: #4a14b0;
+}
+
+.proximaTitulo::after {
+  content: ': ';
+}
+
+.proxima > .texto {
+  display: inline;
+}
+
+.proxima > .vazio {
+  margin-top: 4px;
+}
+
+/* Resposta oficial recebida: o card fica verde-água, como no protótipo. */
+.resposta {
+  background: #e3f2f0;
+  border-color: #9ccfc8;
+}
+
+.resposta .secaoTitulo {
+  color: #0b5e57;
+}
+
+.caminhos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.caminho {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1.5px solid var(--borda);
+  border-radius: 14px;
+  background: var(--superficie);
+}
+
+.caminhoTipo {
+  font:
+    600 11.5px var(--fonte-rotulo),
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+}
+
+.chip {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.chipJuntando {
+  background: #ede7f7;
+  color: #4a14b0;
+}
+
+.chipEsperando {
+  background: #fff1d1;
+  color: #5c3d00;
+}
+
+.chipFeito {
+  background: #e2f4ec;
+  color: #0b5e40;
+}
+
+.regra {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tinta);
+  color: #fff;
+  font-size: 13.5px;
+}
+
+.regra b {
+  color: #ffd84d;
 }
 
 .lista {
@@ -59,27 +265,17 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .relato {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--borda);
-}
-
-.relato:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.curso,
-.vazio {
-  margin: 0;
-  color: var(--tinta-2);
-  font-size: 0.875em;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--lilas);
+  font-size: 14px;
 }
 
 .foto {
@@ -88,41 +284,78 @@
   border-radius: 8px;
 }
 
-.evento {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* Linha do tempo com marcos ligados por um traço. */
+.tempo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.caminhoTipo {
+.tempo li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.tempo li::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  background: var(--borda);
+}
+
+.tempo li:last-child::before {
+  display: none;
+}
+
+.marco,
+.marcoAtual {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
   font-weight: 700;
+}
+
+.marco {
+  border: 2px solid #0b5e57;
+  background: #0b5e57;
+  color: #fff;
+}
+
+.marcoAtual {
+  border: 2px solid var(--primaria);
+  background: var(--superficie);
+  color: var(--primaria);
 }
 
 .data {
   font:
-    600 0.8125em var(--fonte-rotulo),
+    600 12px var(--fonte-rotulo),
     monospace;
   color: var(--tinta-2);
 }
 
-@media (min-width: 600px) {
+.rodape {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+@media (max-width: 640px) {
   .pagina {
-    padding: calc(var(--espaco) * 2);
+    padding: 16px 16px 28px;
   }
 
   .titulo {
-    font-size: 1.875em;
+    font-size: 24px;
   }
-}
-
-.voltar {
-  display: inline-block;
-  margin-bottom: 12px;
-  color: var(--primaria-forte);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.voltar:hover {
-  text-decoration: underline;
 }

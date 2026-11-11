@@ -21,6 +21,12 @@ export function rotuloStatusCaminho(status: string): string {
   return STATUS[status] ?? status.replaceAll('_', ' ');
 }
 
+/** Feito em verde, juntando gente em lilás, o resto (esperando resposta) em amarelo. */
+function corDoChip(status: string): 'chipFeito' | 'chipJuntando' | 'chipEsperando' {
+  if (status === 'executada') return 'chipFeito';
+  return status === 'aberta' ? 'chipJuntando' : 'chipEsperando';
+}
+
 /** Data civil `AAAA-MM-DD` em `DD/MM/AAAA`, sem passar por `Date` (que mudaria o dia pelo fuso). */
 export function formatarDia(dia: string): string {
   const [ano, mes, d] = dia.split('-');
@@ -54,13 +60,13 @@ export function Caminhos({ caminhos, slug }: { caminhos: readonly Caminho[]; slu
           O owner ainda vai escolher os caminhos para levar esta pauta adiante.
         </p>
       ) : (
-        <ul className={estilos.lista}>
+        <ul className={estilos.caminhos}>
           {caminhos.map((caminho, i) => (
-            <li key={i} className={estilos.evento}>
+            <li key={i} className={estilos.caminho}>
               <span className={estilos.caminhoTipo}>{TIPOS[caminho.tipo]}</span>
-              <span>
-                Status: <strong>{rotuloStatusCaminho(caminho.status)}</strong>
-              </span>
+              <strong className={[estilos.chip, estilos[corDoChip(caminho.status)]].join(' ')}>
+                {rotuloStatusCaminho(caminho.status)}
+              </strong>
               {detalhes(caminho).map((linha) => (
                 <span key={linha} className={estilos.vazio}>
                   {linha}
@@ -73,6 +79,10 @@ export function Caminhos({ caminhos, slug }: { caminhos: readonly Caminho[]; slu
           ))}
         </ul>
       )}
+      <p className={estilos.regra}>
+        <b>Regra:</b> uma solução da comunidade nunca fecha a pauta. A cobrança continua até a
+        universidade resolver, e só vira conquista quando a maioria de quem apoiou confirma.
+      </p>
     </section>
   );
 }

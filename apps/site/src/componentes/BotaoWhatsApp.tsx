@@ -21,11 +21,24 @@ export function BotaoWhatsApp({
   return (
     <a
       href={href}
-      className={estilos.botao}
+      className={estilos.wa}
       aria-label={rotulo}
       target="_blank"
       rel="noopener noreferrer"
     >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.9-.9L3 20l1.1-4.6A8.4 8.4 0 0 1 3 11.5 8.5 8.5 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
+      </svg>
       {texto}
     </a>
   );

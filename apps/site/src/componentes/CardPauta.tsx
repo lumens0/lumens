@@ -10,11 +10,13 @@ export function CardPauta({ pauta }: { pauta: Pauta }) {
   const id = `pauta-${pauta.slug}`;
   return (
     <article className={estilos.card} aria-labelledby={id}>
-      <span className={estilos.contexto}>{contextoDaPauta(pauta.categoria, pauta.bloco_nome)}</span>
+      <div className={estilos.topo}>
+        <StatusPill status={pauta.status} pequena />
+        <span className={estilos.onde}>{contextoDaPauta(pauta.categoria, pauta.bloco_nome)}</span>
+      </div>
       <h2 id={id} className={estilos.titulo}>
         <Link href={`/p/${pauta.slug}`}>{pauta.titulo}</Link>
       </h2>
-      <StatusPill status={pauta.status} />
       <BarraApoios apoios={pauta.apoios} meta={pauta.meta} rotulo={`Apoios: ${pauta.titulo}`} />
       {/* Fora do link do título: <a> dentro de <a> é HTML inválido. */}
       {mostraApoiar(pauta.status) && (
