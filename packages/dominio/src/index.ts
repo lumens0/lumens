@@ -194,3 +194,6 @@ export type {
   ResultadoEmail,
   ResultadoVinculo,
 } from './verificacao';
+
+export { documentosDeResposta, registrarDocumentoDeResposta } from './documento-resposta';
+export type { DocumentoDaPauta, ResultadoDocumento } from './documento-resposta';

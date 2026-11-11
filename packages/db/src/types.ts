@@ -36,3 +36,5 @@ export type NovoCurador = typeof schema.curadores.$inferInsert;
 export type Disparo = typeof schema.disparos.$inferSelect;
 export type NovoDisparo = typeof schema.disparos.$inferInsert;
 export type TipoDisparo = Disparo['tipo'];
+export type DocumentoResposta = typeof schema.documentosResposta.$inferSelect;
+export type NovoDocumentoResposta = typeof schema.documentosResposta.$inferInsert;

@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
 import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
 import {
-  ALL_OPEN_TEXT,
   DATA_LOST_TEXT,
   FALABR_TEXT_INTRO,
   INDEPENDENT_TEXT,
@@ -377,10 +376,10 @@ describe('estado dos caminhos', () => {
     expect(botoesEm(r).corpo).toContain(
       '• Fala.BR: aberto em 01/11/2026, protocolo 00106.000123/2026-11, prazo 01/12/2026',
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
+    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'resposta:falabr', 'menu']);
   });
 
-  it('com os dois abertos e o protocolo registrado, mostra o estado e fica no menu', async () => {
+  it('com os dois abertos e o protocolo registrado, sobra enviar a resposta (3.6)', async () => {
     const eu = await verificar();
     const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca', { status: 'cobrando' });
     await db.insert(caminhos).values([
@@ -388,11 +387,11 @@ describe('estado dos caminhos', () => {
       { pautaId, tipo: 'comunidade', status: 'aberto' },
     ]);
 
-    const [estado, ...resto] = await send('4');
-    expect(estado).toContain('• Comunidade: aberto em');
-    expect(estado).toContain(ALL_OPEN_TEXT);
-    expect(resto).toEqual([]);
-    expect(await passo()).toBe('MENU');
+    const r = await send('4');
+
+    expect(botoesEm(r).corpo).toContain('• Comunidade: aberto em');
+    expect(idsDosBotoes(r)).toEqual(['resposta:falabr', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
   });
 });
 
