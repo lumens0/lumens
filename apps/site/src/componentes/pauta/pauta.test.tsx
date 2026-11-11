@@ -148,6 +148,11 @@ describe('página da pauta: seções', () => {
     ).toContain('<strong>aguardando reuniao</strong>');
   });
 
+  it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>← Voltar<\/a>/);
+  });
+
   it('sem caminhos, explica que o owner ainda vai escolher', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, caminhos: [] }} />);
     expect(html).toContain('Caminhos</h2>');

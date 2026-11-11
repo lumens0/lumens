@@ -14,6 +14,7 @@ export const STEPS = [
   'NEW_ASK_PHOTO',
   'OWNER_PICK_PAUTA',
   'OWNER_PATHS',
+  'LEAVE_CONFIRM',
 ] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -38,6 +39,7 @@ export const Step = {
   NEW_ASK_PHOTO: 'NEW_ASK_PHOTO',
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
   OWNER_PATHS: 'OWNER_PATHS',
+  LEAVE_CONFIRM: 'LEAVE_CONFIRM',
 } as const satisfies { [K in Step]: K };
 
 /** Próximos passos permitidos a partir de cada passo (fora os globais). */
@@ -66,10 +68,12 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // mesmo passo depois de abrir um (o outro continua disponível) e voltam ao menu com os dois.
   OWNER_PICK_PAUTA: ['OWNER_PATHS', 'OWNER_PICK_PAUTA', 'MENU'],
   OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
+  // 5.7: confirmado ou não, a conversa volta ao menu (ou é apagada, se a pessoa saiu).
+  LEAVE_CONFIRM: ['MENU'],
 };
 
-/** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar'). */
-export const GLOBAL_TARGETS: readonly Step[] = ['GREETING', 'MENU'];
+/** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar', 'sair'). */
+export const GLOBAL_TARGETS: readonly Step[] = ['GREETING', 'MENU', 'LEAVE_CONFIRM'];
 
 export class InvalidTransitionError extends Error {
   readonly from: Step;

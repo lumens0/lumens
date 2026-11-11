@@ -1,0 +1,41 @@
+name: Jira
+
+# Separado do CI de propósito: o título da PR só muda no evento `edited`, e quando essa
+# checagem morava no `ci.yml` cada edição da descrição rodava o CI inteiro de novo —
+# e, pelo `cancel-in-progress`, ainda cancelava o CI do último push. Aqui roda em segundos.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: jira-${{ github.ref }}
+  cancel-in-progress: true
+
+# Só lê o evento; não faz checkout.
+permissions: {}
+
+jobs:
+  jira:
+    # ATENÇÃO: para ser obrigatório no merge, `jira` precisa entrar no ruleset
+    # `protecao-main` (Settings → Rules → Rulesets → Required status checks).
+    name: jira
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Validar vínculo com o Jira
+        env:
+          BRANCH: ${{ github.head_ref }}
+          TITULO_PR: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          if [[ ! "$BRANCH" =~ (^|/)SCRUM-([0-9]+)(-|$) ]]; then
+            echo "::error::A branch deve conter uma chave Jira válida, como feat/SCRUM-82-descricao."
+            exit 1
+          fi
+
+          chave="SCRUM-${BASH_REMATCH[2]}"
+          if [[ "$TITULO_PR" != *"[$chave]"* ]]; then
+            echo "::error::O título da PR deve conter [$chave], a mesma chave usada na branch."
+            exit 1
+          fi

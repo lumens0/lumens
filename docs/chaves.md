@@ -99,8 +99,9 @@ Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`):
    Se vier alguma linha, suba o back-end de novo (`... start backend`), espere uns minutos para ele
    processar e repita este passo. Só siga com a consulta vazia.
 
-2. **Faça backup do banco.** O repositório não traz rotina de backup; faça um `pg_dump` do banco
-   antes de continuar e guarde fora da VM.
+2. **Faça backup do banco** na hora, sem esperar o agendado:
+   `sudo systemctl start lumens-backup.service` (veja [Backup do banco](backup.md)). Esse backup
+   só decifra com a chave **antiga**: guarde-a junto até não precisar mais dele.
 3. **Gere a chave nova** com `openssl rand -base64 32`, diferente da `CHAVE_HMAC` e da
    `AUTH_SECRET`.
 4. **Rode o script** com a antiga e a nova. Seguindo o padrão do script de curador
