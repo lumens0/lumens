@@ -23,6 +23,14 @@ function paginaDaUrl(valor: string | string[] | undefined): number {
   return pagina >= 1 && pagina <= PAGINA_MAXIMA ? pagina : 1;
 }
 
+/** Eventos que são um passo conquistado: ganham o ✓ verde na lista. */
+const CONQUISTA = new Set([
+  'meta_batida',
+  'proposta_executada',
+  'resposta_oficial_recebida',
+  'conferencia_apurada',
+]);
+
 const linkDaPagina = (pagina: number) =>
   pagina === 1 ? '/atividade' : `/atividade?pagina=${String(pagina)}`;
 
@@ -37,11 +45,14 @@ export default async function PaginaAtividade({
   const { itens, proximo } = await buscarAtividade(pagina);
   return (
     <main className={estilos.pagina}>
-      <p>
-        <Link href="/">← Todas as pautas</Link>
-      </p>
-      <h1 className={estilos.titulo}>Atividade</h1>
-      <p className={estilos.subtitulo}>O que aconteceu nas pautas, do mais novo ao mais antigo.</p>
+      <div className={[estilos.faixa, 'noite'].join(' ')}>
+        <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
+        <h1 className={estilos.titulo}>Acontecendo no campus</h1>
+        <p className={estilos.subtitulo}>
+          Cada linha vem de uma ação no WhatsApp ou de uma resposta oficial. A mais recente fica em
+          cima.
+        </p>
+      </div>
       {itens.length === 0 ? (
         <div role="status" className={componentes.estado}>
           <p className={componentes.estadoTitulo}>
@@ -56,14 +67,24 @@ export default async function PaginaAtividade({
           )}
         </div>
       ) : (
-        <ol className={estilos.lista}>
+        <ol className={estilos.registro}>
           {itens.map((item, i) => (
-            <li key={`${String(pagina)}-${String(i)}`} className={componentes.card}>
-              <time dateTime={item.criado_em} className={componentes.contexto}>
+            <li key={`${String(pagina)}-${String(i)}`} className={estilos.evento}>
+              <span
+                className={CONQUISTA.has(item.tipo) ? estilos.iconeFeito : estilos.icone}
+                aria-hidden="true"
+              >
+                {CONQUISTA.has(item.tipo) ? '✓' : '•'}
+              </span>
+              <div>
+                <Link href={`/p/${item.pauta_slug}`} className={estilos.eventoPauta}>
+                  {item.pauta_titulo}
+                </Link>
+                <p className={estilos.eventoTexto}>{rotuloEvento(item.tipo)}</p>
+              </div>
+              <time dateTime={item.criado_em} className={estilos.quando}>
                 {formatarData(item.criado_em)}
               </time>
-              <span>{rotuloEvento(item.tipo)}</span>
-              <Link href={`/p/${item.pauta_slug}`}>{item.pauta_titulo}</Link>
             </li>
           ))}
         </ol>

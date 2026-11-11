@@ -1,20 +1,174 @@
 .pagina {
-  max-width: 640px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: var(--espaco);
+  padding: 40px 24px 64px;
+}
+
+/* Cada bloco do topo entra com um atraso pequeno. */
+.pagina > * {
+  animation: surgir var(--entrada) var(--curva) both;
+}
+
+.pagina > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.pagina > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.pagina > :nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+
+.sobretitulo {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--luz-tinta);
 }
 
 .titulo {
+  margin: 0 0 16px;
+  max-width: 18ch;
+  font:
+    700 52px/1.02 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+/* A palavra em destaque acende, sem itálico. */
+.destaque {
+  font-style: normal;
+  color: var(--luz);
+}
+
+.subtitulo {
+  margin: 0 0 28px;
+  max-width: 54ch;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--tinta-2);
+}
+
+/* Hero: texto de um lado, o campus aceso do outro. */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+  gap: 48px;
+  margin: -40px 0 48px;
+  padding: 64px 0 72px;
+}
+
+/* Faixa de noite no topo das outras páginas: só o título e a introdução. */
+.faixa {
+  margin: -40px 0 40px;
+  padding: 56px 0 48px;
+}
+
+.faixa .subtitulo {
+  margin-bottom: 0;
+}
+
+.heroAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heroMapa {
+  position: relative;
+  display: block;
+  border-radius: 24px;
+  border: 1px solid var(--borda);
+  overflow: hidden;
+  aspect-ratio: 2089 / 1506;
+  box-shadow: 0 30px 80px -30px rgb(0 0 0 / 70%);
+  transition: border-color var(--rapido) var(--curva);
+}
+
+.heroMapa:hover {
+  border-color: var(--borda-forte);
+}
+
+/* Paralaxe leve: o mapa sobe um pouco mais devagar que a página nos primeiros 500px de rolagem. */
+@supports (animation-timeline: scroll()) {
+  .heroMapa > svg {
+    animation: deriva linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 500px;
+  }
+}
+
+@keyframes deriva {
+  to {
+    transform: translateY(24px) scale(1.04);
+  }
+}
+
+.heroCredito {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--tinta-3);
+}
+
+.totais {
+  margin-bottom: 24px;
+}
+
+.totaisTopo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.totaisTitulo {
   margin: 0;
   font:
-    800 1.75em var(--fonte-titulo),
+    700 26px var(--fonte-titulo),
     sans-serif;
   letter-spacing: -0.02em;
 }
 
-.subtitulo {
-  margin: 4px 0 var(--espaco);
-  color: var(--tinta-2);
+.totais dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+/* Número em cima, rótulo embaixo, sem inverter a ordem de leitura (dt antes de dd). */
+.totais dl div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  padding: 20px 0;
+}
+
+.totais dl div + div {
+  padding-left: 24px;
+  border-left: 1px solid var(--borda);
+}
+
+.totais dt {
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.totais dd {
+  margin: 0;
+  font:
+    700 44px/1 var(--fonte-titulo),
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .lista {
@@ -25,83 +179,192 @@
   gap: 12px;
 }
 
-.totais {
-  margin-bottom: var(--espaco);
-  padding: 12px var(--espaco);
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
+.grade {
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 16px;
 }
 
-.totaisTitulo {
-  margin: 0 0 8px;
-  font:
-    600 0.8125em var(--fonte-rotulo),
-    monospace;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--primaria-forte);
-}
-
-.totais dl {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 0;
-}
-
-/* Número em cima, rótulo embaixo, sem inverter a ordem de leitura (dt antes de dd). */
-.totais dl div {
+.grade > li {
   display: flex;
-  flex-direction: column-reverse;
 }
 
-.totais dt {
-  font-size: 0.8125em;
-  color: var(--tinta-2);
-}
-
-.totais dd {
-  margin: 0;
-  font:
-    800 1.5em var(--fonte-titulo),
-    sans-serif;
+.grade > li > * {
+  flex: 1;
 }
 
 .rodape {
-  margin-top: var(--espaco);
-  padding-top: var(--espaco);
+  margin-top: 64px;
+  padding-top: 24px;
   border-top: 1px solid var(--borda);
-  font-size: 0.875em;
+  font-size: 14px;
+}
+
+.navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.navegacao a {
+  color: var(--tinta-2);
 }
 
 /* Rótulo em cima, valor embaixo, nos cards de conquista. */
 .fatos {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 24px;
+  gap: 8px 32px;
   margin: 0;
 }
 
+.fatos div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .fatos dt {
-  font-size: 0.8125em;
-  color: var(--tinta-2);
+  font-size: 13px;
+  color: var(--tinta-3);
 }
 
 .fatos dd {
   margin: 0;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .paginacao {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: var(--espaco);
+  margin-top: 24px;
 }
 
-.navegacao {
+.paginacao a {
+  font-weight: 500;
+  color: var(--tinta);
+}
+
+/* Conquistas como memorial: o ano à esquerda, o resto ao lado. */
+.memorial {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.memorialCorpo {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ano {
+  font:
+    700 30px/1 var(--fonte-titulo),
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: var(--luz-tinta);
+}
+
+/* Atividade: uma linha por evento, como um registro. */
+.registro {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--borda);
+}
+
+.evento {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.icone,
+.iconeFeito {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  font-size: 0;
+  background: var(--borda-forte);
+}
+
+.iconeFeito {
+  background: #2e7d4f;
+}
+
+.eventoPauta {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.eventoPauta:hover {
+  text-decoration: underline;
+}
+
+.eventoTexto {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.quando {
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+
+  .titulo {
+    font-size: 40px;
+  }
+
+  .hero {
+    padding: 40px 0 48px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pagina {
+    padding: 24px 16px 48px;
+  }
+
+  .titulo {
+    font-size: 34px;
+  }
+
+  .subtitulo {
+    font-size: 16px;
+  }
+
+  .totais dl div + div {
+    padding-left: 12px;
+  }
+
+  .totais dd {
+    font-size: 26px;
+  }
+
+  .evento {
+    grid-template-columns: 12px minmax(0, 1fr);
+  }
+
+  .quando {
+    grid-column: 2;
+  }
 }

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
+import { PREDIOS, siglaDe } from './predios';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
 let n = 0;
@@ -46,7 +47,7 @@ describe('marcadores do mapa', () => {
       abertas: 2,
       cor: cor('Promessa descumprida'),
       linha: '2 pautas abertas · Promessa descumprida · 1 conquista',
-      predio: 18,
+      predio: 64963500, // Bloco 18 - João de Deus, no OpenStreetMap
     });
   });
 
@@ -90,5 +91,25 @@ describe('mapa do campus', () => {
     expect(html).toContain('A mesma informação, em lista');
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Escolha um bloco');
+  });
+});
+
+describe('prédios do OpenStreetMap', () => {
+  it('nome curto para o rótulo do mapa', () => {
+    expect(siglaDe('Bloco 18 - João de Deus')).toBe('Bloco 18');
+    expect(siglaDe('Centro de Ciências da Saúde - CSAU')).toBe('CSAU');
+    expect(siglaDe('Restaurante Universitário')).toBe('RU');
+    expect(siglaDe('Biblioteca Central')).toBe('Biblioteca Central');
+  });
+
+  it('todo bloco ligado aponta para um prédio que existe no desenho', () => {
+    const ligados = PREDIOS.filter((p) => p.blocos.length > 0).map((p) => p.blocos[0]);
+    expect(ligados.sort()).toEqual([
+      'artes',
+      'biblioteca-central',
+      'bloco-18',
+      'engenharias',
+      'saude',
+    ]);
   });
 });

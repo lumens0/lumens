@@ -14,10 +14,13 @@ export function BarraApoios({
   apoios,
   meta,
   rotulo,
+  cor,
 }: {
   apoios: number;
   meta: number;
   rotulo: string;
+  /** Cor da barra; a do status da pauta, nos cards. */
+  cor?: string;
 }) {
   const legenda = `${formatarNumero(apoios)} de ${formatarNumero(meta)} apoios`;
   return (
@@ -33,7 +36,7 @@ export function BarraApoios({
       >
         <div
           className={estilos.preenchimento}
-          style={{ width: `${String(percentual(apoios, meta))}%` }}
+          style={{ width: `${String(percentual(apoios, meta))}%`, background: cor }}
         />
       </div>
       <span className={estilos.legenda}>{legenda}</span>

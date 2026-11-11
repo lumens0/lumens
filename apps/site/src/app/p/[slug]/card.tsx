@@ -132,13 +132,23 @@ function Status({ pauta, fonte }: { pauta: PautaDetalhe; fonte: number }) {
     <div
       style={{
         display: 'flex',
+        alignItems: 'center',
+        gap: Math.round(fonte * 0.5),
         padding: `${String(Math.round(fonte * 0.37))}px ${String(Math.round(fonte * 0.84))}px`,
         borderRadius: 999,
         fontSize: fonte,
-        background: status.fundo,
-        color: status.texto,
+        background: '#FFFEFB',
+        color: '#1C1917',
       }}
     >
+      <div
+        style={{
+          width: Math.round(fonte * 0.6),
+          height: Math.round(fonte * 0.6),
+          borderRadius: Math.round(fonte * 0.12),
+          background: status.ponto,
+        }}
+      />
       {status.rotulo}
     </div>
   );
