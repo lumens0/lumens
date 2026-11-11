@@ -65,14 +65,14 @@ export type ResultadoModeracao =
 
 export interface DecisaoDeModeracao {
   relatoId: string;
-  /** Quem decidiu. Ainda não é gravado: entra junto com a coluna `relato.moderado_por`. */
+  /** Quem decidiu: fica em `relato.moderado_por`. */
   curadorId: string;
   agora?: Date;
 }
 
 async function moderar(
   tx: Tx,
-  { relatoId, agora = new Date() }: DecisaoDeModeracao,
+  { relatoId, curadorId, agora = new Date() }: DecisaoDeModeracao,
   para: 'aprovado' | 'recusado',
 ): Promise<ResultadoModeracao> {
   // FOR UPDATE: duas pessoas da curadoria clicando ao mesmo tempo; a segunda vê o relato já moderado.
@@ -87,7 +87,7 @@ async function moderar(
 
   await tx
     .update(relatos)
-    .set({ moderacao: para, moderadoEm: agora })
+    .set({ moderacao: para, moderadoEm: agora, moderadoPor: curadorId })
     .where(eq(relatos.id, relatoId));
   // O catálogo só tem evento para a aprovação; a recusa fica no próprio relato, fora do site.
   if (para === 'aprovado') {
