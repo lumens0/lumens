@@ -15,6 +15,8 @@ export const STEPS = [
   'OWNER_PICK_PAUTA',
   'OWNER_PATHS',
   'LEAVE_CONFIRM',
+  'SUPPORT_ASK_REPORT',
+  'SUPPORT_ASK_PHOTO',
 ] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -40,6 +42,8 @@ export const Step = {
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
   OWNER_PATHS: 'OWNER_PATHS',
   LEAVE_CONFIRM: 'LEAVE_CONFIRM',
+  SUPPORT_ASK_REPORT: 'SUPPORT_ASK_REPORT',
+  SUPPORT_ASK_PHOTO: 'SUPPORT_ASK_PHOTO',
 } as const satisfies { [K in Step]: K };
 
 /** Próximos passos permitidos a partir de cada passo (fora os globais). */
@@ -51,13 +55,27 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // 2.4: código errado, vencido ou "reenviar" ficam no passo; sem o e-mail na conversa, volta a ele.
   VERIFY_ASK_CODE: ['VERIFY_ASK_COURSE', 'VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],
   // 2.4: curso fora da lista pergunta de novo; verificado, retoma a pauta nova ou volta ao menu.
-  VERIFY_ASK_COURSE: ['MENU', 'VERIFY_ASK_COURSE', 'NEW_ASK_TITLE', 'VERIFY_ASK_EMAIL'],
+  // 2.7: com um apoio pedido antes da verificação, vai direto para o relato do apoio.
+  VERIFY_ASK_COURSE: [
+    'MENU',
+    'VERIFY_ASK_COURSE',
+    'NEW_ASK_TITLE',
+    'VERIFY_ASK_EMAIL',
+    'SUPPORT_ASK_REPORT',
+  ],
   // Os passos do relato repetem a pergunta quando a resposta não serve (relato vazio, bloco que
   // não existe, escolha fora da lista).
   REPORT_ASK_TEXT: ['REPORT_ASK_BLOCK', 'REPORT_PICK_SIMILAR', 'REPORT_ASK_TEXT'],
   REPORT_ASK_BLOCK: ['REPORT_PICK_SIMILAR', 'REPORT_ASK_BLOCK'],
-  // Pauta nova vinda do relato passa pela verificação se a pessoa ainda não é verificada.
-  REPORT_PICK_SIMILAR: ['MENU', 'NEW_ASK_TITLE', 'VERIFY_ASK_EMAIL', 'REPORT_PICK_SIMILAR'],
+  // Pauta nova ou apoio vindos do relato passam pela verificação se a pessoa ainda não é
+  // verificada. O apoio (2.7) segue para o relato opcional.
+  REPORT_PICK_SIMILAR: [
+    'MENU',
+    'NEW_ASK_TITLE',
+    'VERIFY_ASK_EMAIL',
+    'REPORT_PICK_SIMILAR',
+    'SUPPORT_ASK_REPORT',
+  ],
   // A pauta nova pula o local e a descrição quando vem do relato (2.5), e cada passo repete a
   // pergunta quando a resposta não serve (título longo, bloco que não existe...).
   NEW_ASK_TITLE: ['NEW_ASK_PLACE', 'NEW_ASK_DESCRIPTION', 'NEW_ASK_PHOTO', 'NEW_ASK_TITLE'],
@@ -70,6 +88,9 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
   // 5.7: confirmado ou não, a conversa volta ao menu (ou é apagada, se a pessoa saiu).
   LEAVE_CONFIRM: ['MENU'],
+  // 2.7: relato e foto são opcionais; cada passo repete a pergunta quando a resposta não serve.
+  SUPPORT_ASK_REPORT: ['SUPPORT_ASK_PHOTO', 'SUPPORT_ASK_REPORT', 'MENU'],
+  SUPPORT_ASK_PHOTO: ['SUPPORT_ASK_PHOTO', 'MENU'],
 };
 
 /** Qualquer passo pode ir para estes via comandos globais ('menu', 'cancelar', 'sair'). */

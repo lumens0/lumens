@@ -30,7 +30,7 @@ export const CANCEL_TEXT = 'Ok, cancelei.';
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
 /** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
-const STEPS_WITH_PHOTO: readonly Step[] = ['GREETING', 'NEW_ASK_PHOTO'];
+const STEPS_WITH_PHOTO: readonly Step[] = ['GREETING', 'NEW_ASK_PHOTO', 'SUPPORT_ASK_PHOTO'];
 
 type GlobalCommand = 'menu' | 'cancelar' | 'sair';
 
