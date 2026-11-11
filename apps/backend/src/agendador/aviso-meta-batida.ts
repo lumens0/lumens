@@ -1,8 +1,8 @@
 import type { Db } from '@lumens/db';
 import { enfileirarAvisoMetaBatida, pautasComMetaBatidaSemAviso } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
-import { resumoDoErro, type Logger } from '../logger';
-import { JOBS } from '../queue';
+import { resumoDoErro, type Logger } from '../infra/logger';
+import { JOBS } from '../infra/queue';
 
 /**
  * Gatilho da meta batida (3.2, SCRUM-207). A cada minuto, procura pauta que bateu a meta e ainda

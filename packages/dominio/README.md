@@ -87,6 +87,24 @@ await db.transaction(async (tx) => {
 });
 ```
 
+## Onde fica cada coisa
+
+Quem usa o pacote importa só de `@lumens/dominio` (o [`src/index.ts`](src/index.ts)). As pastas
+são organização interna, por contexto de negócio:
+
+| Pasta            | O que tem                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `pauta/`         | pauta, status, meta, apoio, relato, moderação, curadoria, owners e parecidas                        |
+| `caminhos/`      | caminhos, protocolo e prazo do Fala.BR, texto da manifestação, promessa, proposta e PDF da resposta |
+| `conferencia/`   | conferência com os apoiadores: agenda, registro da resposta e apuração                              |
+| `avisos/`        | fila de disparos, plano de envio, lembretes e aviso de meta batida                                  |
+| `estudante/`     | verificação do e-mail e direito de sair (LGPD)                                                      |
+| `compartilhado/` | eventos da linha do tempo, erros, datas, anonimato e processar uma vez só                           |
+| `teste/`         | fábricas para os testes; nunca exportadas pelo `index.ts`                                           |
+
+O teste mora ao lado do arquivo que testa (`apoio.ts` e `apoio.test.ts`). Regra nova entra na
+pasta do contexto dela e é exportada pelo `index.ts`.
+
 ## Como criar uma regra nova
 
 Toda função de regra segue o mesmo desenho: **valida → grava → registra o evento**, tudo na
@@ -94,7 +112,7 @@ transação de quem chama.
 
 ```ts
 import { eq, propostas, type Tx } from '@lumens/db';
-import { registrarEvento } from './eventos';
+import { registrarEvento } from '../compartilhado/eventos';
 
 export async function registrarExecucaoProposta(
   tx: Tx,
@@ -163,7 +181,7 @@ curadoria marcam conquista.
 
 ### Eventos
 
-`registrarEvento` só aceita os tipos do catálogo da T7 ([`docs/esquema.md`](../../docs/esquema.md),
+`registrarEvento` só aceita os tipos do catálogo da T7 ([`docs/arquitetura/esquema-e-contratos.md`](../../docs/arquitetura/esquema-e-contratos.md),
 "Tipos de evento decididos"), com o `dados` tipado de cada um. O campo `publico` sai do catálogo.
 Recusa `dados` com campo de identidade (estudante, curador, telefone, e-mail, nome), mesmo
 aninhado. A pessoa fica na entidade de origem, nunca na linha do tempo.
@@ -176,7 +194,7 @@ instante.
 ## Testes
 
 Os testes usam o Postgres em memória (`criarBancoEmMemoria`, de `@lumens/db/teste`), com as
-mesmas migrações do banco real, e as fábricas de [`src/fabricas.ts`](src/fabricas.ts)
+mesmas migrações do banco real, e as fábricas de [`src/teste/fabricas.ts`](src/teste/fabricas.ts)
 (`criarBloco`, `criarEstudanteVerificado`, `criarPauta`). Cada teste cria os próprios dados, então
 a ordem de execução não muda o resultado.
 

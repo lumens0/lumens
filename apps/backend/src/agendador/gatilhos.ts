@@ -9,8 +9,8 @@ import {
   removerOwnersAvisados,
 } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
-import { resumoDoErro, type Logger } from '../logger';
-import { JOBS } from '../queue';
+import { resumoDoErro, type Logger } from '../infra/logger';
+import { JOBS } from '../infra/queue';
 
 /**
  * Worker dos gatilhos de data da Parte 3 (SCRUM-237): um job só, em vez de cada história com o

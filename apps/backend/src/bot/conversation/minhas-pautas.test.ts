@@ -11,7 +11,7 @@ import {
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { segredoCom } from '../../cripto';
+import { segredoCom } from '../../cripto/cifra';
 import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
 import {
   DATA_LOST_TEXT,

@@ -20,7 +20,7 @@ SUPPORT_ASK_REPORT ──sim / relato escrito──▶ SUPPORT_ASK_PHOTO ──f
       └──não / pular──▶ menu (apoio já contado)
 ```
 
-Código: `apps/backend/src/bot/conversation/apoio.ts` (bot) e `packages/dominio/src/relato.ts`
+Código: `apps/backend/src/bot/conversation/apoio.ts` (bot) e `packages/dominio/src/pauta/relato.ts`
 (`adicionarRelato`).
 
 ## Critérios de aceite e onde estão cobertos
@@ -34,7 +34,7 @@ Código: `apps/backend/src/bot/conversation/apoio.ts` (bot) e `packages/dominio/
 
 ## Decisões que vale a revisão olhar
 
-- **Evento na linha do tempo.** O catálogo de eventos (`docs/esquema.md`) não tem um tipo para
+- **Evento na linha do tempo.** O catálogo de eventos (`docs/arquitetura/esquema-e-contratos.md`) não tem um tipo para
   apoio, e um evento por apoio encheria a linha pública. O que vai para a linha é o que já está no
   catálogo: `meta_batida` e `status_alterado`, gravados por `registrarApoio` quando o apoio bate a
   meta. O relato aprovado gera `relato_aprovado` na moderação (5.3).

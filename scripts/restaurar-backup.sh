@@ -37,7 +37,7 @@ if [[ -n "$faltando" ]]; then
   echo "Faltam os papéis $faltando neste Postgres: o backup traz permissões para eles." >&2
   # Só o provision não basta: ele conecta no banco da aplicação, que pode ter sido apagado. O
   # passo 2 recria o banco vazio antes, quando falta.
-  echo "Siga o passo 2 de \"Restaurar de verdade\" no docs/backup.md: garante o banco e provisiona os papéis." >&2
+  echo "Siga o passo 2 de \"Restaurar de verdade\" no docs/operacao/backup.md: garante o banco e provisiona os papéis." >&2
   exit 1
 fi
 
@@ -56,7 +56,7 @@ restaurado=$(echo "$CONTAGEM" | psql_em "$TEMPORARIO")
 echo "    restaurado: $restaurado"
 
 # A comparação com a origem é informativa e NÃO pode derrubar o teste: num incidente a origem é
-# justamente o banco perdido ou corrompido (docs/backup.md, "Restaurar de verdade", passo 3), e
+# justamente o banco perdido ou corrompido (docs/operacao/backup.md, "Restaurar de verdade", passo 3), e
 # é aí que mais importa saber se o backup presta. As checagens abaixo, no restaurado, seguem
 # obrigatórias.
 if [[ -z "$BANCO_ORIGEM" ]]; then

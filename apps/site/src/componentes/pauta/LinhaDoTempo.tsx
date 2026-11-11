@@ -1,8 +1,8 @@
 import type { PautaDetalhe } from '@lumens/contratos';
 import estilos from './pauta.module.css';
 
-// Rótulos dos tipos públicos do catálogo da T7 (docs/esquema.md). Manter em sincronia com
-// TIPOS_EVENTO/PUBLICO de packages/dominio/src/eventos.ts, a fonte do catálogo.
+// Rótulos dos tipos públicos do catálogo da T7 (docs/arquitetura/esquema-e-contratos.md). Manter em sincronia com
+// TIPOS_EVENTO/PUBLICO de packages/dominio/src/compartilhado/eventos.ts, a fonte do catálogo.
 const ROTULOS: Record<string, string> = {
   pauta_aprovada: 'Pauta aprovada',
   meta_batida: 'Meta de apoios batida',

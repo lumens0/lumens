@@ -1,8 +1,8 @@
 import { lt, mensagensProcessadas, type Db } from '@lumens/db';
 import { z } from 'zod';
-import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto';
-import type { Logger } from '../../logger';
-import { JOBS, type JobQueue } from '../../queue';
+import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
+import type { Logger } from '../../infra/logger';
+import { JOBS, type JobQueue } from '../../infra/queue';
 import { hashPhone } from '../conversation/phone';
 import type { StatusDeEnvioJob } from '../envio/worker';
 

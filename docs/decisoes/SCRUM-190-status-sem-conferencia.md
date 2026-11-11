@@ -2,7 +2,7 @@
 
 Spike · Parte 3 · 2026-11-02 · @JGSEIXAS
 **Situação:** substituída. A equipe decidiu outra coisa na SCRUM-80 (decisão 4 de
-[`docs/decisoes.md`](../decisoes.md)): a pauta continua em `prometido` e a conferência reabre uma
+[`docs/decisoes/SCRUM-80-decisoes-da-equipe.md`](SCRUM-80-decisoes-da-equipe.md)): a pauta continua em `prometido` e a conferência reabre uma
 única vez por mais sete dias. Se a segunda rodada também ficar sem quórum, a promessa fecha com
 `resultado = 'sem_quorum'` e a pauta segue em `prometido`. O status `sem_conferencia` proposto
 abaixo não foi criado. Implementado em `fecharConferencia` (SCRUM-238). O texto abaixo fica como
@@ -55,13 +55,13 @@ cada quatro cair em `sem_conferencia`, a repescagem vira história própria.
 
 ## O que muda em cada parte
 
-| Parte         | Mudança                                                                                                                                                                          |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 · banco     | Migração nova: `ALTER TYPE status_pauta ADD VALUE 'sem_conferencia' AFTER 'descumprida'`. Atualizar a tabela de status em `docs/database/schema.md`. Nenhum dado existente muda. |
-| 1 · domínio   | Nada na apuração (`sem_quorum` já existe na PR #14). A transição `prometido → sem_conferencia` entra junto com as demais transições de status.                                   |
-| 3 · agendador | Ao fechar a janela, se a apuração der `sem_quorum`, grava a promessa e muda a pauta na mesma transação, como nos outros três resultados.                                         |
-| 4 · site      | Rótulo público e um texto curto explicando o status, com a participação vinda do evento.                                                                                         |
-| 5 · curadoria | Nada. O status só aparece no painel como mais um final possível.                                                                                                                 |
+| Parte         | Mudança                                                                                                                                                                            |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 · banco     | Migração nova: `ALTER TYPE status_pauta ADD VALUE 'sem_conferencia' AFTER 'descumprida'`. Atualizar a tabela de status em `docs/arquitetura/banco.md`. Nenhum dado existente muda. |
+| 1 · domínio   | Nada na apuração (`sem_quorum` já existe na PR #14). A transição `prometido → sem_conferencia` entra junto com as demais transições de status.                                     |
+| 3 · agendador | Ao fechar a janela, se a apuração der `sem_quorum`, grava a promessa e muda a pauta na mesma transação, como nos outros três resultados.                                           |
+| 4 · site      | Rótulo público e um texto curto explicando o status, com a participação vinda do evento.                                                                                           |
+| 5 · curadoria | Nada. O status só aparece no painel como mais um final possível.                                                                                                                   |
 
 ### Nota sobre a migração
 
