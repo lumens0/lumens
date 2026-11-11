@@ -14,13 +14,14 @@ import { apagarCodigo, sairDoLumens } from '@lumens/dominio';
 import type { StepContext, StepHandler, StepResult } from './handlers';
 import { normalize } from './texto';
 
-// SCRUM-174: rascunho. O texto final (com a base legal) precisa ser fechado com a equipe; o que
-// está aqui descreve só o que o sistema faz hoje, igual à página /privacidade.
+// SCRUM-174: texto e base legal em docs/decisoes/SCRUM-174-aviso-de-privacidade.md. Ele descreve
+// só o que o sistema faz hoje, igual à página /privacidade: mudou o comportamento, mude os dois.
 export const PRIVACY_NOTICE_TEXT = [
-  '🔒 Antes de começar: o Lumens guarda seu telefone cifrado e, se você se verificar, seu e-mail @ufal.br cifrado e seu curso.',
-  'Seu nome, telefone e e-mail nunca aparecem no site. Quem apoia uma pauta também não aparece: o site mostra só o total.',
+  '🔒 *Sua privacidade no Lumens*',
+  'Guardamos seu telefone cifrado para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso.',
+  'No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome, telefone ou e-mail. Quem apoia não aparece: só o total.',
+  'Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair e apagar seu vínculo, envie *sair* a qualquer momento.',
   `Política completa: ${ORIGEM_SITE_PRODUCAO}/privacidade`,
-  'Para sair e apagar seu vínculo, envie *sair* a qualquer momento.',
 ].join('\n');
 
 export const LEAVE_CONFIRM_TEXT = [
