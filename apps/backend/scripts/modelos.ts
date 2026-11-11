@@ -1,19 +1,23 @@
 // Submete as mensagens modelo da Parte 3 à Meta (SCRUM-193).
 // Uso: pnpm --filter @lumens/backend modelos --site <https://origem> [--so <nome>] [--enviar]
+//      pnpm --filter @lumens/backend modelos --situacao
 // Sem --enviar, só imprime os pedidos. Veja docs/meta/mensagens-modelo.md.
 import { MODELOS, paraSubmissao, type NomeModelo } from '../src/bot/whatsapp/modelos';
+import { listarModelosNaMeta } from '../src/bot/whatsapp/situacao-modelos';
 
 const VERSAO_GRAPH = 'v23.0';
 
 const USAGE = `Uso: pnpm --filter @lumens/backend modelos --site <https://origem> [opções]
+     pnpm --filter @lumens/backend modelos --situacao
 
 Opções:
-  --site <url>      origem pública do site, usada no botão "Ver a pauta" (obrigatória)
+  --site <url>      origem pública do site, usada no botão "Ver a pauta" (obrigatória para submeter)
   --so <nome>       submete só este modelo (padrão: todos)
   --enviar          envia à Meta; sem isto, só imprime os pedidos
+  --situacao        só consulta: lista id, situação e categoria de cada modelo na Meta
   --versao <v>      versão da Graph API (padrão ${VERSAO_GRAPH})
 
-Para --enviar: META_TOKEN e META_WABA_ID no ambiente (o .env da raiz é carregado).
+Para --enviar e --situacao: META_TOKEN e META_WABA_ID no ambiente (o .env da raiz é carregado).
 
 Modelos: ${Object.keys(MODELOS).join(', ')}`;
 
@@ -27,6 +31,7 @@ function lerOpcoes(args: string[]) {
     site: '',
     so: undefined as string | undefined,
     enviar: false,
+    situacao: false,
     versao: VERSAO_GRAPH,
   };
   for (let i = 0; i < args.length; i++) {
@@ -36,14 +41,38 @@ function lerOpcoes(args: string[]) {
     else if (arg === '--so') opcoes.so = valor();
     else if (arg === '--versao') opcoes.versao = valor();
     else if (arg === '--enviar') opcoes.enviar = true;
+    else if (arg === '--situacao') opcoes.situacao = true;
     else if (arg === '--help' || arg === '-h') sair(USAGE);
     else sair(`opção desconhecida: ${arg}\n\n${USAGE}`);
   }
-  if (opcoes.site === '') sair(`--site é obrigatória\n\n${USAGE}`);
+  if (opcoes.situacao && opcoes.enviar) sair(`--situacao não combina com --enviar\n\n${USAGE}`);
+  if (opcoes.site === '' && !opcoes.situacao) sair(`--site é obrigatória\n\n${USAGE}`);
   return opcoes;
 }
 
 const opcoes = lerOpcoes(process.argv.slice(2));
+
+// Só leitura: o que a Meta tem hoje de cada modelo. É daqui que sai a tabela de andamento.
+if (opcoes.situacao) {
+  const token = process.env.META_TOKEN;
+  const waba = process.env.META_WABA_ID;
+  if (!token || !waba) sair('META_TOKEN e META_WABA_ID precisam estar no ambiente para --situacao');
+
+  let data;
+  try {
+    data = await listarModelosNaMeta({ waba, token, versao: opcoes.versao });
+  } catch (erro) {
+    sair(erro instanceof Error ? erro.message : String(erro));
+  }
+  for (const nome of Object.keys(MODELOS)) {
+    const naMeta = data.filter((m) => m.name === nome);
+    if (naMeta.length === 0) console.log(`${nome}: não está na Meta`);
+    for (const m of naMeta) {
+      console.log(`${nome}: id ${m.id} · ${m.status} · ${m.category} · ${m.language}`);
+    }
+  }
+  process.exit(0);
+}
 
 if (opcoes.so !== undefined && !(opcoes.so in MODELOS)) {
   sair(`modelo desconhecido: ${opcoes.so}\n\n${USAGE}`);
