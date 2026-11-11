@@ -10,6 +10,7 @@ import {
 } from './nova-pauta';
 import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
 import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
+import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -128,4 +129,6 @@ export const defaultHandlers: HandlerRegistry = {
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
   LEAVE_CONFIRM: leaveConfirm,
+  OWNER_ASK_PROTOCOL: ownerAskProtocol,
+  OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
 };
