@@ -67,6 +67,7 @@ export default async function Home({
       )}
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
+          <Link href="/mapa">Mapa do campus</Link>
           <Link href="/conquistas">Conquistas</Link>
           <Link href="/atividade">Atividade</Link>
           <Link href="/privacidade">Política de privacidade</Link>
