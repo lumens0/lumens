@@ -42,6 +42,7 @@ import {
   PROPOSAL_ASK_TEXT,
   PROPOSAL_CLOSED_TEXT,
   PUBLISHED_TEXT,
+  confirmVolunteerText,
   volunteerText,
 } from './proposta';
 import {
@@ -492,26 +493,60 @@ describe('proposta da comunidade (3.5)', () => {
     expect(await passo()).toBe('PROPOSAL_ASK_PEOPLE');
   });
 
-  it('"Vou ajudar" pelo link do site: quem é verificado entra na lista uma vez só', async () => {
+  it('"Vou ajudar" pelo link do site: confirma a proposta antes e entra na lista uma vez só', async () => {
     await publicar();
     await db
       .insert(estudantes)
       .values({ telefoneHmac: OUTRO, telefoneCifrado: 'y', verificadoEm: new Date() });
+    const [proposta] = await propostasDe();
+    const id = proposta?.id ?? '';
 
+    // Pelo link (slug), mostra qual proposta é e não grava nada ainda.
     const r = await sendOutro('ajudar pauta-' + String(contador));
-    expect(r).toContain(
+    expect(botoesEm(r).corpo).toBe(
+      confirmVolunteerText({
+        descricao: 'Mutirão para pintar as faixas',
+        pessoasNecessarias: 2,
+        voluntarios: 0,
+      }),
+    );
+    expect(idsDosBotoes(r)).toEqual([`ajudar ${id}`, 'menu']);
+    expect(await db.select().from(voluntarios)).toHaveLength(0);
+
+    const confirmado = await sendOutro(`ajudar ${id}`);
+    expect(confirmado).toContain(
       volunteerText({
         descricao: 'Mutirão para pintar as faixas',
         pessoasNecessarias: 2,
         voluntarios: 1,
       }),
     );
-    expect(r.at(-1)).toBe(MENU_TEXT);
-    expect(await sendOutro('ajudar pauta-' + String(contador))).toEqual([
-      ALREADY_VOLUNTEER_TEXT,
-      MENU_TEXT,
-    ]);
+    expect(confirmado.at(-1)).toBe(MENU_TEXT);
+    expect(await sendOutro(`ajudar ${id}`)).toEqual([ALREADY_VOLUNTEER_TEXT, MENU_TEXT]);
     expect(await db.select().from(voluntarios)).toHaveLength(1);
+  });
+
+  it('proposta trocada entre o link e a confirmação: não entra na nova sem confirmar', async () => {
+    await publicar();
+    await db
+      .insert(estudantes)
+      .values({ telefoneHmac: OUTRO, telefoneCifrado: 'y', verificadoEm: new Date() });
+    const confirmacaoDeA = await sendOutro('ajudar pauta-' + String(contador));
+    const botaoDeA = idsDosBotoes(confirmacaoDeA)[0] ?? '';
+
+    // O owner marca A como feita e publica B antes de a pessoa confirmar.
+    expect((await send('feita'))[0]).toBe(DONE_TEXT);
+    await send('proposta:nova');
+    await send('Rifa para comprar tinta');
+    expect((await send('3'))[0]).toBe(PUBLISHED_TEXT);
+
+    expect(await sendOutro(botaoDeA)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_TEXT]);
+    expect(await db.select().from(voluntarios)).toHaveLength(0);
+
+    // Abrir o link de novo mostra B, e só confirmando B a pessoa entra.
+    const confirmacaoDeB = await sendOutro('ajudar pauta-' + String(contador));
+    expect(botoesEm(confirmacaoDeB).corpo).toContain('Rifa para comprar tinta');
+    expect(idsDosBotoes(confirmacaoDeB)[0]).not.toBe(botaoDeA);
   });
 
   it('sem verificação, verifica antes e não grava nada ainda', async () => {
