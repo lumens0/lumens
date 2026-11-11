@@ -66,3 +66,20 @@
   de outra pessoa.
 - **Decisão — sem `verificado_em` aqui:** a história marca o estudante como verificado no fim,
   depois do curso. Até lá, `estudanteVerificado` (2.6) continua dizendo que não é verificado.
+
+## SCRUM-138
+
+- **`CURSOS`** saiu do seed para `packages/db/src/cursos.ts` (exportado pelo `@lumens/db`). O seed
+  e o bot usam a mesma lista, e o domínio a usa para validar.
+- **Domínio** (`verificacao.ts`): `cursoValido` e `concluirVerificacao`, que trava a linha do
+  estudante, exige o vínculo do e-mail, grava o curso, define `verificado_em` (mantendo a primeira
+  data de quem continua valendo) e limpa `saiu_em`.
+- **Bot** (`verificacao.ts`): `listaDeCursos`, `cursoEscolhido` e `verifyAskCourse`, que troca o
+  último placeholder. `entrarNaVerificacao` atende o "3" do menu (já verificado não refaz). O
+  `placeholder` de `handlers.ts` saiu: não sobrou passo sem handler.
+- **Retomada:** `verifyAskCourse` lê o `pendingCommand`; para `nova-pauta`, chama
+  `entrarNaPautaNova` (que agora vê o estudante verificado na mesma transação) e apaga o pedido.
+  `TRANSITIONS` ganhou `VERIFY_ASK_COURSE → NEW_ASK_TITLE`, `→ VERIFY_ASK_COURSE` e
+  `→ VERIFY_ASK_EMAIL`.
+- **Decisão — quem saiu volta a valer:** se verificar de novo pelo mesmo número é a forma de voltar
+  ao Lumens; `saiu_em` é limpo e `verificado_em` passa a ser a data da volta.

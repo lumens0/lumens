@@ -275,7 +275,7 @@ describe('experiência da pessoa', () => {
     await sendComEmail('3');
     await sendComEmail('aluno@ufal.br');
     await sendComEmail(codigo);
-    const replies = await sendComEmail('Computação');
+    const replies = await sendComEmail('Ciência da Computação');
     expect(replies.at(-1)).toBe(MENU_TEXT);
     expect((await store.get(H))?.step).toBe('MENU');
   });

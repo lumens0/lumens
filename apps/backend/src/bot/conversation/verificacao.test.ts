@@ -1,10 +1,12 @@
-import { codigosVerificacao, conversas, eq, estudantes, type Db } from '@lumens/db';
+import { CURSOS, codigosVerificacao, conversas, eq, estudantes, type Db } from '@lumens/db';
 import { CODIGO_EXPIRA_MS, MAX_TENTATIVAS, REENVIO_APOS_MS, hashDoCodigo } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { MENU_TEXT } from './handlers';
+import { VERIFY_FIRST_TEXT } from './nova-pauta';
+import { NEW_TITLE_TEXT } from './texto';
 import { hashPhone } from './phone';
 import { textoDaResposta, type Resposta } from './resposta';
 import { handleIncoming } from './router';
@@ -17,7 +19,11 @@ import {
   CODE_OK_TEXT,
   CODE_RESENT_TEXT,
   CODE_SENT_TEXT,
-  COURSE_PENDING_TEXT,
+  ALREADY_VERIFIED_TEXT,
+  COURSE_NOT_FOUND_TEXT,
+  LINK_LOST_TEXT,
+  VERIFIED_TEXT,
+  listaDeCursos,
   EMAIL_FORMAT_TEXT,
   EMAIL_IN_USE_TEXT,
   EMAIL_LOST_TEXT,
@@ -223,7 +229,7 @@ describe('código de 6 dígitos por e-mail (SCRUM-135)', () => {
 describe('conferir o código, 5 tentativas e reenvio (SCRUM-136)', () => {
   it('código certo segue para o curso e não vale de novo', async () => {
     await pedirCodigo();
-    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, COURSE_PENDING_TEXT]);
+    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, listaDeCursos()]);
     expect(await passo()).toBe('VERIFY_ASK_COURSE');
     expect(await codigoGuardado()).toBeUndefined();
   });
@@ -337,7 +343,7 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
   it('código certo cria o cadastro com o telefone e o e-mail, cifrados e com HMAC', async () => {
     await send('3');
     await send('Aluno@IC.ufal.br');
-    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, COURSE_PENDING_TEXT]);
+    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, listaDeCursos()]);
 
     const estudante = await estudanteDe(H);
     expect(estudante?.emailHmac).toBe(hmac('aluno@ic.ufal.br'));
@@ -402,5 +408,97 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     expect(await send(codigo)).toEqual([EMAIL_LOST_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
     expect(await codigoGuardado()).toBeDefined();
+  });
+});
+
+describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
+  const estudante = async () =>
+    (await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, H)))[0];
+
+  /** Do menu até a pergunta do curso. */
+  async function ateOCurso() {
+    await pedirCodigo();
+    await send(ultimoCodigo());
+  }
+
+  it('o código certo mostra os cursos numa lista', async () => {
+    await pedirCodigo();
+    const [, listaEnviada] = await send(ultimoCodigo());
+    expect(listaEnviada).toEqual(listaDeCursos());
+    expect(listaDeCursos().linhas.map((l) => l.titulo)).toEqual([...CURSOS]);
+    expect(await passo()).toBe('VERIFY_ASK_COURSE');
+  });
+
+  it('com mais de 10 cursos, a lista mostra 9 e pede para digitar o nome dos outros', () => {
+    const muitos = Array.from({ length: 12 }, (_, i) => `Curso ${String(i + 1)}`);
+    const mensagem = listaDeCursos(muitos);
+    expect(mensagem.linhas).toHaveLength(9);
+    expect(mensagem.corpo).toContain('escreva o nome dele');
+    expect(listaDeCursos().corpo).not.toContain('escreva o nome dele');
+  });
+
+  it('escolher pela lista marca verificado com o curso e volta ao menu', async () => {
+    await ateOCurso();
+    expect(await send('curso:Ciência da Computação')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
+    expect(await passo()).toBe('MENU');
+    const cadastro = await estudante();
+    expect(cadastro?.curso).toBe('Ciência da Computação');
+    expect(cadastro?.verificadoEm).toBeInstanceOf(Date);
+    expect(cadastro?.saiuEm).toBeNull();
+  });
+
+  it('aceita o nome digitado, sem acento e em minúsculas, e grava o nome da lista', async () => {
+    await ateOCurso();
+    expect((await send('ciencia da computacao'))[0]).toBe(VERIFIED_TEXT);
+    expect((await estudante())?.curso).toBe('Ciência da Computação');
+  });
+
+  it('curso fora da lista pergunta de novo e não verifica (o curso vai para o site)', async () => {
+    await ateOCurso();
+    expect(await send('Maria da Silva')).toEqual([COURSE_NOT_FOUND_TEXT, listaDeCursos()]);
+    expect(await passo()).toBe('VERIFY_ASK_COURSE');
+    expect(await estudante()).toMatchObject({ curso: null, verificadoEm: null });
+  });
+
+  it('quem veio da pauta nova segue para o título depois de verificado', async () => {
+    expect(await send('2')).toEqual([VERIFY_FIRST_TEXT]);
+    await send('aluno@ufal.br');
+    await send(ultimoCodigo());
+    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, NEW_TITLE_TEXT]);
+    expect(await passo()).toBe('NEW_ASK_TITLE');
+    expect(await dados()).not.toHaveProperty('pendingCommand');
+  });
+
+  it('pedido de apoio fica guardado para a 2.7; por ora, volta ao menu', async () => {
+    await ateOCurso();
+    await store.save(H, 'VERIFY_ASK_COURSE', { pendingCommand: { kind: 'apoiar', id: 'p1' } });
+    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
+    expect(await dados()).toMatchObject({ pendingCommand: { kind: 'apoiar', id: 'p1' } });
+  });
+
+  it('quem já é verificado não refaz a verificação pelo menu', async () => {
+    await ateOCurso();
+    await send('curso:Direito');
+    expect(await send('3')).toEqual([ALREADY_VERIFIED_TEXT]);
+    expect(await passo()).toBe('MENU');
+    expect(await send('verificar email')).toEqual([ALREADY_VERIFIED_TEXT]);
+  });
+
+  it('quem tinha saído pode se verificar de novo e volta a valer', async () => {
+    await ateOCurso();
+    await send('curso:Direito');
+    await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.telefoneHmac, H));
+
+    expect(await send('3')).toEqual([EMAIL_QUESTION_TEXT]);
+    await send('aluno@ufal.br');
+    await send(ultimoCodigo());
+    expect((await send('curso:Pedagogia'))[0]).toBe(VERIFIED_TEXT);
+    expect(await estudante()).toMatchObject({ curso: 'Pedagogia', saiuEm: null });
+  });
+
+  it('sem o vínculo do e-mail, refaz a parte do e-mail', async () => {
+    await store.save(H, 'VERIFY_ASK_COURSE', {});
+    expect(await send('curso:Direito')).toEqual([LINK_LOST_TEXT]);
+    expect(await passo()).toBe('VERIFY_ASK_EMAIL');
   });
 });
