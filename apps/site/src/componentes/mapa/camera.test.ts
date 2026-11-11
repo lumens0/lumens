@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aproximar,
   cobrir,
+  desviar,
   girar,
   limitar,
   matrizDaCamada,
@@ -84,6 +85,19 @@ describe('câmera do mapa', () => {
       const dist = (qx = 0, qy = 0) => Math.hypot(qx - dedo[0], qy - dedo[1]);
       expect(dist(bx, by)).toBeCloseTo(dist(ax, ay));
       expect(dist(cx, cy)).toBeCloseTo(2 * dist(ax, ay));
+    }
+  });
+
+  it('o prédio focado fica à esquerda do centro da tela em qualquer giro (painel à direita)', () => {
+    const [largura, altura] = [800, 500];
+    const alvo = { x: 900, y: 700, w: 420, h: 300 };
+    const centro = [alvo.x + alvo.w / 2, alvo.y + alvo.h / 2] as const;
+    for (const giro of [0, Math.PI / 2, Math.PI, -Math.PI / 6]) {
+      const v = cobrir(desviar(alvo, 0.18, giro), largura / altura);
+      const [x, y] = naTela(v, giro, largura, altura)(...centro);
+      // 18% da largura do alvo, na escala da tela, à esquerda do meio; a altura não muda.
+      expect(x).toBeCloseTo(largura / 2 - 0.18 * alvo.w * (largura / v.w));
+      expect(y).toBeCloseTo(altura / 2);
     }
   });
 
