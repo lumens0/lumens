@@ -16,19 +16,33 @@ export interface NovaProposta {
   porEstudanteId: string;
   descricao: string;
   pessoasNecessarias: number;
+  /**
+   * Recusa quando a pauta já tem proposta aberta. O bot usa: o botão "Proposta feita" só aponta
+   * para uma. Conferido com a pauta travada, então dois owners publicando juntos não passam os dois.
+   */
+  apenasUmaAberta?: boolean;
 }
 
 export type ResultadoPublicacao =
   | { publicada: true; propostaId: string }
-  | { publicada: false; motivo: 'nao_e_owner' | 'pauta_fechada' };
+  | { publicada: false; motivo: 'nao_e_owner' | 'pauta_fechada' | 'ja_tem_aberta' };
 
 /** Publica a proposta e registra `proposta_publicada`. */
 export async function publicarProposta(
   tx: Tx,
-  { pautaId, porEstudanteId, descricao, pessoasNecessarias }: NovaProposta,
+  { pautaId, porEstudanteId, descricao, pessoasNecessarias, apenasUmaAberta = false }: NovaProposta,
 ): Promise<ResultadoPublicacao> {
+  // `recusaDoOwner` trava a linha da pauta (FOR UPDATE): a conferência abaixo fica serializada.
   const recusa = await recusaDoOwner(tx, pautaId, porEstudanteId);
   if (recusa !== null) return { publicada: false, motivo: recusa };
+  if (apenasUmaAberta) {
+    const [aberta] = await tx
+      .select({ id: propostas.id })
+      .from(propostas)
+      .where(and(eq(propostas.pautaId, pautaId), eq(propostas.status, 'aberta')))
+      .limit(1);
+    if (aberta !== undefined) return { publicada: false, motivo: 'ja_tem_aberta' };
+  }
 
   const [proposta] = await tx
     .insert(propostas)
