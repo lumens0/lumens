@@ -87,6 +87,14 @@ describe('carregarEnv', () => {
     expect(mensagemDeErro({ ...ambienteCompleto(), EMAIL_PORT: '0' })).toContain('EMAIL_PORT');
   });
 
+  it('recusa ambiente sem CHAVE_CIFRA ou sem CHAVE_HMAC', () => {
+    const { CHAVE_CIFRA: _a, ...semCifra } = ambienteCompleto();
+    const { CHAVE_HMAC: _b, ...semHmac } = ambienteCompleto();
+
+    expect(mensagemDeErro(semCifra)).toContain('CHAVE_CIFRA:');
+    expect(mensagemDeErro(semHmac)).toContain('CHAVE_HMAC:');
+  });
+
   it('recusa chave de cifra que não tem 32 bytes', () => {
     const curta = Buffer.alloc(16, 9).toString('base64');
 
