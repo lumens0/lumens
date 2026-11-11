@@ -45,24 +45,28 @@ export interface NovoCaminho {
 export type ResultadoCaminho =
   { aberto: true; caminhoId: string } | { aberto: false; motivo: 'nao_e_owner' | 'pauta_fechada' };
 
-/** Abre um caminho e registra `caminho_aberto`. Não olha a meta nem os outros caminhos. */
-export async function abrirCaminho(
+/**
+ * Se o estudante pode mexer nos caminhos da pauta (3.3, 3.5): owner ativo e pauta pública que não
+ * terminou. Trava a linha da pauta até o fim da transação.
+ */
+export async function recusaDoOwner(
   tx: Tx,
-  { pautaId, tipo, porEstudanteId, agora = new Date() }: NovoCaminho,
-): Promise<ResultadoCaminho> {
+  pautaId: string,
+  estudanteId: string,
+): Promise<'nao_e_owner' | 'pauta_fechada' | null> {
   const [owner] = await tx
     .select({ papel: papeisPauta.papel })
     .from(papeisPauta)
     .where(
       and(
         eq(papeisPauta.pautaId, pautaId),
-        eq(papeisPauta.estudanteId, porEstudanteId),
+        eq(papeisPauta.estudanteId, estudanteId),
         sql`${papeisPauta.ate} is null`,
       ),
     )
     .limit(1);
 
-  if (owner === undefined) return { aberto: false, motivo: 'nao_e_owner' };
+  if (owner === undefined) return 'nao_e_owner';
 
   // Pauta em curadoria ou recusada não é pública, e a conquistada já acabou: não abre caminho.
   // O lock da linha serializa com `transicionarStatus` (ex.: apuração da conferência): sem ele, o
@@ -72,9 +76,17 @@ export async function abrirCaminho(
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
-  if (pauta === undefined || !STATUS_COM_CAMINHOS.includes(pauta.status)) {
-    return { aberto: false, motivo: 'pauta_fechada' };
-  }
+  if (pauta === undefined || !STATUS_COM_CAMINHOS.includes(pauta.status)) return 'pauta_fechada';
+  return null;
+}
+
+/** Abre um caminho e registra `caminho_aberto`. Não olha a meta nem os outros caminhos. */
+export async function abrirCaminho(
+  tx: Tx,
+  { pautaId, tipo, porEstudanteId, agora = new Date() }: NovoCaminho,
+): Promise<ResultadoCaminho> {
+  const recusa = await recusaDoOwner(tx, pautaId, porEstudanteId);
+  if (recusa !== null) return { aberto: false, motivo: recusa };
 
   const [caminho] = await tx
     .insert(caminhos)

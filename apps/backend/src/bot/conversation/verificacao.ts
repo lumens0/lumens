@@ -50,6 +50,7 @@ import { estudanteVerificado } from './estudante';
 import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { entrarNoApoio } from './apoio';
 import { entrarNaPautaNova } from './nova-pauta';
+import { vouAjudar } from './proposta';
 import { lista, type MensagemDeLista } from './resposta';
 import { normalize } from './texto';
 
@@ -331,6 +332,10 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
   // Retoma o que a pessoa pediu antes de ser mandada para a verificação.
   const lidos = pendenteSchema.safeParse(state.data);
   const pendente = lidos.success ? lidos.data.pendingCommand : undefined;
+  if (pendente?.kind === 'ajudar' && pendente.id !== undefined) {
+    const ajuda = await vouAjudar(ctx, pendente.id, [VERIFIED_TEXT]);
+    return { ...ajuda, data: { ...ajuda.data, pendingCommand: undefined } };
+  }
   if (pendente?.kind === 'nova-pauta') {
     const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
     return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
@@ -339,6 +344,5 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
     // 2.7: retoma o apoio pedido antes da verificação (pela 2.5 ou pelo site, na 2.8).
     return entrarNoApoio(ctx, pendente.id, [VERIFIED_TEXT]);
   }
-  // TODO(2.8): retomar o 'ajudar'. Até lá, o pedido fica guardado.
   return { next: 'MENU', replies: [VERIFIED_TEXT] };
 };

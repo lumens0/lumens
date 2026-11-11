@@ -50,17 +50,13 @@ export function BotaoApoiar({ slug, titulo }: { slug: string; titulo: string }) 
   );
 }
 
-/**
- * "Vou ajudar" num caminho. Desligado por padrão: só aparece com `NEXT_PUBLIC_FLAG_VOU_AJUDAR=1`,
- * até o bot aceitar o comando `ajudar` (3.5, SCRUM-197).
- */
-export function BotaoVouAjudar({ caminhoId, titulo }: { caminhoId: string; titulo: string }) {
-  if (process.env.NEXT_PUBLIC_FLAG_VOU_AJUDAR !== '1') return null;
+/** "Vou ajudar" na proposta aberta da pauta: abre o bot com `ajudar <slug>` (3.5, SCRUM-197). */
+export function BotaoVouAjudar({ slug, titulo }: { slug: string; titulo: string }) {
   return (
     <BotaoWhatsApp
-      comando={comandoAjudar(caminhoId)}
+      comando={comandoAjudar(slug)}
       texto="Vou ajudar"
-      rotulo={`Vou ajudar no caminho ${titulo} pelo WhatsApp`}
+      rotulo={`Vou ajudar na proposta ${titulo} pelo WhatsApp`}
     />
   );
 }
