@@ -1,0 +1,13 @@
+# Backup diário do Postgres da homologação (SCRUM-95). Instalação: docs/backup.md.
+[Unit]
+Description=Backup do banco do Lumens
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# O mesmo usuário que roda o deploy (dono de /opt/lumens e do grupo docker).
+User=azureuser
+Environment=REPO_DIR=/opt/lumens
+Environment=BACKUP_DIR=/var/backups/lumens
+ExecStart=/opt/lumens/scripts/backup-banco.sh

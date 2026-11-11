@@ -21,16 +21,16 @@
   (`foto_chave`). A pauta nasce com um relato: o texto original da 2.5, ou a descrição. É por ele
   que a curadoria vê a foto.
 - **Verificação na entrada, não no fim.** Quem não é estudante verificado vai para a 2.4 antes da
-  primeira pergunta, com `pendingCommand: nova-pauta` guardado. Falta a 2.4 retomar esse pedido
-  (`TODO(2.4)` em `nova-pauta.ts`).
+  primeira pergunta, com `pendingCommand: nova-pauta` guardado. A 2.4 retoma esse pedido ao
+  fim da verificação (SCRUM-138).
 - **Foto tratada na hora.** Baixar, limpar e guardar acontece no passo da foto, antes de criar a
   pauta, para a pessoa saber na hora se a foto não serviu e poder mandar outra ou pular.
 - **Categoria `a_classificar`.** O bot não pergunta a categoria; a curadoria classifica.
 
 ## Pendências
 
-- **Prazo da curadoria:** ainda não definido pela equipe. O resumo sai sem ele até alguém
-  preencher `CURADORIA.prazo` em `apps/backend/src/bot/conversation/nova-pauta.ts`.
-- **Retomar a pauta depois da verificação:** depende da 2.4.
+- ~~**Prazo da curadoria**~~: resolvido na SCRUM-148. O resumo avisa "em até 24 horas", lido do
+  `PRAZO_DE_CURADORIA_MS` do domínio (SCRUM-113), o mesmo da fila do painel.
+- ~~**Retomar a pauta depois da verificação**~~: resolvido na SCRUM-138.
 - **Emulador de S3 no `docker-compose`:** é da T20. Até lá, no `pnpm dev` a foto é recusada com
   aviso ("não consegui baixar a foto agora") e o "pular" funciona.

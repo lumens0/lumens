@@ -48,6 +48,16 @@ export async function adicionarCoOwner(
     .for('update');
   if (pauta === undefined) return { adicionado: false, motivo: 'pauta_inexistente' };
 
+  // FOR UPDATE no estudante: serializa com sairDoLumens para impedir co-owner de quem está saindo.
+  const [estudante] = await tx
+    .select({ saiuEm: estudantes.saiuEm })
+    .from(estudantes)
+    .where(eq(estudantes.id, estudanteId))
+    .for('update');
+  if (estudante === undefined || estudante.saiuEm !== null) {
+    return { adicionado: false, motivo: 'nao_apoiou' };
+  }
+
   const [apoio] = await tx
     .select({ estudanteId: apoios.estudanteId })
     .from(apoios)

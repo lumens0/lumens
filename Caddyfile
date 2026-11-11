@@ -26,3 +26,14 @@
 		}
 	}
 }
+
+# Painel de curadoria. Com DuckDNS, `painel.<nome>.duckdns.org` já resolve para o mesmo IP;
+# com outro DNS, crie o registro antes do deploy, senão o certificado deste nome não sai.
+#
+# Sem bloco `log` de propósito: o link de acesso chega como
+# /api/auth/callback/nodemailer?token=...&email=..., e um access log guardaria o token e o
+# e-mail da curadora em texto. O Caddy não registra acessos sem a diretiva.
+painel.{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy painel:3002
+}

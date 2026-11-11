@@ -1,6 +1,7 @@
-import type { StatusPauta } from '@lumens/db';
 import type { EventoDaLinha, OrigemEvento, TipoEvento } from '@lumens/dominio';
 import Link from 'next/link';
+import { dataHora } from '../../../prazo';
+import { STATUS } from '../pauta';
 import estilos from './linha.module.css';
 
 // Tela da linha do tempo da pauta para a curadoria (5.5, SCRUM-181, RF-C05, RN11). Só leitura:
@@ -26,18 +27,6 @@ const ROTULOS: Record<TipoEvento, string> = {
   relato_aprovado: 'Relato publicado',
 };
 
-const STATUS: Record<StatusPauta, string> = {
-  em_curadoria: 'Em curadoria',
-  recusada: 'Recusada',
-  juntando_apoios: 'Juntando apoios',
-  meta_batida: 'Meta batida',
-  cobrando: 'Em cobrança',
-  prometido: 'Prometido',
-  entregue_em_parte: 'Entregue em parte',
-  descumprida: 'Promessa descumprida',
-  conquistada: 'Conquistada',
-};
-
 const ORIGEM: Record<OrigemEvento, string> = {
   bot: 'Bot do WhatsApp',
   curadoria: 'Curadoria',
@@ -61,15 +50,6 @@ const RESULTADO: Record<string, string> = {
 export function rotuloEvento(tipo: string): string {
   return (ROTULOS as Record<string, string | undefined>)[tipo] ?? tipo.replaceAll('_', ' ');
 }
-
-const FORMATO = new Intl.DateTimeFormat('pt-BR', {
-  timeZone: 'America/Maceio',
-  dateStyle: 'short',
-  timeStyle: 'short',
-});
-
-/** Data e hora no fuso de Maceió, que é o da curadoria. */
-const dataHora = (instante: Date) => FORMATO.format(instante);
 
 // `dados` é JSON vindo do banco: nada garante o formato de um evento antigo. Valor que não é
 // texto nem número vira "?" em vez de derrubar a tela.
@@ -122,11 +102,20 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
   }
 }
 
-export function LinhaDoTempo({ titulo, eventos }: { titulo: string; eventos: EventoDaLinha[] }) {
+/** Vai dentro da `Moldura`, que já traz o cabeçalho e o `<main>`. */
+export function LinhaDoTempo({
+  pautaId,
+  titulo,
+  eventos,
+}: {
+  pautaId: string;
+  titulo: string;
+  eventos: EventoDaLinha[];
+}) {
   return (
-    <main className={estilos.pagina}>
-      <Link className={estilos.voltar} href="/">
-        ← Início do painel
+    <>
+      <Link className={estilos.voltar} href={`/pautas/${pautaId}`}>
+        ← Voltar para a pauta
       </Link>
       <h1 className={estilos.titulo}>Linha do tempo</h1>
       <p className={estilos.pauta}>{titulo}</p>
@@ -161,6 +150,6 @@ export function LinhaDoTempo({ titulo, eventos }: { titulo: string; eventos: Eve
           })}
         </ol>
       )}
-    </main>
+    </>
   );
 }
