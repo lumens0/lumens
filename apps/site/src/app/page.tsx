@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { formatarNumero } from '../componentes/BarraApoios';
 import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
@@ -7,6 +8,9 @@ import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
 import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
 import estilos from './page.module.css';
+import { metadadosDaMarca } from '../metadados';
+
+export const metadata: Metadata = metadadosDaMarca({ caminho: '/' });
 
 export default async function Home({
   searchParams,
@@ -63,9 +67,14 @@ export default async function Home({
       )}
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
+          <Link href="/mapa">Mapa do campus</Link>
           <Link href="/conquistas">Conquistas</Link>
           <Link href="/atividade">Atividade</Link>
           <Link href="/privacidade">Política de privacidade</Link>
+          {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}
+          <a href="/dados.csv" download>
+            Dados abertos (CSV)
+          </a>
         </nav>
       </footer>
     </main>

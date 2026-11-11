@@ -36,10 +36,19 @@ describe('página /p/[slug]', () => {
       height: 630,
       alt: fixture.titulo,
     };
+    const description = '84 de 80 apoios. Apoie você também.';
     expect(await generateMetadata(props(fixture.slug))).toEqual({
       title: fixture.titulo,
-      openGraph: { images: [imagem] },
-      twitter: { card: 'summary_large_image', images: [imagem] },
+      description,
+      openGraph: {
+        siteName: 'Lumens',
+        locale: 'pt_BR',
+        type: 'article',
+        url: `/p/${fixture.slug}`,
+        description,
+        images: [imagem],
+      },
+      twitter: { card: 'summary_large_image', description, images: [imagem] },
     });
   });
 

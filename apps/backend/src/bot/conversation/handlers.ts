@@ -1,6 +1,8 @@
 import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
+import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
+import { supportAskPhoto, supportAskReport } from './apoio';
 import {
   entrarNaPautaNova,
   newAskDescription,
@@ -8,7 +10,16 @@ import {
   newAskPlace,
   newAskTitle,
 } from './nova-pauta';
-import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
+import {
+  entrarEmMinhasPautas,
+  ownerPaths,
+  ownerPickPauta,
+  proposalAskPeople,
+} from './minhas-pautas';
+import { proposalAskText } from './proposta';
+import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
+import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
+import { ownerSendResponse } from './resposta-oficial';
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
@@ -24,6 +35,8 @@ export interface IncomingMessage {
   text: string;
   /** Foto enviada pela pessoa. `id` é o id da mídia na Meta. */
   image?: { id: string; mimeType: string };
+  /** Arquivo enviado pela pessoa (o PDF da resposta oficial, 3.6). Chega com `text` vazio. */
+  document?: { id: string; mimeType: string };
 }
 
 /** Cifra o que a pessoa escreveu antes de guardar nos dados da conversa (CHAVE_CIFRA). */
@@ -47,6 +60,8 @@ export interface StepContext {
   phoneCifrado?: string;
   /** HMAC com a CHAVE_HMAC, o mesmo do `phoneHmac`: busca o e-mail sem guardá-lo em claro (2.4). */
   hmac?: (valor: string) => string;
+  /** Baixa e guarda o PDF da resposta oficial (3.6). Sem ele, o arquivo é recusado com aviso. */
+  respostas?: ServicoDeRespostas;
   /** A transação da mensagem: o que o handler ler ou gravar confirma junto com a conversa. */
   db: Db;
   segredo: Segredo;
@@ -59,6 +74,8 @@ export interface StepResult {
   next: Step;
   data?: DataPatch;
   replies: Resposta[];
+  /** 5.7: em vez de gravar o passo, apaga a conversa (a pessoa saiu ou não tinha cadastro). */
+  apagarConversa?: boolean;
 }
 
 /** Pode ser síncrono; os que consultam o banco (2.5 em diante) são assíncronos. */
@@ -76,7 +93,11 @@ export const MENU_TEXT = [
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
-const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
+// 5.7: o aviso de privacidade vai sempre no primeiro contato, antes do menu.
+const greeting: StepHandler = () => ({
+  next: 'MENU',
+  replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT],
+});
 
 /** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
@@ -120,4 +141,12 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  PROPOSAL_ASK_TEXT: proposalAskText,
+  PROPOSAL_ASK_PEOPLE: proposalAskPeople,
+  LEAVE_CONFIRM: leaveConfirm,
+  OWNER_ASK_PROTOCOL: ownerAskProtocol,
+  OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
+  OWNER_SEND_RESPONSE: ownerSendResponse,
+  SUPPORT_ASK_REPORT: supportAskReport,
+  SUPPORT_ASK_PHOTO: supportAskPhoto,
 };

@@ -6,9 +6,14 @@ import { formatarNumero } from '../../componentes/BarraApoios';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarDia } from '../../componentes/pauta/LinhaDoTempo';
 import { buscarConquistas } from '../../dados/api';
+import { metadadosDaMarca } from '../../metadados';
 import estilos from '../page.module.css';
 
-export const metadata: Metadata = { title: 'Conquistas · Lumens' };
+export const metadata: Metadata = metadadosDaMarca({
+  caminho: '/conquistas',
+  title: 'Conquistas · Lumens',
+  description: 'Pautas estudantis da UFAL que viraram conquista.',
+});
 
 const DIA_EM_MS = 24 * 60 * 60 * 1000;
 
