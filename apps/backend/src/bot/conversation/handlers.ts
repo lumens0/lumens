@@ -1,6 +1,7 @@
 import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeFotos } from '../../fotos/servico';
+import { supportAskPhoto, supportAskReport } from './apoio';
 import {
   entrarNaPautaNova,
   newAskDescription,
@@ -128,4 +129,6 @@ export const defaultHandlers: HandlerRegistry = {
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
   LEAVE_CONFIRM: leaveConfirm,
+  SUPPORT_ASK_REPORT: supportAskReport,
+  SUPPORT_ASK_PHOTO: supportAskPhoto,
 };
