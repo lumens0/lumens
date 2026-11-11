@@ -353,6 +353,45 @@ describe('registrarPromessa (RN13)', () => {
       );
     });
 
+    it('o PDF diz o caminho: Fala.BR protocolado depois do envio não leva a resposta', async () => {
+      // Regressão: o evento ia para o protocolado mais recente, que ainda não tinha resposta.
+      const { pauta, curador, caminhoId: respondido } = await comFalaBrProtocolado();
+      const owner = await criarEstudanteVerificado(db);
+      await db.insert(documentosResposta).values({
+        pautaId: pauta.id,
+        caminhoId: respondido,
+        enviadoPor: owner.id,
+        arquivoChave: `respostas/a-${pauta.id}.pdf`,
+      });
+      await db.insert(caminhos).values({
+        pautaId: pauta.id,
+        tipo: 'falabr',
+        status: 'aberto',
+        protocolo: 'OUV-2',
+        abertoEm: new Date(Date.now() + 60_000),
+      });
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      const respostas = (await eventosDa(pauta.id)).filter(
+        (e) => e.tipo === 'resposta_oficial_recebida',
+      );
+      expect(respostas.map((e) => e.dados)).toEqual([{ caminho_id: respondido }]);
+    });
+
+    it('sem PDF e com dois Fala.BR protocolados, não arrisca: só a promessa entra', async () => {
+      const { pauta, curador } = await comFalaBrProtocolado();
+      await db
+        .insert(caminhos)
+        .values({ pautaId: pauta.id, tipo: 'falabr', status: 'aberto', protocolo: 'OUV-2' });
+
+      await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id)));
+
+      expect((await eventosDa(pauta.id)).map((e) => e.tipo)).not.toContain(
+        'resposta_oficial_recebida',
+      );
+    });
+
     it('os PDFs do owner ainda soltos ficam ligados à promessa; os já ligados não mudam', async () => {
       const { pauta, curador, caminhoId } = await comFalaBrProtocolado();
       const owner = await criarEstudanteVerificado(db);

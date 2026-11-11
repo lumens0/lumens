@@ -28,6 +28,33 @@ import { transicionarStatus } from './status';
 /** Mensagem modelo (SCRUM-193): título, fonte e, no botão "Ver a pauta", o slug. */
 export const MODELO_RESPOSTA_OFICIAL = 'lumens_resposta_oficial';
 
+/**
+ * De que caminho Fala.BR veio a resposta que a curadoria está registrando (3.6, SCRUM-221).
+ *
+ * O PDF que o owner mandou diz: é registrado no caminho de onde ele veio. Sem PDF, só dá para
+ * afirmar quando a pauta tem um único Fala.BR protocolado. Com mais de um e nenhum PDF, não há
+ * como saber qual foi respondido, e marcar o errado esconderia no site o prazo de um protocolo
+ * ainda sem resposta: nesse caso a linha do tempo fica só com a promessa.
+ */
+async function caminhosRespondidos(
+  tx: Tx,
+  pautaId: string,
+  pdfsLidos: readonly { caminhoId: string }[],
+): Promise<string[]> {
+  if (pdfsLidos.length > 0) return [...new Set(pdfsLidos.map((d) => d.caminhoId))];
+  const protocolados = await tx
+    .select({ id: caminhos.id })
+    .from(caminhos)
+    .where(
+      and(
+        eq(caminhos.pautaId, pautaId),
+        eq(caminhos.tipo, 'falabr'),
+        sql`${caminhos.protocolo} is not null`,
+      ),
+    );
+  return protocolados.length === 1 ? protocolados.map((c) => c.id) : [];
+}
+
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
 
@@ -105,35 +132,22 @@ export async function registrarPromessa(
     .returning({ id: promessas.id });
   if (promessa === undefined) throw new Error('promessa não criada');
 
-  // A resposta veio do caminho Fala.BR protocolado mais recente. Sem ele (resposta por outro
-  // caminho), não há `caminho_id` para o evento, e a linha do tempo fica só com a promessa.
-  const [caminhoFalaBr] = await tx
-    .select({ id: caminhos.id })
-    .from(caminhos)
-    .where(
-      and(
-        eq(caminhos.pautaId, pautaId),
-        eq(caminhos.tipo, 'falabr'),
-        sql`${caminhos.protocolo} is not null`,
-      ),
-    )
-    .orderBy(sql`${caminhos.abertoEm} desc`)
-    .limit(1);
-  if (caminhoFalaBr !== undefined) {
-    await registrarEvento(tx, {
-      pautaId,
-      tipo: 'resposta_oficial_recebida',
-      dados: { caminho_id: caminhoFalaBr.id },
-      origem: 'curadoria',
-    });
-  }
-
-  // Os PDFs que ainda não serviram a nenhuma resposta são os que a curadoria acabou de ler.
+  // Os PDFs que ainda não serviram a nenhuma resposta são os que a curadoria acabou de ler: passam
+  // a apontar para esta promessa, e dizem de que caminho veio a resposta.
   const ligados = await tx
     .update(documentosResposta)
     .set({ promessaId: promessa.id })
     .where(and(eq(documentosResposta.pautaId, pautaId), isNull(documentosResposta.promessaId)))
-    .returning({ id: documentosResposta.id });
+    .returning({ caminhoId: documentosResposta.caminhoId });
+
+  for (const caminhoId of await caminhosRespondidos(tx, pautaId, ligados)) {
+    await registrarEvento(tx, {
+      pautaId,
+      tipo: 'resposta_oficial_recebida',
+      dados: { caminho_id: caminhoId },
+      origem: 'curadoria',
+    });
+  }
 
   await registrarEvento(tx, {
     pautaId,
