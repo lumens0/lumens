@@ -1,11 +1,22 @@
-import { CURSOS, codigosVerificacao, conversas, eq, estudantes, type Db } from '@lumens/db';
+import {
+  CURSOS,
+  apoios,
+  codigosVerificacao,
+  conversas,
+  eq,
+  estudantes,
+  pautas,
+  type Db,
+} from '@lumens/db';
 import { CODIGO_EXPIRA_MS, MAX_TENTATIVAS, REENVIO_APOS_MS, hashDoCodigo } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto';
 import type { ServicoDeEmail } from '../../email/codigo';
+import { ASK_WRITE_REPORT_TEXT, supportedText } from './apoio';
 import { MENU_TEXT } from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
+import { NO_PROPOSAL_TEXT } from './proposta';
 import { NEW_TITLE_TEXT } from './texto';
 import { hashPhone } from './phone';
 import { textoDaResposta, type Resposta } from './resposta';
@@ -469,11 +480,42 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     expect(await dados()).not.toHaveProperty('pendingCommand');
   });
 
-  it('pedido de apoio fica guardado para a 2.7; por ora, volta ao menu', async () => {
+  it('pedido de apoio guardado é retomado depois da verificação (2.7)', async () => {
     await ateOCurso();
-    await store.save(H, 'VERIFY_ASK_COURSE', { pendingCommand: { kind: 'apoiar', id: 'p1' } });
-    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
-    expect(await dados()).toMatchObject({ pendingCommand: { kind: 'apoiar', id: 'p1' } });
+    const [pauta] = await db
+      .insert(pautas)
+      .values({
+        slug: 'bebedouros',
+        titulo: 'Bebedouros',
+        descricao: 'Consertar os bebedouros.',
+        categoria: 'infraestrutura',
+        status: 'juntando_apoios',
+        meta: 30,
+      })
+      .returning({ id: pautas.id });
+    if (!pauta) throw new Error('pauta não inserida');
+    const { data } = (await store.get(H)) ?? { data: {} };
+    await store.save(H, 'VERIFY_ASK_COURSE', {
+      ...data,
+      pendingCommand: { kind: 'apoiar', id: pauta.id },
+    });
+    expect(await send('curso:Direito')).toEqual([
+      VERIFIED_TEXT,
+      supportedText('Bebedouros', 1, 30),
+      ASK_WRITE_REPORT_TEXT,
+    ]);
+    expect(await passo()).toBe('SUPPORT_ASK_REPORT');
+    expect(await dados()).not.toHaveProperty('pendingCommand');
+    expect(await db.select().from(apoios).where(eq(apoios.pautaId, pauta.id))).toHaveLength(1);
+  });
+
+  it('quem veio do "Vou ajudar" (3.5) retoma o pedido depois de verificado', async () => {
+    await ateOCurso();
+    await store.save(H, 'VERIFY_ASK_COURSE', {
+      pendingCommand: { kind: 'ajudar', id: 'pauta-sem-proposta' },
+    });
+    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await dados()).not.toHaveProperty('pendingCommand');
   });
 
   it('quem já é verificado não refaz a verificação pelo menu', async () => {

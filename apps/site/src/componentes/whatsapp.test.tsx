@@ -47,15 +47,10 @@ describe('botões do WhatsApp', () => {
     expect(renderToStaticMarkup(<BotaoWhatsApp comando="x" texto="Apoiar" rotulo="r" />)).toBe('');
   });
 
-  it('"Vou ajudar" só aparece com a flag ligada', () => {
-    const botao = <BotaoVouAjudar caminhoId="c1" titulo="Mutirão" />;
-    expect(renderToStaticMarkup(botao)).toBe('');
-    vi.stubEnv('NEXT_PUBLIC_FLAG_VOU_AJUDAR', '0');
-    expect(renderToStaticMarkup(botao)).toBe('');
-    vi.stubEnv('NEXT_PUBLIC_FLAG_VOU_AJUDAR', '1');
-    const html = renderToStaticMarkup(botao);
-    expect(html).toContain('?text=ajudar%20c1');
-    expect(html).toContain('aria-label="Vou ajudar no caminho Mutirão pelo WhatsApp"');
+  it('"Vou ajudar" abre o bot com o slug da pauta', () => {
+    const html = renderToStaticMarkup(<BotaoVouAjudar slug="faixa" titulo="Mutirão" />);
+    expect(html).toContain('?text=ajudar%20faixa');
+    expect(html).toContain('aria-label="Vou ajudar na proposta Mutirão pelo WhatsApp"');
   });
 
   it.each(STATUS_PAUTA.map((status) => [status, !SEM_APOIO.has(status)] as const))(

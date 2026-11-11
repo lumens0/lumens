@@ -4,8 +4,9 @@ export type { BlocoParaMeta } from './meta';
 export { conferirAnonimato } from './anonimato';
 export type { Achado, MotivoAchado, OpcoesDeConferencia, Severidade, Veredicto } from './anonimato';
 
-export { gerarTextoFalaBr } from './texto-falabr';
-export type { PautaParaTexto, TextoFalaBr } from './texto-falabr';
+export { MARCA_DE_REMOVIDO, gerarTextoFalaBr, prepararParaProtocolar } from './texto-falabr';
+export type { PautaParaTexto, TextoFalaBr, TextoParaProtocolar } from './texto-falabr';
+export { textoFalaBrDaPauta } from './texto-falabr-da-pauta';
 
 export {
   PRAZO_INICIAL_DIAS,
@@ -113,14 +114,28 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
+export { RELATO_MAXIMO, adicionarRelato } from './relato';
+export type { NovoRelatoDoEstudante, ResultadoRelato } from './relato';
+
 export { processarUmaVez } from './processar-uma-vez';
 export type { ResultadoProcessamento } from './processar-uma-vez';
 
 export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
 export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
-export { registrarExecucaoProposta } from './proposta';
-export type { ResultadoExecucao } from './proposta';
+export {
+  propostasAbertas,
+  publicarProposta,
+  registrarExecucaoProposta,
+  registrarVoluntario,
+} from './proposta';
+export type {
+  NovaProposta,
+  PropostaAberta,
+  ResultadoExecucao,
+  ResultadoPublicacao,
+  ResultadoVoluntario,
+} from './proposta';
 
 export {
   DIAS_DE_CONFERENCIA,
@@ -193,3 +208,6 @@ export type {
   ResultadoEmail,
   ResultadoVinculo,
 } from './verificacao';
+
+export { documentosDeResposta, registrarDocumentoDeResposta } from './documento-resposta';
+export type { DocumentoDaPauta, ResultadoDocumento } from './documento-resposta';

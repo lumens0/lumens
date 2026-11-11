@@ -8,9 +8,9 @@ export function comandoApoiar(slug: string): string {
   return `apoiar ${slug}`;
 }
 
-/** Comando de voluntariado num caminho (3.5, SCRUM-197). */
-export function comandoAjudar(id: string): string {
-  return `ajudar ${id}`;
+/** Comando de voluntariado na proposta aberta da pauta (3.5, SCRUM-197). Também pelo slug. */
+export function comandoAjudar(slug: string): string {
+  return `ajudar ${slug}`;
 }
 
 export const COMANDO_NOVA_PAUTA = 'nova pauta';

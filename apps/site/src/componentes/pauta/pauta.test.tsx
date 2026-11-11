@@ -116,6 +116,7 @@ describe('página da pauta: seções', () => {
   });
 
   it('caminhos mostram o tipo e o status escrito, não só cor', () => {
+    vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
     const html = renderToStaticMarkup(
       <Caminhos
         caminhos={[
@@ -129,7 +130,9 @@ describe('página da pauta: seções', () => {
             pessoas_necessarias: 10,
             voluntarios: 4,
           },
+          { ...CAMINHO, tipo: 'proposta', status: 'executada', descricao: 'Já feita' },
         ]}
+        slug="faixa"
       />,
     );
     expect(html).toContain('Fala.BR');
@@ -139,13 +142,22 @@ describe('página da pauta: seções', () => {
     expect(html).toContain('Proposta da comunidade');
     expect(html).toContain('Status: <strong>Juntando voluntários</strong>');
     expect(html).toContain('4 de 10 voluntários');
+    // Só a proposta aberta pede voluntário.
+    expect(html.match(/\?text=ajudar%20faixa/g)).toHaveLength(1);
   });
 
   it('status de caminho desconhecido vira texto legível', () => {
     expect(rotuloStatusCaminho('aguardando_reuniao')).toBe('aguardando reuniao');
     expect(
-      renderToStaticMarkup(<Caminhos caminhos={[{ ...CAMINHO, status: 'aguardando_reuniao' }]} />),
+      renderToStaticMarkup(
+        <Caminhos caminhos={[{ ...CAMINHO, status: 'aguardando_reuniao' }]} slug="x" />,
+      ),
     ).toContain('<strong>aguardando reuniao</strong>');
+  });
+
+  it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
+    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>← Voltar<\/a>/);
   });
 
   it('sem caminhos, explica que o owner ainda vai escolher', () => {

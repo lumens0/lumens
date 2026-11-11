@@ -37,3 +37,7 @@ Thumbs.db
 .agent/working/
 .agent/policy.local.yaml
 docs/sdd/**/*.bak-*
+
+# Playwright (SCRUM-28)
+test-results/
+playwright-report/

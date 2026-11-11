@@ -395,3 +395,37 @@ export const disparos = pgTable(
     index('disparo_reservado_em_idx').on(t.reservadoEm),
   ],
 );
+
+/**
+ * PDF da resposta oficial que o owner encaminhou pelo bot (3.6, SCRUM-220).
+ *
+ * O arquivo fica no storage (`arquivo_chave`); aqui fica de que pauta e de que caminho ele é, e
+ * quem mandou. A resposta da ouvidoria pode trazer o nome de quem manifestou: o PDF não é
+ * publicado, só a curadoria lê, e o que vai a público é o resumo que ela escreve (5.4).
+ *
+ * `promessa_id` é preenchida quando a curadoria registra a resposta lida neste PDF (SCRUM-221).
+ */
+export const documentosResposta = pgTable(
+  'documento_resposta',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    pautaId: uuid('pauta_id')
+      .notNull()
+      .references(() => pautas.id, { onDelete: 'restrict' }),
+    caminhoId: uuid('caminho_id')
+      .notNull()
+      .references(() => caminhos.id, { onDelete: 'restrict' }),
+    enviadoPor: uuid('enviado_por')
+      .notNull()
+      .references(() => estudantes.id, { onDelete: 'restrict' }),
+    arquivoChave: text('arquivo_chave').notNull().unique(),
+    recebidoEm: instante('recebido_em').notNull().defaultNow(),
+    promessaId: uuid('promessa_id').references(() => promessas.id, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    index('documento_resposta_pauta_id_idx').on(t.pautaId),
+    index('documento_resposta_caminho_id_idx').on(t.caminhoId),
+    index('documento_resposta_enviado_por_idx').on(t.enviadoPor),
+    index('documento_resposta_promessa_id_idx').on(t.promessaId),
+  ],
+);

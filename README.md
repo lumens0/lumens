@@ -36,16 +36,18 @@ lumens/
 
 ## Documentação
 
-| Página                                            | Para quê                                                  |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar |
-| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                    |
-| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova  |
-| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome               |
-| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão |
-| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                  |
-| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto       |
-| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta               |
+| Página                                            | Para quê                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar                |
+| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                                   |
+| [Chaves de criptografia](docs/chaves.md)          | para que serve cada chave, como gerar, rotacionar e o que fazer se vazar |
+| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova                 |
+| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome                              |
+| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão                |
+| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                                 |
+| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto                      |
+| [Backup do banco](docs/backup.md)                 | backup diário, teste de restauração e o que fazer num incidente          |
+| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta                              |
 
 **Regra da equipe:** nenhum módulo grava direto numa tabela de negócio. Todos chamam funções de
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
@@ -116,6 +118,22 @@ Para rodar um comando em um pacote só: `pnpm --filter @lumens/dominio test`.
 
 O CI executa tipos, lint, formatação, migração em base vazia e testes, incluindo integração
 com PostgreSQL.
+
+### Cotas de CI e deploy
+
+O plano gratuito da Vercel aceita 100 deploys por dia por conta, e os minutos do GitHub Actions
+aparecem no uso da organização. Para não gastar à toa:
+
+- **PR em rascunho não roda `check` nem `e2e`.** Eles rodam quando a PR é marcada como pronta.
+  Abra como rascunho enquanto ainda vai empurrar vários commits.
+- **Editar título ou descrição da PR não roda o CI.** Só o workflow `jira`, que confere a chave
+  `[SCRUM-n]` no título e leva segundos.
+- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` na `main`).
+  O `apps/site/vercel.json` desliga o deploy automático da `main` pela integração Git da Vercel,
+  que publicava duas vezes por merge, e antes dos testes. Os previews das PRs continuam.
+- **O painel não usa a Vercel**: roda na VM de homologação, publicado pelo `deploy-backend`.
+- Junte correções num push só quando puder: cada push numa PR com o site ou `packages/`
+  alterado gasta um deploy de preview.
 
 ## Banco local
 
