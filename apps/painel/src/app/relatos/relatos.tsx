@@ -3,7 +3,8 @@ import Link from 'next/link';
 import estilos from '../painel.module.css';
 
 const FEITO: Record<string, string> = {
-  aprovado: 'Relato aprovado. Ele já aparece no site.',
+  aprovado:
+    'Relato aprovado. Ele aparece no site junto com a pauta: na hora, se ela já é pública, ou quando a curadoria aprovar a pauta.',
   recusado: 'Relato recusado. Ele não vai ao site.',
 };
 
