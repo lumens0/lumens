@@ -80,10 +80,20 @@ export {
   MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
+  buscarPautaDaCuradoria,
   listarFilaDeCuradoria,
+  listarPautasDaCuradoria,
   recusarPauta,
 } from './curadoria';
-export type { PautaNaFila, ResultadoDecisao } from './curadoria';
+export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './curadoria';
+
+export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './moderacao';
+export type {
+  DecisaoDeModeracao,
+  PautaComRelatosPendentes,
+  RelatoPendente,
+  ResultadoModeracao,
+} from './moderacao';
 
 export { listarLinhaDoTempo } from './linha-do-tempo';
 export type { EventoDaLinha } from './linha-do-tempo';
@@ -103,13 +113,21 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta';
 export { registrarApoio } from './apoio';
 export type { NovoApoio, ResultadoApoio } from './apoio';
 
+export { processarUmaVez } from './processar-uma-vez';
+export type { ResultadoProcessamento } from './processar-uma-vez';
+
 export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
 export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
 export { registrarExecucaoProposta } from './proposta';
 export type { ResultadoExecucao } from './proposta';
 
-export { DIAS_DE_CONFERENCIA, MODELO_RESPOSTA_OFICIAL, registrarPromessa } from './promessa';
+export {
+  DIAS_DE_CONFERENCIA,
+  MODELO_RESPOSTA_OFICIAL,
+  RESUMO_NO_AVISO_MAXIMO,
+  registrarPromessa,
+} from './promessa';
 export type { NovaPromessa } from './promessa';
 
 export { encerrarConferencia } from './conferencia-apuracao';
@@ -148,3 +166,30 @@ export { diaEmMaceio, formatarDia } from './datas';
 
 export { sairDoLumens } from './sair';
 export type { ResultadoSaida } from './sair';
+
+export {
+  CODIGO_EXPIRA_MS,
+  DIGITOS_DO_CODIGO,
+  DOMINIO_UFAL,
+  EMAIL_MAXIMO,
+  MAX_TENTATIVAS,
+  REENVIO_APOS_MS,
+  apagarCodigo,
+  concluirVerificacao,
+  conferirCodigo,
+  cursoValido,
+  emailInstitucional,
+  esperaParaReenviar,
+  gerarCodigo,
+  guardarCodigo,
+  hashDoCodigo,
+  normalizarEmail,
+  vincularEmail,
+} from './verificacao';
+export type {
+  NovoVinculo,
+  ResultadoConclusao,
+  ResultadoConferencia,
+  ResultadoEmail,
+  ResultadoVinculo,
+} from './verificacao';

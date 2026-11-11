@@ -85,6 +85,13 @@
       "when": 1794500001000,
       "tag": "0011_verificacao_login",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794500002000,
+      "tag": "0012_quem_decidiu",
+      "breakpoints": true
     }
   ]
 }

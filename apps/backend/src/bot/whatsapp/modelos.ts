@@ -77,10 +77,16 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     categoria: 'UTILITY',
     idioma: 'pt_BR',
     destinatario: 'apoiadores',
+    // O resumo vai na própria mensagem (3.6): "o resumo vai para todos", não só o aviso de que
+    // existe uma resposta. É o texto que a curadoria escreve no painel ao registrar (5.4).
     corpo:
-      'A pauta "{{1}}", que você apoiou, recebeu resposta oficial de {{2}}. ' +
+      'A pauta "{{1}}", que você apoiou, recebeu resposta oficial de {{2}}: {{3}} ' +
       'A resposta completa está na página da pauta.',
-    exemplos: ['Bebedouro quebrado no bloco 12', 'Pró-Reitoria de Gestão Institucional'],
+    exemplos: [
+      'Bebedouro quebrado no bloco 12',
+      'Pró-Reitoria de Gestão Institucional',
+      'a troca do bebedouro do térreo está prevista para 15/12.',
+    ],
     rodape: RODAPE,
     botoes: [VER_PAUTA],
   },
