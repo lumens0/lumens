@@ -36,16 +36,17 @@ lumens/
 
 ## Documentação
 
-| Página                                            | Para quê                                                  |
-| ------------------------------------------------- | --------------------------------------------------------- |
-| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar |
-| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                    |
-| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova  |
-| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome               |
-| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão |
-| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                  |
-| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto       |
-| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta               |
+| Página                                            | Para quê                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Como rodar local](docs/rodar-local.md)           | do clone ao servidor respondendo, e o que fazer se travar                |
+| [Como criar uma migração](docs/migracoes.md)      | mudar o banco sem quebrar o de ninguém                                   |
+| [Chaves de criptografia](docs/chaves.md)          | para que serve cada chave, como gerar, rotacionar e o que fazer se vazar |
+| [Como usar o domínio](packages/dominio/README.md) | as regras de negócio: o que existe e como criar uma nova                 |
+| [API de leitura pública](docs/api.md)             | rotas, campos e exemplos que o site consome                              |
+| [Contrato do banco](docs/database/schema.md)      | diagrama ER, campos, status e decisões da primeira versão                |
+| [`@lumens/db`](packages/db/README.md)             | papéis, views públicas e seed em detalhe                                 |
+| [Decisões do projeto](docs/decisoes.md)           | o que já foi decidido, e o que ainda está em aberto                      |
+| [Simulador do bot](apps/backend/SIMULADOR.md)     | testar o webhook sem celular nem conta Meta                              |
 
 **Regra da equipe:** nenhum módulo grava direto numa tabela de negócio. Todos chamam funções de
 `@lumens/dominio`, que validam a regra, gravam e registram o evento na linha do tempo, tudo na mesma
