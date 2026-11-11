@@ -216,7 +216,6 @@ jobs:
         run: pnpm --filter @lumens/site build
         env:
           NEXT_PUBLIC_WHATSAPP_BOT: '5500000000000'
-          NEXT_PUBLIC_FLAG_APOIAR: '1'
 
       - name: Testes ponta a ponta
         env:
