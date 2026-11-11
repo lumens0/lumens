@@ -28,6 +28,11 @@ export interface RouterDeps {
   hmac?: (valor: string) => string;
   respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
+  /**
+   * 5.7: chamado quando a conversa é apagada por causa do `sair`. O worker usa para tirar o
+   * telefone das filas do bot na mesma transação (`apagarFilasDoTelefone`).
+   */
+  aoSair?: () => void;
 }
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
@@ -98,8 +103,10 @@ async function responder(
   if (cmd === 'sair') {
     // 5.7: 'sair' larga o fluxo atual. Sem cadastro, a conversa já é apagada aqui.
     const result = await pedirSaida({ ...ctxBase, state: { step: 'GREETING', data: {} } });
-    if (result.apagarConversa) await store.delete(phoneHmac);
-    else await store.save(phoneHmac, result.next, {});
+    if (result.apagarConversa) {
+      await store.delete(phoneHmac);
+      deps.aoSair?.();
+    } else await store.save(phoneHmac, result.next, {});
     return result.replies;
   }
 
@@ -137,6 +144,7 @@ async function responder(
   // 5.7: quem saiu (ou não tinha cadastro) não deixa conversa guardada com o HMAC do telefone.
   if (result.apagarConversa) {
     await store.delete(phoneHmac);
+    deps.aoSair?.();
     return result.replies;
   }
 

@@ -32,8 +32,12 @@ não foi processado — inclusive na fila de mortas — em até **14 dias** (`re
 limpeza diária do Lumens cuida só da conversa e do dedup, não desses jobs.
 
 Quem sai (`sair`) tem telefone, e-mail, conversa e código apagados na hora; os apoios seguem
-contando sem ligação com a pessoa (SCRUM-91). **Limitação conhecida:** o `sair` não apaga os jobs
-das filas, que saem sozinhos nos prazos acima. A página `/privacidade` diz isso.
+contando sem ligação com a pessoa (SCRUM-91). O `sair` também tira o telefone das filas
+(`apps/backend/src/bot/filas-do-telefone.ts`): os jobs do telefone nas filas do bot são apagados na
+mesma transação, menos os que precisam terminar — a mensagem "sim" e a resposta de saída —, que
+ficam com `deletion_seconds = 1` e somem na manutenção do pg-boss logo depois de concluídos.
+**Resto conhecido:** se o envio da resposta de saída falhar até ir para a fila de mortas, essa
+cópia segue a retenção padrão (até 14 dias).
 
 ## Decisão proposta
 
@@ -46,7 +50,7 @@ das filas, que saem sozinhos nos prazos acima. A página `/privacidade` diz isso
    isso com todas as letras.
 3. **Antes de se verificar, o mínimo.** Quem só conversa não tem cadastro: o passo da conversa dura
    24 h e as cópias nas filas, até 7 dias (14 se falhar), porque sem isso o bot não consegue
-   responder a quem o procurou. Sem cadastro, `sair` apaga a conversa e o código na hora.
+   responder a quem o procurou. Sem cadastro, `sair` apaga a conversa, o código e as filas na hora.
 4. **Revogar é tão fácil quanto consentir** (art. 8º, § 5º): `sair`, no mesmo canal, a qualquer
    momento. Ver e corrigir dados continua por pedido manual à equipe (art. 18).
 
@@ -74,9 +78,6 @@ No site, a página `/privacidade` ganha a seção "Base legal" e deixa de dizer 
 remoção de metadados não existem — as duas já estão no ar.
 
 ## O que a equipe precisa confirmar na PR
-
-- [ ] Se 7 dias de cópia nas filas é aceitável, ou se o `sair` deve apagar também os jobs do
-      telefone (seria uma mudança no `sairDoLumens`/no bot, fora desta task).
 
 - [ ] Consentimento como base legal, manifestado na verificação.
 - [ ] O texto do aviso, como está acima.
