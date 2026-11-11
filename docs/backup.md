@@ -95,14 +95,23 @@ tabela, a origem inexistente e o backup truncado (que tem de falhar):
 Use só quando o banco de produção estiver perdido ou corrompido. **Isto substitui o banco.**
 
 1. Escolha o backup: `ls -lh /var/backups/lumens/diario /var/backups/lumens/semanal`.
-2. Teste esse arquivo antes: `./scripts/restaurar-backup.sh <arquivo>`. Se falhar, escolha outro.
-3. Pare quem escreve no banco:
+2. Garanta os logins `lumens_app` e `lumens_site`. O backup traz as permissões deles, e num
+   Postgres novo (volume perdido) eles não existem: sem este passo, até um backup íntegro falha no
+   primeiro `GRANT`. É idempotente, então rode sempre:
 
    ```bash
-   cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao stop backend painel
+   cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:provision
    ```
 
-4. Recrie o banco e restaure (o `pg_restore` lê o arquivo pelo stdin):
+3. Teste esse arquivo antes: `./scripts/restaurar-backup.sh <arquivo>`. Se falhar, escolha outro.
+   O script recusa de cara, com o comando acima na mensagem, se o passo 2 ficou para trás.
+4. Pare quem escreve no banco:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env.producao stop backend painel
+   ```
+
+5. Recrie o banco e restaure (o `pg_restore` lê o arquivo pelo stdin):
 
    ```bash
    docker compose -f docker-compose.prod.yml --env-file .env.producao exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
@@ -112,16 +121,13 @@ Use só quando o banco de produção estiver perdido ou corrompido. **Isto subst
    docker compose -f docker-compose.prod.yml --env-file .env.producao exec -T postgres sh -c 'pg_restore --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /var/backups/lumens/diario/<arquivo>.dump
    ```
 
-   Num Postgres novo (volume perdido), os logins `lumens_app` e `lumens_site` não existem e as
-   permissões do dump falham: rode antes `docker compose ... run --rm migracao pnpm db:provision`.
-
-5. Suba tudo com o deploy normal, que também aplica migrações mais novas que o backup:
+6. Suba tudo com o deploy normal, que também aplica migrações mais novas que o backup:
 
    ```bash
    ./scripts/deploy-homologacao.sh origin/main
    ```
 
-6. Confira `https://<DOMINIO>/saude` e `https://<DOMINIO>/resumo`.
+7. Confira `https://<DOMINIO>/saude` e `https://<DOMINIO>/resumo`.
 
 ## Chaves
 
