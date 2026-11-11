@@ -1,0 +1,132 @@
+.mapa {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: var(--espaco);
+  align-items: start;
+}
+
+.desenho {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--trilho);
+}
+
+.chao {
+  fill: #f7f4fc;
+}
+
+.via {
+  fill: #ddd5ec;
+}
+
+.predio rect,
+.escolhido rect {
+  fill: var(--superficie);
+  stroke: #c9bde3;
+  stroke-width: 2;
+}
+
+.predio[role='button'],
+.escolhido {
+  cursor: pointer;
+}
+
+/* Depois das regras de prédio: ganha delas e não aparece. */
+.predio .areaDeClique,
+.escolhido .areaDeClique {
+  fill: transparent;
+  stroke: none;
+}
+
+.predio[role='button']:hover rect,
+.predio:focus-visible rect {
+  stroke-width: 4;
+}
+
+.escolhido rect {
+  stroke-width: 6;
+}
+
+.predio:focus-visible,
+.escolhido:focus-visible {
+  outline: none;
+}
+
+.lista {
+  padding: var(--espaco);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.tituloLista {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.voltar {
+  margin-bottom: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primaria-forte);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lugares,
+.pautas {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pautas {
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 0.9375rem;
+}
+
+.lugar {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contagem {
+  color: var(--tinta-2);
+  font-weight: 400;
+}
+
+.urgente {
+  margin: 4px 0 0;
+  color: var(--tinta-2);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 760px) {
+  .mapa {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* O mapa precisa de mais largura que a coluna de leitura do resto do site. */
+.pagina {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--espaco);
+}
