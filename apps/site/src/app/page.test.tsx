@@ -26,7 +26,6 @@ describe('home', () => {
 
   it('com a lista vazia, "Relatar um problema" aparece uma vez só (o da ListaVazia)', async () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
-    vi.stubEnv('NEXT_PUBLIC_FLAG_RELATAR', '1');
     const html = await render();
     expect(html).toContain('role="status"');
     expect(html.match(/Relatar um problema<\/a>/g)).toHaveLength(1);
