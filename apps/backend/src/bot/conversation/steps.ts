@@ -15,6 +15,9 @@ export const STEPS = [
   'OWNER_PICK_PAUTA',
   'OWNER_PATHS',
   'LEAVE_CONFIRM',
+  'OWNER_ASK_PROTOCOL',
+  'OWNER_ASK_PROTOCOL_DATE',
+  'OWNER_SEND_RESPONSE',
   'SUPPORT_ASK_REPORT',
   'SUPPORT_ASK_PHOTO',
 ] as const;
@@ -42,6 +45,9 @@ export const Step = {
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
   OWNER_PATHS: 'OWNER_PATHS',
   LEAVE_CONFIRM: 'LEAVE_CONFIRM',
+  OWNER_ASK_PROTOCOL: 'OWNER_ASK_PROTOCOL',
+  OWNER_ASK_PROTOCOL_DATE: 'OWNER_ASK_PROTOCOL_DATE',
+  OWNER_SEND_RESPONSE: 'OWNER_SEND_RESPONSE',
   SUPPORT_ASK_REPORT: 'SUPPORT_ASK_REPORT',
   SUPPORT_ASK_PHOTO: 'SUPPORT_ASK_PHOTO',
 } as const satisfies { [K in Step]: K };
@@ -85,9 +91,14 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // 3.3: "Minhas pautas". Com uma pauta só, o menu vai direto aos caminhos. Os caminhos ficam no
   // mesmo passo depois de abrir um (o outro continua disponível) e voltam ao menu com os dois.
   OWNER_PICK_PAUTA: ['OWNER_PATHS', 'OWNER_PICK_PAUTA', 'MENU'],
-  OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
+  OWNER_PATHS: ['OWNER_PATHS', 'MENU', 'OWNER_ASK_PROTOCOL', 'OWNER_SEND_RESPONSE'],
+  // Número e dia do protocolo (3.4). Cada passo repete a pergunta quando a resposta não serve.
+  OWNER_ASK_PROTOCOL: ['OWNER_ASK_PROTOCOL_DATE', 'OWNER_ASK_PROTOCOL', 'OWNER_PATHS', 'MENU'],
+  OWNER_ASK_PROTOCOL_DATE: ['OWNER_PATHS', 'OWNER_ASK_PROTOCOL_DATE', 'OWNER_ASK_PROTOCOL', 'MENU'],
   // 5.7: confirmado ou não, a conversa volta ao menu (ou é apagada, se a pessoa saiu).
   LEAVE_CONFIRM: ['MENU'],
+  // PDF da resposta oficial (3.6): repete o pedido até chegar um PDF que sirva.
+  OWNER_SEND_RESPONSE: ['OWNER_PATHS', 'OWNER_SEND_RESPONSE', 'MENU'],
   // 2.7: relato e foto são opcionais; cada passo repete a pergunta quando a resposta não serve.
   SUPPORT_ASK_REPORT: ['SUPPORT_ASK_PHOTO', 'SUPPORT_ASK_REPORT', 'MENU'],
   SUPPORT_ASK_PHOTO: ['SUPPORT_ASK_PHOTO', 'MENU'],

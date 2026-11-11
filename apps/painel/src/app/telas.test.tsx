@@ -1,4 +1,4 @@
-import type { PautaDaCuradoria } from '@lumens/dominio';
+import type { PautaComRelatosPendentes, PautaDaCuradoria } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Fila } from './fila/fila';
@@ -6,6 +6,7 @@ import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
 import { ListaDePautas } from './pautas/lista';
 import { textoDoPrazo } from './prazo';
+import { Relatos } from './relatos/relatos';
 
 const HORA = 3_600_000;
 const acao = () => Promise.resolve();
@@ -189,5 +190,80 @@ describe('lista de todas as pautas', () => {
     expect(html).toContain('Em cobrança');
     expect(html).toContain('Conquistada');
     expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
+  });
+});
+
+describe('relatos novos', () => {
+  const grupo = (relatos: PautaComRelatosPendentes['relatos']): PautaComRelatosPendentes => ({
+    id: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
+    titulo: 'Bebedouro quebrado no bloco 12',
+    bloco: null,
+    relatos,
+  });
+
+  it('agrupa por pauta, lembra o que barrar e mostra os achados, a foto e as duas decisões', () => {
+    const html = renderToStaticMarkup(
+      <Relatos
+        pautas={[
+          grupo([
+            {
+              id: 'r1',
+              texto: 'Falem com a professora Marta: fulano@ufal.br',
+              fotoChave: 'fotos/a.jpg',
+              achados: [
+                {
+                  severidade: 'aviso',
+                  motivo: 'possivel_nome',
+                  trecho: 'professora Marta',
+                  inicio: 10,
+                  fim: 26,
+                },
+                {
+                  severidade: 'bloqueio',
+                  motivo: 'email',
+                  trecho: 'fulano@ufal.br',
+                  inicio: 28,
+                  fim: 42,
+                },
+              ],
+            },
+            { id: 'r2', texto: 'Sem água.', fotoChave: null, achados: [] },
+          ]),
+        ]}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+
+    expect(html).toContain('nome de pessoa, ofensa e dado pessoal');
+    expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
+    expect(html).toContain('Campus inteiro');
+    expect(html).toContain('Tem foto (o painel ainda não mostra a imagem)');
+    expect(html).toContain('Sem foto');
+    expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
+    expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');
+    expect(html.match(/Aprovar relato/g)).toHaveLength(2);
+    expect(html.match(/Recusar relato/g)).toHaveLength(2);
+    expect(html).toContain('name="relatoId" value="r1"');
+  });
+
+  it('fila vazia, aviso depois da decisão e erro de relato já moderado', () => {
+    const html = renderToStaticMarkup(
+      <Relatos pautas={[]} feito="aprovado" erro="ja_moderado" aprovar={acao} recusar={acao} />,
+    );
+
+    expect(html).toContain('Nenhum relato esperando moderação.');
+    expect(html).toContain('Relato aprovado.');
+    expect(html).toContain('já decidiu este relato');
+  });
+
+  it('valor desconhecido em ?feito e ?erro não vira texto na tela', () => {
+    const html = renderToStaticMarkup(
+      <Relatos pautas={[]} feito="<script>" erro="<b>x</b>" aprovar={acao} recusar={acao} />,
+    );
+
+    expect(html).not.toContain('script');
+    expect(html).not.toContain('<b>');
+    expect(html).not.toContain('role="alert"');
   });
 });
