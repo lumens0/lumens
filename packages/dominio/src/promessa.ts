@@ -2,8 +2,24 @@
  * Promessa oficial (RN13): a curadoria registra o resumo da resposta e a data prometida. A pauta vai
  * para `prometido`, a conferência "Foi feito?" fica agendada para a data de entrega, por 7 dias, e
  * quem apoia recebe o aviso de resposta oficial pela fila de envio (RNF06).
+ *
+ * Registrar a promessa é também registrar que a resposta oficial chegou (3.6, SCRUM-221): o evento
+ * `resposta_oficial_recebida` vai para o caminho Fala.BR de onde ela veio, e os PDFs que o owner
+ * encaminhou ficam ligados à promessa que a curadoria escreveu a partir deles.
  */
-import { and, apoios, eq, estudantes, isNull, pautas, promessas, sql, type Tx } from '@lumens/db';
+import {
+  and,
+  apoios,
+  caminhos,
+  documentosResposta,
+  eq,
+  estudantes,
+  isNull,
+  pautas,
+  promessas,
+  sql,
+  type Tx,
+} from '@lumens/db';
 import { ErroDeRegra } from './erros';
 import { registrarEvento } from './eventos';
 import { enfileirarDisparos } from './fila';
@@ -11,6 +27,33 @@ import { transicionarStatus } from './status';
 
 /** Mensagem modelo (SCRUM-193): título, fonte e, no botão "Ver a pauta", o slug. */
 export const MODELO_RESPOSTA_OFICIAL = 'lumens_resposta_oficial';
+
+/**
+ * De que caminho Fala.BR veio a resposta que a curadoria está registrando (3.6, SCRUM-221).
+ *
+ * O PDF que o owner mandou diz: é registrado no caminho de onde ele veio. Sem PDF, só dá para
+ * afirmar quando a pauta tem um único Fala.BR protocolado. Com mais de um e nenhum PDF, não há
+ * como saber qual foi respondido, e marcar o errado esconderia no site o prazo de um protocolo
+ * ainda sem resposta: nesse caso a linha do tempo fica só com a promessa.
+ */
+async function caminhosRespondidos(
+  tx: Tx,
+  pautaId: string,
+  pdfsLidos: readonly { caminhoId: string }[],
+): Promise<string[]> {
+  if (pdfsLidos.length > 0) return [...new Set(pdfsLidos.map((d) => d.caminhoId))];
+  const protocolados = await tx
+    .select({ id: caminhos.id })
+    .from(caminhos)
+    .where(
+      and(
+        eq(caminhos.pautaId, pautaId),
+        eq(caminhos.tipo, 'falabr'),
+        sql`${caminhos.protocolo} is not null`,
+      ),
+    );
+  return protocolados.length === 1 ? protocolados.map((c) => c.id) : [];
+}
 
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
@@ -61,6 +104,8 @@ export async function registrarPromessa(
   conferenciaAbreEm: Date;
   conferenciaFechaEm: Date;
   avisados: number;
+  /** PDFs do owner que a curadoria leu para esta resposta e que agora apontam para ela. */
+  documentosLigados: number;
 }> {
   const abre = inicioDoDiaEmMaceio(dataEntrega);
   const fecha = new Date(abre.getTime() + DIAS_DE_CONFERENCIA * MS_POR_DIA);
@@ -86,6 +131,23 @@ export async function registrarPromessa(
     })
     .returning({ id: promessas.id });
   if (promessa === undefined) throw new Error('promessa não criada');
+
+  // Os PDFs que ainda não serviram a nenhuma resposta são os que a curadoria acabou de ler: passam
+  // a apontar para esta promessa, e dizem de que caminho veio a resposta.
+  const ligados = await tx
+    .update(documentosResposta)
+    .set({ promessaId: promessa.id })
+    .where(and(eq(documentosResposta.pautaId, pautaId), isNull(documentosResposta.promessaId)))
+    .returning({ caminhoId: documentosResposta.caminhoId });
+
+  for (const caminhoId of await caminhosRespondidos(tx, pautaId, ligados)) {
+    await registrarEvento(tx, {
+      pautaId,
+      tipo: 'resposta_oficial_recebida',
+      dados: { caminho_id: caminhoId },
+      origem: 'curadoria',
+    });
+  }
 
   await registrarEvento(tx, {
     pautaId,
@@ -125,5 +187,6 @@ export async function registrarPromessa(
     conferenciaAbreEm: abre,
     conferenciaFechaEm: fecha,
     avisados,
+    documentosLigados: ligados.length,
   };
 }
