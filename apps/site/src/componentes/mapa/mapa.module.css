@@ -59,9 +59,25 @@
   opacity: 0.8;
 }
 
-.escolhido {
+/* Com o mapa em movimento o brilho desfocado sai (é caro de redesenhar a cada quadro); o halo fica. */
+.desenho[data-movendo] .predio[role='button'],
+.desenho[data-movendo] .escolhido[role='button'] {
+  filter: none;
+}
+
+/* Halo do prédio aceso: um contorno largo e translúcido da cor dele, sem filtro. */
+.halo {
+  fill: none;
+  stroke: currentcolor;
+  stroke-opacity: 0.28;
+  stroke-width: calc(var(--k) * 10px);
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.escolhido > path:last-of-type {
   stroke: #fff;
-  stroke-width: 2.5;
+  stroke-width: calc(var(--k) * 2.5px);
 }
 
 /* O clique de mouse não desenha o anel do navegador; o teclado ganha o contorno abaixo. */
@@ -73,8 +89,12 @@
 .predio:focus-visible,
 .escolhido:focus-visible {
   outline: none;
+}
+
+.predio:focus-visible > path:last-of-type,
+.escolhido:focus-visible > path:last-of-type {
   stroke: #fff;
-  stroke-width: 3;
+  stroke-width: calc(var(--k) * 3px);
 }
 
 /* Contorno escuro só por trás das letras (paint-order), para ler em cima do brilho dos prédios. */
@@ -84,6 +104,10 @@
   stroke-linejoin: round;
   paint-order: stroke;
   fill: #dfe1f5;
+  /* 15 px na tela em qualquer zoom: --k são os metros do desenho por pixel. */
+  font-size: calc(var(--k) * 15px);
+  /* O mapa gira, o nome não: fica sempre em pé, girando em torno do pé do prédio. */
+  transform: rotate(calc(var(--giro) * -1rad));
   font-family: var(--fonte-corpo), system-ui, sans-serif;
   font-weight: 500;
   text-anchor: middle;
@@ -243,6 +267,10 @@
 }
 
 .tela {
+  /* Valores de antes do JavaScript ligar a câmera, que passa a atualizar a cada movimento. */
+  --k: 1.5;
+  --giro: 0;
+
   position: relative;
   height: calc(100svh - 64px);
   min-height: 520px;
@@ -269,9 +297,12 @@
   cursor: pointer;
 }
 
+/* A folga de toque é o contorno invisível: 12 px para cada lado na tela, em qualquer zoom. */
 .alvo {
   fill: transparent;
-  stroke: none;
+  stroke: transparent;
+  stroke-width: calc(var(--k) * 24px);
+  pointer-events: all;
   filter: none;
 }
 
@@ -342,6 +373,9 @@
 }
 
 .verCampus {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
   min-height: 40px;
   padding: 0 14px;
   border-radius: var(--raio-controle);
@@ -373,6 +407,22 @@
   transition: background-color var(--rapido) var(--curva);
 }
 
+.bussola {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+  transform: rotate(calc(var(--giro) * 1rad));
+}
+
+.agulhaNorte {
+  fill: var(--luz);
+}
+
+.agulhaSul {
+  fill: var(--tinta-3);
+}
+
 .zoom button + button {
   border-top: 1px solid rgb(255 255 255 / 12%);
 }
@@ -385,7 +435,7 @@
 .credito {
   position: absolute;
   right: 16px;
-  bottom: 104px;
+  bottom: 224px;
   margin: 0;
   font-size: 11px;
   color: var(--tinta-3);
@@ -441,6 +491,8 @@
 }
 
 .abaixo {
+  /* O cabeçalho é fixo: o atalho "Ver em lista" para com o título à vista. */
+  scroll-margin-top: 72px;
   max-width: 1120px;
   margin: 0 auto;
   padding: 8px 24px 64px;
@@ -448,8 +500,29 @@
 
 /* No celular o painel sobe de baixo, como uma folha, e a legenda vai para o topo. */
 @media (max-width: 720px) {
+  /* Sobra uma faixa da lista embaixo: dá para ver que tem mais e rolar a página por ela. */
   .tela {
-    height: calc(100svh - 104px);
+    height: calc(100svh - 104px - 72px);
+    min-height: 420px;
+  }
+
+  .controles {
+    left: 16px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .verCampus {
+    min-height: 44px;
+  }
+
+  .zoom button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .abaixo {
+    scroll-margin-top: 112px;
   }
 
   .hudTitulo {
@@ -467,7 +540,7 @@
   }
 
   .credito {
-    bottom: 64px;
+    bottom: 244px;
   }
 
   .painel {

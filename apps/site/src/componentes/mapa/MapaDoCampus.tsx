@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatarNumero } from '../BarraApoios';
 import { BotaoRelatar } from '../BotaoWhatsApp';
 import { StatusPill } from '../StatusPill';
+import { criarCamera, type Visao } from './camera';
 import {
   ALTURA_DO_CAMPUS,
   CAMINHOS,
@@ -17,10 +18,6 @@ import { enquadrar } from './MapaResumo';
 import { LEGENDA, type MarcadorDoBloco } from './urgencia';
 import estilos from './mapa.module.css';
 
-type Visao = { x: number; y: number; w: number; h: number };
-
-const DURACAO_MS = 550;
-
 /** Enquadra o prédio com folga, mantendo a proporção do desenho. */
 function visaoDoPredio(predio: Predio): Visao {
   const [x = 0, y = 0, largura = 0, altura = 0] = predio.caixa;
@@ -31,175 +28,29 @@ function visaoDoPredio(predio: Predio): Visao {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
-/** Sigla do prédio logo abaixo dele, num tamanho que acompanha o zoom. */
-function Sigla({ predio, tamanho }: { predio: Predio; tamanho: number }) {
+/**
+ * Sigla do prédio logo abaixo dele. O tamanho e o giro vêm do CSS: o nome não muda com o zoom e
+ * fica em pé quando o mapa gira. O grupo põe a origem no pé do prédio, e é em torno dela que o
+ * nome gira.
+ */
+function Sigla({ predio }: { predio: Predio }) {
   const [x = 0, y = 0, largura = 0, altura = 0] = predio.caixa;
   return (
-    <text
-      x={x + largura / 2}
-      y={y + altura + tamanho * 1.1}
-      fontSize={tamanho}
-      className={estilos.sigla}
-      aria-hidden="true"
-    >
-      {predio.sigla}
-    </text>
+    <g transform={`translate(${String(x + largura / 2)} ${String(y + altura)})`} aria-hidden="true">
+      <text dy="1.15em" className={estilos.sigla}>
+        {predio.sigla}
+      </text>
+    </g>
   );
 }
 
 /**
  * Retângulo invisível em volta do prédio: no celular um prédio tem poucos pixels, e o vão entre
- * duas alas (o Bloco 18 tem duas) contaria como chão.
+ * duas alas (o Bloco 18 tem duas) contaria como chão. A folga de toque é o contorno, no CSS.
  */
-function AreaDeToque({ caixa, folga }: { caixa: readonly number[]; folga: number }) {
+function AreaDeToque({ caixa }: { caixa: readonly number[] }) {
   const [x = 0, y = 0, w = 0, h = 0] = caixa;
-  return (
-    <rect
-      x={x - folga}
-      y={y - folga}
-      width={w + 2 * folga}
-      height={h + 2 * folga}
-      className={estilos.alvo}
-    />
-  );
-}
-
-/** Anima o `viewBox` até `alvo`; sem animação para quem pediu menos movimento. */
-function useVisaoAnimada(alvo: Visao) {
-  const [visao, setVisao] = useState(alvo);
-  const atual = useRef(alvo);
-  const quadroRef = useRef(0);
-  useEffect(() => {
-    const de = atual.current;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      atual.current = alvo;
-      setVisao(alvo);
-      return;
-    }
-    const inicio = performance.now();
-    const passo = (agora: number) => {
-      const t = Math.min(1, (agora - inicio) / DURACAO_MS);
-      const e = 1 - (1 - t) ** 3;
-      const v = {
-        x: de.x + (alvo.x - de.x) * e,
-        y: de.y + (alvo.y - de.y) * e,
-        w: de.w + (alvo.w - de.w) * e,
-        h: de.h + (alvo.h - de.h) * e,
-      };
-      atual.current = v;
-      setVisao(v);
-      if (t < 1) quadroRef.current = requestAnimationFrame(passo);
-    };
-    quadroRef.current = requestAnimationFrame(passo);
-    return () => {
-      cancelAnimationFrame(quadroRef.current);
-    };
-  }, [alvo]);
-  /** Muda a visão na hora, sem animar: arrastar e pinçar seguem o dedo. */
-  const pular = (v: Visao) => {
-    cancelAnimationFrame(quadroRef.current);
-    atual.current = v;
-    setVisao(v);
-  };
-  return { visao, atual, pular };
-}
-
-const ZOOM_MINIMO = 150;
-const ZOOM_MAXIMO = LARGURA_DO_CAMPUS * 1.3;
-
-/** A visão depois de aproximar (`fator` < 1) ou afastar em torno de um ponto da tela. */
-function aproximar(v: Visao, fator: number, px: number, py: number): Visao {
-  const w = Math.min(ZOOM_MAXIMO, Math.max(ZOOM_MINIMO, v.w * fator));
-  const h = (w * v.h) / v.w;
-  return { x: v.x + px * (v.w - w), y: v.y + py * (v.h - h), w, h };
-}
-
-/**
- * Arrastar com o mouse ou um dedo, pinçar com dois, e Ctrl + roda (ou a pinça do trackpad) para o
- * zoom. A roda sozinha continua rolando a página. Um arraste não conta como clique no prédio.
- */
-function useArrastar(
-  svg: React.RefObject<SVGSVGElement | null>,
-  visivel: () => Visao,
-  pular: (v: Visao) => void,
-) {
-  const dedos = useRef(new Map<number, { x: number; y: number }>());
-  const arrastou = useRef(false);
-  const inicio = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const el = svg.current;
-    if (!el) return;
-    const roda = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const r = el.getBoundingClientRect();
-      pular(
-        aproximar(
-          visivel(),
-          Math.exp(e.deltaY * 0.01),
-          (e.clientX - r.left) / r.width,
-          (e.clientY - r.top) / r.height,
-        ),
-      );
-    };
-    el.addEventListener('wheel', roda, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', roda);
-    };
-  }, [svg, visivel, pular]);
-
-  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (dedos.current.size === 1) {
-      arrastou.current = false;
-      inicio.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    const antes = dedos.current.get(e.pointerId);
-    const el = svg.current;
-    if (!antes || !el) return;
-    const r = el.getBoundingClientRect();
-    const v = visivel();
-    if (!arrastou.current && inicio.current) {
-      const andou = Math.hypot(e.clientX - inicio.current.x, e.clientY - inicio.current.y);
-      if (andou < 4) return;
-      // Só agora o ponteiro é capturado: antes disso, o clique continua chegando ao prédio.
-      arrastou.current = true;
-      el.setPointerCapture(e.pointerId);
-    }
-    if (dedos.current.size >= 2) {
-      const [a, b] = [...dedos.current.entries()];
-      if (!a || !b) return;
-      const outro = a[0] === e.pointerId ? b[1] : a[1];
-      const distAntes = Math.hypot(antes.x - outro.x, antes.y - outro.y);
-      const distAgora = Math.hypot(e.clientX - outro.x, e.clientY - outro.y);
-      if (distAntes > 0 && distAgora > 0) {
-        const meioX = ((e.clientX + outro.x) / 2 - r.left) / r.width;
-        const meioY = ((e.clientY + outro.y) / 2 - r.top) / r.height;
-        pular(aproximar(v, distAntes / distAgora, meioX, meioY));
-      }
-    } else {
-      pular({
-        ...v,
-        x: v.x - ((e.clientX - antes.x) / r.width) * v.w,
-        y: v.y - ((e.clientY - antes.y) / r.height) * v.h,
-      });
-    }
-    dedos.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  };
-
-  const soltar = (e: React.PointerEvent<SVGSVGElement>) => {
-    dedos.current.delete(e.pointerId);
-    if (dedos.current.size === 0) inicio.current = null;
-  };
-
-  return {
-    arrastou,
-    eventos: { onPointerDown, onPointerMove, onPointerUp: soltar, onPointerCancel: soltar },
-  };
+  return <rect x={x} y={y} width={w} height={h} className={estilos.alvo} />;
 }
 
 /** Prédio aberto no painel: o do OpenStreetMap, o bloco do Lumens ligado a ele, ou os dois. */
@@ -211,44 +62,34 @@ type Selecao = { predio: Predio | undefined; bloco: MarcadorDoBloco | undefined 
  * A lista embaixo tem a mesma informação e também escolhe o bloco.
  */
 export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) {
-  const porPredio = new Map(marcadores.flatMap((m) => (m.predio ? [[m.predio, m] as const] : [])));
+  const porPredio = useMemo(
+    () => new Map(marcadores.flatMap((m) => (m.predio ? [[m.predio, m] as const] : []))),
+    [marcadores],
+  );
   const [sel, setSel] = useState<Selecao | null>(null);
   // Abre enquadrado nos prédios com bloco: o campus inteiro tem 2 km e eles sumiriam.
-  const geral = enquadrar([...porPredio.keys()]);
-  const [alvo, setAlvo] = useState<Visao>(geral);
-  const { visao, atual, pular } = useVisaoAnimada(alvo);
-  const svg = useRef<SVGSVGElement>(null);
-
-  // A tela não tem a proporção do campus: a visão cresce para cobrir a tela sem cortar o alvo.
-  const [aspecto, setAspecto] = useState(LARGURA_DO_CAMPUS / ALTURA_DO_CAMPUS);
-  const [larguraPx, setLarguraPx] = useState(1000);
-  useEffect(() => {
-    const el = svg.current;
-    if (!el) return;
-    const observador = new ResizeObserver(([e]) => {
-      if (e && e.contentRect.width > 0 && e.contentRect.height > 0) {
-        setAspecto(e.contentRect.width / e.contentRect.height);
-        setLarguraPx(e.contentRect.width);
-      }
-    });
-    observador.observe(el);
-    return () => {
-      observador.disconnect();
-    };
-  }, []);
-  const cobrir = (v: Visao): Visao => {
-    const h = v.w / aspecto;
-    if (h >= v.h) return { ...v, y: v.y - (h - v.h) / 2, h };
-    const w = v.h * aspecto;
-    return { x: v.x - (w - v.w) / 2, y: v.y, w, h: v.h };
-  };
-  const tela = cobrir(visao);
-  const { arrastou, eventos } = useArrastar(svg, () => cobrir(atual.current), pular);
-
+  const geral = useMemo(() => enquadrar([...porPredio.keys()]), [porPredio]);
   // Com o campus inteiro na tela, os nomes se amontoam; aparecem quando o mapa aproxima.
-  const comNomes = tela.w < LARGURA_DO_CAMPUS * 0.3;
-  // Folga de toque em volta de cada prédio: 8 px na tela, em metros do desenho.
-  const folga = (8 * tela.w) / larguraPx;
+  const [comNomes, setComNomes] = useState(false);
+  // O `viewBox` fica parado na visão de abertura; a câmera move a camada dentro dele.
+  const [base] = useState(geral);
+  const [camera] = useState(() =>
+    criarCamera(base, (v) => {
+      setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
+    }),
+  );
+  const svg = useRef<SVGSVGElement>(null);
+  const camada = useRef<SVGGElement>(null);
+  useEffect(() => {
+    if (!svg.current || !camada.current) return;
+    return camera.ligar(svg.current, camada.current);
+  }, [camera]);
+
+  // Os prédios com bloco vêm por último: ficam por cima e ganham o toque na disputa.
+  const predios = useMemo(
+    () => [...PREDIOS].sort((a, b) => Number(porPredio.has(a.id)) - Number(porPredio.has(b.id))),
+    [porPredio],
+  );
 
   // No computador o painel ocupa a direita: o prédio aberto fica um pouco à esquerda do centro.
   const focar = (p: Predio): Visao => {
@@ -263,22 +104,19 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       return;
     }
     setSel({ predio: p, bloco: porPredio.get(p.id) });
-    setAlvo(focar(p));
+    camera.irPara(focar(p));
   };
   const clicarPredio = (p: Predio) => {
-    if (!arrastou.current) abrirPredio(p);
+    if (!camera.arrastou()) abrirPredio(p);
   };
   const abrirBloco = (m: MarcadorDoBloco) => {
     const p = m.predio ? PREDIOS.find((x) => x.id === m.predio) : undefined;
     setSel({ predio: p, bloco: m });
-    if (p) setAlvo(focar(p));
+    if (p) camera.irPara(focar(p));
     svg.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
   const fechar = () => {
-    if (!arrastou.current) setSel(null);
-  };
-  const zoom = (fator: number) => {
-    setAlvo(aproximar(cobrir(atual.current), fator, 0.5, 0.5));
+    if (!camera.arrastou()) setSel(null);
   };
 
   const bloco = sel?.bloco;
@@ -287,29 +125,33 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       <div className={[estilos.tela, 'noite'].join(' ')}>
         <svg
           ref={svg}
-          {...eventos}
+          {...camera.eventos}
           className={estilos.desenho}
-          viewBox={`${String(tela.x)} ${String(tela.y)} ${String(tela.w)} ${String(tela.h)}`}
+          viewBox={`${String(base.x)} ${String(base.y)} ${String(base.w)} ${String(base.h)}`}
           role="group"
           aria-label="Mapa do campus. A lista abaixo do mapa tem a mesma informação."
         >
-          <g onClick={fechar}>
-            <rect
-              x={-LARGURA_DO_CAMPUS}
-              y={-ALTURA_DO_CAMPUS}
-              width={LARGURA_DO_CAMPUS * 3}
-              height={ALTURA_DO_CAMPUS * 3}
-              className={estilos.chao}
-            />
-            <path d={CONTORNO} className={estilos.terreno} />
-            {CAMINHOS.map((d) => (
-              <path key={d} d={d} className={estilos.via} />
-            ))}
-          </g>
-          {/* Os prédios com bloco vêm por último: ficam por cima e ganham o toque na disputa. */}
-          {[...PREDIOS]
-            .sort((a, b) => Number(porPredio.has(a.id)) - Number(porPredio.has(b.id)))
-            .map((p) => {
+          <g ref={camada}>
+            {/* Dois toques (ou dois cliques) no chão aproximam o mapa naquele ponto. */}
+            <g
+              onClick={fechar}
+              onDoubleClick={(e) => {
+                camera.zoomNoPonteiro(0.5, e.clientX, e.clientY);
+              }}
+            >
+              <rect
+                x={-LARGURA_DO_CAMPUS}
+                y={-ALTURA_DO_CAMPUS}
+                width={LARGURA_DO_CAMPUS * 3}
+                height={ALTURA_DO_CAMPUS * 3}
+                className={estilos.chao}
+              />
+              <path d={CONTORNO} className={estilos.terreno} />
+              {CAMINHOS.map((d) => (
+                <path key={d} d={d} className={estilos.via} />
+              ))}
+            </g>
+            {predios.map((p) => {
               const m = porPredio.get(p.id);
               const aberto = sel?.predio?.id === p.id;
               const rotulo = m ? `${m.nome}: ${m.linha}` : p.nome;
@@ -347,25 +189,29 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                   {...acessivel}
                 >
                   <title>{rotulo}</title>
-                  {p.sigla && <AreaDeToque caixa={p.caixa} folga={folga} />}
+                  {p.sigla && <AreaDeToque caixa={p.caixa} />}
+                  {/* O halo é só um contorno largo: fica aceso mesmo com o mapa em movimento. */}
+                  {m && <path d={p.d} className={estilos.halo} />}
                   <path d={p.d} />
                 </g>
               );
             })}
-          {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
-          <g aria-hidden="true">
-            {PREDIOS.filter(
-              (p) => p.sigla && (porPredio.has(p.id) || comNomes || sel?.predio?.id === p.id),
-            ).map((p) => (
-              <Sigla key={p.id} predio={p} tamanho={tela.w / 64} />
-            ))}
+            {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
+            <g aria-hidden="true">
+              {PREDIOS.filter(
+                (p) => p.sigla && (porPredio.has(p.id) || comNomes || sel?.predio?.id === p.id),
+              ).map((p) => (
+                <Sigla key={p.id} predio={p} />
+              ))}
+            </g>
           </g>
         </svg>
 
         <div className={estilos.hudTitulo}>
           <h1 className={estilos.hudNome}>Mapa do campus</h1>
           <p className={estilos.hudDica}>
-            Toque num prédio. Arraste para mover e use a pinça ou Ctrl + roda para o zoom.
+            Toque num prédio. Arraste para mover; a roda, a pinça ou dois toques aproximam; dois
+            dedos giram.
           </p>
         </div>
 
@@ -384,17 +230,52 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             className={estilos.verCampus}
             onClick={() => {
               setSel(null);
-              setAlvo(geral);
+              camera.irPara(geral, 0);
             }}
           >
             Ver todos os blocos
           </button>
+          {/* No celular o mapa toma a tela e o dedo move o mapa: este atalho leva à lista. */}
+          <a href="#lista-do-mapa" className={estilos.verCampus}>
+            Ver em lista
+          </a>
           <div className={estilos.zoom}>
+            {/* A seta aponta o norte: gira junto com o mapa, e o botão o endireita. */}
+            <button
+              type="button"
+              aria-label="Voltar o norte para cima"
+              onClick={() => {
+                camera.norte();
+              }}
+            >
+              <svg className={estilos.bussola} viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3l4 9H8z" className={estilos.agulhaNorte} />
+                <path d="M12 21l-4-9h8z" className={estilos.agulhaSul} />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Girar o mapa para a esquerda"
+              onClick={() => {
+                camera.girar(-Math.PI / 6);
+              }}
+            >
+              ↺
+            </button>
+            <button
+              type="button"
+              aria-label="Girar o mapa para a direita"
+              onClick={() => {
+                camera.girar(Math.PI / 6);
+              }}
+            >
+              ↻
+            </button>
             <button
               type="button"
               aria-label="Aproximar o mapa"
               onClick={() => {
-                zoom(1 / 1.6);
+                camera.zoom(1 / 1.6);
               }}
             >
               +
@@ -403,7 +284,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
               type="button"
               aria-label="Afastar o mapa"
               onClick={() => {
-                zoom(1.6);
+                camera.zoom(1.6);
               }}
             >
               −
@@ -474,7 +355,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
         </aside>
       </div>
 
-      <section className={estilos.abaixo}>
+      <section id="lista-do-mapa" className={estilos.abaixo}>
         <h2 className={estilos.tituloLista}>A mesma informação, em lista</h2>
         <ul className={estilos.lista}>
           {marcadores.map((m) => (

@@ -34,13 +34,15 @@
   text-decoration: none;
 }
 
-/* A assinatura: uma janela acesa. */
-.janela {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  background: var(--luz);
-  box-shadow: 0 0 12px 2px rgb(255 194 61 / 55%);
+/*
+ * O logo. O arquivo traz o brilho em volta do círculo, então a imagem é maior que o desenho e a
+ * margem negativa devolve o espaço: o círculo fica com uns 24 px e o brilho vaza para os lados.
+ */
+.logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: -10px -6px -10px -10px;
 }
 
 .abas {

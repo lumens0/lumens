@@ -9,7 +9,8 @@ export function Cabecalho() {
     <header className={estilos.cabecalho}>
       <div className={estilos.faixa}>
         <Link href="/" className={estilos.marca}>
-          <span className={estilos.janela} aria-hidden="true" />
+          {/* `alt` vazio: o nome vem escrito ao lado. Arquivo estático, sem o otimizador de imagem. */}
+          <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
           Lumens
         </Link>
         <Abas />
