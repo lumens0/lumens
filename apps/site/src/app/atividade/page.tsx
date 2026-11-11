@@ -1,7 +1,10 @@
+import type { AtividadeItem } from '@lumens/contratos';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarData, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
+import { STATUS } from '../../componentes/StatusPill';
+import type { StatusPauta } from '../../dados/tipos';
 import { buscarAtividade } from '../../dados/api';
 import { metadadosDaMarca } from '../../metadados';
 import estilos from '../page.module.css';
@@ -23,13 +26,56 @@ function paginaDaUrl(valor: string | string[] | undefined): number {
   return pagina >= 1 && pagina <= PAGINA_MAXIMA ? pagina : 1;
 }
 
-/** Eventos que são um passo conquistado: ganham o ✓ verde na lista. */
-const CONQUISTA = new Set([
-  'meta_batida',
-  'proposta_executada',
-  'resposta_oficial_recebida',
-  'conferencia_apurada',
-]);
+/**
+ * Tom de cada tipo de evento, nas cores de status do site: azul para o que entra na pauta,
+ * turquesa para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
+ * fica neutro.
+ */
+type Tom = 'azul' | 'turquesa' | 'ambar' | 'vermelho' | 'verde';
+
+const TOM: Record<string, Tom> = {
+  pauta_aprovada: 'azul',
+  relato_aprovado: 'azul',
+  caminho_aberto: 'azul',
+  proposta_publicada: 'azul',
+  owner_entrou: 'azul',
+  meta_batida: 'turquesa',
+  protocolo_registrado: 'ambar',
+  promessa_registrada: 'ambar',
+  conferencia_aberta: 'ambar',
+  resposta_oficial_recebida: 'verde',
+  proposta_executada: 'verde',
+  conferencia_apurada: 'verde',
+};
+
+/** Mudança de status ganha o tom do status novo, o mesmo dos cards e do mapa. */
+const TOM_DO_STATUS: Partial<Record<StatusPauta, Tom>> = {
+  juntando_apoios: 'azul',
+  meta_batida: 'turquesa',
+  cobrando: 'ambar',
+  prometido: 'ambar',
+  entregue_em_parte: 'ambar',
+  descumprida: 'vermelho',
+  conquistada: 'verde',
+};
+
+/** O status para o qual a pauta foi, num evento `status_alterado` com `dados.para` conhecido. */
+function statusNovo(item: AtividadeItem): StatusPauta | undefined {
+  if (item.tipo !== 'status_alterado') return undefined;
+  const para = item.dados.para;
+  return typeof para === 'string' && para in STATUS ? (para as StatusPauta) : undefined;
+}
+
+/** "Status alterado para Conquistada" em vez de só "Status alterado"; os outros tipos, o rótulo. */
+function textoDoEvento(item: AtividadeItem): string {
+  const novo = statusNovo(item);
+  return novo ? `${rotuloEvento(item.tipo)} para ${STATUS[novo].rotulo}` : rotuloEvento(item.tipo);
+}
+
+function tomDoEvento(item: AtividadeItem): Tom | undefined {
+  const novo = statusNovo(item);
+  return novo ? TOM_DO_STATUS[novo] : TOM[item.tipo];
+}
 
 const linkDaPagina = (pagina: number) =>
   pagina === 1 ? '/atividade' : `/atividade?pagina=${String(pagina)}`;
@@ -69,18 +115,17 @@ export default async function PaginaAtividade({
       ) : (
         <ol className={estilos.registro}>
           {itens.map((item, i) => (
-            <li key={`${String(pagina)}-${String(i)}`} className={estilos.evento}>
-              <span
-                className={CONQUISTA.has(item.tipo) ? estilos.iconeFeito : estilos.icone}
-                aria-hidden="true"
-              >
-                {CONQUISTA.has(item.tipo) ? '✓' : '•'}
-              </span>
+            <li
+              key={`${String(pagina)}-${String(i)}`}
+              className={estilos.evento}
+              data-tom={tomDoEvento(item)}
+            >
+              <span className={estilos.icone} aria-hidden="true" />
               <div>
                 <Link href={`/p/${item.pauta_slug}`} className={estilos.eventoPauta}>
                   {item.pauta_titulo}
                 </Link>
-                <p className={estilos.eventoTexto}>{rotuloEvento(item.tipo)}</p>
+                <p className={estilos.eventoTexto}>{textoDoEvento(item)}</p>
               </div>
               <time dateTime={item.criado_em} className={estilos.quando}>
                 {formatarData(item.criado_em)}
