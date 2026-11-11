@@ -2,8 +2,8 @@ import { apoios, curadores, eq, estudantes, pautas, promessas, type Db } from '@
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { registrarPromessa, registrarRespostaConferencia } from '@lumens/dominio';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { criarLogger } from '../logger';
-import { JOBS } from '../queue';
+import { criarLogger } from '../infra/logger';
+import { JOBS } from '../infra/queue';
 import { GATILHOS_CRON, GATILHOS_TZ, registerGatilhosJob, rodarGatilhos } from './gatilhos';
 
 let db: Db;

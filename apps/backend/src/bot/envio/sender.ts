@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Logger } from '../../logger';
+import type { Logger } from '../../infra/logger';
 import type { MensagemModelo } from './mensagem-modelo';
 
 /** Quem entrega a mensagem modelo. Devolve o wamid que a Meta atribuiu ao envio. */

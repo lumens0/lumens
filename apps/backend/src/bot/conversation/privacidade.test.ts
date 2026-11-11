@@ -2,7 +2,7 @@ import { apoios, codigosVerificacao, conversas, eq, estudantes, pautas, type Db 
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { registrarApoio } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { hmacHex, segredoCom } from '../../cripto';
+import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import { GREETING_TEXT, MENU_TEXT } from './handlers';

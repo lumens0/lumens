@@ -4,8 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
-import type { Chaves } from './cripto';
-import { FakeQueue, prepararFilaFalsa } from './queue.fake';
+import type { Chaves } from './cripto/cifra';
+import { FakeQueue, prepararFilaFalsa } from './infra/queue.fake';
 
 const config = { verifyToken: 'verify-SECRET-123', appSecret: 'segredo-app' };
 const chaves: Chaves = { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) };

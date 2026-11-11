@@ -1,4 +1,4 @@
-import { hmacHex } from '../../cripto';
+import { hmacHex } from '../../cripto/cifra';
 
 /**
  * HMAC-SHA256 (hex) do telefone. Nunca guardamos o número puro.
