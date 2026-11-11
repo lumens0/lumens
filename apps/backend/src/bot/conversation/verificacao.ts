@@ -49,6 +49,7 @@ import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { entrarNaPautaNova } from './nova-pauta';
+import { vouAjudar } from './proposta';
 import { lista, type MensagemDeLista } from './resposta';
 import { normalize } from './texto';
 
@@ -311,7 +312,7 @@ export async function entrarNaVerificacao({
 }
 
 const pendenteSchema = z.object({
-  pendingCommand: z.object({ kind: z.string() }).optional(),
+  pendingCommand: z.object({ kind: z.string(), id: z.string().optional() }).optional(),
 });
 
 export const verifyAskCourse: StepHandler = async (ctx) => {
@@ -329,8 +330,12 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
 
   // Retoma o que a pessoa pediu antes de ser mandada para a verificação.
   const lidos = pendenteSchema.safeParse(state.data);
-  const pendente = lidos.success ? lidos.data.pendingCommand?.kind : undefined;
-  if (pendente === 'nova-pauta') {
+  const pendente = lidos.success ? lidos.data.pendingCommand : undefined;
+  if (pendente?.kind === 'ajudar' && pendente.id !== undefined) {
+    const ajuda = await vouAjudar(ctx, pendente.id, [VERIFIED_TEXT]);
+    return { ...ajuda, data: { ...ajuda.data, pendingCommand: undefined } };
+  }
+  if (pendente?.kind === 'nova-pauta') {
     const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
     return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
   }

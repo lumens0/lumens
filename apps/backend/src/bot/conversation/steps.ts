@@ -14,6 +14,8 @@ export const STEPS = [
   'NEW_ASK_PHOTO',
   'OWNER_PICK_PAUTA',
   'OWNER_PATHS',
+  'PROPOSAL_ASK_TEXT',
+  'PROPOSAL_ASK_PEOPLE',
   'LEAVE_CONFIRM',
 ] as const;
 
@@ -39,6 +41,8 @@ export const Step = {
   NEW_ASK_PHOTO: 'NEW_ASK_PHOTO',
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
   OWNER_PATHS: 'OWNER_PATHS',
+  PROPOSAL_ASK_TEXT: 'PROPOSAL_ASK_TEXT',
+  PROPOSAL_ASK_PEOPLE: 'PROPOSAL_ASK_PEOPLE',
   LEAVE_CONFIRM: 'LEAVE_CONFIRM',
 } as const satisfies { [K in Step]: K };
 
@@ -67,7 +71,10 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
   // 3.3: "Minhas pautas". Com uma pauta só, o menu vai direto aos caminhos. Os caminhos ficam no
   // mesmo passo depois de abrir um (o outro continua disponível) e voltam ao menu com os dois.
   OWNER_PICK_PAUTA: ['OWNER_PATHS', 'OWNER_PICK_PAUTA', 'MENU'],
-  OWNER_PATHS: ['OWNER_PATHS', 'MENU'],
+  OWNER_PATHS: ['OWNER_PATHS', 'MENU', 'PROPOSAL_ASK_TEXT'],
+  // 3.5: a proposta repete a pergunta quando a resposta não serve e, publicada, volta aos caminhos.
+  PROPOSAL_ASK_TEXT: ['PROPOSAL_ASK_PEOPLE', 'PROPOSAL_ASK_TEXT', 'MENU'],
+  PROPOSAL_ASK_PEOPLE: ['OWNER_PATHS', 'PROPOSAL_ASK_PEOPLE', 'MENU'],
   // 5.7: confirmado ou não, a conversa volta ao menu (ou é apagada, se a pessoa saiu).
   LEAVE_CONFIRM: ['MENU'],
 };
