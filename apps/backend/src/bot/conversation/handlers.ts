@@ -10,7 +10,13 @@ import {
   newAskPlace,
   newAskTitle,
 } from './nova-pauta';
-import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pautas';
+import {
+  entrarEmMinhasPautas,
+  ownerPaths,
+  ownerPickPauta,
+  proposalAskPeople,
+} from './minhas-pautas';
+import { proposalAskText } from './proposta';
 import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
 import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
 import { ownerSendResponse } from './resposta-oficial';
@@ -135,6 +141,8 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  PROPOSAL_ASK_TEXT: proposalAskText,
+  PROPOSAL_ASK_PEOPLE: proposalAskPeople,
   LEAVE_CONFIRM: leaveConfirm,
   OWNER_ASK_PROTOCOL: ownerAskProtocol,
   OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,

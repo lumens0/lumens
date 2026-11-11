@@ -16,6 +16,7 @@ import type { ServicoDeEmail } from '../../email/codigo';
 import { ASK_WRITE_REPORT_TEXT, supportedText } from './apoio';
 import { MENU_TEXT } from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
+import { NO_PROPOSAL_TEXT } from './proposta';
 import { NEW_TITLE_TEXT } from './texto';
 import { hashPhone } from './phone';
 import { textoDaResposta, type Resposta } from './resposta';
@@ -508,15 +509,13 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     expect(await db.select().from(apoios).where(eq(apoios.pautaId, pauta.id))).toHaveLength(1);
   });
 
-  it('pedido de ajuda fica guardado para a 2.8; por ora, volta ao menu', async () => {
+  it('quem veio do "Vou ajudar" (3.5) retoma o pedido depois de verificado', async () => {
     await ateOCurso();
-    const { data } = (await store.get(H)) ?? { data: {} };
     await store.save(H, 'VERIFY_ASK_COURSE', {
-      ...data,
-      pendingCommand: { kind: 'ajudar', id: 'p1' },
+      pendingCommand: { kind: 'ajudar', id: 'pauta-sem-proposta' },
     });
-    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
-    expect(await dados()).toMatchObject({ pendingCommand: { kind: 'ajudar', id: 'p1' } });
+    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await dados()).not.toHaveProperty('pendingCommand');
   });
 
   it('quem já é verificado não refaz a verificação pelo menu', async () => {

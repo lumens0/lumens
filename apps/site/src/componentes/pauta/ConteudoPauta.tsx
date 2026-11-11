@@ -14,7 +14,7 @@ export function ConteudoPauta({ pauta }: { pauta: PautaDetalhe }) {
       <Voltar />
       <CabecalhoPauta pauta={pauta} />
       <ProximaEtapa pauta={pauta} />
-      <Caminhos caminhos={pauta.caminhos} />
+      <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} />
       <RespostaOficial pauta={pauta} />
       <Relatos relatos={pauta.relatos} />
       <LinhaDoTempo eventos={pauta.linha_do_tempo} />
