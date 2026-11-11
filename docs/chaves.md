@@ -95,11 +95,28 @@ sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualqu
 
    ```sql
    select name, count(*) from pgboss.job
-   where state in ('created', 'retry', 'active') group by name;
+   where state in ('created', 'retry', 'active') and name not like '%-dead' group by name;
    ```
 
    Se vier alguma linha, suba o back-end de novo (`... start backend`), espere uns minutos para ele
    processar e repita este passo. Só siga com a consulta vazia.
+
+   As filas de mortas (`incoming-message-dead` e `outgoing-replies-dead`) ficam de fora: nenhum
+   consumidor as lê, então subir o back-end não as esvazia. Elas guardam mensagens que o bot já
+   descartou, só para investigar, e saem sozinhas em até 14 dias
+   ([retenção nas filas](decisoes/SCRUM-174-aviso-de-privacidade.md)). Depois da troca não
+   decifram mais. Confira quantas há:
+
+   ```sql
+   select name, count(*) from pgboss.job where name like '%-dead' group by name;
+   ```
+
+   Se alguém precisa investigar alguma, faça agora, com a chave antiga. Senão, apague antes de
+   seguir, para não ficar no banco o que ninguém consegue ler:
+
+   ```sql
+   delete from pgboss.job where name in ('incoming-message-dead', 'outgoing-replies-dead');
+   ```
 
 2. **Faça backup do banco** na hora, sem esperar o agendado:
    `sudo systemctl start lumens-backup.service` (veja [Backup do banco](backup.md)). Esse backup
