@@ -17,7 +17,13 @@ const evento = (campos: Partial<EventoDaLinha> = {}): EventoDaLinha => ({
 });
 
 const tela = (eventos: EventoDaLinha[]) =>
-  renderToStaticMarkup(<LinhaDoTempo titulo="Bebedouro quebrado no bloco 12" eventos={eventos} />);
+  renderToStaticMarkup(
+    <LinhaDoTempo
+      pautaId="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"
+      titulo="Bebedouro quebrado no bloco 12"
+      eventos={eventos}
+    />,
+  );
 
 describe('tela da linha do tempo da pauta', () => {
   it('mostra todos os eventos na ordem recebida, com data de Maceió, origem e visibilidade', () => {
@@ -33,6 +39,7 @@ describe('tela da linha do tempo da pauta', () => {
     ]);
 
     expect(html).toContain('Bebedouro quebrado no bloco 12');
+    expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
     expect(html.indexOf('Pauta criada')).toBeGreaterThan(-1);
     expect(html.indexOf('Pauta criada')).toBeLessThan(html.indexOf('Pauta aprovada'));
     expect(html).toContain('dateTime="2026-11-09T12:00:00.000Z"');
@@ -94,7 +101,7 @@ describe('rótulo e detalhe do evento', () => {
     [
       'status_alterado',
       { de: 'em_curadoria', para: 'recusada' },
-      'De “Em curadoria” para “Recusada”.',
+      'De “Esperando decisão da curadoria” para “Recusada”.',
     ],
     ['meta_batida', { meta: 50, apoios: 52 }, '52 apoios, para uma meta de 50.'],
     ['caminho_aberto', { caminho_id: 'c1', tipo: 'falabr' }, 'Caminho: Fala.BR.'],

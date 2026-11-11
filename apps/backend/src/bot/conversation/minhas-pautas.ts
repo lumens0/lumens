@@ -65,9 +65,17 @@ export function removedText(quantos: number): string {
 }
 
 /** Possíveis nomes de pessoa que ficaram no texto, para o owner conferir. */
+/**
+ * Possíveis nomes de pessoa que ficaram no texto, para o owner conferir. Todos: o que ficar de
+ * fora da lista o owner não confere, e acabaria protocolado.
+ */
 export function suspectText(trechos: readonly string[]): string {
   const lista = trechos.map((t) => `“${t}”`).join(', ');
-  return `Confira antes de colar: ${lista} pode ser nome de pessoa. Se for, apague do texto antes de protocolar.`;
+  const verbo =
+    trechos.length === 1
+      ? 'pode ser nome de pessoa. Se for'
+      : 'podem ser nomes de pessoas. Se forem';
+  return `Confira antes de colar: ${lista} ${verbo}, apague do texto antes de protocolar.`;
 }
 
 export const OPENED_TEXT: Record<TipoEscolhido, string> = {
@@ -365,7 +373,7 @@ async function textoDaManifestacao(db: Db, pautaId: string): Promise<Resposta[]>
 
   const avisos: Resposta[] = [];
   if (pronto.removidos.length > 0) avisos.push(removedText(pronto.removidos.length));
-  const suspeitos = [...new Set(pronto.suspeitos.map((s) => s.trecho))].slice(0, 3);
+  const suspeitos = [...new Set(pronto.suspeitos.map((s) => s.trecho))];
   if (suspeitos.length > 0) avisos.push(suspectText(suspeitos));
   return [FALABR_TEXT_INTRO, ...avisos, pronto.texto];
 }

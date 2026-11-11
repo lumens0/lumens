@@ -102,10 +102,12 @@ export async function criarPauta(
   }
 
   // RN01 vale para criar também: só quem é estudante verificado, e não saiu, abre pauta.
+  // FOR UPDATE serializa com sairDoLumens para impedir pauta criada por estudante em processo de saída.
   const [estudante] = await tx
     .select({ verificadoEm: estudantes.verificadoEm, saiuEm: estudantes.saiuEm })
     .from(estudantes)
-    .where(eq(estudantes.id, estudanteId));
+    .where(eq(estudantes.id, estudanteId))
+    .for('update');
   if (estudante?.verificadoEm == null || estudante.saiuEm !== null) {
     return { criada: false, motivo: 'estudante_nao_verificado' };
   }

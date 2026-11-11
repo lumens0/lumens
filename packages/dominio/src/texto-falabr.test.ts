@@ -227,6 +227,21 @@ describe('prepararParaProtocolar (RN08, SCRUM-214)', () => {
     expect(pronto.removidos).toEqual([]);
   });
 
+  it('nomes conhecidos que se cruzam saem juntos, sem levar o texto que vem depois', () => {
+    // Regressão: trocados um de cada vez, o segundo apagava "não" e invertia o sentido.
+    const nomesConhecidos = ['Ana Maria Fernanda', 'Maria Fernanda Silva'];
+    const gerado = gerarTextoFalaBr(
+      pauta({ descricao: 'Ana Maria Fernanda Silva não confirmou o problema.' }),
+      { nomesConhecidos },
+    );
+
+    const pronto = prepararParaProtocolar(gerado, { nomesConhecidos });
+
+    expect(pronto.texto).toContain(`${MARCA_DE_REMOVIDO} não confirmou o problema.`);
+    expect(pronto.texto).not.toContain('Fernanda');
+    expect(pronto.liberado).toBe(true);
+  });
+
   it('nome conhecido também sai, quando quem chama informa', () => {
     const gerado = gerarTextoFalaBr(pauta({ descricao: 'Relatado por João Gabriel Seixas.' }), {
       nomesConhecidos: ['João Gabriel Seixas'],
