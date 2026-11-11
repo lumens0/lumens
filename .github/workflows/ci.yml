@@ -57,13 +57,13 @@ jobs:
           --health-retries 12
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Precisa vir ANTES do setup-node: o cache do pnpm não encontra o gerenciador
       # se a ordem for invertida. A versão sai do campo packageManager do package.json.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -188,11 +188,11 @@ jobs:
       POSTGRES_SITE_PASSWORD: lumens_site_ci
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -225,7 +225,7 @@ jobs:
 
       - name: Guardar trace e screenshot da falha
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-falhas
           path: apps/site/test-results/
@@ -251,11 +251,11 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
 
