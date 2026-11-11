@@ -312,7 +312,10 @@ describe('texto do Fala.BR (3.4)', () => {
     const r = await send('caminho:falabr');
 
     expect(r).toContain(removedText(1));
-    const texto = r.find((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    const indiceDoTexto = r.findIndex((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    expect(r.indexOf(FALABR_TEXT_INTRO)).toBe(indiceDoTexto - 1);
+    expect(r.indexOf(removedText(1))).toBeLessThan(r.indexOf(FALABR_TEXT_INTRO));
+    const texto = r[indiceDoTexto];
     expect(texto).toEqual(expect.stringContaining('escreva para [removido]'));
     expect(texto).not.toEqual(expect.stringContaining('jgss@ic.ufal.br'));
   });
@@ -326,9 +329,11 @@ describe('texto do Fala.BR (3.4)', () => {
     const r = await send('caminho:falabr');
 
     expect(r).toContain(suspectText(['professora Marta']));
-    // O texto é sempre a última mensagem antes do estado, para copiar sozinho.
+    // Aviso, depois "copie a próxima mensagem" e, logo em seguida, o texto: quem segue a
+    // instrução copia a manifestação, não o aviso.
     const indiceDoTexto = r.findIndex((m) => typeof m === 'string' && m.startsWith('Assunto:'));
-    expect(r.indexOf(suspectText(['professora Marta']))).toBeLessThan(indiceDoTexto);
+    expect(r.indexOf(FALABR_TEXT_INTRO)).toBe(indiceDoTexto - 1);
+    expect(r.indexOf(suspectText(['professora Marta']))).toBeLessThan(r.indexOf(FALABR_TEXT_INTRO));
   });
 
   it('todos os possíveis nomes entram no aviso, não só os primeiros', async () => {
