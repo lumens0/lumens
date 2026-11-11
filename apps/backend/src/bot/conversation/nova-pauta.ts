@@ -122,8 +122,7 @@ export async function entrarNaPautaNova(
   antes: Resposta[] = [],
 ): Promise<StepResult> {
   if ((await estudanteVerificado(db, phoneHmac)) === undefined) {
-    // TODO(2.4): ao terminar a verificação, retomar o `pendingCommand` 'nova-pauta' indo para
-    // NEW_ASK_TITLE (falta a transição VERIFY_ASK_COURSE → NEW_ASK_TITLE em steps.ts).
+    // Ao fim da verificação (2.4), `verifyAskCourse` vê o `pendingCommand` e volta para cá.
     return {
       next: 'VERIFY_ASK_EMAIL',
       data: { pendingCommand: { kind: 'nova-pauta' } },

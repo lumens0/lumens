@@ -66,7 +66,27 @@
 6. Depois do vínculo, o e-mail sai dos dados da conversa: ele já está no cadastro.
 7. Sem o e-mail na conversa, o código não é conferido (não é gasto) e o bot pede o e-mail de novo.
 
-## Fora de escopo (próximas subtasks)
+## SCRUM-138 · Curso, verificado e pedido pendente
 
-- Curso, marcar verificado e retomar o pedido.
-- E-mail testado em contas reais da UFAL (spam): depende do SMTP de produção.
+1. Depois do código certo e do vínculo, o bot pergunta o curso numa mensagem de lista. A lista é
+   `CURSOS` (`packages/db/src/cursos.ts`), a mesma do seed. Com mais de 10 cursos, mostra 9 e
+   aceita o nome digitado dos outros.
+2. Vale a linha da lista ou o nome digitado, sem diferença de acento e maiúscula. O curso gravado é
+   sempre o nome da lista.
+3. **Só curso da lista:** o curso de quem cuida da pauta aparece no site (`cursos_responsaveis` em
+   `v_pauta_publica`). Texto livre poderia levar um nome de pessoa para a página pública. Fora da
+   lista, o bot pergunta de novo.
+4. Com o curso, o estudante é marcado como verificado (`verificado_em`). Quem já era verificado
+   mantém a data da primeira verificação. Quem tinha saído (`saiu_em`) volta a valer.
+5. **Retomar o pedido:** quem veio da pauta nova (2.6), pelo menu ou pelo "É outro problema" da
+   2.5, segue direto para o título, com o relato guardado. O pedido de apoio (`apoiar`) fica nos
+   dados da conversa para a 2.7 retomar; por ora, o bot volta ao menu.
+6. **Verificado uma vez só:** quem já é verificado e escolhe "3" no menu recebe "Você já é
+   estudante verificado" e fica no menu.
+7. Sem o vínculo do e-mail (cadastro perdido), o bot refaz a parte do e-mail.
+
+## Fora de escopo
+
+- Os cursos reais da UFAL: trocar a lista em `packages/db/src/cursos.ts`.
+- Retomar o apoio (2.7).
+- Testar o e-mail num SMTP de verdade e em contas reais da UFAL.

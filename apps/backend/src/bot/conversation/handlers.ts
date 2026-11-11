@@ -12,9 +12,9 @@ import { entrarEmMinhasPautas, ownerPaths, ownerPickPauta } from './minhas-pauta
 import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
-import { TRANSITIONS, type Step } from './steps';
+import type { Step } from './steps';
 import { normalize } from './texto';
-import { EMAIL_QUESTION_TEXT, verifyAskCode, verifyAskEmail } from './verificacao';
+import { entrarNaVerificacao, verifyAskCode, verifyAskCourse, verifyAskEmail } from './verificacao';
 
 export { normalize } from './texto';
 export { PHOTO_ASK_TEXT, PHOTO_RECEIVED_TEXT } from './nova-pauta';
@@ -78,10 +78,9 @@ export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
 const greeting: StepHandler = () => ({ next: 'MENU', replies: [GREETING_TEXT, MENU_TEXT] });
 
-/** Opções do menu que só mudam de passo. A "2" e a "4" consultam o banco: veja `menu`. */
+/** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
   '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
-  '3': { next: 'VERIFY_ASK_EMAIL', reply: EMAIL_QUESTION_TEXT },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -99,33 +98,19 @@ const menu: StepHandler = (ctx) => {
   const t = normalize(ctx.input.text);
   const escolha = MENU_ALIASES[t] ?? t;
   if (escolha === '2') return entrarNaPautaNova(ctx);
+  if (escolha === '3') return entrarNaVerificacao(ctx);
   if (escolha === '4') return entrarEmMinhasPautas(ctx);
   const opt = MENU_OPTIONS[escolha];
   if (!opt) return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
   return { next: opt.next, replies: [opt.reply] };
 };
 
-/**
- * Placeholder: avança para o primeiro próximo passo permitido. Não ecoa a entrada: a resposta
- * vai para a fila e para o log, e a entrada pode ser o e-mail ou o relato da pessoa.
- */
-function placeholder(step: Step, story: string): StepHandler {
-  // TODO(story): substituir pelo handler real.
-  const next = TRANSITIONS[step][0];
-  if (!next) throw new Error(`${step} não tem próximo passo em TRANSITIONS`);
-  return () => ({
-    next,
-    replies: [`[${step} — em construção, história ${story}] Recebi sua mensagem.`],
-  });
-}
-
 export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,
   MENU: menu,
   VERIFY_ASK_EMAIL: verifyAskEmail,
   VERIFY_ASK_CODE: verifyAskCode,
-  // TODO(2.4): curso (próxima subtask).
-  VERIFY_ASK_COURSE: placeholder('VERIFY_ASK_COURSE', '2.4'),
+  VERIFY_ASK_COURSE: verifyAskCourse,
   REPORT_ASK_TEXT: reportAskText,
   REPORT_ASK_BLOCK: reportAskBlock,
   REPORT_PICK_SIMILAR: reportPickSimilar,

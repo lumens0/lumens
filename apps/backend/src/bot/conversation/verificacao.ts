@@ -23,13 +23,19 @@
  * (`vincularEmail`). E-mail de outro telefone: explica e pede outro e-mail. O aviso só vem depois
  * do código certo de propósito: avisado antes, qualquer um digitaria o e-mail de um colega para
  * saber se ele usa o Lumens. Assim, só quem abre a caixa daquele e-mail descobre.
+ *
+ * SCRUM-138: pergunta o curso numa mensagem de lista (só cursos de `CURSOS`: o curso de quem cuida
+ * da pauta aparece no site), marca o estudante como verificado e retoma o pedido pendente: a pauta
+ * nova (2.6) continua no título, com o relato da 2.5 se houver. Quem já é verificado e escolhe
+ * "3" no menu não refaz a verificação.
  */
-import type { Db } from '@lumens/db';
+import { CURSOS, type Db } from '@lumens/db';
 import {
   CODIGO_EXPIRA_MS,
   DIGITOS_DO_CODIGO,
   MAX_TENTATIVAS,
   apagarCodigo,
+  concluirVerificacao,
   conferirCodigo,
   emailInstitucional,
   esperaParaReenviar,
@@ -40,7 +46,10 @@ import {
 } from '@lumens/dominio';
 import { z } from 'zod';
 import type { ServicoDeEmail } from '../../email/codigo';
-import type { Segredo, StepHandler, StepResult } from './handlers';
+import { estudanteVerificado } from './estudante';
+import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
+import { entrarNaPautaNova } from './nova-pauta';
+import { lista, type MensagemDeLista } from './resposta';
 import { normalize } from './texto';
 
 export const EMAIL_QUESTION_TEXT =
@@ -60,8 +69,45 @@ export const RESEND_HINT_TEXT = 'Para receber outro código, responda *reenviar*
 export const CODE_HELP_TEXT = `Digite o código de ${String(DIGITOS_DO_CODIGO)} dígitos que chegou no seu e-mail. ${RESEND_HINT_TEXT}`;
 export const CODE_LENGTH_TEXT = `O código tem ${String(DIGITOS_DO_CODIGO)} dígitos. Confira no e-mail e digite de novo.`;
 export const CODE_OK_TEXT = 'Código certo ✅';
-// TODO(2.4): trocar pela pergunta do curso (próxima subtask).
-export const COURSE_PENDING_TEXT = '[VERIFY_ASK_COURSE — curso em construção, história 2.4]';
+export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
+export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
+export const VERIFIED_TEXT =
+  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
+export const ALREADY_VERIFIED_TEXT =
+  'Você já é estudante verificado ✅ Não precisa verificar de novo.';
+export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+
+const CURSO_ROW_PREFIX = 'curso:';
+/** Cabem 10 linhas na lista do WhatsApp; com mais cursos, 9 e um aviso para digitar o nome. */
+const LINHAS_DE_CURSO = 10;
+
+/**
+ * A lista de cursos. Com mais de 10, mostra 9 e pede para digitar o nome dos outros. Recebe a
+ * lista para o caso de mais de 10 poder ser testado: a `CURSOS` de hoje tem 8.
+ */
+export function listaDeCursos(cursos: readonly string[] = CURSOS): MensagemDeLista {
+  const cabem = cursos.length <= LINHAS_DE_CURSO ? cursos : cursos.slice(0, LINHAS_DE_CURSO - 1);
+  const corpo =
+    cabem.length < cursos.length
+      ? `${COURSE_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
+      : COURSE_QUESTION_TEXT;
+  return lista({
+    corpo,
+    botao: 'Escolher curso',
+    linhas: cabem.map((curso) => ({ id: `${CURSO_ROW_PREFIX}${curso}`, titulo: curso })),
+  });
+}
+
+/** O curso escolhido: a linha da lista ou o nome digitado (sem diferença de acento e maiúscula). */
+export function cursoEscolhido(resposta: string): string | undefined {
+  const bruta = resposta.trim();
+  if (bruta.startsWith(CURSO_ROW_PREFIX)) {
+    const curso = bruta.slice(CURSO_ROW_PREFIX.length);
+    return CURSOS.find((c) => c === curso);
+  }
+  const texto = normalize(bruta);
+  return CURSOS.find((c) => normalize(c) === texto);
+}
 export const CODE_EXPIRED_TEXT = `Esse código venceu: ele vale ${String(CODIGO_EXPIRA_MS / 60_000)} minutos. ${RESEND_HINT_TEXT}`;
 export const NO_ATTEMPTS_TEXT = `Você errou o código ${String(MAX_TENTATIVAS)} vezes, então ele não vale mais. ${RESEND_HINT_TEXT}`;
 export const NO_CODE_TEXT = `Não tenho um código ativo para você. ${RESEND_HINT_TEXT}`;
@@ -238,7 +284,7 @@ export const verifyAskCode: StepHandler = async ({
     return {
       next: 'VERIFY_ASK_COURSE',
       data: { emailCifrado: undefined },
-      replies: [CODE_OK_TEXT, COURSE_PENDING_TEXT],
+      replies: [CODE_OK_TEXT, listaDeCursos()],
     };
   }
   switch (resultado.motivo) {
@@ -251,4 +297,43 @@ export const verifyAskCode: StepHandler = async ({
     case 'sem_codigo':
       return { next: 'VERIFY_ASK_CODE', replies: [NO_CODE_TEXT] };
   }
+};
+
+/** "3 Verificar e-mail" no menu. Quem já é verificado não refaz a verificação. */
+export async function entrarNaVerificacao({
+  db,
+  phoneHmac,
+}: Pick<StepContext, 'db' | 'phoneHmac'>): Promise<StepResult> {
+  if ((await estudanteVerificado(db, phoneHmac)) !== undefined) {
+    return { next: 'MENU', replies: [ALREADY_VERIFIED_TEXT] };
+  }
+  return { next: 'VERIFY_ASK_EMAIL', replies: [EMAIL_QUESTION_TEXT] };
+}
+
+const pendenteSchema = z.object({
+  pendingCommand: z.object({ kind: z.string() }).optional(),
+});
+
+export const verifyAskCourse: StepHandler = async (ctx) => {
+  const { input, db, phoneHmac, state } = ctx;
+  const curso = cursoEscolhido(input.text);
+  if (curso === undefined) {
+    return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
+  }
+
+  const resultado = await concluirVerificacao(db, { telefoneHmac: phoneHmac, curso });
+  if (!resultado.verificado) {
+    // `curso_invalido` não acontece: o curso veio da lista. Sem vínculo, o e-mail se perdeu.
+    return { next: 'VERIFY_ASK_EMAIL', replies: [LINK_LOST_TEXT] };
+  }
+
+  // Retoma o que a pessoa pediu antes de ser mandada para a verificação.
+  const lidos = pendenteSchema.safeParse(state.data);
+  const pendente = lidos.success ? lidos.data.pendingCommand?.kind : undefined;
+  if (pendente === 'nova-pauta') {
+    const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
+    return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
+  }
+  // TODO(2.7): retomar o 'apoiar' quando o apoio pelo bot existir. Até lá, o pedido fica guardado.
+  return { next: 'MENU', replies: [VERIFIED_TEXT] };
 };
