@@ -39,11 +39,15 @@ const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Maceio' });
 const data = (instante: string | null | undefined) =>
   instante ? dia.format(new Date(instante)) : null;
 
-export function gerarCsv(pautas: readonly Pauta[]): string {
+/**
+ * `origem` é a do site (`origemDoSite`): o endereço sai absoluto, porque o arquivo é usado longe do
+ * site e um `/p/<slug>` sozinho não diz de onde é.
+ */
+export function gerarCsv(pautas: readonly Pauta[], origem: URL): string {
   const linhas = pautas.map((p) =>
     [
       p.titulo,
-      `/p/${p.slug}`,
+      new URL(`/p/${p.slug}`, origem).href,
       p.categoria,
       p.bloco_nome ?? 'Todo o campus',
       STATUS[p.status].rotulo,
