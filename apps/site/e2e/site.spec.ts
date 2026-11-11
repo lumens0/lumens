@@ -72,13 +72,14 @@ const CONQUISTA = {
   slug: 'laboratorios-abertos-nas-engenharias',
   titulo: 'Laboratórios de informática abertos no contraturno',
 };
-// O seed tem 26 eventos públicos: 20 na primeira página e 6 na segunda. O mais novo é a abertura
-// da conferência da pauta da Saúde.
+// O seed tem 25 eventos públicos (o mesmo que `apps/backend/src/api/api.test.ts` confere): 20 na
+// primeira página e 5 na segunda. O mais novo é a entrega em parte da pauta da acessibilidade.
+// Banco local onde o agendador já rodou tem eventos a mais: rode sobre um seed novo.
 const ATIVIDADE = {
   primeira: 20,
-  segunda: 6,
-  maisNova: { rotulo: 'Conferência aberta', slug: 'sala-de-descanso-na-saude' },
-  tituloMaisNova: 'Sala de descanso para estudantes da Saúde',
+  segunda: 5,
+  maisNova: { rotulo: 'Status alterado', slug: 'acessibilidade-no-bloco-18' },
+  tituloMaisNova: 'Acessibilidade nas entradas do Bloco 18',
 };
 
 test('o card da pauta é um PNG de 1080 × 1920', async ({ request }) => {
@@ -105,6 +106,7 @@ test('atividade lista do mais novo ao mais antigo, pagina e leva até a pauta', 
   const itens = page.getByRole('main').getByRole('listitem');
   await expect(itens).toHaveCount(ATIVIDADE.primeira);
   await expect(itens.first()).toContainText(ATIVIDADE.maisNova.rotulo);
+  await expect(itens.first()).toContainText(ATIVIDADE.tituloMaisNova);
   await expect(page.locator('a[rel="prev"]')).toHaveCount(0);
 
   const paginas = page.getByRole('navigation', { name: 'Páginas da atividade' });
