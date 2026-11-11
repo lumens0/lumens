@@ -1,19 +1,34 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Dados do seed da Parte 1 (packages/db/seed/data.ts): fixos, não mudam entre execuções.
 const PAUTA = { slug: 'bebedouros-no-bloco-18', titulo: 'Bebedouros funcionando no Bloco 18' };
 const EM_CURADORIA = 'mais-arvores-no-campus';
 const BLOCO = { slug: 'bloco-18', nome: 'Bloco 18 (fictício)' };
+// Totais do seed: o campus inteiro e só o Bloco 18 (as pautas em curadoria e recusadas ficam de fora).
+const TOTAIS_DO_CAMPUS = { abertas: '4', apoios: '978', conquistas: '1', cards: 7 };
+const TOTAIS_DO_BLOCO = { abertas: '1', apoios: '196', conquistas: '0', cards: 2 };
 // Número fictício do build do CI (NEXT_PUBLIC_WHATSAPP_BOT).
 const NUMERO_DO_BOT = '5500000000000';
 
+/** Confere os três números da faixa de totais e quantos cards a lista mostra. */
+async function conferirTotais(
+  page: Page,
+  regiao: string,
+  esperado: { abertas: string; apoios: string; conquistas: string; cards: number },
+) {
+  const totais = page.getByRole('region', { name: regiao });
+  await expect(totais.locator('dt')).toHaveText(['Pautas abertas', 'Apoios', 'Conquistas']);
+  await expect(totais.locator('dd')).toHaveText([
+    esperado.abertas,
+    esperado.apoios,
+    esperado.conquistas,
+  ]);
+  await expect(page.getByRole('article')).toHaveCount(esperado.cards);
+}
+
 test('a lista carrega com os totais', async ({ page }) => {
   await page.goto('/');
-  const totais = page.getByRole('region', { name: 'Todo o campus' });
-  for (const rotulo of ['Pautas abertas', 'Apoios', 'Conquistas']) {
-    await expect(totais.getByText(rotulo, { exact: true })).toBeVisible();
-  }
-  await expect(totais.locator('dd').first()).toHaveText(/^\d[\d.]*$/);
+  await conferirTotais(page, 'Todo o campus', TOTAIS_DO_CAMPUS);
   await expect(page.getByRole('link', { name: PAUTA.titulo, exact: true })).toBeVisible();
   // Pauta em curadoria nunca aparece na lista.
   await expect(page.locator(`a[href="/p/${EM_CURADORIA}"]`)).toHaveCount(0);
@@ -21,15 +36,13 @@ test('a lista carrega com os totais', async ({ page }) => {
 
 test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
   await page.goto('/');
-  const antes = await page.getByRole('article').count();
   await page.getByRole('combobox', { name: 'Bloco' }).selectOption(BLOCO.slug);
   await expect(page).toHaveURL(`/?bloco=${BLOCO.slug}`);
-  await expect(page.getByRole('region', { name: BLOCO.nome })).toBeVisible();
-  const cards = page.getByRole('article');
-  const depois = await cards.count();
-  expect(depois).toBeGreaterThan(0);
-  expect(depois).toBeLessThan(antes);
-  for (const card of await cards.all()) await expect(card).toContainText(BLOCO.nome);
+  // Os totais acompanham o filtro: a faixa não pode continuar com os números do campus.
+  await conferirTotais(page, BLOCO.nome, TOTAIS_DO_BLOCO);
+  for (const card of await page.getByRole('article').all()) {
+    await expect(card).toContainText(BLOCO.nome);
+  }
 });
 
 test('abrir uma pauta pela lista', async ({ page }) => {
