@@ -1,23 +1,52 @@
-/* Tokens do protótipo (Lumens Pautas). */
+/*
+ * Direção: o campus ao anoitecer, com as luzes acendendo onde tem pauta (Lumens = luz).
+ * O topo de cada página é noite (azul profundo) e o conteúdo é papel claro. A luz é âmbar; as cores
+ * de status são vivas e aparecem nas janelas, nas barras e nos prédios do mapa.
+ */
 :root {
-  --fundo: #f7f4fb;
-  --superficie: #fff;
-  --tinta: #1e1433;
-  --tinta-2: #5b4e75;
-  --borda: #d9d0ea;
-  --primaria: #7b3fe4;
-  --primaria-forte: #5a22c8;
-  --trilho: #ede7f7;
-  --lilas: #f3effa;
-  --whatsapp: #008069;
-  --whatsapp-forte: #006b58;
+  --fundo: #faf7f0;
+  --superficie: #ffffff;
+  --superficie-2: #f1ece1;
+  --tinta: #161a2e;
+  --tinta-2: #44485e;
+  --tinta-3: #5f6378;
+  --borda: rgb(22 26 46 / 10%);
+  --borda-forte: rgb(22 26 46 / 20%);
+
+  --noite: #141936;
+  --noite-2: #1d2450;
+
+  /* A luz: o âmbar do botão principal e do destaque, e a versão escura para texto e links. */
+  --luz: #ffc23d;
+  --luz-forte: #ffa41b;
+  --luz-tinta: #8f4c00;
+  --luz-fundo: #fff1cc;
+
+  /* Compatibilidade com nomes antigos ainda usados por alguns componentes. */
+  --primaria: var(--tinta);
+  --primaria-forte: var(--luz-tinta);
+  --trilho: var(--superficie-2);
+  --lilas: var(--superficie-2);
 
   --raio: 16px;
+  --raio-controle: 12px;
   --espaco: 16px;
+
+  --curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --rapido: 160ms;
+  --entrada: 560ms;
+
+  /* Sem a variável da fonte de rótulo: datas e números usam a do texto, com algarismos tabulares. */
+  --fonte-rotulo: var(--fonte-corpo);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -25,19 +54,74 @@ body {
   background: var(--fundo);
   color: var(--tinta);
   font-family: var(--fonte-corpo), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--primaria-forte);
+  color: var(--luz-tinta);
+  text-underline-offset: 3px;
 }
 
 :focus-visible {
-  outline: 3px solid var(--primaria);
-  outline-offset: 2px;
+  outline: 2px solid var(--luz-forte);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--luz-fundo);
+}
+
+/*
+ * Faixa de noite: ocupa a largura toda da tela sem mudar o layout (a sombra e o recorte estendem o
+ * fundo) e troca as cores de quem está dentro dela.
+ */
+.noite {
+  --fundo: var(--noite);
+  --superficie: #20285a;
+  --superficie-2: #262f66;
+  --tinta: #f5f3ff;
+  --tinta-2: #c9cbe3;
+  --tinta-3: #a3a7c7;
+  --borda: rgb(255 255 255 / 12%);
+  --borda-forte: rgb(255 255 255 / 24%);
+  --luz-tinta: var(--luz);
+  --luz-fundo: rgb(255 194 61 / 14%);
+
+  position: relative;
+  color: var(--tinta);
+  background: var(--noite);
+  box-shadow: 0 0 0 100vmax var(--noite);
+  clip-path: inset(0 -100vmax);
+}
+
+/* Entrada: o conteúdo sobe um pouco e aparece. */
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Revelar ao rolar: só onde o navegador liga a animação à rolagem. */
+@supports (animation-timeline: view()) {
+  .revelar {
+    animation: surgir linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 45%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
   }

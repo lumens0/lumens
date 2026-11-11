@@ -6,7 +6,6 @@ import { marcadoresDoMapa } from '../../componentes/mapa/urgencia';
 import { buscarBlocos, buscarPautas } from '../../dados/api';
 import { pautasPublicas } from '../../dados/pautas-publicas';
 import { metadadosDaMarca } from '../../metadados';
-import pagina from '../page.module.css';
 
 export const metadata: Metadata = metadadosDaMarca({
   caminho: '/mapa',
@@ -21,13 +20,7 @@ export default async function Mapa() {
   const marcadores = marcadoresDoMapa(blocos, pautasPublicas(pautas));
 
   return (
-    <main className={estilos.pagina}>
-      <p className={estilos.eyebrow}>Extra · outra forma de ver as pautas</p>
-      <h1 className={pagina.titulo}>Mapa do campus</h1>
-      <p className={estilos.lead}>
-        Cada bloco mostra a cor da pauta mais urgente. Toque num prédio para ver as pautas dele.
-      </p>
-
+    <main className={estilos.paginaMapa}>
       <MapaDoCampus marcadores={marcadores} />
     </main>
   );

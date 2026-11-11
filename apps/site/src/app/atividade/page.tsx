@@ -45,12 +45,14 @@ export default async function PaginaAtividade({
   const { itens, proximo } = await buscarAtividade(pagina);
   return (
     <main className={estilos.pagina}>
-      <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
-      <h1 className={estilos.titulo}>Acontecendo no campus</h1>
-      <p className={estilos.subtitulo}>
-        Cada linha vem de uma ação no WhatsApp ou de uma resposta oficial. A mais recente fica em
-        cima.
-      </p>
+      <div className={[estilos.faixa, 'noite'].join(' ')}>
+        <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
+        <h1 className={estilos.titulo}>Acontecendo no campus</h1>
+        <p className={estilos.subtitulo}>
+          Cada linha vem de uma ação no WhatsApp ou de uma resposta oficial. A mais recente fica em
+          cima.
+        </p>
+      </div>
       {itens.length === 0 ? (
         <div role="status" className={componentes.estado}>
           <p className={componentes.estadoTitulo}>
@@ -65,7 +67,7 @@ export default async function PaginaAtividade({
           )}
         </div>
       ) : (
-        <ol className={estilos.lista}>
+        <ol className={estilos.registro}>
           {itens.map((item, i) => (
             <li key={`${String(pagina)}-${String(i)}`} className={estilos.evento}>
               <span

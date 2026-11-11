@@ -9,21 +9,13 @@ O `next/font/google` baixa as fontes durante o build, e uma falha de rede no
 runner quebra o `check` — que é pré-requisito do `deploy`. O
 `eslint.config.js` barra esse import em todo o repositório.
 
-## Cópia deliberada
+## Origem
 
-Este arquivo é **byte a byte o mesmo** de `apps/site/src/fontes/`, e a
-duplicação é intencional. O `next/font/local` resolve o `src` como caminho
-relativo ao arquivo que importa; consumir de um pacote do workspace exigiria
-atravessar o symlink do pnpm, frágil demais para economizar 48 KB em um
-arquivo só.
+Baixado do Google Fonts, bloco `/* latin */` do CSS da família:
+`fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2` (pesos 100–900).
 
-Se um dia uma terceira superfície precisar da Inter, aí vale extrair um pacote
-compartilhado — com dois consumidores seria abstração prematura.
-
-**Ao atualizar a Inter, atualize as duas cópias.** A procedência e as
-instruções de atualização estão em
-[`apps/site/src/fontes/README.md`](../../../site/src/fontes/README.md), que é
-a fonte de verdade; não duplique as URLs aqui.
+O site usava a mesma Inter e havia um teste que comparava as duas cópias. Desde que o site passou
+a usar outras famílias, a do painel é a única.
 
 ## Licença
 
