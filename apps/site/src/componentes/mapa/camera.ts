@@ -40,6 +40,15 @@ export function girar(v: Visao, giro: number, delta: number, px: number, py: num
   return { ...v, x: v.x + ax - bx, y: v.y + ay - by };
 }
 
+/**
+ * A visão com o conteúdo empurrado para a esquerda da tela em `fracao` da largura dela (negativo,
+ * para a direita). O desvio é medido na tela: com o mapa girado, vira outro eixo do desenho.
+ */
+export function desviar(v: Visao, fracao: number, giro = 0): Visao {
+  const [dx, dy] = desgirar(fracao * v.w, 0, giro);
+  return { ...v, x: v.x + dx, y: v.y + dy };
+}
+
 /** A tela não tem a proporção do alvo: a visão cresce para cobrir a tela sem cortar o alvo. */
 export function cobrir(v: Visao, aspecto: number): Visao {
   const h = v.w / aspecto;
@@ -330,6 +339,13 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
   return {
     ligar,
     irPara,
+    /**
+     * Leva a câmera até `alvo`, mantendo o giro, com o alvo `fracao` da largura à esquerda do
+     * centro da tela: é o que tira o prédio de trás do painel.
+     */
+    focar: (alvo: Visao, fracao = 0) => {
+      irPara(desviar(alvo, fracao, giro));
+    },
     /** Aproxima (`fator` < 1) ou afasta, com animação, em torno do centro da tela. */
     zoom: (fator: number) => {
       irPara(aproximar(vista, fator, 0.5, 0.5, giro));

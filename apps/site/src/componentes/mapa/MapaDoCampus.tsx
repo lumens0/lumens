@@ -91,10 +91,10 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     [porPredio],
   );
 
-  // No computador o painel ocupa a direita: o prédio aberto fica um pouco à esquerda do centro.
-  const focar = (p: Predio): Visao => {
-    const v = visaoDoPredio(p);
-    return matchMedia('(min-width: 721px)').matches ? { ...v, x: v.x + v.w * 0.18 } : v;
+  // No computador o painel ocupa a direita: o prédio aberto fica um pouco à esquerda do centro
+  // da tela, com o mapa girado ou não.
+  const focar = (p: Predio) => {
+    camera.focar(visaoDoPredio(p), matchMedia('(min-width: 721px)').matches ? 0.18 : 0);
   };
 
   // O teclado chama direto; o clique passa por `clicarPredio`, que ignora o clique do fim do arraste.
@@ -104,7 +104,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       return;
     }
     setSel({ predio: p, bloco: porPredio.get(p.id) });
-    camera.irPara(focar(p));
+    focar(p);
   };
   const clicarPredio = (p: Predio) => {
     if (!camera.arrastou()) abrirPredio(p);
@@ -112,7 +112,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const abrirBloco = (m: MarcadorDoBloco) => {
     const p = m.predio ? PREDIOS.find((x) => x.id === m.predio) : undefined;
     setSel({ predio: p, bloco: m });
-    if (p) camera.irPara(focar(p));
+    if (p) focar(p);
     svg.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
   const fechar = () => {
