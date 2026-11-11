@@ -26,6 +26,7 @@ const pauta: Pauta = {
 describe('botões do WhatsApp', () => {
   beforeEach(() => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
+    vi.stubEnv('NEXT_PUBLIC_FLAG_APOIAR', '1');
   });
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -63,8 +64,8 @@ describe('botões do WhatsApp', () => {
     },
   );
 
-  it('sem o número do bot, "Apoiar" some em todo status', () => {
-    vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '');
+  it('flag de apoio desligada esconde "Apoiar" em todo status', () => {
+    vi.stubEnv('NEXT_PUBLIC_FLAG_APOIAR', '');
     for (const status of STATUS_PAUTA) {
       expect(renderToStaticMarkup(<CardPauta pauta={{ ...pauta, status }} />)).not.toContain(
         'apoiar%20',
