@@ -14,7 +14,7 @@ test('a lista carrega com os totais', async ({ page }) => {
     await expect(totais.getByText(rotulo, { exact: true })).toBeVisible();
   }
   await expect(totais.locator('dd').first()).toHaveText(/^\d[\d.]*$/);
-  await expect(page.getByRole('link', { name: PAUTA.titulo })).toBeVisible();
+  await expect(page.getByRole('link', { name: PAUTA.titulo, exact: true })).toBeVisible();
   // Pauta em curadoria nunca aparece na lista.
   await expect(page.locator(`a[href="/p/${EM_CURADORIA}"]`)).toHaveCount(0);
 });
@@ -22,7 +22,7 @@ test('a lista carrega com os totais', async ({ page }) => {
 test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
   await page.goto('/');
   const antes = await page.getByRole('article').count();
-  await page.getByLabel('Bloco').selectOption(BLOCO.slug);
+  await page.getByRole('combobox', { name: 'Bloco' }).selectOption(BLOCO.slug);
   await expect(page).toHaveURL(`/?bloco=${BLOCO.slug}`);
   await expect(page.getByRole('region', { name: BLOCO.nome })).toBeVisible();
   const cards = page.getByRole('article');
@@ -34,7 +34,7 @@ test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
 
 test('abrir uma pauta pela lista', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: PAUTA.titulo }).click();
+  await page.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
   await expect(page).toHaveURL(`/p/${PAUTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: PAUTA.titulo })).toBeVisible();
 });
