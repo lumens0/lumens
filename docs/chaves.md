@@ -81,14 +81,16 @@ base64 de 32 bytes ou que sejam iguais.
 atrás e nada muda. Rodar de novo com as mesmas chaves depois de um sucesso falha pelo mesmo
 motivo (os dados já estão na chave nova) e não altera nada.
 
-Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`):
+Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`). Todo `docker compose` daqui
+leva `-f docker-compose.prod.yml --env-file .env.producao`, como o `scripts/deploy-homologacao.sh`:
+sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualquer coisa.
 
 1. **Pare o bot e confira que a fila está vazia.** Parar o back-end não esvazia a fila: os jobs do
    pg-boss continuam no banco, cifrados com a chave antiga, e depois da troca não decifram mais.
    Escolha um horário sem movimento e pare o back-end
-   (`docker compose -f docker-compose.prod.yml stop backend`). Com ele parado, a Meta não consegue
+   (`docker compose -f docker-compose.prod.yml --env-file .env.producao stop backend`). Com ele parado, a Meta não consegue
    entregar o webhook e reenvia as mensagens novas depois, então nada se perde. Abra o banco
-   (`docker compose -f docker-compose.prod.yml exec postgres psql -U <usuário> -d <banco>`) e
+   (`docker compose -f docker-compose.prod.yml --env-file .env.producao exec postgres psql -U <usuário> -d <banco>`) e
    rode:
 
    ```sql
@@ -105,7 +107,7 @@ Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`):
 3. **Gere a chave nova** com `openssl rand -base64 32`, diferente da `CHAVE_HMAC` e da
    `AUTH_SECRET`.
 4. **Rode o script** com a antiga e a nova. Seguindo o padrão do script de curador
-   (`docker compose ... run --rm -T backend pnpm --filter @lumens/backend ...`), passe as duas
+   (`docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend ...`), passe as duas
    com `-e CHAVE_CIFRA_ANTIGA=... -e CHAVE_CIFRA_NOVA=...`. Localmente:
 
    ```bash
@@ -116,7 +118,10 @@ Passo a passo (no ambiente de homologação, a partir de `/opt/lumens`):
 
 5. **Troque `CHAVE_CIFRA`** no `.env.producao` pelo valor novo **só depois** do passo 4 dar certo
    (e, em qualquer outro ambiente que aponte para o mesmo banco, no mesmo momento).
-6. **Suba o back-end** e confira `curl -s https://<DOMINIO>/saude`.
+6. **Recrie o back-end** com
+   `docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate backend`
+   e confira `curl -s https://<DOMINIO>/saude`. `start` ou `restart` não servem: o contêiner
+   continua com o `env_file` de quando foi criado, ou seja, com a chave antiga.
 7. Se o passo 4 falhou, nada mudou: a chave do `.env.producao` continua valendo; corrija a causa
    e repita. Se o passo 4 deu certo e o back-end subiu com a chave antiga, ele não decifra
    telefone nem e-mail; corrija a variável para a **nova**. Só o backup do passo 2 devolve o banco
@@ -145,8 +150,10 @@ curador pelo valor novo.
 
 1. **Trate como vazada a chave inteira**, mesmo sem prova de uso. Vazou em log, commit, print ou
    chat? Remova de onde estiver, mas considere que já foi copiada.
-2. **`AUTH_SECRET`:** gere outra, troque no `.env.producao` (e na Vercel, se existir) e reinicie o
-   painel. Barato, resolve na hora.
+2. **`AUTH_SECRET`:** gere outra, troque no `.env.producao` (e na Vercel, se existir) e recrie o
+   painel: `docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate painel`.
+   `restart` não basta, o contêiner continuaria com o segredo vazado e as sessões antigas valendo.
+   Barato, resolve na hora.
 3. **`CHAVE_CIFRA`:** quem tem a chave **e** acesso ao banco lê telefones e e-mails. Faça a
    rotação acima com uma chave nova. Se o banco também vazou, a rotação não desfaz o vazamento
    dos dados antigos; avise a equipe e avalie a obrigação de comunicar os titulares.
