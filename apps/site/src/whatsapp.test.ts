@@ -36,7 +36,7 @@ describe('linkWhatsApp', () => {
 
   it('monta os comandos do bot', () => {
     expect(comandoApoiar('bebedouros-no-bloco-18')).toBe('apoiar bebedouros-no-bloco-18');
-    expect(comandoAjudar('c1')).toBe('ajudar c1');
+    expect(comandoAjudar('faixa-do-bloco-18')).toBe('ajudar faixa-do-bloco-18');
     expect(COMANDO_NOVA_PAUTA).toBe('nova pauta');
   });
 });

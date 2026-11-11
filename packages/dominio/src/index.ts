@@ -119,8 +119,19 @@ export type { ResultadoProcessamento } from './processar-uma-vez';
 export { STATUS_COM_CAMINHOS, abrirCaminho, caminhosDaPauta, pautasDoOwner } from './caminhos';
 export type { CaminhoDaPauta, NovoCaminho, PautaDoOwner, ResultadoCaminho } from './caminhos';
 
-export { registrarExecucaoProposta } from './proposta';
-export type { ResultadoExecucao } from './proposta';
+export {
+  propostasAbertas,
+  publicarProposta,
+  registrarExecucaoProposta,
+  registrarVoluntario,
+} from './proposta';
+export type {
+  NovaProposta,
+  PropostaAberta,
+  ResultadoExecucao,
+  ResultadoPublicacao,
+  ResultadoVoluntario,
+} from './proposta';
 
 export {
   DIAS_DE_CONFERENCIA,

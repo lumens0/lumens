@@ -20,6 +20,8 @@ argumento, validam a regra, gravam e registram o evento — na mesma transação
 | `abrirCaminho`                 | Abre um caminho em pauta aprovada e não conquistada; registra `caminho_aberto`             |
 | `registrarProtocolo`           | Guarda o protocolo do Fala.BR; reenviar o mesmo número não é erro, outro número é recusado |
 | `registrarPromessa`            | Registra a promessa e leva a pauta a `prometido`, encerrando a promessa ativa anterior     |
+| `publicarProposta`             | Owner publica a proposta da comunidade; registra `proposta_publicada`                      |
+| `registrarVoluntario`          | "Vou ajudar": entra na lista da proposta aberta, uma vez só; não vira evento               |
 | `registrarExecucaoProposta`    | Proposta da comunidade executada (RN09): conquista parcial, mas a pauta continua cobrada   |
 | `registrarRespostaConferencia` | Resposta de um apoiador; só de quem apoiou, e responder de novo troca o voto               |
 | `enfileirarDisparos`           | Põe avisos na fila; o mesmo aviso para a mesma pessoa entra uma vez só                     |

@@ -1,4 +1,14 @@
-import { caminhos, eq, estudantes, papeisPauta, pautas, type Db } from '@lumens/db';
+import {
+  caminhos,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  propostas,
+  voluntarios,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
@@ -17,6 +27,18 @@ import {
   alreadyOpenText,
 } from './minhas-pautas';
 import { hashPhone } from './phone';
+import {
+  ALREADY_VOLUNTEER_TEXT,
+  DONE_TEXT,
+  NEED_VERIFY_TEXT,
+  NO_PROPOSAL_TEXT,
+  PEOPLE_ASK_TEXT,
+  PEOPLE_INVALID_TEXT,
+  PROPOSAL_ASK_TEXT,
+  PROPOSAL_CLOSED_TEXT,
+  PUBLISHED_TEXT,
+  volunteerText,
+} from './proposta';
 import {
   LIMITES_DOS_BOTOES,
   botoes,
@@ -199,17 +221,16 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
     expect(pauta?.status).toBe('juntando_apoios');
   });
 
-  it('abre os dois, em qualquer ordem; com os dois abertos, volta ao menu', async () => {
+  it('abre os dois, em qualquer ordem; com a comunidade aberta, oferece propor solução', async () => {
     const primeiro = await send('comunidade');
     expect(primeiro[0]).toBe(OPENED_TEXT.comunidade);
-    expect(idsDosBotoes(primeiro)).toEqual(['caminho:falabr', 'menu']);
+    expect(idsDosBotoes(primeiro)).toEqual(['caminho:falabr', 'proposta:nova', 'menu']);
 
     const segundo = await send('Abrir Fala.BR');
     expect(segundo[0]).toBe(OPENED_TEXT.falabr);
-    expect(segundo[1]).toContain(ALL_OPEN_TEXT);
-    expect(segundo.at(-1)).toBe(MENU_TEXT);
-    expect(await passo()).toBe('MENU');
-    expect(await dados()).not.toHaveProperty('pautaId');
+    expect(botoesEm(segundo).corpo).toContain(ALL_OPEN_TEXT);
+    expect(idsDosBotoes(segundo)).toEqual(['proposta:nova', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
 
     expect(
       (await caminhosDe(pautaId)).map((c) => c.tipo).sort((a, b) => a.localeCompare(b)),
@@ -280,7 +301,7 @@ describe('estado dos caminhos', () => {
     expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
   });
 
-  it('com os dois já abertos, mostra o estado e fica no menu', async () => {
+  it('com os dois já abertos e uma proposta feita, mostra o estado e oferece outra', async () => {
     const eu = await verificar();
     const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca');
     await db.insert(caminhos).values([
@@ -288,11 +309,133 @@ describe('estado dos caminhos', () => {
       { pautaId, tipo: 'comunidade', status: 'aberto' },
     ]);
 
-    const [estado, ...resto] = await send('4');
-    expect(estado).toContain('• Comunidade: aberto em');
-    expect(estado).toContain(ALL_OPEN_TEXT);
-    expect(resto).toEqual([]);
-    expect(await passo()).toBe('MENU');
+    await db
+      .insert(propostas)
+      .values({ pautaId, descricao: 'Mutirão', pessoasNecessarias: 3, status: 'executada' });
+
+    const r = await send('4');
+    expect(botoesEm(r).corpo).toContain('• Comunidade: aberto em');
+    expect(botoesEm(r).corpo).toContain(ALL_OPEN_TEXT);
+    // A proposta feita não aparece no estado: ela já está na linha do tempo como conquista.
+    expect(botoesEm(r).corpo).not.toContain('Mutirão');
+    expect(idsDosBotoes(r)).toEqual(['proposta:nova', 'menu']);
+  });
+});
+
+describe('proposta da comunidade (3.5)', () => {
+  let eu: string;
+  let pautaId: string;
+  const OUTRO = hashPhone('5582988880000', CHAVE);
+  const sendOutro = (text: string) =>
+    handleIncoming({ phoneHmac: OUTRO, text }, { store, db, segredo });
+  const propostasDe = () => db.select().from(propostas).where(eq(propostas.pautaId, pautaId));
+
+  async function publicar() {
+    await send('4');
+    await send('caminho:comunidade');
+    expect(await send('proposta:nova')).toEqual([PROPOSAL_ASK_TEXT]);
+    expect(await passo()).toBe('PROPOSAL_ASK_TEXT');
+    expect(await send('Mutirão para pintar as faixas')).toEqual([PEOPLE_ASK_TEXT]);
+    // O texto fica cifrado na conversa, como o resto do que a pessoa escreve.
+    expect(JSON.stringify(await dados())).not.toContain('Mutirão');
+    return send('2');
+  }
+
+  beforeEach(async () => {
+    eu = await verificar();
+    pautaId = await pautaDe(eu, 'Faixa de pedestre');
+  });
+
+  it('sem a comunidade aberta, não oferece proposta', async () => {
+    expect(idsDosBotoes(await send('4'))).not.toContain('proposta:nova');
+    expect((await send('proposta:nova'))[0]).toBe(PICK_PATH_AGAIN_TEXT);
+    expect(await propostasDe()).toHaveLength(0);
+  });
+
+  it('o owner publica: volta aos caminhos com a proposta e o botão de marcar feita', async () => {
+    const r = await publicar();
+
+    expect(r[0]).toBe(PUBLISHED_TEXT);
+    expect(botoesEm(r).corpo).toContain(
+      '• Proposta: Mutirão para pintar as faixas (0 de 2 voluntários)',
+    );
+    expect(idsDosBotoes(r)).toEqual(['caminho:falabr', 'proposta:feita', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
+    expect(await dados()).not.toHaveProperty('propostaCifrada');
+    expect(await propostasDe()).toMatchObject([
+      { descricao: 'Mutirão para pintar as faixas', pessoasNecessarias: 2, status: 'aberta' },
+    ]);
+  });
+
+  it('quantidade fora de 1 a 50 pergunta de novo', async () => {
+    await send('4');
+    await send('caminho:comunidade');
+    await send('proposta:nova');
+    await send('Mutirão');
+    expect(await send('muitas')).toEqual([PEOPLE_INVALID_TEXT]);
+    expect(await send('0')).toEqual([PEOPLE_INVALID_TEXT]);
+    expect(await send('51')).toEqual([PEOPLE_INVALID_TEXT]);
+    expect(await passo()).toBe('PROPOSAL_ASK_PEOPLE');
+  });
+
+  it('"Vou ajudar" pelo link do site: quem é verificado entra na lista uma vez só', async () => {
+    await publicar();
+    await db
+      .insert(estudantes)
+      .values({ telefoneHmac: OUTRO, telefoneCifrado: 'y', verificadoEm: new Date() });
+
+    const r = await sendOutro('ajudar pauta-' + String(contador));
+    expect(r).toContain(
+      volunteerText({
+        descricao: 'Mutirão para pintar as faixas',
+        pessoasNecessarias: 2,
+        voluntarios: 1,
+      }),
+    );
+    expect(r.at(-1)).toBe(MENU_TEXT);
+    expect(await sendOutro('ajudar pauta-' + String(contador))).toEqual([
+      ALREADY_VOLUNTEER_TEXT,
+      MENU_TEXT,
+    ]);
+    expect(await db.select().from(voluntarios)).toHaveLength(1);
+  });
+
+  it('sem verificação, verifica antes e não grava nada ainda', async () => {
+    await publicar();
+    const r = await sendOutro('ajudar pauta-' + String(contador));
+    expect(r).toContain(NEED_VERIFY_TEXT);
+    expect((await store.get(OUTRO))?.step).toBe('VERIFY_ASK_EMAIL');
+    expect((await store.get(OUTRO))?.data).toMatchObject({
+      pendingCommand: { kind: 'ajudar', id: 'pauta-' + String(contador) },
+    });
+    expect(await db.select().from(voluntarios)).toHaveLength(0);
+  });
+
+  it('pauta sem proposta aberta avisa', async () => {
+    expect(await send('ajudar ' + 'pauta-' + String(contador))).toEqual([
+      NO_PROPOSAL_TEXT,
+      MENU_TEXT,
+    ]);
+    expect(await send('ajudar nao-existe')).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+  });
+
+  it('marcar feita vira conquista parcial: a pauta continua sendo cobrada (RN09)', async () => {
+    await publicar();
+    const r = await send('proposta:feita');
+
+    expect(r[0]).toBe(DONE_TEXT);
+    expect(idsDosBotoes(r)).toEqual(['caminho:falabr', 'proposta:nova', 'menu']);
+    expect(await propostasDe()).toMatchObject([{ status: 'executada' }]);
+    const [pauta] = await db.select().from(pautas).where(eq(pautas.id, pautaId));
+    expect(pauta?.status).toBe('juntando_apoios');
+    const tipos = (
+      await db.select({ tipo: eventos.tipo }).from(eventos).where(eq(eventos.pautaId, pautaId))
+    ).map((e) => e.tipo);
+    expect(tipos).toEqual(['caminho_aberto', 'proposta_publicada', 'proposta_executada']);
+
+    // Depois de feita, ninguém mais entra na lista dela.
+    const [proposta] = await propostasDe();
+    expect(await send(`ajudar ${proposta?.id ?? ''}`)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_TEXT]);
   });
 });
 

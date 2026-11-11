@@ -1,4 +1,5 @@
 import type { Caminho } from '@lumens/contratos';
+import { BotaoVouAjudar } from '../BotaoWhatsApp';
 import estilos from './pauta.module.css';
 
 const TIPOS: Record<Caminho['tipo'], string> = {
@@ -38,8 +39,11 @@ function detalhes(caminho: Caminho): string[] {
   return linhas;
 }
 
-/** Caminhos escolhidos pelo owner, cada um com o status escrito (a cor nunca é o único sinal). */
-export function Caminhos({ caminhos }: { caminhos: readonly Caminho[] }) {
+/**
+ * Caminhos escolhidos pelo owner, cada um com o status escrito (a cor nunca é o único sinal). A
+ * proposta aberta tem o "Vou ajudar", que leva ao bot com o slug da pauta.
+ */
+export function Caminhos({ caminhos, slug }: { caminhos: readonly Caminho[]; slug: string }) {
   return (
     <section className={estilos.secao} aria-labelledby="caminhos-titulo">
       <h2 id="caminhos-titulo" className={estilos.secaoTitulo}>
@@ -62,6 +66,9 @@ export function Caminhos({ caminhos }: { caminhos: readonly Caminho[] }) {
                   {linha}
                 </span>
               ))}
+              {caminho.tipo === 'proposta' && caminho.status === 'aberta' && (
+                <BotaoVouAjudar slug={slug} titulo={caminho.descricao ?? ''} />
+              )}
             </li>
           ))}
         </ul>

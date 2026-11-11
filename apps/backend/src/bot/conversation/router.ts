@@ -8,8 +8,10 @@ import {
   type HandlerRegistry,
   type IncomingMessage,
   type Segredo,
+  type StepContext,
 } from './handlers';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
+import { parseAjudar, vouAjudar } from './proposta';
 import type { Resposta } from './resposta';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
@@ -103,7 +105,12 @@ async function responder(
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
     : { text: msg.text };
-  const result = await handlers[state.step]({
+  // 3.5: "ajudar <pauta>" vem do botão "Vou ajudar" do site e vale em qualquer passo, largando o
+  // fluxo atual (como os comandos globais).
+  const ajudar = msg.image ? null : parseAjudar(msg.text);
+  const handler =
+    ajudar === null ? handlers[state.step] : (ctx: StepContext) => vouAjudar(ctx, ajudar);
+  const result = await handler({
     ...ctxBase,
     state,
     input,
@@ -112,7 +119,7 @@ async function responder(
     ...(deps.hmac ? { hmac: deps.hmac } : {}),
     ...(msg.phoneCifrado === undefined ? {} : { phoneCifrado: msg.phoneCifrado }),
   });
-  assertTransition(state.step, result.next);
+  if (ajudar === null) assertTransition(state.step, result.next);
 
   // 5.7: quem saiu (ou não tinha cadastro) não deixa conversa guardada com o HMAC do telefone.
   if (result.apagarConversa) {
@@ -122,12 +129,14 @@ async function responder(
 
   // Aplica o patch: chave com valor undefined sai dos dados.
   const data = Object.fromEntries(
-    Object.entries({ ...state.data, ...result.data }).filter(([, v]) => v !== undefined),
+    Object.entries({ ...(ajudar === null ? state.data : {}), ...result.data }).filter(
+      ([, v]) => v !== undefined,
+    ),
   ) as ConversationData;
   await store.save(phoneHmac, result.next, data);
   // Fim de um fluxo: a pessoa volta ao menu e precisa ver as opções, ou a próxima mensagem dela
   // cai num "Não entendi".
-  const flowEnded = result.next === 'MENU' && state.step !== 'MENU';
+  const flowEnded = result.next === 'MENU' && (state.step !== 'MENU' || ajudar !== null);
   if (flowEnded && !result.replies.includes(MENU_TEXT)) return [...result.replies, MENU_TEXT];
   return result.replies;
 }
