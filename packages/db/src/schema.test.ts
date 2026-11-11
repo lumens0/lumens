@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 18 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 19 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -195,6 +195,7 @@ describe('migração inicial em Postgres real', () => {
       'conversa',
       'curador',
       'disparo',
+      'documento_resposta',
       'estudante',
       'evento',
       'mensagem_processada',
@@ -479,7 +480,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(19);
+    expect(rows).toHaveLength(23);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 
