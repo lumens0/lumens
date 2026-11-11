@@ -118,6 +118,22 @@ Para rodar um comando em um pacote só: `pnpm --filter @lumens/dominio test`.
 O CI executa tipos, lint, formatação, migração em base vazia e testes, incluindo integração
 com PostgreSQL.
 
+### Cotas de CI e deploy
+
+O plano gratuito da Vercel aceita 100 deploys por dia por conta, e os minutos do GitHub Actions
+aparecem no uso da organização. Para não gastar à toa:
+
+- **PR em rascunho não roda `check` nem `e2e`.** Eles rodam quando a PR é marcada como pronta.
+  Abra como rascunho enquanto ainda vai empurrar vários commits.
+- **Editar título ou descrição da PR não roda o CI.** Só o workflow `jira`, que confere a chave
+  `[SCRUM-n]` no título e leva segundos.
+- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` na `main`).
+  O `apps/site/vercel.json` desliga o deploy automático da `main` pela integração Git da Vercel,
+  que publicava duas vezes por merge, e antes dos testes. Os previews das PRs continuam.
+- **O painel não usa a Vercel**: roda na VM de homologação, publicado pelo `deploy-backend`.
+- Junte correções num push só quando puder: cada push numa PR com o site ou `packages/`
+  alterado gasta um deploy de preview.
+
 ## Banco local
 
 Pré-requisito: **Docker Desktop** aberto e rodando.

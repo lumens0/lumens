@@ -2,9 +2,13 @@ name: CI
 
 # PR cobre o que entra; push na main cobre o merge commit, que não é idêntico a
 # nenhum dos pais — dois PRs verdes que se cruzam podem quebrar a main.
+#
+# Sem `edited`: editar título ou descrição não muda código, e rodar tudo de novo gastava
+# minutos e cancelava o CI do último push. A chave do Jira no título é checada no
+# `jira.yml`. `ready_for_review` porque PR em rascunho não roda os jobs (ver `check`).
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   # Para redeployar a homologação depois de ligar a VM: a máquina fica desligada fora
@@ -28,6 +32,10 @@ jobs:
     # Renomear aqui sem atualizar lá trava o merge para sempre, esperando um
     # check que nunca mais vai rodar.
     name: check
+    # PR em rascunho não gasta minutos: o job fica "skipped" e roda de verdade quando a
+    # PR é marcada como pronta. Rascunho não pode ser mergeado, então o skip não libera
+    # nada; e o `ready_for_review` refaz o check no mesmo commit antes do merge.
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -49,24 +57,6 @@ jobs:
           --health-retries 12
 
     steps:
-      - name: Validar vínculo com o Jira
-        if: ${{ github.event_name == 'pull_request' }}
-        env:
-          BRANCH: ${{ github.head_ref }}
-          TITULO_PR: ${{ github.event.pull_request.title }}
-        shell: bash
-        run: |
-          if [[ ! "$BRANCH" =~ (^|/)SCRUM-([0-9]+)(-|$) ]]; then
-            echo "::error::A branch deve conter uma chave Jira válida, como feat/SCRUM-82-descricao."
-            exit 1
-          fi
-
-          chave="SCRUM-${BASH_REMATCH[2]}"
-          if [[ "$TITULO_PR" != *"[$chave]"* ]]; then
-            echo "::error::O título da PR deve conter [$chave], a mesma chave usada na branch."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       # Precisa vir ANTES do setup-node: o cache do pnpm não encontra o gerenciador
@@ -175,6 +165,7 @@ jobs:
   # Para ser obrigatório no merge, `e2e` precisa entrar no ruleset `protecao-main`.
   e2e:
     name: e2e
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
