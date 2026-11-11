@@ -332,6 +332,23 @@ describe('texto do Fala.BR (3.4)', () => {
     expect(r.indexOf(suspectText(['professora Marta']))).toBeLessThan(indiceDoTexto);
   });
 
+  it('todos os possíveis nomes entram no aviso, não só os primeiros', async () => {
+    await db
+      .update(pautas)
+      .set({
+        descricao:
+          'A professora Marta e o professor Pedro, a diretora Joana e o reitor Paulo confirmaram.',
+      })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    const aviso = r.find((m) => typeof m === 'string' && m.startsWith('Confira antes de colar'));
+    for (const nome of ['Marta', 'Pedro', 'Joana', 'Paulo']) {
+      expect(aviso).toEqual(expect.stringContaining(nome));
+    }
+  });
+
   it('sem Fala.BR aberto não há botão de texto', async () => {
     expect(idsDosBotoes(await send('talvez'))).not.toContain('texto:falabr');
     expect(await caminhosDe(pautaId)).toHaveLength(0);
