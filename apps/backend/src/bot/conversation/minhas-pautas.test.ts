@@ -4,9 +4,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto';
 import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
 import {
-  ALL_OPEN_TEXT,
   DATA_LOST_TEXT,
+  FALABR_TEXT_INTRO,
   INDEPENDENT_TEXT,
+  removedText,
+  suspectText,
+  NEXT_STEP_TEXT,
   LOST_OWNER_TEXT,
   NOT_OWNER_TEXT,
   OPENED_TEXT,
@@ -186,10 +189,16 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
   it('Fala.BR pelo botão: abre, não muda o status da pauta e a comunidade continua disponível', async () => {
     const r = await send('caminho:falabr');
     expect(r[0]).toBe(OPENED_TEXT.falabr);
-    expect(botoesEm(r).corpo).toMatch(
+    expect(listaEm(r).corpo).toMatch(
       /• Fala\.BR: aberto em \d{2}\/\d{2}\/\d{4}, ainda sem protocolo/,
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
+    // Quatro opções não cabem em botões (o limite é 3): viram lista.
+    expect(listaEm(r).linhas.map((l) => l.id)).toEqual([
+      'caminho:comunidade',
+      'texto:falabr',
+      'protocolo:falabr',
+      'menu',
+    ]);
     expect(await passo()).toBe('OWNER_PATHS');
 
     const abertos = await caminhosDe(pautaId);
@@ -199,17 +208,16 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
     expect(pauta?.status).toBe('juntando_apoios');
   });
 
-  it('abre os dois, em qualquer ordem; com os dois abertos, volta ao menu', async () => {
+  it('abre os dois, em qualquer ordem; com os dois abertos, sobra o texto do Fala.BR', async () => {
     const primeiro = await send('comunidade');
     expect(primeiro[0]).toBe(OPENED_TEXT.comunidade);
     expect(idsDosBotoes(primeiro)).toEqual(['caminho:falabr', 'menu']);
 
     const segundo = await send('Abrir Fala.BR');
     expect(segundo[0]).toBe(OPENED_TEXT.falabr);
-    expect(segundo[1]).toContain(ALL_OPEN_TEXT);
-    expect(segundo.at(-1)).toBe(MENU_TEXT);
-    expect(await passo()).toBe('MENU');
-    expect(await dados()).not.toHaveProperty('pautaId');
+    expect(botoesEm(segundo).corpo).toContain(NEXT_STEP_TEXT);
+    expect(idsDosBotoes(segundo)).toEqual(['texto:falabr', 'protocolo:falabr', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
 
     expect(
       (await caminhosDe(pautaId)).map((c) => c.tipo).sort((a, b) => a.localeCompare(b)),
@@ -260,6 +268,97 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
   });
 });
 
+describe('texto do Fala.BR (3.4)', () => {
+  let pautaId: string;
+
+  beforeEach(async () => {
+    const eu = await verificar();
+    pautaId = await pautaDe(eu, 'Bebedouro do bloco 18');
+    await send('4');
+  });
+
+  it('sai logo depois de abrir o Fala.BR: a explicação e, sozinho, o texto para copiar', async () => {
+    const [aberto, explicacao, texto, estado] = await send('caminho:falabr');
+
+    expect(aberto).toBe(OPENED_TEXT.falabr);
+    expect(explicacao).toBe(FALABR_TEXT_INTRO);
+    expect(texto).toEqual(expect.stringContaining('Assunto: Bebedouro do bloco 18'));
+    expect(texto).toEqual(expect.stringContaining('Descrição da pauta.'));
+    expect(typeof estado).not.toBe('string');
+  });
+
+  it('o botão manda o texto de novo e continua nos caminhos', async () => {
+    await send('caminho:falabr');
+
+    const [explicacao, texto] = await send('texto:falabr');
+
+    expect(explicacao).toBe(FALABR_TEXT_INTRO);
+    expect(texto).toEqual(expect.stringContaining('Assunto: Bebedouro do bloco 18'));
+    expect(await passo()).toBe('OWNER_PATHS');
+  });
+
+  it('também atende ao pedido digitado', async () => {
+    await send('caminho:falabr');
+
+    expect((await send('Texto do Fala.BR'))[0]).toBe(FALABR_TEXT_INTRO);
+  });
+
+  it('dado pessoal na descrição sai do texto antes de chegar ao owner (RN08)', async () => {
+    await db
+      .update(pautas)
+      .set({ descricao: 'Quem souber mais escreva para jgss@ic.ufal.br.' })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    expect(r).toContain(removedText(1));
+    const indiceDoTexto = r.findIndex((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    expect(r.indexOf(FALABR_TEXT_INTRO)).toBe(indiceDoTexto - 1);
+    expect(r.indexOf(removedText(1))).toBeLessThan(r.indexOf(FALABR_TEXT_INTRO));
+    const texto = r[indiceDoTexto];
+    expect(texto).toEqual(expect.stringContaining('escreva para [removido]'));
+    expect(texto).not.toEqual(expect.stringContaining('jgss@ic.ufal.br'));
+  });
+
+  it('possível nome de pessoa fica, com o aviso para conferir antes de colar', async () => {
+    await db
+      .update(pautas)
+      .set({ descricao: 'A professora Marta confirmou o problema.' })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    expect(r).toContain(suspectText(['professora Marta']));
+    // Aviso, depois "copie a próxima mensagem" e, logo em seguida, o texto: quem segue a
+    // instrução copia a manifestação, não o aviso.
+    const indiceDoTexto = r.findIndex((m) => typeof m === 'string' && m.startsWith('Assunto:'));
+    expect(r.indexOf(FALABR_TEXT_INTRO)).toBe(indiceDoTexto - 1);
+    expect(r.indexOf(suspectText(['professora Marta']))).toBeLessThan(r.indexOf(FALABR_TEXT_INTRO));
+  });
+
+  it('todos os possíveis nomes entram no aviso, não só os primeiros', async () => {
+    await db
+      .update(pautas)
+      .set({
+        descricao:
+          'A professora Marta e o professor Pedro, a diretora Joana e o reitor Paulo confirmaram.',
+      })
+      .where(eq(pautas.id, pautaId));
+
+    const r = await send('caminho:falabr');
+
+    const aviso = r.find((m) => typeof m === 'string' && m.startsWith('Confira antes de colar'));
+    for (const nome of ['Marta', 'Pedro', 'Joana', 'Paulo']) {
+      expect(aviso).toEqual(expect.stringContaining(nome));
+    }
+  });
+
+  it('sem Fala.BR aberto não há botão de texto', async () => {
+    expect(idsDosBotoes(await send('talvez'))).not.toContain('texto:falabr');
+    expect(await caminhosDe(pautaId)).toHaveLength(0);
+  });
+});
+
 describe('estado dos caminhos', () => {
   it('mostra protocolo e prazo do Fala.BR já registrado, e só oferece o que falta', async () => {
     const eu = await verificar();
@@ -277,22 +376,22 @@ describe('estado dos caminhos', () => {
     expect(botoesEm(r).corpo).toContain(
       '• Fala.BR: aberto em 01/11/2026, protocolo 00106.000123/2026-11, prazo 01/12/2026',
     );
-    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'menu']);
+    expect(idsDosBotoes(r)).toEqual(['caminho:comunidade', 'resposta:falabr', 'menu']);
   });
 
-  it('com os dois já abertos, mostra o estado e fica no menu', async () => {
+  it('com os dois abertos e o protocolo registrado, sobra enviar a resposta (3.6)', async () => {
     const eu = await verificar();
-    const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca');
+    const pautaId = await pautaDe(eu, 'Wi-Fi da biblioteca', { status: 'cobrando' });
     await db.insert(caminhos).values([
-      { pautaId, tipo: 'falabr', status: 'aberto' },
+      { pautaId, tipo: 'falabr', status: 'aberto', protocolo: 'OUV-1', prazo: '2026-12-01' },
       { pautaId, tipo: 'comunidade', status: 'aberto' },
     ]);
 
-    const [estado, ...resto] = await send('4');
-    expect(estado).toContain('• Comunidade: aberto em');
-    expect(estado).toContain(ALL_OPEN_TEXT);
-    expect(resto).toEqual([]);
-    expect(await passo()).toBe('MENU');
+    const r = await send('4');
+
+    expect(botoesEm(r).corpo).toContain('• Comunidade: aberto em');
+    expect(idsDosBotoes(r)).toEqual(['resposta:falabr', 'menu']);
+    expect(await passo()).toBe('OWNER_PATHS');
   });
 });
 

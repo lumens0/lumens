@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { type PautaParaTexto, gerarTextoFalaBr } from './texto-falabr';
+import {
+  MARCA_DE_REMOVIDO,
+  type PautaParaTexto,
+  gerarTextoFalaBr,
+  prepararParaProtocolar,
+} from './texto-falabr';
 
 const PAUTA: PautaParaTexto = {
   titulo: 'Ampliação do número de mesas do Restaurante Universitário',
@@ -180,5 +185,71 @@ describe('gerarTextoFalaBr (SCRUM-213)', () => {
     it('zero apoio não impede o texto', () => {
       expect(() => gerarTextoFalaBr(pauta({ apoios: 0 }))).not.toThrow();
     });
+  });
+});
+
+describe('prepararParaProtocolar (RN08, SCRUM-214)', () => {
+  it('texto limpo sai igual, liberado e sem nada para conferir', () => {
+    const gerado = gerarTextoFalaBr(pauta());
+
+    expect(prepararParaProtocolar(gerado)).toEqual({
+      texto: gerado.texto,
+      removidos: [],
+      suspeitos: [],
+      liberado: true,
+    });
+  });
+
+  it('e-mail e telefone saem do texto, trocados pela marca', () => {
+    const gerado = gerarTextoFalaBr(
+      pauta({ descricao: 'Falar com jgss@ic.ufal.br ou ligar (82) 99999-1234 para detalhes.' }),
+    );
+
+    const pronto = prepararParaProtocolar(gerado);
+
+    expect(pronto.liberado).toBe(true);
+    expect(pronto.texto).not.toContain('jgss@ic.ufal.br');
+    expect(pronto.texto).not.toContain('99999-1234');
+    expect(pronto.texto).toContain(`Falar com ${MARCA_DE_REMOVIDO} ou ligar ${MARCA_DE_REMOVIDO}`);
+    expect(pronto.removidos.map((r) => r.motivo).sort()).toEqual(['email', 'telefone']);
+  });
+
+  it('possível nome fica no texto e vem na lista para conferir', () => {
+    const gerado = gerarTextoFalaBr(
+      pauta({ descricao: 'A professora Marta confirmou o problema.' }),
+    );
+
+    const pronto = prepararParaProtocolar(gerado);
+
+    expect(pronto.liberado).toBe(true);
+    expect(pronto.texto).toContain('professora Marta');
+    expect(pronto.suspeitos.map((s) => s.motivo)).toEqual(['possivel_nome']);
+    expect(pronto.removidos).toEqual([]);
+  });
+
+  it('nomes conhecidos que se cruzam saem juntos, sem levar o texto que vem depois', () => {
+    // Regressão: trocados um de cada vez, o segundo apagava "não" e invertia o sentido.
+    const nomesConhecidos = ['Ana Maria Fernanda', 'Maria Fernanda Silva'];
+    const gerado = gerarTextoFalaBr(
+      pauta({ descricao: 'Ana Maria Fernanda Silva não confirmou o problema.' }),
+      { nomesConhecidos },
+    );
+
+    const pronto = prepararParaProtocolar(gerado, { nomesConhecidos });
+
+    expect(pronto.texto).toContain(`${MARCA_DE_REMOVIDO} não confirmou o problema.`);
+    expect(pronto.texto).not.toContain('Fernanda');
+    expect(pronto.liberado).toBe(true);
+  });
+
+  it('nome conhecido também sai, quando quem chama informa', () => {
+    const gerado = gerarTextoFalaBr(pauta({ descricao: 'Relatado por João Gabriel Seixas.' }), {
+      nomesConhecidos: ['João Gabriel Seixas'],
+    });
+
+    const pronto = prepararParaProtocolar(gerado, { nomesConhecidos: ['João Gabriel Seixas'] });
+
+    expect(pronto.texto).not.toContain('João Gabriel Seixas');
+    expect(pronto.liberado).toBe(true);
   });
 });
