@@ -20,6 +20,7 @@ export function Moldura({
         </Link>
         <nav aria-label="Seções do painel" className={estilos.navegacao}>
           <Link href="/fila">Pautas novas</Link>
+          <Link href="/relatos">Relatos</Link>
           <Link href="/pautas">Todas as pautas</Link>
         </nav>
         <form action={sair} className={estilos.sessao}>

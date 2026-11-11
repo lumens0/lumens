@@ -125,7 +125,11 @@ describe('aprovarRelato', () => {
     );
 
     expect(r).toEqual({ moderado: true });
-    expect(await relatoDo(relato.id)).toMatchObject({ moderacao: 'aprovado', moderadoEm: agora });
+    expect(await relatoDo(relato.id)).toMatchObject({
+      moderacao: 'aprovado',
+      moderadoEm: agora,
+      moderadoPor: curadorId,
+    });
     expect(await eventosDa(pauta.id)).toEqual([
       {
         tipo: 'relato_aprovado',
@@ -170,7 +174,11 @@ describe('recusarRelato', () => {
     );
 
     expect(r).toEqual({ moderado: true });
-    expect(await relatoDo(relato.id)).toMatchObject({ moderacao: 'recusado', moderadoEm: agora });
+    expect(await relatoDo(relato.id)).toMatchObject({
+      moderacao: 'recusado',
+      moderadoEm: agora,
+      moderadoPor: curadorId,
+    });
     expect(await eventosDa(pauta.id)).toEqual([]);
   });
 
