@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
+import { metadadosDaMarca } from '../metadados';
+import { origemDoSite } from '../origem';
 import './globals.css';
 
 // As fontes são locais, não `next/font/google`: aquele baixa os arquivos de
@@ -41,8 +43,10 @@ const rotulo = localFont({
 });
 
 export const metadata: Metadata = {
+  // Base das URLs relativas dos metadados: o WhatsApp não resolve `og:image` relativa.
+  metadataBase: origemDoSite(),
+  ...metadadosDaMarca(),
   title: 'Lumens',
-  description: 'Pautas estudantis da UFAL: da reclamação à pauta.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
