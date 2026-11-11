@@ -117,7 +117,9 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
   let giro = 0;
   let pintura = 0;
   let animacao = 0;
-  let parado = 0;
+  let parado: ReturnType<typeof setTimeout> | undefined;
+  /** Giro em que a animação do `irPara` em curso vai terminar; `null` sem animação. */
+  let giroFinal: number | null = null;
 
   const dedos = new Map<number, { x: number; y: number }>();
   let inicio: { x: number; y: number } | null = null;
@@ -149,7 +151,7 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
     if (svg) {
       svg.setAttribute('data-movendo', '');
       clearTimeout(parado);
-      parado = window.setTimeout(() => svg?.removeAttribute('data-movendo'), 160);
+      parado = setTimeout(() => svg?.removeAttribute('data-movendo'), 160);
     }
     if (!pintura) pintura = requestAnimationFrame(pintar);
   };
@@ -157,6 +159,7 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
   const parar = () => {
     cancelAnimationFrame(animacao);
     animacao = 0;
+    giroFinal = null;
   };
 
   /** Segue o dedo: muda na hora, sem animar. */
@@ -190,6 +193,7 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
     }
     const de = vista;
     const giroDe = giro;
+    giroFinal = giroAlvo;
     const comeco = performance.now();
     const passo = (agora: number) => {
       const t = Math.min(1, Math.max(0, (agora - comeco) / DURACAO_MS));
@@ -202,7 +206,8 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
       };
       giro = giroDe + (giroAlvo - giroDe) * e;
       agendar();
-      animacao = t < 1 ? requestAnimationFrame(passo) : 0;
+      if (t < 1) animacao = requestAnimationFrame(passo);
+      else parar();
     };
     animacao = requestAnimationFrame(passo);
   };
@@ -309,6 +314,12 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
       if (!e || e.contentRect.width === 0 || e.contentRect.height === 0) return;
       largura = e.contentRect.width;
       altura = e.contentRect.height;
+      // A tela mudou no meio de uma animação (celular virando, janela redimensionada): a animação
+      // foi calculada para a proporção antiga e sobrescreveria a visão nova. Ela termina aqui, já
+      // no destino.
+      const destino = giroFinal;
+      parar();
+      if (destino !== null) giro = destino;
       vista = cobrir(logica, largura / altura);
       pintar();
     });

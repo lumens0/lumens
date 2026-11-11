@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   aproximar,
   cobrir,
+  criarCamera,
   desviar,
   girar,
   limitar,
@@ -121,5 +122,93 @@ describe('câmera do mapa', () => {
     expect(longe.y + longe.h / 2).toBe(ALTURA_DO_CAMPUS);
     const dentro = { x: LARGURA_DO_CAMPUS / 2, y: 100, w: 400, h: 300 };
     expect(limitar(dentro)).toEqual(dentro);
+  });
+});
+
+describe('câmera ligada ao mapa', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Um mapa de mentira: o `ResizeObserver` e os quadros de animação são disparados pelo teste. */
+  function montar() {
+    let redimensionar: (
+      entradas: { contentRect: { width: number; height: number } }[],
+    ) => void = () => undefined;
+    let quadros = new Map<number, (agora: number) => void>();
+    let proximo = 0;
+    let relogio = 0;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(aoMedir: typeof redimensionar) {
+          redimensionar = aoMedir;
+        }
+        observe() {
+          return undefined;
+        }
+        disconnect() {
+          return undefined;
+        }
+      },
+    );
+    vi.stubGlobal('requestAnimationFrame', (passo: (agora: number) => void) => {
+      quadros.set(++proximo, passo);
+      return proximo;
+    });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => quadros.delete(id));
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    vi.spyOn(performance, 'now').mockImplementation(() => relogio);
+    const elemento = {
+      setAttribute: () => undefined,
+      removeAttribute: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      parentElement: null,
+      style: { setProperty: () => undefined },
+    };
+    let vista: Visao = base;
+    const camera = criarCamera(base, (v) => {
+      vista = v;
+    });
+    const desligar = camera.ligar(
+      elemento as unknown as SVGSVGElement,
+      elemento as unknown as SVGGElement,
+    );
+    return {
+      camera,
+      desligar,
+      vista: () => vista,
+      tela: (width: number, height: number) => {
+        redimensionar([{ contentRect: { width, height } }]);
+      },
+      /** Avança o relógio e roda os quadros pendentes (e os que eles agendarem, uma vez). */
+      avancar: (ms: number) => {
+        relogio += ms;
+        const agora = [...quadros.values()];
+        quadros = new Map();
+        agora.forEach((passo) => {
+          passo(relogio);
+        });
+      },
+    };
+  }
+
+  it('redimensionar no meio de uma animação termina no destino, na proporção nova da tela', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const alvo = { x: 900, y: 700, w: 420, h: 300 };
+    mapa.camera.irPara(alvo, 1);
+    mapa.avancar(100);
+    // O celular vira no meio do caminho.
+    mapa.tela(500, 1000);
+    // A animação antiga não pode seguir e desfazer a visão nova.
+    mapa.avancar(600);
+    mapa.avancar(600);
+    const v = mapa.vista();
+    expect(v.w / v.h).toBeCloseTo(0.5);
+    expect(v).toEqual(cobrir(alvo, 0.5));
+    mapa.desligar();
+    vi.restoreAllMocks();
   });
 });
