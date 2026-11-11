@@ -46,7 +46,8 @@ export function BotaoWhatsApp({
 
 /**
  * Se a pauta mostra "Apoiar": o status precisa aceitar apoio, e a flag `NEXT_PUBLIC_FLAG_APOIAR=1`
- * precisa estar ligada. Desligado por padrão até o bot interpretar `apoiar <slug>` (2.7, SCRUM-102).
+ * precisa estar ligada. Desligado por padrão até o bot interpretar `apoiar <slug>` (2.8,
+ * SCRUM-103): o apoio pelo relato (2.7) já existe, mas o comando que o botão manda ainda não.
  */
 export function mostraApoiar(status: StatusPauta): boolean {
   return process.env.NEXT_PUBLIC_FLAG_APOIAR === '1' && aceitaApoio(status);
@@ -74,13 +75,8 @@ export function BotaoVouAjudar({ slug, titulo }: { slug: string; titulo: string 
   );
 }
 
-/**
- * "Relatar um problema": abre o bot com `nova pauta`. Usado na home e na lista vazia.
- * Desligado por padrão: só aparece com `NEXT_PUBLIC_FLAG_RELATAR=1`, até o bot salvar a pauta
- * relatada (2.6, SCRUM-101); hoje as etapas de título, local e descrição ainda descartam a resposta.
- */
+/** "Relatar um problema": abre o bot com `nova pauta`. No cabeçalho, na home e na lista vazia. */
 export function BotaoRelatar() {
-  if (process.env.NEXT_PUBLIC_FLAG_RELATAR !== '1') return null;
   return (
     <BotaoWhatsApp
       comando={COMANDO_NOVA_PAUTA}
