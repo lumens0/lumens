@@ -35,5 +35,5 @@ uma pauta nascer pela conversa nem regra de domínio para criá-la.
 ## Fora de escopo
 
 - A verificação em si e a retomada do pedido depois dela (2.4).
-- O prazo da curadoria no resumo (não definido).
+- O prazo da curadoria no resumo: ficou para a SCRUM-148, quando a equipe definiu 24 horas.
 - Enviar as mensagens pela Cloud API: o `logSender` continua sendo o sender.

@@ -114,3 +114,15 @@
     font-size: 1.875em;
   }
 }
+
+.voltar {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--primaria-forte);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.voltar:hover {
+  text-decoration: underline;
+}

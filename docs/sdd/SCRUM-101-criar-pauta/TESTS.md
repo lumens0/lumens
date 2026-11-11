@@ -16,6 +16,6 @@ S3 falsos, e o bot recebe um `ServicoDeFotos` falso.
 
 - O download da Meta e o envio ao storage não foram exercitados contra os serviços reais: falta um
   token de app e o bucket (T20).
-- A retomada do pedido depois da verificação só pode ser testada com a 2.4.
+- A retomada do pedido depois da verificação é testada em `verificacao.test.ts` (SCRUM-138).
 - Os testes do relato e da pauta nova têm 60 s de preparação: no Windows, com os testes em
   paralelo, o banco em memória passou de 20 s.

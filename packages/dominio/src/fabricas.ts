@@ -9,12 +9,15 @@ import {
   estudantes,
   papeisPauta,
   pautas,
+  relatos,
   type Bloco,
   type Curador,
   type Db,
   type Estudante,
   type NovaPauta,
+  type NovoRelato,
   type Pauta,
+  type Relato,
 } from '@lumens/db';
 
 let seq = 0;
@@ -68,6 +71,20 @@ export async function criarPauta(db: Db, campos: Partial<NovaPauta> = {}): Promi
 /** Estudante como owner ativo da pauta (papel `owner`, sem `ate`). */
 export async function tornarOwner(db: Db, pautaId: string, estudanteId: string): Promise<void> {
   await db.insert(papeisPauta).values({ pautaId, estudanteId, papel: 'owner' });
+}
+
+/** Relato de teste; por padrão pendente, sem foto e de um estudante novo. */
+export async function criarRelato(
+  db: Db,
+  campos: Pick<NovoRelato, 'pautaId'> & Partial<NovoRelato>,
+): Promise<Relato> {
+  const estudanteId = campos.estudanteId ?? (await criarEstudanteVerificado(db)).id;
+  const [relato] = await db
+    .insert(relatos)
+    .values({ texto: 'Relato de teste.', ...campos, estudanteId })
+    .returning();
+  if (relato === undefined) throw new Error('relato não criado');
+  return relato;
 }
 
 export async function criarCurador(db: Db): Promise<Curador> {
