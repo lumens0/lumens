@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // afirmação abaixo corresponde a código em produção; a referência está no
 // comentário de cada seção. Ao mudar o comportamento, mude este texto junto —
 // uma política que descreve o que o sistema não faz é pior que não ter uma.
-const ATUALIZADA_EM = '5 de novembro de 2026';
+const ATUALIZADA_EM = '10 de novembro de 2026';
 
 export default function Privacidade() {
   return (
@@ -146,14 +146,19 @@ export default function Privacidade() {
 
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>Seus direitos</h2>
+        {/* Comando 'sair': apps/backend/src/bot/conversation/privacidade.ts → sairDoLumens */}
         <p>
-          Você pode pedir a qualquer momento para ver, corrigir ou apagar os dados que temos sobre
-          você. O pedido é feito pelo mesmo canal do WhatsApp em que você conversou com o bot, e é
-          atendido manualmente pela equipe — não há processo automático.
+          Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
+          hora, apagamos seu telefone e seu e-mail (inclusive as versões cifradas), sua conversa e o
+          código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
         </p>
         <p>
-          Apagar seus dados remove sua conversa e sua identificação. Pautas já publicadas, que não
-          carregam seus dados pessoais, permanecem no site.
+          Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
+          publicadas, que não carregam seus dados pessoais, permanecem no site.
+        </p>
+        <p>
+          Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do WhatsApp: o
+          pedido é atendido manualmente pela equipe.
         </p>
       </section>
 
