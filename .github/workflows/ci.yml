@@ -171,6 +171,75 @@ jobs:
         if: ${{ always() }}
         run: rm -f .env
 
+  # Ponta a ponta do site (SCRUM-28): a API de leitura real sobre o seed e o site construído.
+  # Para ser obrigatório no merge, `e2e` precisa entrar no ruleset `protecao-main`.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: lumens
+          POSTGRES_PASSWORD: lumens_ci
+          POSTGRES_DB: lumens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U lumens -d lumens"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL_MIGRACAO: postgresql://lumens:lumens_ci@localhost:5432/lumens
+      POSTGRES_APP_PASSWORD: lumens_app_ci
+      POSTGRES_SITE_PASSWORD: lumens_site_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar o Chromium do Playwright
+        run: pnpm --filter @lumens/site exec playwright install --with-deps chromium
+
+      - name: Preparar o banco com o seed
+        env:
+          DATABASE_URL: postgresql://lumens_app:lumens_app_ci@localhost:5432/lumens
+        run: |
+          psql "$DATABASE_URL_MIGRACAO" -v ON_ERROR_STOP=1 -f docker/init/01-cria-banco-de-teste.sql
+          pnpm db:provision
+          pnpm db:migrate
+          pnpm db:seed
+
+      - name: Build do site
+        run: pnpm --filter @lumens/site build
+        env:
+          NEXT_PUBLIC_WHATSAPP_BOT: '5500000000000'
+          NEXT_PUBLIC_FLAG_APOIAR: '1'
+
+      - name: Testes ponta a ponta
+        env:
+          DATABASE_URL_LEITURA: postgresql://lumens_site:lumens_site_ci@localhost:5432/lumens
+        run: pnpm --filter @lumens/site e2e
+
+      - name: Guardar trace e screenshot da falha
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-falhas
+          path: apps/site/test-results/
+          retention-days: 7
+
   deploy:
     name: deploy-${{ matrix.projeto }}
     needs: check
