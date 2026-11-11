@@ -16,5 +16,16 @@
 
 ## Lacunas
 
-- O e-mail não foi testado num SMTP de verdade nem em contas reais da UFAL (spam): os testes usam
-  um transporte falso. Fica para quando houver o SMTP de produção.
+- Os testes automatizados usam um transporte falso. O envio real foi testado à mão (SCRUM-139,
+  11/11/2026), com o caminho da produção (`criarEmailSmtp`), para a conta `sbl2@ic.ufal.br`:
+  - **Brevo** (`smtp-relay.brevo.com`) com remetente `@ic.ufal.br`: chegou na caixa de entrada,
+    mas com o alerta de falsificação do Gmail ("Cuidado com esta mensagem") e "por
+    ...brevosend.com". O SPF do `ic.ufal.br` só autoriza o Google e não há DKIM da Brevo no
+    domínio; sem acesso ao DNS da UFAL, não há como corrigir.
+  - **SMTP do Google** (`smtp.gmail.com:587`, senha de app da conta `@ic.ufal.br`): chegou na
+    caixa de entrada sem alerta. É a configuração adotada.
+- Ainda falta: testar numa segunda conta da UFAL (o teste foi da conta para ela mesma) e trocar
+  o `.env.producao` da VM.
+- Risco: o envio depende de uma conta pessoal de estudante. Se ela for desativada (formatura) ou
+  a senha de app for revogada, o código deixa de sair; o limite do Google é de cerca de 2.000
+  e-mails por dia.
