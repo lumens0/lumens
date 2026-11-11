@@ -1,5 +1,6 @@
 import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
+import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   defaultHandlers,
@@ -25,6 +26,7 @@ export interface RouterDeps {
   email?: ServicoDeEmail;
   /** HMAC com a CHAVE_HMAC, para o e-mail do estudante (2.4). */
   hmac?: (valor: string) => string;
+  respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
 }
 
@@ -33,6 +35,11 @@ export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em 
 
 /** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
 const STEPS_WITH_PHOTO: readonly Step[] = ['GREETING', 'NEW_ASK_PHOTO'];
+
+export const NEED_TEXT_FOR_FILE = 'Recebi o arquivo, mas agora preciso de uma resposta em texto.';
+
+/** O único passo que recebe arquivo: o PDF da resposta oficial (3.6). */
+const STEPS_WITH_DOCUMENT: readonly Step[] = ['OWNER_SEND_RESPONSE'];
 
 type GlobalCommand = 'menu' | 'cancelar' | 'sair';
 
@@ -102,12 +109,16 @@ async function responder(
 
   if (msg.image && !STEPS_WITH_PHOTO.includes(state.step)) return [NEED_TEXT];
 
+  if (msg.document && !STEPS_WITH_DOCUMENT.includes(state.step)) return [NEED_TEXT_FOR_FILE];
+
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
-    : { text: msg.text };
+    : msg.document
+      ? { text: msg.text, document: msg.document }
+      : { text: msg.text };
   // 3.5: "ajudar <pauta>" vem do botão "Vou ajudar" do site e vale em qualquer passo, largando o
   // fluxo atual (como os comandos globais).
-  const ajudar = msg.image ? null : parseAjudar(msg.text);
+  const ajudar = msg.image || msg.document ? null : parseAjudar(msg.text);
   const handler =
     ajudar === null ? handlers[state.step] : (ctx: StepContext) => vouAjudar(ctx, ajudar);
   const result = await handler({
@@ -118,6 +129,7 @@ async function responder(
     ...(deps.email ? { email: deps.email } : {}),
     ...(deps.hmac ? { hmac: deps.hmac } : {}),
     ...(msg.phoneCifrado === undefined ? {} : { phoneCifrado: msg.phoneCifrado }),
+    ...(deps.respostas ? { respostas: deps.respostas } : {}),
   });
   if (ajudar === null) assertTransition(state.step, result.next);
 
