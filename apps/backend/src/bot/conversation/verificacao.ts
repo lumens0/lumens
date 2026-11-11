@@ -48,6 +48,7 @@ import { z } from 'zod';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
+import { entrarNoApoio } from './apoio';
 import { entrarNaPautaNova } from './nova-pauta';
 import { vouAjudar } from './proposta';
 import { lista, type MensagemDeLista } from './resposta';
@@ -339,6 +340,9 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
     const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
     return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
   }
-  // TODO(2.7): retomar o 'apoiar' quando o apoio pelo bot existir. Até lá, o pedido fica guardado.
+  if (pendente?.kind === 'apoiar' && pendente.id !== undefined) {
+    // 2.7: retoma o apoio pedido antes da verificação (pela 2.5 ou pelo site, na 2.8).
+    return entrarNoApoio(ctx, pendente.id, [VERIFIED_TEXT]);
+  }
   return { next: 'MENU', replies: [VERIFIED_TEXT] };
 };

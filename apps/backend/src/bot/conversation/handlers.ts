@@ -2,6 +2,7 @@ import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
+import { supportAskPhoto, supportAskReport } from './apoio';
 import {
   entrarNaPautaNova,
   newAskDescription,
@@ -146,4 +147,6 @@ export const defaultHandlers: HandlerRegistry = {
   OWNER_ASK_PROTOCOL: ownerAskProtocol,
   OWNER_ASK_PROTOCOL_DATE: ownerAskProtocolDate,
   OWNER_SEND_RESPONSE: ownerSendResponse,
+  SUPPORT_ASK_REPORT: supportAskReport,
+  SUPPORT_ASK_PHOTO: supportAskPhoto,
 };

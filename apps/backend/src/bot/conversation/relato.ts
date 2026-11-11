@@ -3,17 +3,19 @@
  *
  *   REPORT_ASK_TEXT ──(bloco citado no relato)──────────────┐
  *        │                                                  ▼
- *        └──(não citou)──▶ REPORT_ASK_BLOCK ──▶ REPORT_PICK_SIMILAR ──▶ "É essa"  → apoio (2.7)
+ *        └──(não citou)──▶ REPORT_ASK_BLOCK ──▶ REPORT_PICK_SIMILAR ──▶ "É essa"  → apoio (2.7, `apoio.ts`)
  *                          lista de blocos       lista: até 3 pautas  └▶ "É outro" → pauta nova (2.6)
  *
  * O relato fica cifrado nos dados da conversa (`relatoCifrado`), nunca em claro: a tabela
  * `conversa` guarda o passo de cada telefone por 24h, e o relato é texto livre, que pode ter nome,
  * e-mail ou telefone. Quando a pessoa escolhe "É outro problema", `relatoCifrado` e `blocoId`
  * continuam nos dados, e a pauta nova (2.6, `nova-pauta.ts`) usa os dois como descrição e lugar.
+ * Quando escolhe "É essa", o `relatoCifrado` segue para o apoio, que oferece juntá-lo à pauta.
  */
 import { buscarPautasParecidas, listarBlocos, termosDaBusca } from '@lumens/dominio';
 import type { Db } from '@lumens/db';
 import { z } from 'zod';
+import { entrarNoApoio } from './apoio';
 import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { entrarNaPautaNova } from './nova-pauta';
@@ -184,12 +186,6 @@ export const reportPickSimilar: StepHandler = (ctx) => {
   if (escolhida === undefined) {
     return { next: 'REPORT_PICK_SIMILAR', replies: [PICK_AGAIN_TEXT, listaDeParecidas(parecidas)] };
   }
-  // TODO(2.7): registrar o apoio a `escolhida.id` aqui, na mesma transação da conversa.
-  return {
-    next: 'MENU',
-    data: LIMPAR,
-    replies: [
-      `[REPORT_PICK_SIMILAR — em construção, história 2.7] Você escolheu: ${escolhida.titulo}.`,
-    ],
-  };
+  // "É essa": o apoio vai na mesma transação da conversa e leva o relato para ser oferecido.
+  return entrarNoApoio(ctx, escolhida.id);
 };

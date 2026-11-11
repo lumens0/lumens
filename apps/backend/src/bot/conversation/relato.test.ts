@@ -166,14 +166,16 @@ describe('relatar (2.5)', () => {
     expect(segredo.decifrar(relatoCifrado)).toBe(relato);
   });
 
-  it('"É essa" encerra o relato (o apoio é da 2.7) e limpa os dados do relato', async () => {
+  it('"É essa" vai para o apoio (2.7) e tira a lista e o bloco da conversa', async () => {
     await send('o bebedouro do bloco 18 ta quebrado');
     const respostas = await send(`pauta:${ids.bebedouros}`);
-    expect(respostas[0]).toContain('2.7');
+    expect(respostas[0]).toContain('Apoio registrado');
     expect(respostas[0]).toContain('Bebedouros funcionando no Bloco 18');
-    expect(respostas.at(-1)).toBe(MENU_TEXT);
-    expect(await passo()).toBe('MENU');
-    expect(await dados()).toEqual({});
+    expect(await passo()).toBe('SUPPORT_ASK_REPORT');
+    const restantes = await dados();
+    expect(restantes).toMatchObject({ apoioPautaId: ids.bebedouros });
+    expect(restantes).not.toHaveProperty('parecidas');
+    expect(restantes).not.toHaveProperty('blocoId');
   });
 
   it('escolhe a pauta pelo número digitado', async () => {
