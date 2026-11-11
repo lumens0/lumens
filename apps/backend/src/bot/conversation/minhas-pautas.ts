@@ -21,7 +21,7 @@
  * Com a comunidade aberta, entra a proposta (3.5): "Propor solução" sem proposta aberta e "Proposta
  * feita" com uma. Os passos da proposta estão em `proposta.ts`.
  */
-import { eq, pautas, type Db } from '@lumens/db';
+import { and, eq, pautas, propostas, type Db } from '@lumens/db';
 import {
   STATUS_COM_CAMINHOS,
   abrirCaminho,
@@ -42,8 +42,10 @@ import { pedirResposta } from './resposta-oficial';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
 import { LIMITES_DOS_BOTOES, botoes, lista, type BotaoDeResposta, type Resposta } from './resposta';
 import {
-  BOTAO_FEITA,
+  ALREADY_DONE_TEXT,
   BOTAO_PROPOR,
+  UUID,
+  botaoFeita,
   DONE_TEXT,
   LIMPAR_PROPOSTA,
   MAX_PESSOAS,
@@ -54,6 +56,7 @@ import {
   dadosDaProposta,
   pediuFeita,
   pediuProposta,
+  propostaDoBotaoFeita,
 } from './proposta';
 import { normalize } from './texto';
 
@@ -221,10 +224,11 @@ export async function estadoDosCaminhos(
         `• Proposta: ${p.descricao} (${String(p.voluntarios)} de ${String(p.pessoasNecessarias)} voluntários)`,
       );
     }
+    const [aberta] = abertas;
     acoes.push(
-      abertas.length === 0
+      aberta === undefined
         ? { id: BOTAO_PROPOR, titulo: 'Propor solução' }
-        : { id: BOTAO_FEITA, titulo: 'Proposta feita' },
+        : { id: botaoFeita(aberta.id), titulo: 'Proposta feita' },
     );
   }
 
@@ -365,9 +369,21 @@ export const ownerPaths: StepHandler = async (ctx) => {
         replies: [PROPOSAL_ASK_TEXT],
       };
     }
-    if (aberta === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
-    await db.transaction((tx) => registrarExecucaoProposta(tx, { propostaId: aberta.id }));
-    return mostrarCaminhos(db, pauta, [DONE_TEXT]);
+    // O botão leva o id da proposta que a pessoa viu: um toque antigo não marca outra, publicada
+    // depois. Digitado ("feita"), vale a aberta.
+    const alvo = propostaDoBotaoFeita(input.text) ?? aberta?.id;
+    if (alvo === undefined || !UUID.test(alvo)) {
+      return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
+    }
+    const [daPauta] = await db
+      .select({ id: propostas.id })
+      .from(propostas)
+      .where(and(eq(propostas.id, alvo), eq(propostas.pautaId, pauta.id)));
+    if (daPauta === undefined) return mostrarCaminhos(db, pauta, [PICK_PATH_AGAIN_TEXT]);
+    const feita = await db.transaction((tx) =>
+      registrarExecucaoProposta(tx, { propostaId: daPauta.id }),
+    );
+    return mostrarCaminhos(db, pauta, [feita.executada ? DONE_TEXT : ALREADY_DONE_TEXT]);
   }
 
   const tipo = caminhoPedido(input.text);
@@ -414,8 +430,19 @@ export const proposalAskPeople: StepHandler = async ({ input, state, db, segredo
       porEstudanteId: estudanteId,
       descricao: segredo.decifrar(propostaCifrada),
       pessoasNecessarias: pessoas,
+      apenasUmaAberta: true,
     }),
   );
+  if (!r.publicada && r.motivo === 'ja_tem_aberta') {
+    const [daProposta] = await db
+      .select({ id: pautas.id, titulo: pautas.titulo })
+      .from(pautas)
+      .where(eq(pautas.id, pautaId));
+    if (daProposta !== undefined) {
+      const fim = await mostrarCaminhos(db, daProposta, [PROPOSAL_ALREADY_OPEN_TEXT]);
+      return { ...fim, data: { ...fim.data, propostaCifrada: undefined } };
+    }
+  }
   if (!r.publicada) {
     const recusa = r.motivo === 'nao_e_owner' ? LOST_OWNER_TEXT : PAUTA_CLOSED_TEXT;
     return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [recusa] };
