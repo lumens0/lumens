@@ -47,8 +47,8 @@ export default function Privacidade() {
             <strong>Seu número de telefone</strong>, que chega junto com cada mensagem
           </li>
           <li>
-            <strong>O que você responde durante um fluxo</strong> (um relato, o título de uma
-            pauta), guardado só enquanto a conversa dura
+            <strong>As mensagens que você envia</strong> e as respostas do bot, cifradas. Veja em
+            &ldquo;Quanto tempo guardamos&rdquo; por quanto tempo
           </li>
         </ul>
         <p>Se você se verificar como estudante:</p>
@@ -80,9 +80,29 @@ export default function Privacidade() {
             irreversível derivado do número (HMAC-SHA256), e é por ele que o sistema reencontra sua
             conversa.
           </li>
+        </ul>
+      </section>
+
+      {/* Conversa: CONVERSATION_TTL_MS em store.ts e a limpeza de limpeza-conversas.ts.
+          Filas: padrões do pg-boss, que o Lumens não muda (BOT_QUEUE_OPTIONS em bot/worker.ts):
+          deleteAfterSeconds = 7 dias depois de concluído; retentionSeconds = 14 dias sem processar. */}
+      <section className={estilos.secao}>
+        <h2 className={estilos.secaoTitulo}>Quanto tempo guardamos</h2>
+        <ul>
           <li>
-            <strong>O estado da conversa dura 24 horas.</strong> Depois disso ele expira, e uma
-            rotina diária apaga o que expirou.
+            <strong>O passo em que sua conversa está</strong> (o que o bot já perguntou e o que você
+            respondeu) dura 24 horas. Depois expira, e uma rotina diária apaga o que expirou.
+          </li>
+          <li>
+            <strong>Cada mensagem passa por uma fila de processamento</strong>, que guarda uma cópia
+            cifrada dela e do seu telefone. A cópia é apagada automaticamente{' '}
+            <strong>7 dias depois</strong> de a mensagem ser respondida, ou em até{' '}
+            <strong>14 dias</strong> se o processamento falhar. O mesmo vale para as respostas do
+            bot.
+          </li>
+          <li>
+            <strong>O cadastro</strong> (telefone, e-mail e curso) fica até você enviar{' '}
+            <strong>sair</strong>.
           </li>
         </ul>
       </section>
@@ -109,8 +129,9 @@ export default function Privacidade() {
         </p>
         <p>
           Antes de se verificar, guardamos só o necessário para responder a quem nos procurou: o
-          telefone e a conversa em andamento, que expira em 24 horas. Você pode retirar o
-          consentimento a qualquer momento, do mesmo jeito simples: enviando <strong>sair</strong>.
+          telefone e as mensagens, pelos prazos de &ldquo;Quanto tempo guardamos&rdquo;, sem
+          cadastro. Você pode retirar o consentimento a qualquer momento, do mesmo jeito simples:
+          enviando <strong>sair</strong>.
         </p>
       </section>
 
@@ -168,6 +189,11 @@ export default function Privacidade() {
           Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
           hora, apagamos seu telefone e seu e-mail (inclusive as versões cifradas), sua conversa e o
           código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
+        </p>
+        <p>
+          As cópias cifradas das suas mensagens recentes na fila de processamento não são apagadas
+          na hora: elas saem sozinhas nos prazos de &ldquo;Quanto tempo guardamos&rdquo; (até 7
+          dias, ou 14 se algo falhou). Até lá ficam cifradas e servem só para o bot responder.
         </p>
         <p>
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
