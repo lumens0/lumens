@@ -246,12 +246,12 @@
   color: var(--tinta);
 }
 
-/* Conquistas como memorial: o ano à esquerda, o resto ao lado. */
+/* Conquistas como memorial: o ano à esquerda, no meio da altura do card, e o resto ao lado. */
 .memorial {
   display: grid;
   grid-template-columns: 72px 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: center;
 }
 
 .memorialCorpo {
@@ -285,17 +285,46 @@
   border-bottom: 1px solid var(--borda);
 }
 
-.icone,
-.iconeFeito {
+/*
+ * O tom do evento segue as cores de status: azul para o que entra, turquesa para a meta, âmbar
+ * para a cobrança, vermelho para a promessa descumprida e verde para o que foi entregue. A cor nunca vai sozinha: o rótulo diz o que foi.
+ */
+.evento[data-tom='azul'] {
+  --tom: #4f8cff;
+  --tom-tinta: #1d4fb8;
+  --tom-fundo: #e6eeff;
+}
+
+.evento[data-tom='turquesa'] {
+  --tom: #14b8a6;
+  --tom-tinta: #0b6b61;
+  --tom-fundo: #dcf5f1;
+}
+
+.evento[data-tom='ambar'] {
+  --tom: #ffa41b;
+  --tom-tinta: var(--luz-tinta);
+  --tom-fundo: var(--luz-fundo);
+}
+
+.evento[data-tom='vermelho'] {
+  --tom: #ff5a4a;
+  --tom-tinta: #a8261a;
+  --tom-fundo: #ffe5e1;
+}
+
+.evento[data-tom='verde'] {
+  --tom: #2ec27e;
+  --tom-tinta: #1b6b3f;
+  --tom-fundo: #dff3e7;
+}
+
+.icone {
   width: 10px;
   height: 10px;
   border-radius: 2px;
   font-size: 0;
-  background: var(--borda-forte);
-}
-
-.iconeFeito {
-  background: #2e7d4f;
+  background: var(--tom, var(--borda-forte));
 }
 
 .eventoPauta {
@@ -311,9 +340,14 @@
 }
 
 .eventoTexto {
-  margin: 2px 0 0;
-  font-size: 14px;
-  color: var(--tinta-3);
+  display: inline-block;
+  margin: 6px 0 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--tom-fundo, var(--superficie-2));
+  color: var(--tom-tinta, var(--tinta-2));
 }
 
 .quando {
