@@ -11,8 +11,8 @@ import {
   type Segredo,
   type StepContext,
 } from './handlers';
+import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
-import { parseAjudar, vouAjudar } from './proposta';
 import type { Resposta } from './resposta';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
@@ -116,12 +116,7 @@ async function responder(
     : msg.document
       ? { text: msg.text, document: msg.document }
       : { text: msg.text };
-  // 3.5: "ajudar <pauta>" vem do botão "Vou ajudar" do site e vale em qualquer passo, largando o
-  // fluxo atual (como os comandos globais).
-  const ajudar = msg.image || msg.document ? null : parseAjudar(msg.text);
-  const handler =
-    ajudar === null ? handlers[state.step] : (ctx: StepContext) => vouAjudar(ctx, ajudar);
-  const result = await handler({
+  const ctx: StepContext = {
     ...ctxBase,
     state,
     input,
@@ -130,8 +125,14 @@ async function responder(
     ...(deps.hmac ? { hmac: deps.hmac } : {}),
     ...(msg.phoneCifrado === undefined ? {} : { phoneCifrado: msg.phoneCifrado }),
     ...(deps.respostas ? { respostas: deps.respostas } : {}),
-  });
-  if (ajudar === null) assertTransition(state.step, result.next);
+  };
+  // 2.8 e 3.5: os comandos dos botões do site ("apoiar", "ajudar", "nova pauta", "cuidar") valem em
+  // qualquer passo e largam o fluxo atual, como os comandos globais.
+  const comando = msg.image || msg.document ? null : parseComandoDoSite(msg.text);
+  const doSite = comando === null ? null : await executarComandoDoSite(ctx, comando);
+  const global = doSite !== null;
+  const result = doSite ?? (await handlers[state.step](ctx));
+  if (!global) assertTransition(state.step, result.next);
 
   // 5.7: quem saiu (ou não tinha cadastro) não deixa conversa guardada com o HMAC do telefone.
   if (result.apagarConversa) {
@@ -141,14 +142,14 @@ async function responder(
 
   // Aplica o patch: chave com valor undefined sai dos dados.
   const data = Object.fromEntries(
-    Object.entries({ ...(ajudar === null ? state.data : {}), ...result.data }).filter(
+    Object.entries({ ...(global ? {} : state.data), ...result.data }).filter(
       ([, v]) => v !== undefined,
     ),
   ) as ConversationData;
   await store.save(phoneHmac, result.next, data);
   // Fim de um fluxo: a pessoa volta ao menu e precisa ver as opções, ou a próxima mensagem dela
   // cai num "Não entendi".
-  const flowEnded = result.next === 'MENU' && (state.step !== 'MENU' || ajudar !== null);
+  const flowEnded = result.next === 'MENU' && (state.step !== 'MENU' || global);
   if (flowEnded && !result.replies.includes(MENU_TEXT)) return [...result.replies, MENU_TEXT];
   return result.replies;
 }

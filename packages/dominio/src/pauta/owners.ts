@@ -12,6 +12,7 @@ import {
   papeisPauta,
   pautas,
   sql,
+  type Db,
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
@@ -89,6 +90,27 @@ export async function adicionarCoOwner(
   });
 
   return { adicionado: true };
+}
+
+/**
+ * Se vale oferecer a vaga de co-owner a este apoiador: ele apoia a pauta, ainda não cuida dela e
+ * há menos de 3 owners ativos. Só leitura, para o bot decidir se mostra o convite; quem decide de
+ * verdade, com a trava, é `adicionarCoOwner`.
+ */
+export async function podeVirarCoOwner(
+  db: Db,
+  { pautaId, estudanteId }: { pautaId: string; estudanteId: string },
+): Promise<boolean> {
+  const [apoio] = await db
+    .select({ estudanteId: apoios.estudanteId })
+    .from(apoios)
+    .where(and(eq(apoios.pautaId, pautaId), eq(apoios.estudanteId, estudanteId)));
+  if (apoio === undefined) return false;
+  const ativos = await db
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .where(and(eq(papeisPauta.pautaId, pautaId), ativo));
+  return ativos.length < LIMITE_DE_OWNERS && !ativos.some((o) => o.estudanteId === estudanteId);
 }
 
 /** Owner mandou mensagem ao bot: renova o prazo dos 30 dias. Quem não é owner ativo é ignorado. */

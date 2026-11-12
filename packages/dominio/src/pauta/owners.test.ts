@@ -2,7 +2,12 @@ import { and, apoios, criarDb, criarPool, eq, eventos, papeisPauta, type Db } fr
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
-import { adicionarCoOwner, registrarAtividadeOwner, removerOwnerInativo } from './owners';
+import {
+  adicionarCoOwner,
+  podeVirarCoOwner,
+  registrarAtividadeOwner,
+  removerOwnerInativo,
+} from './owners';
 
 let db: Db;
 
@@ -94,6 +99,32 @@ describe('adicionarCoOwner (RN06)', () => {
       adicionado: false,
       motivo: 'ja_e_owner',
     });
+  });
+});
+
+describe('podeVirarCoOwner (convite do bot)', () => {
+  const pode = (pautaId: string, estudanteId: string) =>
+    podeVirarCoOwner(db, { pautaId, estudanteId });
+
+  it('apoiador sem papel, com vaga, pode; quem não apoiou e quem já é owner não', async () => {
+    const { pauta, criador, apoiadores } = await pautaComApoiadores(1);
+    const [a] = apoiadores;
+    if (a === undefined) throw new Error('faltou apoiador');
+    const estranho = await criarEstudanteVerificado(db);
+
+    expect(await pode(pauta.id, a.id)).toBe(true);
+    expect(await pode(pauta.id, estranho.id)).toBe(false);
+    expect(await pode(pauta.id, criador.id)).toBe(false);
+  });
+
+  it('com 3 owners ativos, ninguém mais pode', async () => {
+    const { pauta, apoiadores } = await pautaComApoiadores(3);
+    const [a, b, c] = apoiadores;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('faltou apoiador');
+    await adicionar(pauta.id, a.id);
+    await adicionar(pauta.id, b.id);
+
+    expect(await pode(pauta.id, c.id)).toBe(false);
   });
 });
 

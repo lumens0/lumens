@@ -156,7 +156,10 @@ async function propostaDoAlvo(
   };
 }
 
-/** "Vou ajudar": sem verificação, guarda o pedido e verifica antes (2.4 retoma daqui). */
+/**
+ * "Vou ajudar": sem verificação, guarda o pedido e verifica antes (2.4 retoma daqui). Sem proposta
+ * aberta, avisa já (2.8), sem mandar a pessoa verificar o e-mail para nada.
+ */
 export async function vouAjudar(
   { db, phoneHmac }: Pick<StepContext, 'db' | 'phoneHmac'>,
   alvo: string,
@@ -164,6 +167,8 @@ export async function vouAjudar(
 ): Promise<StepResult> {
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   if (estudanteId === undefined) {
+    const achada = await propostaDoAlvo(db, alvo);
+    if ('texto' in achada) return { next: 'MENU', replies: [...antes, achada.texto] };
     return {
       next: 'VERIFY_ASK_EMAIL',
       data: { pendingCommand: { kind: 'ajudar', id: alvo } },

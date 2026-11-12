@@ -25,6 +25,7 @@ import {
   type ResultadoRelato,
 } from '@lumens/dominio';
 import { z } from 'zod';
+import { conviteCoOwner } from './co-owner';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { photoRefusedText } from './nova-pauta';
@@ -113,6 +114,18 @@ function decifrado(segredo: Segredo, cifrado: string | undefined): string | unde
 
 const fim = (replies: Resposta[]): StepResult => ({ next: 'MENU', data: LIMPAR, replies });
 
+/** Fim com o apoio contado: convida para cuidar da pauta quando há vaga (2.8). */
+async function fimDoApoio(
+  { db, phoneHmac }: Pick<StepContext, 'db' | 'phoneHmac'>,
+  pautaId: string,
+  replies: Resposta[],
+): Promise<StepResult> {
+  const estudanteId = await estudanteVerificado(db, phoneHmac);
+  const convite =
+    estudanteId === undefined ? undefined : await conviteCoOwner(db, { pautaId, estudanteId });
+  return fim(convite === undefined ? replies : [...replies, convite]);
+}
+
 async function pautaDoPlacar(db: Db, pautaId: string) {
   const [pauta] = await db
     .select({ titulo: pautas.titulo, meta: pautas.meta })
@@ -184,13 +197,14 @@ export async function entrarNoApoio(
  * Relato opcional. Vindo da 2.5, a pessoa já escreveu: só confirma se quer juntá-lo à pauta.
  * Vindo do pedido guardado, pode escrever agora ou pular.
  */
-export const supportAskReport: StepHandler = ({ state, input, segredo }) => {
+export const supportAskReport: StepHandler = async (ctx) => {
+  const { state, input, segredo } = ctx;
   const { apoioPautaId, relatoCifrado } = dadosDoApoio(state.data);
   if (apoioPautaId === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
   const texto = normalize(input.text);
 
   if (relatoCifrado !== undefined) {
-    if (NO.has(texto)) return fim([SUPPORT_DONE_TEXT]);
+    if (NO.has(texto)) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
     if (!YES.has(texto)) return { next: 'SUPPORT_ASK_REPORT', replies: [ASK_ATTACH_REPORT_TEXT] };
     const relato = decifrado(segredo, relatoCifrado);
     if (relato === undefined) {
@@ -211,7 +225,7 @@ export const supportAskReport: StepHandler = ({ state, input, segredo }) => {
     return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
   }
 
-  if (SKIP.has(texto)) return fim([SUPPORT_DONE_TEXT]);
+  if (SKIP.has(texto)) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
   const relato = input.text.trim();
   if (relato === '') return { next: 'SUPPORT_ASK_REPORT', replies: [ASK_WRITE_REPORT_TEXT] };
   if (tamanho(relato) > RELATO_MAXIMO) {
@@ -251,6 +265,8 @@ async function salvarRelato(ctx: StepContext, fotoChave: string | null): Promise
   const resultado: ResultadoRelato = await db.transaction((tx) =>
     adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
   );
-  if (!resultado.registrado) return fim([REPORT_REFUSED_TEXT]);
-  return fim([fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT]);
+  if (!resultado.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
+  return fimDoApoio(ctx, apoioPautaId, [
+    fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
+  ]);
 }
