@@ -215,6 +215,33 @@ describe('telegramSender', () => {
     expect(chamar).toHaveBeenCalledTimes(1);
   });
 
+  it.each([['Bad Request: chat not found'], ['Bad Request: Chat Not Found']])(
+    'chat inexistente (400 "%s"): descarta o resto sem lançar',
+    async (descricao) => {
+      const chamar = vi.fn(() =>
+        Promise.reject(new ErroDaApiDoTelegram('sendMessage', 400, descricao)),
+      );
+      const { sender } = criar(chamar);
+      await expect(sender.send(mensagem(['um', 'dois']))).resolves.toBeUndefined();
+      expect(chamar).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('outro 400 (defeito da mensagem) lança, para o job chegar à fila de mortas', async () => {
+    const chamar = vi.fn(() =>
+      Promise.reject(
+        new ErroDaApiDoTelegram(
+          'sendMessage',
+          400,
+          "Bad Request: can't parse entities: Can't find end of the entity",
+        ),
+      ),
+    );
+    const { sender } = criar(chamar);
+    await expect(sender.send(mensagem(['um', 'dois']))).rejects.toThrow('400');
+    expect(chamar).toHaveBeenCalledTimes(1);
+  });
+
   it('429: espera o retry_after e reenvia a mesma mensagem', async () => {
     const chamar = vi
       .fn()
