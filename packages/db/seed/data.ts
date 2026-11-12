@@ -165,7 +165,7 @@ const configuracoesPauta = [
     slug: 'bebedouros-no-bloco-18',
     titulo: 'Bebedouros funcionando no Bloco 18',
     descricao:
-      'Consertar os bebedouros existentes e publicar um calendário de manutenção preventiva.',
+      'Consertar os bebedouros existentes e publicar um calendário de manutenção preventiva. Contato: fulano.plantado@exemplo.com',
     blocoId: idsBloco.bloco18,
     categoria: 'infraestrutura',
     status: 'juntando_apoios',
