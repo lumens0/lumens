@@ -4,6 +4,7 @@ import { formatarNumero, percentual } from '../BarraApoios';
 import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
 import comuns from '../componentes.module.css';
 import { StatusPill } from '../StatusPill';
+import { nomeDoCanal } from '../../whatsapp';
 import estilos from './pauta.module.css';
 
 /** Título, status, bloco, categoria, responsáveis (só o curso) e os botões. */
@@ -34,8 +35,8 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
           Baixar card
         </a>
         <p className={estilos.nota}>
-          O botão abre o WhatsApp com a mensagem pronta. Apoiar, relatar e ajudar acontecem só no
-          bot.
+          O botão abre o {nomeDoCanal()} com a mensagem pronta. Apoiar, relatar e ajudar acontecem
+          só no bot.
         </p>
       </div>
     </header>

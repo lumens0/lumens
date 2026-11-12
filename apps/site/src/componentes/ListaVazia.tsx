@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Bloco } from '../dados/tipos';
+import { nomeDoCanal } from '../whatsapp';
 import { BotaoRelatar } from './BotaoWhatsApp';
 import estilos from './componentes.module.css';
 
@@ -10,14 +11,14 @@ export function ListaVazia({ bloco }: { bloco: Bloco | undefined }) {
       <p className={estilos.estadoTitulo}>
         {bloco ? `Ainda não tem pauta no ${bloco.nome}.` : 'Ainda não tem pauta no site.'}
       </p>
-      <p>Viu um problema no campus? Relate pelo WhatsApp: com apoios, ele vira pauta.</p>
+      <p>Viu um problema no campus? Relate pelo {nomeDoCanal()}: com apoios, ele vira pauta.</p>
       <div className={estilos.acoes}>
         {bloco && (
           <Link href="/" className={estilos.botaoSecundario}>
             Ver todos os blocos
           </Link>
         )}
-        {/* Sem número do bot configurado, o botão de relatar não aparece. */}
+        {/* Sem bot configurado no canal, o botão de relatar não aparece. */}
         <BotaoRelatar />
       </div>
     </div>

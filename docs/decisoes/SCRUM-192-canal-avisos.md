@@ -2,7 +2,8 @@
 
 Spike · Parte 3 · 2026-11-02 · @JGSEIXAS
 **Situação:** decidido. Na v1, **todos os avisos vão pelo WhatsApp**; nenhum vai por e-mail.
-Formalizado neste documento em 2026-11-10.
+Formalizado neste documento em 2026-11-10. Em 2026-11-12, o Telegram entrou como canal reserva
+(veja o [adendo](#adendo--2026-11-12--telegram-como-canal-reserva)).
 
 ## A pergunta
 
@@ -100,6 +101,37 @@ Reabrir esta decisão se acontecer qualquer um destes:
 | 3.6 · resposta oficial | Igual à 3.2.                                                                                                                   |
 | SCRUM-193              | Os dois modelos precisam ser aprovados como **utilitários**. Se a Meta os classificar como marketing, esta decisão é reaberta. |
 | SCRUM-202              | Nenhuma mudança: a fila continua com um canal só.                                                                              |
+
+## Adendo · 2026-11-12 · Telegram como canal reserva
+
+**O aviso sai pelo canal de cada estudante: WhatsApp ou Telegram.** Continua sem e-mail.
+
+Por quê:
+
+1. **A Meta segura o WhatsApp.** Os seis modelos estão em `PENDING` numa conta de teste, e a conta
+   de produção ainda não libera número (`docs/meta/mensagens-modelo.md`). Sem modelo aprovado,
+   nenhum aviso sai.
+2. **Uma condição de reabertura desta decisão disparou.** Em 2026-11-10 a Meta reclassificou
+   `lumens_owner_inativo` como `MARKETING`. Não é um dos dois modelos citados acima, mas é o aviso
+   que autoriza a remoção do owner inativo (SCRUM-239): sem ele, ninguém sai do papel.
+3. **O Telegram não tem esses bloqueios.** O bot escreve primeiro para quem já falou com ele, sem
+   modelo aprovado, sem janela de 24h e sem o limite de 250 pessoas.
+
+Como fica:
+
+- **Um canal por implantação.** O bot fala pelo WhatsApp ou pelo Telegram (`CANAL_BOT`), nunca
+  pelos dois ao mesmo tempo, e o aviso sai pelo canal ativo. Quem troca de canal continua o mesmo
+  estudante ao verificar o mesmo e-mail. Detalhes na [SCRUM-267](SCRUM-267-canal-telegram.md), que
+  substitui o "um cadastro por canal" escrito aqui antes.
+- **Um texto só.** O Telegram manda o corpo do modelo do catálogo (`whatsapp/modelos.ts`) com as
+  variáveis preenchidas, o rodapé e os mesmos botões.
+- **A cota é só do WhatsApp.** Com o Telegram ativo, a fila sai sem o limite de 250, no ritmo do
+  Telegram. A ordem de `PRIORIDADE` vale nos dois canais.
+- **Registro de entrega.** O Telegram não informa entrega: o envio aceito vale como entregue, e quem
+  bloqueou o bot sai da fila como falha. "Avisado" continua sendo enviado ou falha de vez.
+
+O risco aceito acima (bloqueio derruba a qualidade do número) não vale para o Telegram. Quem
+bloqueia o bot só deixa de receber.
 
 ## Fontes
 

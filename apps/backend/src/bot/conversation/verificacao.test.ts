@@ -366,7 +366,8 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     expect(await dados()).not.toHaveProperty('emailCifrado');
   });
 
-  it('e-mail já ligado a outro número: explica, pede outro e-mail e não mexe no outro', async () => {
+  /** Outra identidade (outro número, ou o chat do Telegram) já verificada com `aluno@ufal.br`. */
+  async function outroComOEmail() {
     const OUTRO_TELEFONE = '5582988887777';
     const outro = hashPhone(OUTRO_TELEFONE, CHAVE);
     await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), 'oi');
@@ -375,18 +376,49 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), ultimoCodigo());
     const doOutro = await estudanteDe(outro);
     expect(doOutro?.emailHmac).toBe(hmac('aluno@ufal.br'));
+    return { outro, doOutro };
+  }
+
+  it('e-mail de outra identidade, e esta sem cadastro: o cadastro passa para esta (troca de canal)', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+
+    await pedirCodigo();
+    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, listaDeCursos()]);
+    // O mesmo estudante, agora chaveado por esta identidade; a outra fica sem cadastro.
+    expect(await estudanteDe(outro)).toBeUndefined();
+    expect(await estudanteDe(H)).toMatchObject({
+      id: doOutro?.id,
+      emailHmac: hmac('aluno@ufal.br'),
+    });
+  });
+
+  it('e-mail de outra identidade, e esta já tem cadastro: explica, pede outro e-mail e não mexe em nada', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+    await db
+      .insert(estudantes)
+      .values({ telefoneHmac: H, telefoneCifrado: segredo.cifrar('5582999990000') });
+    const meu = await estudanteDe(H);
 
     await pedirCodigo();
     expect(await send(ultimoCodigo())).toEqual([EMAIL_IN_USE_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
     expect(await dados()).not.toHaveProperty('emailCifrado');
-    expect(await estudanteDe(H)).toBeUndefined();
+    expect(await estudanteDe(H)).toEqual(meu);
     expect(await estudanteDe(outro)).toEqual(doOutro);
 
     // Com outro e-mail, segue normalmente.
     expect(await send('outro.aluno@ufal.br')).toEqual([CODE_SENT_TEXT]);
     expect((await send(ultimoCodigo()))[0]).toBe(CODE_OK_TEXT);
     expect((await estudanteDe(H))?.emailHmac).toBe(hmac('outro.aluno@ufal.br'));
+  });
+
+  it('e-mail de outra identidade com o código errado: nada muda', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+    await pedirCodigo();
+    const errado = ultimoCodigo() === '000000' ? '111111' : '000000';
+    await send(errado);
+    expect(await estudanteDe(H)).toBeUndefined();
+    expect(await estudanteDe(outro)).toEqual(doOutro);
   });
 
   it('o aviso de e-mail em uso só vem depois do código: antes, o bot não revela nada', async () => {

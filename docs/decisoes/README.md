@@ -14,5 +14,6 @@ arquivo novo que diz qual substitui.
 | [SCRUM-192](SCRUM-192-canal-avisos.md)           | Canal dos avisos que só informam                         |
 | [SCRUM-239](SCRUM-239-janela-perdida.md)         | Agendador que perde a janela                             |
 | [SCRUM-251](SCRUM-251-fotos-sem-storage.md)      | Envio de foto quebrado até existir um bucket             |
+| [SCRUM-267](SCRUM-267-canal-telegram.md)         | Telegram como canal reserva do bot                       |
 
 Por que a homologação não está na AWS: [operação › homologação](../operacao/homologacao.md).

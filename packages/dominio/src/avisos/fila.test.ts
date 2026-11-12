@@ -3,6 +3,7 @@ import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TipoDisparo } from './envio';
 import {
+  PREFIXO_IDENTIDADE_TELEGRAM,
   RESERVA_EXPIRA_MS,
   enfileirarDisparos,
   registrarEntrega,
@@ -26,11 +27,12 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
 });
 
-async function estudante(): Promise<string> {
+/** Estudante com endereço do WhatsApp; com `prefixo` `tg:`, do Telegram. */
+async function estudante(prefixo = ''): Promise<string> {
   const n = String(++seq);
   const [linha] = await db
     .insert(estudantes)
-    .values({ telefoneHmac: `tel-${n}`, telefoneCifrado: `cifrado-${n}` })
+    .values({ telefoneHmac: `${prefixo}tel-${n}`, telefoneCifrado: `cifrado-${n}` })
     .returning({ id: estudantes.id });
   if (linha === undefined) throw new Error('estudante não criado');
   return linha.id;
@@ -237,6 +239,38 @@ describe('reservarLote (RNF06)', () => {
 
       expect(resumo(lote)).toEqual([`conferencia:${a}`]);
     });
+  });
+});
+
+describe('reservarLote depois de uma troca de canal (CANAL_BOT)', () => {
+  const reservarNo = (canal: 'whatsapp' | 'telegram', agora = T0) =>
+    db.transaction((tx) => reservarLote(tx, { limite: 250, agora, canal }));
+
+  it('no Telegram, só entra quem tem endereço do Telegram; o resto fica pendente, sem falha', async () => {
+    const doWhatsapp = await estudante();
+    const doTelegram = await estudante(PREFIXO_IDENTIDADE_TELEGRAM);
+    await enfileirar([aviso('meta_batida', doWhatsapp), aviso('meta_batida', doTelegram)]);
+
+    expect(resumo(await reservarNo('telegram'))).toEqual([`meta_batida:${doTelegram}`]);
+    const [pendente] = await db.select().from(disparos).where(eq(disparos.estudanteId, doWhatsapp));
+    expect(pendente).toMatchObject({ reservadoEm: null, falhouEm: null, enviadoEm: null });
+
+    // A pessoa se verifica no Telegram (o cadastro troca de chave): o aviso sai no lote seguinte.
+    await db
+      .update(estudantes)
+      .set({ telefoneHmac: `${PREFIXO_IDENTIDADE_TELEGRAM}novo` })
+      .where(eq(estudantes.id, doWhatsapp));
+    expect(resumo(await reservarNo('telegram', depois(MINUTO)))).toEqual([
+      `meta_batida:${doWhatsapp}`,
+    ]);
+  });
+
+  it('no WhatsApp (o padrão), quem tem endereço do Telegram fica de fora', async () => {
+    const doWhatsapp = await estudante();
+    const doTelegram = await estudante(PREFIXO_IDENTIDADE_TELEGRAM);
+    await enfileirar([aviso('meta_batida', doWhatsapp), aviso('meta_batida', doTelegram)]);
+
+    expect(resumo(await reservar(250, T0))).toEqual([`meta_batida:${doWhatsapp}`]);
   });
 });
 

@@ -10,6 +10,7 @@ import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
 import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
+import { nomeDoCanal } from '../whatsapp';
 import estilos from './page.module.css';
 import { metadadosDaMarca } from '../metadados';
 
@@ -40,8 +41,8 @@ export default async function Home({
             O que os estudantes da UFAL estão <em className={estilos.destaque}>pedindo</em>
           </h1>
           <p className={estilos.subtitulo}>
-            Cada pauta nasce de um relato no WhatsApp, junta apoios de quem estuda aqui e é cobrada
-            até a universidade responder. Tudo fica público, sem login.
+            Cada pauta nasce de um relato no {nomeDoCanal()}, junta apoios de quem estuda aqui e é
+            cobrada até a universidade responder. Tudo fica público, sem login.
           </p>
           <div className={estilos.heroAcoes}>
             {/* Com a lista vazia, o botão aparece na própria ListaVazia. */}

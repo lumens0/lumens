@@ -1,0 +1,42 @@
+{
+  "update_id": 1005,
+  "message": {
+    "message_id": 1005,
+    "from": {
+      "id": 900000001,
+      "is_bot": false,
+      "first_name": "Morador",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 900000001,
+      "type": "private",
+      "first_name": "Morador"
+    },
+    "date": 1767225600,
+    "photo": [
+      {
+        "file_id": "SIM-FOTO-90",
+        "file_unique_id": "SIMFOTO90",
+        "width": 90,
+        "height": 68,
+        "file_size": 1200
+      },
+      {
+        "file_id": "SIM-FOTO-320",
+        "file_unique_id": "SIMFOTO320",
+        "width": 320,
+        "height": 240,
+        "file_size": 15000
+      },
+      {
+        "file_id": "SIM-FOTO-1280",
+        "file_unique_id": "SIMFOTO1280",
+        "width": 1280,
+        "height": 960,
+        "file_size": 120000
+      }
+    ],
+    "caption": "poste apagado"
+  }
+}

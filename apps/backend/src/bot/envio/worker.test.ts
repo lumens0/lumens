@@ -4,10 +4,18 @@ import { enfileirarDisparos, renovarReserva, reservarLote } from '@lumens/domini
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { criarLogger } from '../../infra/logger';
-import type { MensagemModelo } from './mensagem-modelo';
-import { ErroDaMeta, type ModeloSender } from './sender';
+import type { AvisoRenderizado } from './aviso';
+import { montarMensagemModelo, type MensagemModelo } from './mensagem-modelo';
+import {
+  ErroDaMeta,
+  ErroDeEnvio,
+  whatsappAvisoSender,
+  type AvisoSender,
+  type ModeloSender,
+} from './sender';
 import {
   enviarLote,
+  type EnvioDeps,
   registerStatusWorker,
   registrarStatusDeEnvio,
   STATUS_QUEUE_OPTIONS,
@@ -24,12 +32,19 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
 }, 30_000);
 
-/** Estudante com telefone cifrado de verdade, e um aviso de meta batida para ele na fila. */
-async function avisoPara(telefone: string, telefoneCifrado = cifrar(telefone, chaves.cifra)) {
+/**
+ * Estudante com o endereço (telefone ou chat id) cifrado de verdade, e um aviso de meta batida
+ * para ele na fila.
+ */
+async function avisoPara(
+  telefone: string,
+  telefoneCifrado = cifrar(telefone, chaves.cifra),
+  prefixo = '',
+) {
   const n = String(++seq);
   const [e] = await db
     .insert(estudantes)
-    .values({ telefoneHmac: `t-${n}`, telefoneCifrado, verificadoEm: AGORA })
+    .values({ telefoneHmac: `${prefixo}t-${n}`, telefoneCifrado, verificadoEm: AGORA })
     .returning();
   if (e === undefined) throw new Error('estudante não criado');
   await db.transaction((tx) =>
@@ -67,7 +82,17 @@ const linhaDe = async (estudanteId: string) =>
   (await db.select().from(disparos).where(eq(disparos.estudanteId, estudanteId)))[0];
 
 const lote = (sender: ModeloSender, limite = 250) =>
-  enviarLote({ db, sender, chaves, logger, limite, relogio: () => AGORA }, AGORA);
+  enviarLote(
+    {
+      db,
+      sender: whatsappAvisoSender(sender),
+      chaves,
+      logger,
+      limite,
+      relogio: () => AGORA,
+    },
+    AGORA,
+  );
 
 describe('enviarLote (SCRUM-208)', () => {
   it('manda para o telefone decifrado e grava o envio com o HMAC do wamid', async () => {
@@ -76,8 +101,21 @@ describe('enviarLote (SCRUM-208)', () => {
 
     expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 0, tomadosPorOutro: 0 });
 
-    expect(recebidas[0]?.to).toBe('5582911110000');
+    // O mesmo corpo da Cloud API de antes do `AvisoSender`.
+    expect(recebidas).toEqual([
+      montarMensagemModelo(
+        {
+          tipo: 'meta_batida',
+          aviso: 'pauta-1',
+          modelo: 'lumens_meta_batida',
+          parametros: ['Bebedouro', '120', 'bebedouro'],
+        },
+        '5582911110000',
+      ),
+    ]);
     expect(await linhaDe(a)).toMatchObject({ wamidHmac: hmacHex('wamid.A', chaves.hmac) });
+    // No WhatsApp a entrega espera o webhook de status.
+    expect(await linhaDe(a)).toMatchObject({ entregueEm: null });
     expect((await linhaDe(a))?.enviadoEm).not.toBeNull();
   });
 
@@ -131,6 +169,115 @@ describe('enviarLote (SCRUM-208)', () => {
   });
 });
 
+describe('com CANAL_BOT=telegram', () => {
+  /** Telegram falso: responde pela ordem de `respostas` (id ou erro) e guarda o que recebeu. */
+  function telegramFalso(respostas: (string | Error)[] = []) {
+    const recebidos: { aviso: AvisoRenderizado; destino: string }[] = [];
+    const sender: AvisoSender = {
+      enviar: (aviso, destino) => {
+        recebidos.push({ aviso, destino });
+        const r = respostas.shift() ?? `tg:${destino}:1`;
+        return r instanceof Error ? Promise.reject(r) : Promise.resolve({ id: r, entregue: true });
+      },
+    };
+    return { sender, recebidos };
+  }
+
+  const loteCom = (sender: EnvioDeps['sender'], limite = Number.MAX_SAFE_INTEGER) =>
+    enviarLote(
+      { db, sender, canal: 'telegram', chaves, logger, limite, relogio: () => AGORA },
+      AGORA,
+    );
+  /** Estudante que já se verificou no Telegram: o endereço é o chat id. */
+  const doTelegram = (chat: string) => avisoPara(chat, undefined, 'tg:');
+
+  it('depois da troca de canal, quem ainda tem o telefone do WhatsApp não recebe nem falha', async () => {
+    const naoMigrou = await avisoPara('5582900000999');
+    const telegram = telegramFalso();
+
+    expect(await loteCom(telegram.sender)).toEqual({
+      enviados: 0,
+      falhas: 0,
+      adiados: 0,
+      tomadosPorOutro: 0,
+    });
+    expect(telegram.recebidos).toEqual([]);
+    // Continua pendente: não conta como "avisado" para a remoção do owner inativo (SCRUM-239).
+    expect(await linhaDe(naoMigrou)).toMatchObject({
+      reservadoEm: null,
+      enviadoEm: null,
+      falhouEm: null,
+    });
+  });
+
+  it('manda para o chat id (o endereço do estudante), e o envio já vale como entrega', async () => {
+    const t = await doTelegram('987654');
+    const telegram = telegramFalso();
+
+    expect(await loteCom(telegram.sender)).toEqual({
+      enviados: 1,
+      falhas: 0,
+      adiados: 0,
+      tomadosPorOutro: 0,
+    });
+    expect(telegram.recebidos[0]?.destino).toBe('987654');
+    expect(telegram.recebidos[0]?.aviso.texto).toContain('A pauta "Bebedouro", que você apoiou');
+    expect(await linhaDe(t)).toMatchObject({
+      enviadoEm: AGORA,
+      entregueEm: AGORA,
+      falhouEm: null,
+      wamidHmac: hmacHex('tg:987654:1', chaves.hmac),
+    });
+  });
+
+  it('sem a cota da Meta, o lote sai inteiro', async () => {
+    for (const chat of ['301', '302', '303']) await doTelegram(chat);
+    const telegram = telegramFalso();
+    expect((await loteCom(telegram.sender)).enviados).toBe(3);
+    expect(telegram.recebidos.map((r) => r.destino).sort()).toEqual(['301', '302', '303']);
+  });
+
+  it('403 tira só aquele disparo da fila, de vez; o lote segue', async () => {
+    const bloqueou = await doTelegram('401');
+    const outro = await doTelegram('402');
+    const telegram = telegramFalso([
+      new ErroDeEnvio('Forbidden: bot was blocked by the user', 'telegram:403', true, false),
+    ]);
+
+    expect(await loteCom(telegram.sender)).toEqual({
+      enviados: 1,
+      falhas: 1,
+      adiados: 0,
+      tomadosPorOutro: 0,
+    });
+    // "Avisado" para a SCRUM-239 é enviado OU falhou: o 403 conta, e não volta para a fila.
+    expect(await linhaDe(bloqueou)).toMatchObject({
+      falha: 'telegram:403',
+      enviadoEm: null,
+      entregueEm: null,
+    });
+    expect((await linhaDe(bloqueou))?.falhouEm).not.toBeNull();
+    expect((await linhaDe(outro))?.enviadoEm).not.toBeNull();
+    expect(await loteCom(telegramFalso().sender)).toMatchObject({ enviados: 0 });
+  });
+
+  it('erro que para o canal adia o resto do lote, sem marcar falha', async () => {
+    const t1 = await doTelegram('501');
+    const t2 = await doTelegram('502');
+    const telegram = telegramFalso([new ErroDeEnvio('429', 'telegram:429', false, true)]);
+
+    expect(await loteCom(telegram.sender)).toEqual({
+      enviados: 0,
+      falhas: 0,
+      adiados: 2,
+      tomadosPorOutro: 0,
+    });
+    expect(telegram.recebidos).toHaveLength(1);
+    for (const id of [t1, t2])
+      expect(await linhaDe(id)).toMatchObject({ falha: null, enviadoEm: null });
+  });
+});
+
 describe('duas instâncias com um lote mais longo que a reserva', () => {
   it('a reserva que venceu e foi tomada por outra não é mandada de novo', async () => {
     const MINUTO = 60_000;
@@ -152,7 +299,14 @@ describe('duas instâncias com um lote mais longo que a reserva', () => {
     };
 
     const resultado = await enviarLote(
-      { db, sender, chaves, logger, limite: 250, relogio: () => agora },
+      {
+        db,
+        sender: whatsappAvisoSender(sender),
+        chaves,
+        logger,
+        limite: 250,
+        relogio: () => agora,
+      },
       AGORA,
     );
 
