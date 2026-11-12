@@ -1,4 +1,4 @@
-import { chatsTelegram, curadores, eq, estudantes, type Db } from '@lumens/db';
+import { curadores, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cifrar, decifrar } from './cifra';
@@ -67,7 +67,7 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     expect(estudante2).toBeDefined();
 
     const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
-    expect(contagens).toEqual({ curadores: 2, estudantes: 2, chatsTelegram: 0 });
+    expect(contagens).toEqual({ curadores: 2, estudantes: 2 });
 
     if (!curador1 || !curador2 || !estudante1 || !estudante2) throw new Error('dados não criados');
 
@@ -138,7 +138,7 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
 
     const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
     // estudanteAmbosSaiu não foi alterado; estudanteEmailSaiu e estudanteTelSaiu tiveram 1 campo recifrado cada.
-    expect(contagens).toEqual({ curadores: 0, estudantes: 2, chatsTelegram: 0 });
+    expect(contagens).toEqual({ curadores: 0, estudantes: 2 });
 
     const [e1] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteAmbosSaiu.id));
     if (!e1) throw new Error('e1 não encontrado');
@@ -236,38 +236,5 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     expect(c1.emailCifrado).toBe(curadorOriginal);
     expect(decifrar(c1.emailCifrado, CHAVE_A)).toBe('curador1@ufal.br');
     expect(() => decifrar(c1.emailCifrado, CHAVE_B)).toThrow();
-  });
-  it('recifra o chat do Telegram: chat id, telefone e comando pendente (SCRUM-267)', async () => {
-    await db.insert(chatsTelegram).values([
-      {
-        chatHmac: 'ligado',
-        chatCifrado: cifrar('123', CHAVE_A),
-        telefoneHmac: 'hmac_tel',
-        telefoneCifrado: cifrar('5582999990001', CHAVE_A),
-      },
-      {
-        chatHmac: 'sem-contato',
-        chatCifrado: cifrar('456', CHAVE_A),
-        comandoPendenteCifrado: cifrar('apoiar bebedouro', CHAVE_A),
-      },
-    ]);
-
-    expect(await rotacionarCifra(db, CHAVE_A, CHAVE_B)).toEqual({
-      curadores: 0,
-      estudantes: 0,
-      chatsTelegram: 2,
-    });
-
-    const chats = Object.fromEntries(
-      (await db.select().from(chatsTelegram)).map((c) => [c.chatHmac, c]),
-    );
-    expect(decifrar(chats.ligado?.chatCifrado ?? '', CHAVE_B)).toBe('123');
-    expect(decifrar(chats.ligado?.telefoneCifrado ?? '', CHAVE_B)).toBe('5582999990001');
-    expect(chats.ligado?.comandoPendenteCifrado).toBeNull();
-    expect(decifrar(chats['sem-contato']?.chatCifrado ?? '', CHAVE_B)).toBe('456');
-    expect(chats['sem-contato']?.telefoneCifrado).toBeNull();
-    expect(decifrar(chats['sem-contato']?.comandoPendenteCifrado ?? '', CHAVE_B)).toBe(
-      'apoiar bebedouro',
-    );
   });
 });

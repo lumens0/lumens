@@ -29,7 +29,7 @@
  * nova (2.6) continua no título, com o relato da 2.5 se houver. Quem já é verificado e escolhe
  * "3" no menu não refaz a verificação.
  */
-import { CURSOS, type Canal, type Db } from '@lumens/db';
+import { CURSOS, type Db } from '@lumens/db';
 import {
   CODIGO_EXPIRA_MS,
   DIGITOS_DO_CODIGO,
@@ -118,12 +118,6 @@ export const RESEND_FAILED_TEXT =
   'Não consegui enviar o código agora. Tente daqui a pouco: responda *reenviar*.';
 export const EMAIL_LOST_TEXT = `Não consegui recuperar o seu e-mail. ${EMAIL_QUESTION_TEXT}`;
 export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
-// No Telegram a identidade também é o telefone (o contato compartilhado), mas o outro número pode
-// nunca ter passado pelo WhatsApp: o texto fala só de "outro número".
-export const EMAIL_IN_USE_TELEGRAM_TEXT = `Esse e-mail da UFAL já está ligado a outro número de telefone no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
-
-export const emailInUseText = (canal: Canal | undefined): string =>
-  canal === 'telegram' ? EMAIL_IN_USE_TELEGRAM_TEXT : EMAIL_IN_USE_TEXT;
 export const LINK_UNAVAILABLE_TEXT =
   'Não consegui concluir a verificação agora. Digite o código de novo daqui a pouco.';
 
@@ -243,7 +237,6 @@ export const verifyAskCode: StepHandler = async ({
   db,
   phoneHmac,
   phoneCifrado,
-  canal,
   hmac,
   segredo,
   email,
@@ -286,7 +279,7 @@ export const verifyAskCode: StepHandler = async ({
       return {
         next: 'VERIFY_ASK_EMAIL',
         data: { emailCifrado: undefined },
-        replies: [emailInUseText(canal)],
+        replies: [EMAIL_IN_USE_TEXT],
       };
     }
     // O e-mail já está no cadastro: a conversa não precisa mais dele.

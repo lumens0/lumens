@@ -37,8 +37,6 @@ import {
   listaDeCursos,
   EMAIL_FORMAT_TEXT,
   EMAIL_IN_USE_TEXT,
-  EMAIL_IN_USE_TELEGRAM_TEXT,
-  emailInUseText,
   EMAIL_LOST_TEXT,
   EMAIL_MANY_TEXT,
   EMAIL_MISSING_TEXT,
@@ -368,60 +366,8 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     expect(await dados()).not.toHaveProperty('emailCifrado');
   });
 
-  it('pelo Telegram, com o mesmo telefone, a verificação do WhatsApp continua valendo', async () => {
-    await pedirCodigo();
-    await send(ultimoCodigo());
-    await send('curso:Direito');
-    // O job do Telegram traz o mesmo `hashPhone` do contato compartilhado: é a mesma pessoa.
-    const doTelegram = (text: string) =>
-      handleIncoming(
-        { phoneHmac: H, phoneCifrado: segredo.cifrar(TELEFONE), canal: 'telegram', text },
-        { store, db, segredo, email: emailFalso, hmac },
-      );
-    expect(await doTelegram('3')).toEqual([ALREADY_VERIFIED_TEXT]);
-    expect(await db.select().from(estudantes)).toHaveLength(1);
-  });
-
-  it('no Telegram, o e-mail de outro número não é chamado de "número de WhatsApp"', async () => {
-    // O e-mail já está no cadastro de outro telefone.
-    await pedirCodigo();
-    await send(ultimoCodigo());
-    const outro = hashPhone('5582988887777', CHAVE);
-    const doTelegram = (text: string) =>
-      handleIncoming(
-        {
-          phoneHmac: outro,
-          phoneCifrado: segredo.cifrar('5582988887777'),
-          canal: 'telegram',
-          text,
-        },
-        { store, db, segredo, email: emailFalso, hmac },
-      );
-    await doTelegram('oi');
-    await doTelegram('3');
-    await doTelegram('aluno@ufal.br');
-    expect(await doTelegram(ultimoCodigo())).toEqual([EMAIL_IN_USE_TELEGRAM_TEXT]);
-    expect(EMAIL_IN_USE_TELEGRAM_TEXT).not.toContain('WhatsApp');
-    expect(EMAIL_IN_USE_TELEGRAM_TEXT).toContain('outro número de telefone');
-
-    // A verificação vale para o número, nos dois canais: o texto é o mesmo.
-    await doTelegram('outro.aluno@ufal.br');
-    await doTelegram(ultimoCodigo());
-    expect(await doTelegram('curso:Direito')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
-  });
-
-  it('no WhatsApp, os textos continuam os de antes, palavra por palavra', () => {
-    expect(emailInUseText('whatsapp')).toBe(EMAIL_IN_USE_TEXT);
-    expect(emailInUseText(undefined)).toBe(EMAIL_IN_USE_TEXT);
-    expect(EMAIL_IN_USE_TEXT).toMatch(
-      /^Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens\. Cada e-mail vale para um número só/,
-    );
-    expect(VERIFIED_TEXT).toBe(
-      'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.',
-    );
-  });
-
-  it('e-mail já ligado a outro número: explica, pede outro e-mail e não mexe no outro', async () => {
+  /** Outra identidade (outro número, ou o chat do Telegram) já verificada com `aluno@ufal.br`. */
+  async function outroComOEmail() {
     const OUTRO_TELEFONE = '5582988887777';
     const outro = hashPhone(OUTRO_TELEFONE, CHAVE);
     await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), 'oi');
@@ -430,18 +376,49 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     await sendDe(outro, segredo.cifrar(OUTRO_TELEFONE), ultimoCodigo());
     const doOutro = await estudanteDe(outro);
     expect(doOutro?.emailHmac).toBe(hmac('aluno@ufal.br'));
+    return { outro, doOutro };
+  }
+
+  it('e-mail de outra identidade, e esta sem cadastro: o cadastro passa para esta (troca de canal)', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+
+    await pedirCodigo();
+    expect(await send(ultimoCodigo())).toEqual([CODE_OK_TEXT, listaDeCursos()]);
+    // O mesmo estudante, agora chaveado por esta identidade; a outra fica sem cadastro.
+    expect(await estudanteDe(outro)).toBeUndefined();
+    expect(await estudanteDe(H)).toMatchObject({
+      id: doOutro?.id,
+      emailHmac: hmac('aluno@ufal.br'),
+    });
+  });
+
+  it('e-mail de outra identidade, e esta já tem cadastro: explica, pede outro e-mail e não mexe em nada', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+    await db
+      .insert(estudantes)
+      .values({ telefoneHmac: H, telefoneCifrado: segredo.cifrar('5582999990000') });
+    const meu = await estudanteDe(H);
 
     await pedirCodigo();
     expect(await send(ultimoCodigo())).toEqual([EMAIL_IN_USE_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
     expect(await dados()).not.toHaveProperty('emailCifrado');
-    expect(await estudanteDe(H)).toBeUndefined();
+    expect(await estudanteDe(H)).toEqual(meu);
     expect(await estudanteDe(outro)).toEqual(doOutro);
 
     // Com outro e-mail, segue normalmente.
     expect(await send('outro.aluno@ufal.br')).toEqual([CODE_SENT_TEXT]);
     expect((await send(ultimoCodigo()))[0]).toBe(CODE_OK_TEXT);
     expect((await estudanteDe(H))?.emailHmac).toBe(hmac('outro.aluno@ufal.br'));
+  });
+
+  it('e-mail de outra identidade com o código errado: nada muda', async () => {
+    const { outro, doOutro } = await outroComOEmail();
+    await pedirCodigo();
+    const errado = ultimoCodigo() === '000000' ? '111111' : '000000';
+    await send(errado);
+    expect(await estudanteDe(H)).toBeUndefined();
+    expect(await estudanteDe(outro)).toEqual(doOutro);
   });
 
   it('o aviso de e-mail em uso só vem depois do código: antes, o bot não revela nada', async () => {

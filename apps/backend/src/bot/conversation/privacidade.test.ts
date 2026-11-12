@@ -1,6 +1,6 @@
 import { apoios, codigosVerificacao, conversas, eq, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
-import { chatTelegramDe, registrarApoio, vincularChatTelegram } from '@lumens/dominio';
+import { registrarApoio } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
@@ -167,45 +167,5 @@ describe("comando 'sair' (SCRUM-176)", () => {
     expect(await send('sair')).toEqual([LEAVE_CONFIRM_TEXT]);
     expect(await send('sim')).toEqual([LEFT_TEXT]);
     expect(await estudanteVerificado(db, H)).toBeUndefined();
-  });
-});
-
-describe('"sair" apaga o chat do Telegram ligado ao telefone (SCRUM-267)', () => {
-  const ligarChat = (telefoneHmac: string, chat: string) =>
-    vincularChatTelegram(db, {
-      chatHmac: chat,
-      chatCifrado: `c-${chat}`,
-      telefoneHmac,
-      telefoneCifrado: 'x',
-    });
-
-  it('com cadastro: o chat sai junto com o telefone, e o de outra pessoa fica', async () => {
-    await estudanteComApoio();
-    await ligarChat(H, 'chat-dela');
-    await ligarChat(hashPhone('5582988887777', CHAVE), 'chat-de-outro');
-
-    await send('sair');
-    expect(await send('sim')).toEqual([LEFT_TEXT]);
-
-    expect(await chatTelegramDe(db, 'chat-dela')).toBeUndefined();
-    expect(await chatTelegramDe(db, 'chat-de-outro')).toBeDefined();
-  });
-
-  it('sem cadastro: o chat também sai', async () => {
-    await ligarChat(H, 'chat-dela');
-
-    expect(await send('sair')).toContain(NOTHING_TO_DELETE_TEXT);
-
-    expect(await chatTelegramDe(db, 'chat-dela')).toBeUndefined();
-  });
-
-  it('desistir de sair não apaga o chat', async () => {
-    await estudanteComApoio();
-    await ligarChat(H, 'chat-dela');
-
-    await send('sair');
-    expect(await send('não')).toEqual([STAYED_TEXT, MENU_TEXT]);
-
-    expect(await chatTelegramDe(db, 'chat-dela')).toBeDefined();
   });
 });

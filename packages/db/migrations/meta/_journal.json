@@ -99,13 +99,6 @@
       "when": 1794500003000,
       "tag": "0013_documento_resposta",
       "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1794500004000,
-      "tag": "0014_chat_telegram",
-      "breakpoints": true
     }
   ]
 }

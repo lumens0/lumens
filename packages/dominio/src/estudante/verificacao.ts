@@ -203,7 +203,12 @@ export interface NovoVinculo {
  * Liga o telefone ao e-mail no cadastro do estudante (RN01). Chame só depois do código certo: é
  * ele que prova que a pessoa é dona do e-mail.
  *
- * - E-mail de outro telefone: recusa (`email_em_uso`) e não mexe em nada.
+ * - E-mail de outra identidade, e esta identidade ainda sem cadastro: é a mesma pessoa chegando por
+ *   outro canal (o bot trocou de WhatsApp para Telegram, por exemplo; SCRUM-267). O cadastro do
+ *   dono passa para esta identidade: apoios, pautas, curso e `verificado_em` continuam no mesmo
+ *   estudante, sem voto duplicado, e os avisos pendentes saem para o endereço novo.
+ * - E-mail de outra identidade que já tem cadastro também: recusa (`email_em_uso`) e não mexe em
+ *   nada. Juntar dois cadastros pediria uma regra para os apoios dos dois.
  * - Telefone novo: cria o estudante, ainda sem `verificado_em` (quem marca é o fim da 2.4).
  * - Telefone que já tem cadastro: troca o e-mail; o antigo fica livre. `verificado_em` e `saiu_em`
  *   não mudam aqui.
@@ -216,19 +221,28 @@ export interface NovoVinculo {
  */
 export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<ResultadoVinculo> {
   const [dono] = await db
-    .select({ telefoneHmac: estudantes.telefoneHmac })
+    .select({ id: estudantes.id, telefoneHmac: estudantes.telefoneHmac })
     .from(estudantes)
     .where(eq(estudantes.emailHmac, vinculo.emailHmac))
     .for('update');
-  if (dono !== undefined && dono.telefoneHmac !== vinculo.telefoneHmac) {
-    return { vinculado: false, motivo: 'email_em_uso' };
-  }
 
   const [meu] = await db
     .select({ id: estudantes.id })
     .from(estudantes)
     .where(eq(estudantes.telefoneHmac, vinculo.telefoneHmac))
     .for('update');
+
+  if (dono !== undefined && dono.telefoneHmac !== vinculo.telefoneHmac) {
+    if (meu !== undefined) return { vinculado: false, motivo: 'email_em_uso' };
+    // A mesma pessoa em outro canal: o cadastro troca de chave, e o código certo já provou a posse
+    // do e-mail. O UNIQUE de `telefone_hmac` não choca: esta identidade não tem cadastro.
+    await db
+      .update(estudantes)
+      .set({ telefoneHmac: vinculo.telefoneHmac, telefoneCifrado: vinculo.telefoneCifrado })
+      .where(eq(estudantes.id, dono.id));
+    return { vinculado: true, estudanteId: dono.id };
+  }
+
   if (meu !== undefined) {
     await db
       .update(estudantes)

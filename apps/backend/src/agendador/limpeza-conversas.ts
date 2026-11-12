@@ -1,5 +1,4 @@
 import type { Db } from '@lumens/db';
-import { apagarChatsSemContato } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
 import type { ConversationStore } from '../bot/conversation/store';
 import { deleteOldDedup } from '../bot/webhook/process';
@@ -15,14 +14,11 @@ export interface CleanupResult {
   deleted: number;
   /** Dedup de webhook fora da janela de reenvio da Meta (mensagem_processada). */
   dedupDeleted: number;
-  /** Chats do Telegram que nunca compartilharam o contato, parados há mais de um dia. */
-  chatsSemContato: number;
 }
 
 /**
- * Agenda a limpeza diária do bot (04:00 em Maceió): conversas expiradas, o dedup antigo do
- * webhook, que de outro modo cresceria para sempre, e os chats do Telegram que pararam antes de
- * compartilhar o contato (só guardavam o comando pendente).
+ * Agenda a limpeza diária do bot (04:00 em Maceió): conversas expiradas e o dedup antigo
+ * do webhook, que de outro modo cresceria para sempre.
  */
 export async function registerCleanupJob(
   boss: Boss,
@@ -36,7 +32,6 @@ export async function registerCleanupJob(
     const result: CleanupResult = {
       deleted: await deps.store.deleteExpired(),
       dedupDeleted: await deleteOldDedup(deps.db),
-      chatsSemContato: await apagarChatsSemContato(deps.db),
     };
     onDone?.(result);
     return result;

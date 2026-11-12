@@ -1,6 +1,5 @@
-import type { Canal, Db } from '@lumens/db';
+import type { Db } from '@lumens/db';
 import {
-  apagarChatBloqueado,
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
@@ -18,9 +17,11 @@ import { ErroDeEnvio, type AvisoSender } from './sender';
 /**
  * Envio em lotes da fila de disparos (SCRUM-208) e registro de entrega por pessoa (SCRUM-209).
  *
- * A cada minuto o worker reserva o lote que cabe no limite da Meta (`reservarLote`, RNF06), manda
- * cada aviso pelo canal que a reserva escolheu (`disparo.canal`) e registra o que aconteceu. Quem
- * decide quem sai e quem espera é a fila; aqui só se executa o plano.
+ * A cada minuto o worker reserva o lote que cabe no limite do canal (`reservarLote`, RNF06), manda
+ * cada aviso pelo sender do canal ativo (`CANAL_BOT`: um só por processo) e registra o que
+ * aconteceu. Quem decide quem sai e quem espera é a fila; aqui só se executa o plano. O destino é o
+ * endereço do estudante no canal ativo (`telefone_cifrado`): o telefone no WhatsApp, o chat id no
+ * Telegram.
  *
  * O registro de entrega por canal:
  *
@@ -35,10 +36,6 @@ import { ErroDeEnvio, type AvisoSender } from './sender';
  * como entrega. As regras que dependem desses campos continuam iguais nos dois canais: "avisado" é
  * `enviado_em` ou `falhou_em` (SCRUM-239, remoção do owner inativo), e quem bloqueou o bot (403)
  * sai da fila com `falhou_em`, como o número sem WhatsApp.
- *
- * O 403 também apaga o chat do Telegram ligado ao telefone: o aviso seguinte dessa pessoa vai pelo
- * WhatsApp, em vez de bater no bloqueio para sempre. Se ela voltar a falar com o bot, compartilha o
- * contato de novo.
  */
 
 /** A cada minuto: um aviso espera no máximo isso para sair, se houver cota. */
@@ -48,14 +45,14 @@ type Boss = Pick<PgBoss, 'getQueue' | 'createQueue' | 'schedule' | 'work'>;
 
 export interface EnvioDeps {
   db: Db;
-  /**
-   * Quem envia em cada canal. Canal sem sender não é reservado: os avisos dos estudantes dele
-   * esperam na fila, sem gastar vaga, até o canal ser configurado.
-   */
-  senders: Partial<Record<Canal, AvisoSender>>;
+  /** Quem envia no canal ativo. */
+  sender: AvisoSender;
   chaves: Chaves;
   logger: Logger;
-  /** Pessoas distintas por 24h que a Meta permite hoje (RNF06). */
+  /**
+   * Pessoas distintas por 24h que o canal permite (RNF06). No WhatsApp é o limite da Meta; no
+   * Telegram não há cota, e o ritmo fica com o sender.
+   */
   limite: number;
   /** Relógio de cada envio. Injetável para teste; o padrão é a hora de agora. */
   relogio?: () => Date;
@@ -75,46 +72,23 @@ export interface ResultadoDoLote {
  * Um lote: reserva, envia um por um, registra. Antes de cada envio, renova a reserva daquele
  * disparo (`renovarReserva`): se outra instância já o pegou, pula. É o que impede a mesma
  * mensagem de sair duas vezes quando o lote leva mais que os dez minutos da reserva.
- *
- * Um erro que vale para o lote para só o canal dele: limite da Meta não segura quem está no
- * Telegram, e o contrário também.
  */
 export async function enviarLote(
   deps: EnvioDeps,
   agora: Date = new Date(),
 ): Promise<ResultadoDoLote> {
-  const { db, senders, chaves, logger } = deps;
+  const { db, sender, chaves, logger } = deps;
   const relogio = deps.relogio ?? (() => new Date());
-  const canais = (Object.keys(senders) as Canal[]).filter((c) => senders[c] !== undefined);
-  const lote = await db.transaction((tx) =>
-    reservarLote(tx, { limite: deps.limite, agora, canais }),
-  );
+  const lote = await db.transaction((tx) => reservarLote(tx, { limite: deps.limite, agora }));
   const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
-  const parados = new Set<Canal>();
 
-  /** `chatPerdido`: a pessoa bloqueou o bot; o chat sai junto, na mesma transação. */
-  const falhar = async (
-    id: string,
-    motivo: string,
-    chatPerdido?: { estudanteId: string; chatCifrado: string },
-  ) => {
-    await db.transaction(async (tx) => {
-      await registrarFalha(tx, { id, motivo });
-      if (chatPerdido) await apagarChatBloqueado(tx, chatPerdido);
-    });
+  const falhar = async (id: string, motivo: string) => {
+    await db.transaction((tx) => registrarFalha(tx, { id, motivo }));
     resultado.falhas++;
     logger.warn({ disparo: id, motivo }, 'disparo saiu da fila sem envio');
   };
 
-  for (const disparo of lote) {
-    const sender = senders[disparo.canal];
-    if (sender === undefined || parados.has(disparo.canal)) {
-      // Sem quem envie (o canal saiu da configuração entre a reserva e aqui) ou com o canal
-      // parado: volta quando a reserva vencer. Não é falha.
-      resultado.adiados++;
-      continue;
-    }
-
+  for (const [posicao, disparo] of lote.entries()) {
     let aviso: AvisoRenderizado;
     let destino: string;
     try {
@@ -155,23 +129,16 @@ export async function enviarLote(
       resultado.enviados++;
     } catch (erro) {
       if (erro instanceof ErroDeEnvio && erro.permanente) {
-        const perdido = erro.destinoPerdido && disparo.canal === 'telegram';
-        await falhar(
-          disparo.id,
-          erro.motivo,
-          perdido
-            ? { estudanteId: disparo.estudanteId, chatCifrado: disparo.telefoneCifrado }
-            : undefined,
-        );
+        await falhar(disparo.id, erro.motivo);
         continue;
       }
-      logger.warn(
-        { disparo: disparo.id, canal: disparo.canal, erro: resumoDoErro(erro) },
-        'envio adiado',
-      );
+      logger.warn({ disparo: disparo.id, erro: resumoDoErro(erro) }, 'envio adiado');
+      if (!(erro instanceof ErroDeEnvio) || erro.pararLote) {
+        // O resto do lote também volta quando a reserva vencer.
+        resultado.adiados += lote.length - posicao;
+        break;
+      }
       resultado.adiados++;
-      // O resto do canal também volta quando a reserva vencer.
-      if (!(erro instanceof ErroDeEnvio) || erro.pararLote) parados.add(disparo.canal);
     }
   }
 

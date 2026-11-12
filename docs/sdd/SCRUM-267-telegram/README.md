@@ -6,8 +6,8 @@
 | -------------------------- | --------------------------------- |
 | **Ticket**                 | SCRUM-267                         |
 | **Dev**                    | @guilhermek32                     |
-| **Branch**                 | `feat/telegram-bot`               |
-| **Commit no arquivamento** | `a4d5706` (mais mudanças locais)  |
+| **Branch**                 | `feat/SCRUM-267-telegram`         |
+| **Commit no arquivamento** | ver o PR                          |
 | **Fase alcançada**         | IMPLEMENTAÇÃO, aguardando revisão |
 
 ## Documentos
@@ -30,20 +30,17 @@ Pendente.
       long polling para dev, gerando o mesmo job da fila.
 - [x] Respostas como `sendMessage`, com listas e botões em teclado inline e `*negrito*` em
       `entities`, sem `parse_mode`.
-- [x] Avisos pelo Telegram, fora do limite da Meta; aceito vale como entregue; 403 é falha
-      permanente e apaga o chat, e os próximos avisos da pessoa voltam ao WhatsApp.
+- [x] Avisos pelo Telegram, sem o limite da Meta; aceito vale como entregue; 403 é falha
+      permanente.
 - [x] Foto e documento pelo `getFile`.
-- [x] Canal ligado só com `TELEGRAM_BOT_TOKEN`; as `META_*` ficam opcionais com ele.
+- [x] Um canal por implantação, por `CANAL_BOT`; com `telegram`, as `META_*` são ignoradas.
 - [x] `pnpm sim --canal telegram`, com fixtures `telegram-*.json`.
 - [x] Decisão em `docs/decisoes/` e este SDD.
-- [x] **Identidade pelo telefone:** o chat sem telefone recebe o pedido do contato (botão
-      `request_contact`); o contato da própria conta liga o chat ao telefone pelo mesmo `hashPhone`
-      do WhatsApp; o cartão de outra pessoa é recusado; o comando que chegou antes do contato fica
-      guardado e roda depois. Tabela `chat_telegram` e coluna `disparo.canal` na migração 0014
-      (reescrita: o commit `a4d5706` usava o chat id como chave e um cadastro por canal,
-      `estudante.canal`, que saiu). Detalhes no [PLAN](PLAN.md#identidade).
-- [ ] Antes do merge: conciliar `bot/worker.ts`, `main.ts` e `config/env.ts` com o canal do
-      Evolution, se ele entrar primeiro.
+- [x] **Identidade pelo chat** (HMAC de `tg:<chat_id>`), sem pedir o telefone, e **mescla pelo
+      e-mail da UFAL** para quem troca de canal (`vincularEmail`). Sem migração. Detalhes no
+      [PLAN](PLAN.md#identidade).
+- [ ] Antes do merge: combinar com o canal do Evolution qual entra primeiro; os dois se encontram
+      em `main.ts` e `config/env.ts` (`CANAL_BOT`).
 
 ## Como rodar local
 
@@ -53,11 +50,12 @@ Pendente.
 2. **No `.env` da raiz** (o resto como no [rodar local](../../desenvolvimento/rodar-local.md)):
 
    ```sh
+   CANAL_BOT=telegram
    TELEGRAM_BOT_TOKEN=<token do BotFather>
    TELEGRAM_MODO=polling
    ```
 
-   As `META_*` podem ficar vazias (as quatro): o back-end sobe só com o Telegram.
+   As `META_*` são ignoradas com `CANAL_BOT=telegram`.
 
 3. **Banco e servidor:**
 
@@ -66,15 +64,12 @@ Pendente.
    pnpm dev
    ```
 
-   **Se você aplicou a versão anterior da migração 0014** (a do commit `a4d5706`, que nunca foi
-   para o remoto, com `estudante.canal`), rode `pnpm db:fresh` no lugar do `pnpm db:migrate`. A
-   0014 reescrita tem o mesmo timestamp no journal, e o `pnpm db:migrate` a pula sem avisar: o
-   banco fica sem a `chat_telegram`. O `pnpm db:fresh` **apaga o banco local** e o recria com o
-   seed.
+   **Se você aplicou uma versão anterior desta branch** (com a migração 0014), rode `pnpm db:fresh`
+   no lugar do `pnpm db:migrate`: a 0014 saiu, e o journal do banco local ainda a tem. O
+   `pnpm db:fresh` **apaga o banco local** e o recria com o seed.
 
 4. **Converse** com o bot no app do Telegram. As mensagens chegam pelo polling, sem túnel. A
-   primeira mensagem recebe o pedido do contato: toque no botão de compartilhar o número, e a
-   conversa começa (com o comando que você mandou antes, ou o menu).
+   primeira mensagem abre o aviso de privacidade e o menu, como no WhatsApp.
 
 ### Com o simulador
 
@@ -82,6 +77,7 @@ O simulador fala com a rota do webhook, que só existe em `TELEGRAM_MODO=webhook
 `POST` dá 404). Para usá-lo, troque no `.env`:
 
 ```sh
+CANAL_BOT=telegram
 TELEGRAM_BOT_TOKEN=<token do BotFather>   # qualquer valor liga o canal; com um falso, as respostas falham no envio
 TELEGRAM_MODO=webhook
 TELEGRAM_WEBHOOK_SECRET=<gere com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
@@ -91,14 +87,9 @@ O back-end não chama o `setWebhook`, então o bot real não passa a mandar upda
 máquina. Para ver as respostas no seu Telegram, use o seu chat id em `--chat` (com um chat id
 inventado, o `sendMessage` responde 400 "chat not found").
 
-Um chat novo precisa mandar o contato antes de conversar: o que chega antes recebe o pedido do
-contato, e o último texto fica guardado até ele chegar.
-
 ```sh
-pnpm sim start --canal telegram                        # /start: pede o contato (guarda o menu)
+pnpm sim start --canal telegram                        # /start: aviso de privacidade e menu
 pnpm sim start apoiar_bebedouro --canal telegram       # link "Apoiar" do site
-pnpm sim contato 5582999990000 --canal telegram        # próprio contato: roda o comando guardado
-pnpm sim contato 5582988887777 900000002 --canal telegram   # cartão de outra pessoa: recusado
 pnpm sim texto 'buraco no bloco 12' --canal telegram
 pnpm sim botao cat_iluminacao --canal telegram         # toque em botão inline
 pnpm sim foto 'poste apagado' --canal telegram
@@ -113,16 +104,18 @@ pnpm sim texto oi --canal telegram --dry-run           # só imprime o update e 
 
 - **Ordem das histórias:** a história previa este canal depois do Evolution, reusando as peças
   comuns. Ele veio antes; ver a decisão.
+- **Identidade:** o ticket pedia o contato compartilhado e o mesmo `hashPhone` nos dois canais. Na
+  revisão, o time decidiu por um canal por implantação, identidade pelo chat e mescla pelo e-mail
+  (ver a decisão e o [SPEC](SPEC.md#critérios-de-aceitação)).
+- **`callback_data`:** a SCRUM-270 pedia um mapeamento curto para ids acima de 64 bytes; aqui um id
+  assim lança. Todo id gerado hoje cabe, e um teste percorre cada gerador (ver o
+  [PLAN](PLAN.md#saída)).
 
 ## Dívida técnica aceita
 
-- "Apoiar" e os botões de resposta rápida dos avisos não são tratados pelo bot em nenhum dos dois
-  canais.
+- "Apoiar" e os botões de resposta rápida dos avisos não são tratados pelo bot em nenhum canal.
 - Slug acima de 57 caracteres não cabe no payload de 64 do `start`.
-- **Nono dígito.** O wa_id que a Meta entrega para algumas contas brasileiras antigas vem sem o
-  nono dígito (55 + DDD + 8 dígitos), e o Telegram manda o número inteiro. Essa pessoa vira dois
-  estudantes, e o e-mail da UFAL dela é recusado no segundo canal (já está no cadastro do outro
-  telefone). Nenhuma heurística foi acrescentada; ver o comentário de `normalizarTelefone` em
-  `apps/backend/src/bot/telegram/contato.ts`.
+- **Troca de canal no meio de um fluxo:** a conversa em andamento fica no canal antigo e expira; o
+  cadastro passa ao novo na verificação.
 - **Sem teste contra a Bot API real.** Tudo foi exercitado com fakes (`fetch` falso nos testes,
   simulador contra o back-end local).

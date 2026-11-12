@@ -1,4 +1,4 @@
-import { lt, mensagensProcessadas, type Canal, type Db, type Tx } from '@lumens/db';
+import { lt, mensagensProcessadas, type Db, type Tx } from '@lumens/db';
 import { z } from 'zod';
 import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import type { Logger } from '../../infra/logger';
@@ -121,15 +121,11 @@ export type ConteudoMensagem = z.infer<typeof conteudoSchema>;
  * codifica o telefone — vão como HMAC (para achar a conversa e deduplicar) e cifrados (para o
  * worker responder). O conteúdo (texto, legenda, botão) vai cifrado: texto livre pode ter
  * e-mail, nome ou telefone.
+ *
+ * No Telegram (`CANAL_BOT=telegram`) o job é o mesmo: `wamid*` é o `update_id`, `phoneHmac` é o
+ * HMAC de `tg:<chat_id>`, `phoneCifrado` é o chat id e `phoneNumberId` é `telegram`.
  */
 export interface IncomingMessageJob {
-  /**
-   * Por onde a mensagem chegou. Job enfileirado antes do Telegram não tem o campo: vale como
-   * WhatsApp (leia com `canalDoJob`). No Telegram, `wamid*` é o `update_id`, `phone*` é o telefone
-   * do contato que a pessoa compartilhou (o mesmo `hashPhone` do WhatsApp: a mesma conversa e o
-   * mesmo estudante), `chatCifrado` é para onde responder e `phoneNumberId` é `telegram`.
-   */
-  canal?: Canal;
   wamidHmac: string;
   wamidCifrado: string;
   /** Mesmo hash do `hashPhone`: a chave da conversa na tabela conversa. */
@@ -140,13 +136,6 @@ export interface IncomingMessageJob {
   timestamp: string;
   /** `ConteudoMensagem` em JSON, cifrado com a CHAVE_CIFRA. Leia com `conteudoDoJob`. */
   contentCifrado: string;
-  /** Só no Telegram: o chat id, cifrado com a CHAVE_CIFRA. É para onde as respostas vão. */
-  chatCifrado?: string;
-}
-
-/** O canal de um job de entrada ou de respostas; sem o campo (job antigo), é o WhatsApp. */
-export function canalDoJob(job: { canal?: Canal }): Canal {
-  return job.canal ?? 'whatsapp';
 }
 
 /** Cifra o conteúdo para o job. O `paraJsonb` já passou pelo schema de quem chama. */
@@ -250,7 +239,6 @@ async function enfileirar(
   const { chaves } = deps;
   const wamidHmac = hmacHex(id, chaves.hmac);
   const job: IncomingMessageJob = {
-    canal: 'whatsapp',
     wamidHmac,
     wamidCifrado: cifrar(id, chaves.cifra),
     phoneHmac: hashPhone(from, chaves.hmac),

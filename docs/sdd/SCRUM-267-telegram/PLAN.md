@@ -29,81 +29,52 @@ Telegram ◀── getUpdates (polling.ts, só dev) ────┤
   maior resolução; documento vira `document`; o `callback_query` vira texto do `data` e é
   respondido com `answerCallbackQuery` (melhor esforço). O dedup é o HMAC de `tg:<update_id>`, na
   mesma tabela do wamid.
-- **Contato compartilhado:** o `message.contact` com `user_id` igual ao `from.id` dá o telefone,
-  que passa pelo `hashPhone` do WhatsApp; com `user_id` diferente ou ausente, é recusado (ver
-  [Identidade](#identidade)).
+- **Um canal por processo:** o `main.ts` lê `CANAL_BOT` (`canalDoEnv`) e monta só o webhook (ou o
+  polling), o `ReplySender`, o sender de avisos e o download de mídia do canal ativo. Os jobs não
+  levam o canal: num processo só existe um.
 
 ## Identidade
 
-Decidido na [SCRUM-267](../../decisoes/SCRUM-267-canal-telegram.md): **um estudante por telefone**,
-nos dois canais. O update do Telegram só traz o chat id; o telefone chega uma vez, quando a pessoa
-compartilha o próprio contato.
+Decidido na [SCRUM-267](../../decisoes/SCRUM-267-canal-telegram.md) (revisão de 2026-11-12):
+**no Telegram a identidade é o chat, e o e-mail da UFAL liga a pessoa entre canais.**
 
 ```
-update ─▶ chat_telegram[HMAC de tg:<chat_id>]
-            ├─ com telefone ─▶ job da conversa com o hashPhone do telefone (o mesmo do WhatsApp)
-            ├─ sem telefone ─▶ pede o contato (teclado request_contact); um texto fica guardado
-            └─ contato ──────▶ próprio: liga o chat ao telefone, tira o teclado e roda o texto
-                               guardado (ou `menu`); de outra pessoa: recusa e pede de novo
+update ─▶ job da conversa
+            phoneHmac    = hashPhone("tg:<chat_id>")   (vira estudante.telefone_hmac)
+            phoneCifrado = cifra(chat_id)              (vira estudante.telefone_cifrado: o destino)
+
+verificação ─▶ vincularEmail
+            e-mail sem dono ou desta identidade ─▶ como na main
+            e-mail de outra identidade, esta sem cadastro ─▶ o cadastro do dono troca de chave
+            e-mail de outra identidade, as duas com cadastro ─▶ email_em_uso
 ```
 
-- **Pedido do contato (`update.ts`, `contato.ts`, `sender.ts`):** o chat sem telefone não chega à
-  conversa. A resposta vai pela fila de saída com `teclado: 'pedirContato'`, que vira o teclado de
-  resposta com o botão `request_contact`; o contato aceito responde com `teclado: 'tirarTeclado'`
-  (`remove_keyboard`).
-- **Recusa do cartão de outra pessoa:** só vale o contato com `contact.user_id` igual ao `from.id`.
-  Um cartão de outra pessoa (ou sem `user_id`, como um contato da agenda) daria a alguém a
-  identidade e o voto de outro estudante; é recusado, e o pedido se repete. Número fora de 8 a 15
-  dígitos também é recusado (`normalizarTelefone` tira o `+` e o resto que não é dígito).
-- **Comando pendente:** o último texto de um chat sem telefone (o `/start <payload>` de um link do
-  site, ou a primeira mensagem) fica cifrado em `chat_telegram.comando_pendente_cifrado` e vai para
-  a conversa quando o contato é aceito. Botão antigo, foto e documento não ficam guardados.
-- **Tabela `chat_telegram`** (`packages/db/src/schema.ts`, domínio em
-  `packages/dominio/src/estudante/chat-telegram.ts`): `chat_hmac` (HMAC de `tg:<chat_id>`, chave;
-  o prefixo impede colisão com o `hashPhone` de mesmos dígitos), `chat_cifrado`, `telefone_hmac`
-  (único: um telefone, um chat; o último a compartilhar fica com ele) e `telefone_cifrado` (os dois
-  nulos ou os dois preenchidos, por `CHECK`), `comando_pendente_cifrado` e `atualizado_em`. Nada em
-  claro.
-- **`disparo.canal`** (enum `whatsapp | telegram`, nulo nos disparos de antes): a reserva do lote
-  grava por onde o aviso saiu. A conta das 250 pessoas/24h da Meta usa o canal gravado, não o chat
-  de hoje: assim ela fica certa quando a pessoa liga ou perde o chat dentro das 24h (um envio pelo
-  Telegram não passa a contar, e um pelo WhatsApp não deixa de contar).
-- **Ciclo de vida do chat:**
-  - **403 num aviso** (a pessoa bloqueou o bot ou apagou a conta): o disparo sai da fila como falha
-    permanente e, na mesma transação, o chat é apagado (`apagarChatBloqueado`, só se ainda for o
-    mesmo chat do aviso). Os próximos avisos da pessoa saem pelo WhatsApp. Um 400 não apaga o chat:
-    pode ser defeito da mensagem. Nas respostas da conversa, o 403 só descarta o resto do envio.
-  - **"sair" do Lumens** apaga o chat ligado ao telefone.
-  - **Limpeza diária** (`agendador/limpeza-conversas.ts`, 04:00 em Maceió): apaga os chats que
-    nunca compartilharam o contato e estão parados há mais de um dia.
-  - **Rotação da chave de cifra** (`cripto/rotacao.ts`, `scripts/rotacionar-cifra.ts`) recifra
-    `chat_cifrado`, `telefone_cifrado` e `comando_pendente_cifrado`.
-- **Migração 0014 (`0014_chat_telegram.sql`):** cria o enum `canal`, a tabela `chat_telegram` e a
-  coluna `disparo.canal`; não reescreve estudantes nem disparos. Ela substitui a 0014 da primeira
-  versão da branch (commit `a4d5706`, nunca enviada ao remoto), que usava o HMAC de `tg:<chat_id>`
-  como chave do estudante, com `estudante.canal` e um cadastro por canal. As duas têm o mesmo
-  timestamp no journal: quem aplicou a antiga precisa do `pnpm db:fresh` (ver o
-  [README](README.md#como-rodar-local)).
-- **Limitação — nono dígito:** `normalizarTelefone` não mexe no nono dígito. O wa_id de algumas
-  contas brasileiras antigas vem sem ele, e o Telegram manda o número inteiro: essa pessoa vira dois
-  estudantes, e o e-mail da UFAL dela é recusado no segundo canal. Nenhuma heurística foi
-  acrescentada.
+- **`chaveDoChat` (`update.ts`):** o prefixo `tg:` impede colisão com o `hashPhone` de um
+  telefone de mesmos dígitos. O telefone não é pedido.
+- **Mescla pelo e-mail (`packages/dominio/src/estudante/verificacao.ts`):** depois do código certo,
+  na mesma transação e com o `FOR UPDATE` de sempre, o estudante dono do e-mail recebe o
+  `telefone_hmac` e o `telefone_cifrado` da identidade nova, se ela ainda não tem cadastro (é
+  sempre o caso no canal novo: o estudante só é criado nesse passo). Apoios, pautas, curso e
+  `verificado_em` ficam no mesmo estudante, e os avisos pendentes saem para o endereço novo.
+- **Sem migração.** Nenhuma tabela nem coluna nova: o chat id cabe em `telefone_cifrado`.
 
 ## Saída
 
 - **Respostas (`sender.ts`, `formatacao.ts`):** `paraTelegram` monta os `sendMessage`; o
-  `telegramSender` decifra o chat id e manda em ordem. 403 descarta o resto sem lançar; 429 espera
+  `telegramSender` decifra o chat id (o `phoneCifrado` do job) e manda em ordem. 403 descarta o resto sem lançar; 429 espera
   o `retry_after` e reenvia; 5xx e rede lançam para o retry do pg-boss. Id de botão acima de 64
   bytes lança antes de chamar a API.
 - **Avisos (`avisos.ts`):** `mensagensDoAviso` usa o corpo do catálogo (`whatsapp/modelos.ts`) com
   as variáveis, o rodapé, o botão de link para a pauta e os botões de resposta com o mesmo payload
   do WhatsApp (`tipo:aviso:índice`). O `telegramAvisoSender` não dispara em rajada (intervalo entre
   envios e 1 s por chat). Aceito vale como entregue; 403 e 400 "chat not found" são falha
-  permanente do disparo, sem parar o canal, e só o 403 apaga o chat; 429 longo ou rede param o
-  canal até o próximo lote.
-- **Limite da Meta:** a reserva escolhe o canal de cada disparo (Telegram para quem tem chat
-  ligado, se o canal está configurado; senão WhatsApp) e o grava em `disparo.canal`; o lote escolhe
-  o sender pelo canal. Só o WhatsApp conta nas 250 pessoas/24h.
+  permanente do disparo; 429 longo ou rede param o lote até a próxima rodada.
+- **Fila (`avisos/fila.ts`):** igual à da `main`. O destino é o `telefone_cifrado` do estudante.
+  O limite é do canal: `META_LIMITE_PESSOAS` no WhatsApp; sem cota no Telegram.
+- **`callback_data`:** um id acima de 64 bytes lança antes de chamar a API, em vez do mapeamento
+  curto pedido na SCRUM-270. Desvio aceito: todo id que a conversa gera hoje cabe (prefixos curtos,
+  UUIDs e a lista de cursos), e o teste "os ids que a conversa usa cabem no callback_data"
+  (`sender.test.ts`) percorre cada gerador. Um id novo que não caiba quebra esse teste.
 
 ## Mídia
 
@@ -115,13 +86,14 @@ extensão; acima de 20 MB (pelo `file_size` ou pelo "file is too big") é recusa
 
 `apps/backend/src/config/env.ts`:
 
-| Variável                  | Papel                                                                             |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`      | Liga o canal. Com ele, as quatro `META_*` ficam opcionais (as quatro ou nenhuma). |
-| `TELEGRAM_MODO`           | `webhook` (padrão) ou `polling` (dev, sem túnel).                                 |
-| `TELEGRAM_WEBHOOK_SECRET` | Obrigatória em `webhook`. Letras, números, `_` e `-`, até 256 caracteres.         |
+| Variável                  | Papel                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| `CANAL_BOT`               | `whatsapp` (padrão) ou `telegram`. Só as variáveis do canal escolhido são lidas. |
+| `TELEGRAM_BOT_TOKEN`      | Obrigatória com `CANAL_BOT=telegram`.                                            |
+| `TELEGRAM_MODO`           | `webhook` (padrão) ou `polling` (dev, sem túnel).                                |
+| `TELEGRAM_WEBHOOK_SECRET` | Obrigatória em `webhook`. Letras, números, `_` e `-`, até 256 caracteres.        |
 
-Sem nenhum dos dois canais, o back-end não sobe. O back-end não chama o `setWebhook`: registrar a
+Com `CANAL_BOT=telegram`, as `META_*` são ignoradas. O back-end não chama o `setWebhook`: registrar a
 URL no Telegram é passo manual do deploy.
 
 ## Simulador
@@ -132,8 +104,11 @@ não engolir a repetição. Fixtures em `apps/backend/src/bot/sim/__fixtures__/t
 
 ## Riscos
 
-- **Pontos de encontro com o Evolution.** `bot/worker.ts`, `main.ts` e `config/env.ts` foram
-  mexidos antes do canal do Evolution, que a história previa primeiro. Quem entrar depois concilia.
+- **Pontos de encontro com o Evolution.** `main.ts` e `config/env.ts` (`CANAL_BOT`) foram mexidos
+  antes do canal do Evolution, que a história previa primeiro. O Evolution acrescenta o valor dele
+  ao `CANAL_BOT` e monta as peças dele no mesmo ponto do `main.ts`.
+- **Troca de canal com conversa em andamento.** A conversa é chaveada pela identidade: quem estava no
+  meio de um fluxo no canal antigo recomeça no novo. O cadastro (depois da verificação) não se perde.
 - **Alcance.** O Telegram está em cerca de 57% dos smartphones no Brasil; quem não tem a conta não
   usa a reserva.
 - **Sem a Bot API real.** Nada foi exercitado contra o Telegram de verdade, só com fakes (`fetch`

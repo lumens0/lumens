@@ -119,15 +119,14 @@ Por quê:
 
 Como fica:
 
-- **Um estudante por telefone.** No Telegram a pessoa compartilha o próprio contato, e o telefone
-  passa pelo mesmo `hashPhone` do WhatsApp: quem usa os dois canais é um estudante só. O aviso sai
-  pelo Telegram para quem falou com o bot por lá. Detalhes na
-  [SCRUM-267](SCRUM-267-canal-telegram.md), que substitui o "um cadastro por canal" escrito aqui
-  antes.
+- **Um canal por implantação.** O bot fala pelo WhatsApp ou pelo Telegram (`CANAL_BOT`), nunca
+  pelos dois ao mesmo tempo, e o aviso sai pelo canal ativo. Quem troca de canal continua o mesmo
+  estudante ao verificar o mesmo e-mail. Detalhes na [SCRUM-267](SCRUM-267-canal-telegram.md), que
+  substitui o "um cadastro por canal" escrito aqui antes.
 - **Um texto só.** O Telegram manda o corpo do modelo do catálogo (`whatsapp/modelos.ts`) com as
   variáveis preenchidas, o rodapé e os mesmos botões.
-- **A cota é só do WhatsApp.** Quem está no Telegram não gasta vaga nem espera por ela. A ordem de
-  `PRIORIDADE` vale nos dois canais.
+- **A cota é só do WhatsApp.** Com o Telegram ativo, a fila sai sem o limite de 250, no ritmo do
+  Telegram. A ordem de `PRIORIDADE` vale nos dois canais.
 - **Registro de entrega.** O Telegram não informa entrega: o envio aceito vale como entregue, e quem
   bloqueou o bot sai da fila como falha. "Avisado" continua sendo enviado ou falha de vez.
 

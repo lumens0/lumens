@@ -73,14 +73,13 @@ Com `--canal telegram`, o simulador monta `Update`s da Bot API do Telegram e faz
 `/telegram/webhook` com o header `X-Telegram-Bot-Api-Secret-Token` (o Telegram não assina o
 corpo, como a Meta). Sem `--canal`, ele continua mandando o formato da Meta.
 
-| Tipo                           | O que envia                                                                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `texto <mensagem>`             | mensagem de texto                                                                                                             |
-| `start [payload]`              | `/start`, com o payload opcional dos links do site (`nova`, `apoiar_<slug>`, `ajudar_<slug>`)                                 |
-| `botao <data>`                 | toque em botão do teclado inline (`callback_query`)                                                                           |
-| `foto [legenda]`               | foto (arquivo fictício, em três tamanhos) com legenda opcional                                                                |
-| `documento [mime]`             | documento (arquivo fictício; padrão `image/jpeg`)                                                                             |
-| `contato [telefone] [user_id]` | contato compartilhado (padrão `5582999990000`); com `user_id` diferente do chat, é o cartão de outra pessoa, que o bot recusa |
+| Tipo               | O que envia                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `texto <mensagem>` | mensagem de texto                                                                             |
+| `start [payload]`  | `/start`, com o payload opcional dos links do site (`nova`, `apoiar_<slug>`, `ajudar_<slug>`) |
+| `botao <data>`     | toque em botão do teclado inline (`callback_query`)                                           |
+| `foto [legenda]`   | foto (arquivo fictício, em três tamanhos) com legenda opcional                                |
+| `documento [mime]` | documento (arquivo fictício; padrão `image/jpeg`)                                             |
 
 | Opção             | Padrão                                                    |
 | ----------------- | --------------------------------------------------------- |
@@ -96,6 +95,7 @@ A rota `/telegram/webhook` só existe com o back-end em `TELEGRAM_MODO=webhook`:
 ela não é registrada, e o `POST` dá 404. No `.env` da raiz:
 
 ```sh
+CANAL_BOT=telegram
 TELEGRAM_BOT_TOKEN=<token do @BotFather>   # qualquer valor liga o canal; com um falso, as respostas do bot falham no envio
 TELEGRAM_MODO=webhook
 TELEGRAM_WEBHOOK_SECRET=<letras, números, _ e ->
@@ -104,21 +104,12 @@ TELEGRAM_WEBHOOK_SECRET=<letras, números, _ e ->
 O back-end não chama o `setWebhook`: o bot real não passa a mandar updates para a sua máquina.
 Para ver as respostas no seu Telegram, passe o seu chat id em `--chat`.
 
-Um chat novo precisa compartilhar o contato antes de conversar: o que chega antes recebe o pedido
-do contato, e o último texto fica guardado até ele chegar.
-
 ```sh
-# /start de um chat novo: pede o contato (e guarda o menu)
+# /start de um chat novo: aviso de privacidade e menu
 pnpm sim start --canal telegram
 
 # Link "Apoiar" do site
 pnpm sim start apoiar_bebedouro --canal telegram
-
-# Contato da própria conta: liga o chat ao telefone e roda o comando guardado
-pnpm sim contato 5582999990000 --canal telegram
-
-# Cartão de outra pessoa (user_id ≠ chat): recusado
-pnpm sim contato 5582988887777 900000002 --canal telegram
 
 # Texto, botão inline, foto e documento
 pnpm sim texto 'buraco no bloco 12' --canal telegram

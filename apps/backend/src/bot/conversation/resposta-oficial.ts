@@ -26,9 +26,6 @@ export const ASK_PDF_TEXT =
   'Mande aqui o PDF da resposta que a ouvidoria deu no Fala.BR (o arquivo, não uma foto). A curadoria vai ler e registrar o resumo, e aí quem apoiou a pauta recebe a resposta.';
 export const PDF_RECEIVED_TEXT =
   'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta pelo WhatsApp.';
-/** No Telegram: quem apoiou recebe pelo canal de cada um, que pode ser o WhatsApp ou o Telegram. */
-export const PDF_RECEIVED_TELEGRAM_TEXT =
-  'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta.';
 export const NEED_PDF_TEXT =
   'Preciso do arquivo PDF da resposta. Mande o arquivo ou responda *menu*.';
 export const NO_PROTOCOL_TEXT =
@@ -95,7 +92,6 @@ export const ownerSendResponse: StepHandler = async (ctx) => {
     return { next: 'MENU', data: LIMPAR, replies: [DATA_LOST_TEXT] };
   }
 
-  const recebido = ctx.canal === 'telegram' ? PDF_RECEIVED_TELEGRAM_TEXT : PDF_RECEIVED_TEXT;
-  const estado = await mostrarCaminhos(db, pauta, [recebido]);
+  const estado = await mostrarCaminhos(db, pauta, [PDF_RECEIVED_TEXT]);
   return { ...estado, data: { ...estado.data, ...LIMPAR_PASSO } };
 };

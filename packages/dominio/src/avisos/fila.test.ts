@@ -1,4 +1,4 @@
-import { chatsTelegram, disparos, estudantes, eq, type Db } from '@lumens/db';
+import { disparos, estudantes, eq, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TipoDisparo } from './envio';
@@ -26,22 +26,13 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
 });
 
-/** Estudante; `'telegram'` também liga um chat do Telegram ao telefone dele. */
-async function estudante(canal: 'whatsapp' | 'telegram' = 'whatsapp'): Promise<string> {
+async function estudante(): Promise<string> {
   const n = String(++seq);
   const [linha] = await db
     .insert(estudantes)
     .values({ telefoneHmac: `tel-${n}`, telefoneCifrado: `cifrado-${n}` })
     .returning({ id: estudantes.id });
   if (linha === undefined) throw new Error('estudante não criado');
-  if (canal === 'telegram') {
-    await db.insert(chatsTelegram).values({
-      chatHmac: `chat-${n}`,
-      chatCifrado: `chat-cifrado-${n}`,
-      telefoneHmac: `tel-${n}`,
-      telefoneCifrado: `cifrado-${n}`,
-    });
-  }
   return linha.id;
 }
 
@@ -193,128 +184,6 @@ describe('reservarLote (RNF06)', () => {
       expect(await reservar(10, depois(2 * RESERVA_EXPIRA_MS))).toEqual([]);
       const [linha] = await db.select().from(disparos);
       expect(linha?.falha).toBe('131026');
-    });
-  });
-
-  describe('canal do disparo (chat do Telegram)', () => {
-    it('quem tem chat sai pelo Telegram, para o chat; quem não tem, pelo WhatsApp', async () => {
-      const [w, t] = [await estudante(), await estudante('telegram')];
-      await enfileirar([aviso('meta_batida', w), aviso('meta_batida', t)]);
-
-      const lote = await reservar(10, T0);
-
-      expect(lote.map((d) => [d.estudanteId, d.canal, d.telefoneCifrado])).toEqual([
-        [w, 'whatsapp', expect.stringMatching(/^cifrado-/)],
-        [t, 'telegram', expect.stringMatching(/^chat-cifrado-/)],
-      ]);
-      // O canal fica gravado na reserva.
-      const canais = await db.select({ e: disparos.estudanteId, c: disparos.canal }).from(disparos);
-      expect(Object.fromEntries(canais.map((l) => [l.e, l.c]))).toEqual({
-        [w]: 'whatsapp',
-        [t]: 'telegram',
-      });
-    });
-
-    it('Telegram não configurado: quem tem chat recebe pelo WhatsApp, e gasta vaga', async () => {
-      const t = await estudante('telegram');
-      await enfileirar([aviso('meta_batida', t)]);
-
-      const lote = await db.transaction((tx) =>
-        reservarLote(tx, { limite: 10, agora: T0, canais: ['whatsapp'] }),
-      );
-
-      expect(lote.map((d) => [d.canal, d.telefoneCifrado])).toEqual([
-        ['whatsapp', expect.stringMatching(/^cifrado-/)],
-      ]);
-      const [linha] = await db.select().from(disparos).where(eq(disparos.estudanteId, t));
-      expect(linha?.canal).toBe('whatsapp');
-    });
-
-    it('quem está no Telegram sai sem cota e não ocupa vaga da Meta', async () => {
-      const [w1, w2] = [await estudante(), await estudante()];
-      const [t1, t2] = [await estudante('telegram'), await estudante('telegram')];
-      await enfileirar([aviso('meta_batida', t1)], T0);
-      await enfileirar([aviso('meta_batida', w1)], depois(1000));
-      await enfileirar([aviso('meta_batida', t2)], depois(2000));
-      await enfileirar([aviso('meta_batida', w2)], depois(3000));
-
-      // Limite de 1: sai um do WhatsApp (o mais antigo) e todos do Telegram.
-      expect(resumo(await enviarLote(1, T0)).sort()).toEqual(
-        [`meta_batida:${w1}`, `meta_batida:${t1}`, `meta_batida:${t2}`].sort(),
-      );
-
-      // W2 continua esperando a cota, e o Telegram de novo sai na hora.
-      await enfileirar([aviso('conferencia', t1, 'promessa-1')], depois(HORA));
-      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([`conferencia:${t1}`]);
-    });
-
-    it('envio pelo Telegram não conta nas 24h da Meta, mesmo que a pessoa perca o chat depois', async () => {
-      const t = await estudante('telegram');
-      await enfileirar([aviso('meta_batida', t)], T0);
-      await enviarLote(1, T0);
-      // Bloqueou o bot: o chat sai, e o próximo aviso dela iria pelo WhatsApp.
-      await db.delete(chatsTelegram);
-
-      const w = await estudante();
-      await enfileirar([aviso('meta_batida', w)], depois(HORA));
-
-      // Se o envio de T pelo Telegram contasse como alcançado, a única vaga estaria ocupada.
-      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([`meta_batida:${w}`]);
-    });
-
-    it('envio pelo WhatsApp conta nas 24h, mesmo que a pessoa ligue um chat depois', async () => {
-      const a = await estudante();
-      await enfileirar([aviso('meta_batida', a)], T0);
-      await enviarLote(1, T0);
-      await db.insert(chatsTelegram).values({
-        chatHmac: 'chat-novo',
-        chatCifrado: 'chat-cifrado-novo',
-        telefoneHmac: (await db.select().from(estudantes).where(eq(estudantes.id, a)))[0]
-          ?.telefoneHmac,
-        telefoneCifrado: 'x',
-      });
-
-      const w = await estudante();
-      await enfileirar([aviso('meta_batida', w)], depois(HORA));
-
-      // A vaga de A continua ocupada até as 24h passarem.
-      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([]);
-    });
-
-    it('disparo de antes da coluna (canal nulo) conta como WhatsApp', async () => {
-      const a = await estudante();
-      await enfileirar([aviso('meta_batida', a)], T0);
-      await enviarLote(1, T0);
-      await db.update(disparos).set({ canal: null });
-
-      const w = await estudante();
-      await enfileirar([aviso('meta_batida', w)], depois(HORA));
-      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([]);
-    });
-
-    it('limite zerado não segura o Telegram', async () => {
-      const t = await estudante('telegram');
-      await enfileirar([aviso('conferencia', t)]);
-
-      expect(resumo(await reservar(0, T0))).toEqual([`conferencia:${t}`]);
-    });
-
-    it('só reserva os canais pedidos; o resto espera sem reserva', async () => {
-      const [w, t] = [await estudante(), await estudante('telegram')];
-      await enfileirar([aviso('meta_batida', w), aviso('meta_batida', t)]);
-
-      const soTelegram = await db.transaction((tx) =>
-        reservarLote(tx, { limite: 10, agora: T0, canais: ['telegram'] }),
-      );
-      expect(resumo(soTelegram)).toEqual([`meta_batida:${t}`]);
-      const [doWhatsapp] = await db.select().from(disparos).where(eq(disparos.estudanteId, w));
-      expect(doWhatsapp?.reservadoEm).toBeNull();
-
-      const nenhum = await db.transaction((tx) =>
-        reservarLote(tx, { limite: 10, agora: T0, canais: [] }),
-      );
-      expect(nenhum).toEqual([]);
-      expect(resumo(await reservar(10, depois(MINUTO)))).toEqual([`meta_batida:${w}`]);
     });
   });
 

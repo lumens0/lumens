@@ -22,33 +22,19 @@ caracteres e de 64 bytes, códigos 403/429) e a decisão
   → 200 e enfileira uma vez, mesmo reenviado.
 - [falha] **fila fora** → 500 no webhook; no polling, o offset não avança e o update volta.
 
-## Casos — identidade
+## Casos — identidade e canal
 
-`bot/telegram/update.test.ts`, `bot/conversation/verificacao.test.ts`,
-`packages/dominio/src/estudante/chat-telegram.test.ts`:
+`bot/telegram/update.test.ts`, `packages/dominio/src/estudante/verificacao.test.ts`,
+`bot/conversation/verificacao.test.ts`, `config/env.test.ts`:
 
-- [principal] **contato próprio** (`contact.user_id` = `from.id`) liga o chat ao telefone, pelo
-  mesmo `hashPhone` do WhatsApp; `+5582…` e `5582…` dão o mesmo telefone, guardado só como HMAC e
-  cifra.
-- [negativo] **contato de outra pessoa** (`contact.user_id` ≠ `from.id`) ou **sem `user_id`** é
-  recusado, nada é gravado e o pedido se repete; número ilegível também.
-- [regra] **mesmo telefone nos dois canais** é o mesmo estudante: o job do Telegram tem o mesmo
-  `phoneHmac` do WhatsApp, e a verificação feita no WhatsApp vale no Telegram.
-- [pedido] **chat sem contato** (texto, `/start`, botão, foto, documento) recebe o pedido do
-  contato, e nada vai para a conversa.
-- [pendente] **o link do site que chegou antes do contato** roda depois dele, e o comando fica
-  cifrado; sem nada guardado, o contato abre o menu.
-- [chat] **um telefone, um chat**; "sair" apaga o chat (`privacidade.test.ts`); a limpeza apaga só
-  chat sem contato parado há mais de um dia.
-
-## Casos — banco (`packages/db/src/schema.test.ts`, `migracao-chat-telegram.test.ts`)
-
-- [constraint] **`chat_telegram`**: telefone pela metade (HMAC sem cifra) é recusado; o mesmo
-  telefone em dois chats é recusado.
-- [migração] **a 0014 com dados existentes** não reescreve estudantes nem disparos; o canal dos
-  disparos antigos fica nulo.
-- [rotação] **a rotação da cifra** recifra os campos cifrados de `chat_telegram`
-  (`apps/backend/src/cripto/rotacao.test.ts`).
+- [principal] **a chave é o HMAC de `tg:<chat_id>`**, que não colide com o `hashPhone` de um
+  telefone de mesmos dígitos; o chat id vai cifrado no `phoneCifrado`.
+- [mescla] **e-mail de outra identidade, e esta sem cadastro:** o cadastro passa para esta, com o
+  mesmo id, curso e `verificado_em`; o apoio fica, e a pessoa não apoia a mesma pauta de novo.
+- [negativo] **e-mail de outra identidade, as duas com cadastro:** `email_em_uso`, nada muda.
+- [negativo] **código errado** para o e-mail de outra identidade: nada muda.
+- [canal] **`CANAL_BOT`** vazio é o WhatsApp (as `META_*` obrigatórias); `telegram` exige o token
+  e, em `webhook`, o segredo; valor desconhecido é recusado.
 
 ## Casos — saída (`bot/telegram/sender.test.ts`, `formatacao.test.ts`, `api.test.ts`)
 
@@ -65,14 +51,11 @@ caracteres e de 64 bytes, códigos 403/429) e a decisão
 
 - [principal] **os seis modelos** do catálogo saem com o texto preenchido, o rodapé e os botões.
 - [entrega] **`sendMessage` aceito** vale como entregue.
-- [falha] **403** é falha permanente do disparo, sem parar o canal; **429 longo** e **rede** param
-  o canal neste lote.
+- [falha] **403** e **400** são falha permanente do disparo, sem parar o lote; **429 longo** e
+  **rede** param o lote.
 - [ritmo] **sem rajada**: intervalo entre envios e 1 s por chat.
-- [chat] **403 apaga o chat**, e o próximo aviso da pessoa vai pelo WhatsApp; 400 não apaga
-  (`bot/envio/worker.test.ts`).
-- [cota] **quem tem chat sai pelo Telegram** sem ocupar vaga da Meta; o canal gravado em
-  `disparo.canal` mantém a conta das 24h certa quando a pessoa liga ou perde o chat
-  (`packages/dominio/src/avisos/fila.test.ts`).
+- [lote] **com `CANAL_BOT=telegram`** o lote manda para o chat id, sem a cota da Meta, e o envio
+  vale como entrega; 403 tira só aquele disparo da fila (`bot/envio/worker.test.ts`).
 
 ## Casos — mídia (`fotos/telegram-midia.test.ts`)
 
@@ -82,12 +65,11 @@ caracteres e de 64 bytes, códigos 403/429) e a decisão
 ## Casos — simulador (`bot/sim/telegram.test.ts`, `sim.test.ts`)
 
 - [contrato] **cada construtor** (texto, `/start` com e sem payload, `callback_query`, foto,
-  documento, contato próprio e de outra pessoa) passa no `updateSchema` real do bot.
+  documento) passa no `updateSchema` real do bot.
 - [dedup] **`update_id` novo** a cada chamada.
 - [envio] **`sendTelegram`** manda o header `X-Telegram-Bot-Api-Secret-Token` e o update como JSON,
   sem a assinatura da Meta.
-- [fixtures] **os `telegram-*.json`** passam no `updateSchema`; no `message.contact` já validado,
-  o `telegram-contato-alheio` tem `contact.user_id` ≠ `from.id`, e o `telegram-contato`, igual.
+- [fixtures] **os `telegram-*.json`** passam no `updateSchema`.
 - [regressão] **canal Meta** sem mudança: os testes e as fixtures da Meta continuam iguais.
 
 ## Lacunas conhecidas
@@ -95,6 +77,6 @@ caracteres e de 64 bytes, códigos 403/429) e a decisão
 - Nenhum teste conversa com o Telegram de verdade; a API é sempre um `fetch` falso.
 - O `setWebhook` não é testado: o back-end não o chama.
 - O teste do simulador valida o formato pelo `updateSchema`, que descarta campos que não conhece
-  (o `first_name` do contato, por exemplo): o que ele garante é só o que o bot lê.
-- O nono dígito (wa_id antigo sem ele contra o número inteiro do Telegram) não tem teste: é
-  limitação aceita, sem tratamento no código.
+  (o `first_name` do remetente, por exemplo): o que ele garante é só o que o bot lê.
+- A montagem do `main.ts` por `CANAL_BOT` não tem teste automatizado: foi conferida subindo o
+  back-end nos dois modos.

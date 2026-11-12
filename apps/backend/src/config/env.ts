@@ -93,8 +93,14 @@ const esquema = z
     CHAVE_CIFRA: chaveDe32Bytes,
     CHAVE_HMAC: chaveDe32Bytes,
 
-    // WhatsApp / Meta (parte 2). Obrigatórias sem o Telegram; com ele, opcionais (as quatro ou
-    // nenhuma). A regra fica no `superRefine` abaixo.
+    /**
+     * O canal do bot nesta implantação: um só por processo. Só o webhook (ou polling), o sender de
+     * respostas e o de avisos dele sobem. Vazio é o WhatsApp, como sempre foi.
+     */
+    CANAL_BOT: comPadrao(z.enum(['whatsapp', 'telegram']).default('whatsapp')),
+
+    // WhatsApp / Meta (parte 2). Obrigatórias com CANAL_BOT=whatsapp; a regra fica no
+    // `superRefine` abaixo.
     META_TOKEN: opcional,
     META_APP_SECRET: opcional,
     META_VERIFY_TOKEN: opcional,
@@ -111,7 +117,7 @@ const esquema = z
         .default(250),
     ),
 
-    // Telegram: o segundo canal do bot. Ligado se e só se o token estiver definido.
+    // Telegram: obrigatório com CANAL_BOT=telegram.
     TELEGRAM_BOT_TOKEN: opcional,
     /** Conferido no header `X-Telegram-Bot-Api-Secret-Token` do webhook. */
     TELEGRAM_WEBHOOK_SECRET: opcional.refine(
@@ -151,9 +157,8 @@ const VARIAVEIS_META = [
 ] as const;
 
 /**
- * Pelo menos um canal. Sem o Telegram, as quatro `META_*` são obrigatórias, como sempre foram. Com
- * ele, o WhatsApp é opcional, mas pela metade não: faltar uma das quatro seria o webhook da Meta
- * no ar recusando tudo, ou respostas que nunca saem, sem nenhum aviso.
+ * As variáveis do canal ativo são obrigatórias; as do outro canal são ignoradas. No Telegram em
+ * modo `webhook`, o secret token também é obrigatório: sem ele, qualquer um poderia mandar updates.
  *
  * Roda mesmo com outras variáveis inválidas (`when`), para a mensagem listar tudo de uma vez.
  */
@@ -161,6 +166,7 @@ function validarCanais(
   env: Partial<
     Record<
       | (typeof VARIAVEIS_META)[number]
+      | 'CANAL_BOT'
       | 'TELEGRAM_BOT_TOKEN'
       | 'TELEGRAM_WEBHOOK_SECRET'
       | 'TELEGRAM_MODO',
@@ -169,53 +175,48 @@ function validarCanais(
   >,
   ctx: z.RefinementCtx,
 ): void {
-  const faltando = VARIAVEIS_META.filter((nome) => env[nome] === undefined);
-  const comTelegram = env.TELEGRAM_BOT_TOKEN !== undefined;
-  if (!comTelegram || faltando.length < VARIAVEIS_META.length) {
-    const mensagem = comTelegram
-      ? 'o WhatsApp está configurado pela metade — defina as quatro META_* ou nenhuma (com o Telegram ligado)'
-      : 'não definida — veja o .env.example (ou ligue o Telegram com TELEGRAM_BOT_TOKEN)';
-    for (const nome of faltando) ctx.addIssue({ code: 'custom', message: mensagem, path: [nome] });
+  if (env.CANAL_BOT === 'telegram') {
+    if (env.TELEGRAM_BOT_TOKEN === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'obrigatória com CANAL_BOT=telegram — veja o .env.example',
+        path: ['TELEGRAM_BOT_TOKEN'],
+      });
+    }
+    if (env.TELEGRAM_MODO !== 'polling' && env.TELEGRAM_WEBHOOK_SECRET === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          "obrigatória com TELEGRAM_MODO=webhook — gere com: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+        path: ['TELEGRAM_WEBHOOK_SECRET'],
+      });
+    }
+    return;
   }
-  if (comTelegram && env.TELEGRAM_MODO !== 'polling' && env.TELEGRAM_WEBHOOK_SECRET === undefined) {
-    ctx.addIssue({
-      code: 'custom',
-      message:
-        "obrigatória com TELEGRAM_MODO=webhook — gere com: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
-      path: ['TELEGRAM_WEBHOOK_SECRET'],
-    });
+  for (const nome of VARIAVEIS_META) {
+    if (env[nome] === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'não definida — veja o .env.example (ou use CANAL_BOT=telegram)',
+        path: [nome],
+      });
+    }
   }
 }
 
 export type Env = z.infer<typeof esquema>;
 
-/** O WhatsApp (Cloud API da Meta), quando as quatro `META_*` estão definidas. */
+/** O WhatsApp (Cloud API da Meta). */
 export interface ConfigWhatsApp {
   token: string;
   appSecret: string;
   verifyToken: string;
   phoneNumberId: string;
+  /** Pessoas distintas por 24h que a Meta permite (RNF06). */
+  limitePessoas: number;
 }
 
-export function whatsappDoEnv(env: Env): ConfigWhatsApp | undefined {
-  const { META_TOKEN, META_APP_SECRET, META_VERIFY_TOKEN, META_PHONE_NUMBER_ID } = env;
-  if (
-    META_TOKEN === undefined ||
-    META_APP_SECRET === undefined ||
-    META_VERIFY_TOKEN === undefined ||
-    META_PHONE_NUMBER_ID === undefined
-  ) {
-    return undefined;
-  }
-  return {
-    token: META_TOKEN,
-    appSecret: META_APP_SECRET,
-    verifyToken: META_VERIFY_TOKEN,
-    phoneNumberId: META_PHONE_NUMBER_ID,
-  };
-}
-
-/** O Telegram, quando o `TELEGRAM_BOT_TOKEN` está definido. */
+/** O Telegram. */
 export interface ConfigTelegram {
   token: string;
   modo: 'webhook' | 'polling';
@@ -223,14 +224,39 @@ export interface ConfigTelegram {
   segredoDoWebhook?: string;
 }
 
-export function telegramDoEnv(env: Env): ConfigTelegram | undefined {
-  if (env.TELEGRAM_BOT_TOKEN === undefined) return undefined;
+/** O canal ativo (`CANAL_BOT`) com a configuração dele. As variáveis do outro canal ficam de fora. */
+export type ConfigDoCanal =
+  ({ canal: 'whatsapp' } & ConfigWhatsApp) | ({ canal: 'telegram' } & ConfigTelegram);
+
+export function canalDoEnv(env: Env): ConfigDoCanal {
+  if (env.CANAL_BOT === 'telegram') {
+    // O `carregarEnv` já recusou o ambiente sem o token.
+    if (env.TELEGRAM_BOT_TOKEN === undefined) throw new Error('TELEGRAM_BOT_TOKEN não definida.');
+    return {
+      canal: 'telegram',
+      token: env.TELEGRAM_BOT_TOKEN,
+      modo: env.TELEGRAM_MODO,
+      ...(env.TELEGRAM_WEBHOOK_SECRET === undefined
+        ? {}
+        : { segredoDoWebhook: env.TELEGRAM_WEBHOOK_SECRET }),
+    };
+  }
+  const { META_TOKEN, META_APP_SECRET, META_VERIFY_TOKEN, META_PHONE_NUMBER_ID } = env;
+  if (
+    META_TOKEN === undefined ||
+    META_APP_SECRET === undefined ||
+    META_VERIFY_TOKEN === undefined ||
+    META_PHONE_NUMBER_ID === undefined
+  ) {
+    throw new Error('META_* não definidas.');
+  }
   return {
-    token: env.TELEGRAM_BOT_TOKEN,
-    modo: env.TELEGRAM_MODO,
-    ...(env.TELEGRAM_WEBHOOK_SECRET === undefined
-      ? {}
-      : { segredoDoWebhook: env.TELEGRAM_WEBHOOK_SECRET }),
+    canal: 'whatsapp',
+    token: META_TOKEN,
+    appSecret: META_APP_SECRET,
+    verifyToken: META_VERIFY_TOKEN,
+    phoneNumberId: META_PHONE_NUMBER_ID,
+    limitePessoas: env.META_LIMITE_PESSOAS,
   };
 }
 
