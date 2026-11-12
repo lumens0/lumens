@@ -77,6 +77,19 @@ export function acharDadoPessoal(
   return achados;
 }
 
+/**
+ * O corpo de uma rota pública da API. Todas as varridas são GETs públicos com parâmetros válidos:
+ * qualquer status que não seja 200 falha aqui, porque varrer só a mensagem de erro deixaria o
+ * teste verde sem olhar dado nenhum.
+ */
+async function corpoDaRota(request: APIRequestContext, rota: string): Promise<string> {
+  const resposta = await request.get(`${API}${rota}`);
+  if (resposta.status() !== 200) {
+    throw new Error(`${rota} respondeu ${String(resposta.status())}; a varredura exige 200`);
+  }
+  return resposta.text();
+}
+
 /** Os slugs de todas as pautas públicas, página por página da API. */
 async function slugsPublicos(request: APIRequestContext): Promise<string[]> {
   const slugs: string[] = [];
@@ -127,11 +140,19 @@ test.describe('nenhuma página ou rota pública mostra dado pessoal (RNF01)', ()
 
     const vazamentos: string[] = [];
     for (const rota of rotas) {
-      const resposta = await request.get(`${API}${rota}`);
-      expect(resposta.status(), rota).toBeLessThan(500);
-      vazamentos.push(...acharDadoPessoal(await resposta.text()).map((a) => `${rota} → ${a}`));
+      const corpo = await corpoDaRota(request, rota);
+      vazamentos.push(...acharDadoPessoal(corpo).map((a) => `${rota} → ${a}`));
     }
     expect(vazamentos).toEqual([]);
+  });
+
+  test('uma rota que responde erro reprova a varredura em vez de passar vazia', async ({
+    request,
+  }) => {
+    await expect(corpoDaRota(request, '/pautas/pauta-que-nao-existe')).rejects.toThrow(
+      'respondeu 404',
+    );
+    await expect(corpoDaRota(request, '/pautas?limit=abc')).rejects.toThrow('respondeu 400');
   });
 });
 
