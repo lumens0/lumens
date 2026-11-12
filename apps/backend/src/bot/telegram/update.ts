@@ -4,8 +4,9 @@
  *   Update ─▶ zod (só o que usamos) ─▶ mensagemDoUpdate ─▶ dedup + fila da conversa
  *            chat privado, sem bot      (pura)             (uma transação)
  *
- * A identidade da pessoa no Telegram é o chat: o `phoneHmac` do job é o HMAC de `tg:<chat_id>`
- * (vira o `telefone_hmac` do estudante) e o `phoneCifrado` é o chat id cifrado (vira o
+ * A identidade da pessoa no Telegram é o chat: o `phoneHmac` do job é `tg:` + o HMAC de
+ * `tg:<chat_id>` (vira o `telefone_hmac` do estudante; o prefixo em claro diz à fila de avisos que o
+ * endereço é do Telegram) e o `phoneCifrado` é o chat id cifrado (vira o
  * `telefone_cifrado`, o endereço do estudante no canal ativo, de onde os avisos tiram o destino).
  * O telefone não é pedido: quem prova a identidade é o e-mail da UFAL, e é ele que liga a pessoa ao
  * cadastro que ela tinha em outro canal (`vincularEmail`).
@@ -15,7 +16,7 @@
  * A conversa não sabe de onde veio a mensagem: botão vira o texto do id, `/start <payload>` vira o
  * comando que o link do site manda no WhatsApp.
  */
-import { PRIORIDADE } from '@lumens/dominio';
+import { PREFIXO_IDENTIDADE_TELEGRAM, PRIORIDADE } from '@lumens/dominio';
 import { z } from 'zod';
 import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro } from '../../infra/logger';
@@ -228,11 +229,13 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
 export const PHONE_NUMBER_ID_TELEGRAM = 'telegram';
 
 /**
- * A identidade no Telegram: o HMAC de `tg:<chat_id>`, no lugar do HMAC do telefone. O prefixo
- * impede que um chat id coincida com o HMAC de um telefone de mesmos dígitos.
+ * A identidade no Telegram: `tg:` + o HMAC de `tg:<chat_id>`, no lugar do HMAC do telefone. O
+ * `tg:` de dentro impede que um chat id coincida com o HMAC de um telefone de mesmos dígitos; o de
+ * fora, em claro, marca o endereço do estudante como do Telegram para a fila de avisos
+ * (`reservarLote`), como a lápide `saiu:`.
  */
 export function chaveDoChat(chatId: number, chaves: Chaves): string {
-  return hashPhone(`tg:${String(chatId)}`, chaves.hmac);
+  return `${PREFIXO_IDENTIDADE_TELEGRAM}${hashPhone(`tg:${String(chatId)}`, chaves.hmac)}`;
 }
 
 /** O job da conversa: chaveado pelo chat, com o chat id cifrado como endereço de resposta. */
