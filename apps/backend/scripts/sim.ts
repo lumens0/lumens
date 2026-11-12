@@ -13,7 +13,13 @@ import {
   buildStatus,
   buildTextMessage,
 } from '../src/bot/sim/payloads';
-import { sendSigned, signPayload, urlPadrao } from '../src/bot/sim/send';
+import {
+  sendEvolution,
+  sendSigned,
+  signPayload,
+  urlPadrao,
+  urlPadraoEvolution,
+} from '../src/bot/sim/send';
 import {
   DEFAULT_CHAT_ID,
   HEADER_SEGREDO_TELEGRAM,
@@ -26,6 +32,16 @@ import {
   urlPadraoTelegram,
   type TelegramUpdate,
 } from '../src/bot/sim/telegram';
+import {
+  evolutionEncaminhada,
+  evolutionGrupo,
+  evolutionImagem,
+  evolutionPropria,
+  evolutionSoLid,
+  evolutionStatus,
+  evolutionTexto,
+  type PayloadEvolution,
+} from '../src/bot/sim/evolution';
 import type { MetaWebhookPayload } from '../src/bot/whatsapp/types';
 
 const URL_PADRAO = urlPadrao(process.env.PORT);
@@ -57,8 +73,18 @@ Canal telegram (--canal telegram) — Update da Bot API em POST /telegram/webhoo
     TELEGRAM_WEBHOOK_SECRET=<letras, números, _ e ->
   O back-end não chama o setWebhook: o bot real não passa a mandar updates para a sua máquina.
 
+Canal evolution (--canal evolution) — messages.upsert da Evolution em POST /webhook/evolution,
+com o EVOLUTION_WEBHOOK_SEGREDO no Authorization. Sem botões: responda com o número.
+  texto, encaminhada, imagem  como no canal meta
+  grupo <mensagem>            mensagem de grupo (o webhook deve ignorar)
+  propria <mensagem>          mensagem do próprio chip (o webhook deve ignorar)
+  sem-numero <mensagem>       conversa só com LID, sem número (o webhook deve ignorar)
+  status <DELIVERY_ACK|READ>  entrega de uma mensagem do bot (exige --wamid)
+  Back-end com CANAL_WHATSAPP=evolution e EVOLUTION_WEBHOOK_SEGREDO no .env.
+
 Opções:
-  --canal <c>        meta (padrão) ou telegram
+  --canal <c>        meta (padrão), telegram ou evolution
+  --lid <lid>        evolution: endereça por LID, com o número em remoteJidAlt
   --from <numero>    meta: remetente (padrão ${DEFAULT_FROM})
   --chat <id>        telegram: chat privado = from.id (padrão ${String(DEFAULT_CHAT_ID)})
   --url <url>        destino (padrão ${URL_PADRAO}; telegram: ${URL_PADRAO_TELEGRAM})
@@ -77,7 +103,7 @@ interface Parsed {
 function parseArgs(argv: string[]): Parsed {
   const positional: string[] = [];
   const flags: Record<string, string | true> = {};
-  const valued = new Set(['from', 'url', 'wamid', 'secret', 'canal', 'chat', 'update-id']);
+  const valued = new Set(['from', 'url', 'wamid', 'secret', 'canal', 'chat', 'update-id', 'lid']);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === undefined) break;
@@ -189,6 +215,46 @@ function buildTelegramFromArgs(
   }
 }
 
+/** O mesmo simulador no formato da Evolution (SCRUM-275): messages.upsert e messages.update. */
+function buildEvolutionFromArgs(
+  kind: string,
+  args: string[],
+  opts: { from: string | undefined; id: string | undefined; lid: string | undefined },
+): PayloadEvolution {
+  const body = args.join(' ');
+  const comTexto = () => {
+    if (!body) fail(`${kind} exige o texto da mensagem`);
+    return { ...opts, body };
+  };
+  switch (kind) {
+    case 'texto':
+      return evolutionTexto(comTexto());
+    case 'encaminhada':
+      return evolutionEncaminhada(comTexto());
+    case 'imagem':
+      return evolutionImagem({ ...opts, caption: body || undefined });
+    case 'grupo':
+      return evolutionGrupo(comTexto());
+    case 'propria':
+      return evolutionPropria(comTexto());
+    case 'sem-numero':
+      return evolutionSoLid(comTexto());
+    case 'status': {
+      const status = args[0];
+      if (status !== 'DELIVERY_ACK' && status !== 'READ') fail('status exige DELIVERY_ACK ou READ');
+      if (!opts.id) fail('status exige --wamid com o id da mensagem do bot');
+      return evolutionStatus({ id: opts.id, status });
+    }
+    case 'botao':
+    case 'lista':
+      return fail(
+        'no canal evolution não há botões: responda com o número (pnpm sim texto 2 --canal evolution)',
+      );
+    default:
+      return fail(`tipo desconhecido no canal evolution: ${kind}`);
+  }
+}
+
 async function enviar(url: string, envio: () => Promise<{ status: number; body: string }>) {
   try {
     const res = await envio();
@@ -210,16 +276,33 @@ if (flags.help || kind === undefined) {
   process.exit(flags.help ? 0 : 1);
 }
 const canal = str(flags.canal) ?? 'meta';
-if (canal !== 'meta' && canal !== 'telegram') fail(`canal desconhecido: ${canal}`);
+if (canal !== 'meta' && canal !== 'telegram' && canal !== 'evolution') {
+  fail(`canal desconhecido: ${canal}`);
+}
 const soMeta = ['from', 'wamid'].filter((f) => f in flags);
 const soTelegram = ['chat', 'update-id'].filter((f) => f in flags);
 if (canal === 'telegram' && soMeta.length > 0)
   fail(`--${soMeta.join(', --')} só vale no canal meta`);
-if (canal === 'meta' && soTelegram.length > 0) {
+if (canal !== 'evolution' && 'lid' in flags) fail('--lid só vale com --canal evolution');
+if (canal !== 'telegram' && soTelegram.length > 0) {
   fail(`--${soTelegram.join(', --')} só vale com --canal telegram`);
 }
 
-if (canal === 'telegram') {
+if (canal === 'evolution') {
+  const url = str(flags.url) ?? urlPadraoEvolution(process.env.PORT);
+  const segredo = str(flags.secret) ?? process.env.EVOLUTION_WEBHOOK_SEGREDO;
+  const payload = buildEvolutionFromArgs(kind, args, {
+    from: str(flags.from),
+    id: str(flags.wamid),
+    lid: str(flags.lid),
+  });
+  if (flags['dry-run'] === true) {
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    if (!segredo) fail('EVOLUTION_WEBHOOK_SEGREDO ausente (defina no .env ou use --secret)');
+    await enviar(url, () => sendEvolution(payload, { url, segredo }));
+  }
+} else if (canal === 'telegram') {
   const url = str(flags.url) ?? URL_PADRAO_TELEGRAM;
   const secret = str(flags.secret) ?? process.env.TELEGRAM_WEBHOOK_SECRET;
   const update = buildTelegramFromArgs(

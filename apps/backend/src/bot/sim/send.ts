@@ -35,3 +35,21 @@ export async function sendSigned(
   });
   return { status: res.status, body: await res.text() };
 }
+
+/** Destino padrão do simulador no formato da Evolution (SCRUM-275). */
+export function urlPadraoEvolution(porta: string | undefined): string {
+  return `${urlPadrao(porta)}/evolution`;
+}
+
+/** Faz POST de um payload da Evolution com o segredo no header `Authorization`, como ela faz. */
+export async function sendEvolution(
+  payload: unknown,
+  opts: { url: string; segredo: string },
+): Promise<{ status: number; body: string }> {
+  const res = await fetch(opts.url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${opts.segredo}` },
+    body: JSON.stringify(payload),
+  });
+  return { status: res.status, body: await res.text() };
+}
