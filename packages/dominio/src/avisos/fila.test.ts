@@ -1,4 +1,4 @@
-import { disparos, estudantes, eq, type Db } from '@lumens/db';
+import { conversas, disparos, estudantes, eq, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TipoDisparo } from './envio';
@@ -464,5 +464,68 @@ describe('renovarReserva', () => {
         renovarReserva(tx, { id: d.id, reservadoEm: d.reservadoEm, agora: depois(MINUTO) }),
       ),
     ).toBeNull();
+  });
+});
+
+describe('reservarLote para o canal da Evolution (SCRUM-275)', () => {
+  describe('canal com ritmo baixo (SCRUM-275)', () => {
+    /** Conversa do estudante `n` (telefone `tel-n`) atualizada em `quando`. */
+    const conversou = (estudanteSeq: number, quando: Date) =>
+      db.insert(conversas).values({
+        telefoneHmac: `tel-${String(estudanteSeq)}`,
+        passo: 'MENU',
+        dados: {},
+        expiraEm: new Date(quando.getTime() + 24 * HORA),
+        atualizadoEm: quando,
+      });
+
+    it('só reserva para quem escreveu depois do instante pedido; o resto fica pendente', async () => {
+      const a = await estudante();
+      const seqA = seq;
+      const b = await estudante();
+      const seqB = seq;
+      const c = await estudante();
+      await conversou(seqA, depois(-HORA));
+      await conversou(seqB, depois(-25 * HORA));
+      await enfileirar([aviso('meta_batida', a), aviso('meta_batida', b), aviso('meta_batida', c)]);
+
+      const lote = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, somenteComConversaDesde: depois(-24 * HORA) }),
+      );
+      expect(resumo(lote)).toEqual([`meta_batida:${a}`]);
+
+      // B e C não foram reservados nem falharam: saem quando escreverem.
+      const pendentes = await db.select().from(disparos).where(eq(disparos.estudanteId, c));
+      expect(pendentes[0]).toMatchObject({ reservadoEm: null, falhouEm: null });
+      await db
+        .update(conversas)
+        .set({ atualizadoEm: depois(MINUTO) })
+        .where(eq(conversas.telefoneHmac, `tel-${String(seqB)}`));
+      const depoisQueBEscreveu = await db.transaction((tx) =>
+        reservarLote(tx, {
+          limite: 10,
+          agora: depois(2 * MINUTO),
+          somenteComConversaDesde: depois(2 * MINUTO - 24 * HORA),
+        }),
+      );
+      expect(resumo(depoisQueBEscreveu)).toEqual([`meta_batida:${b}`]);
+    });
+
+    it('o teto por lote corta na ordem e deixa o resto para o lote seguinte', async () => {
+      const [a, b, c] = [await estudante(), await estudante(), await estudante()];
+      await enfileirar([aviso('meta_batida', a)], T0);
+      await enfileirar([aviso('meta_batida', b)], depois(1000));
+      await enfileirar([aviso('meta_batida', c)], depois(2000));
+
+      const primeiro = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, maximo: 2 }),
+      );
+      const segundo = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: depois(MINUTO), maximo: 2 }),
+      );
+
+      expect(resumo(primeiro)).toEqual([`meta_batida:${a}`, `meta_batida:${b}`]);
+      expect(resumo(segundo)).toEqual([`meta_batida:${c}`]);
+    });
   });
 });
