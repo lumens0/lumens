@@ -1,5 +1,6 @@
 import { LIMITE_MAXIMO, type Pautas } from '@lumens/contratos';
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { numeroDoBot } from '../src/whatsapp';
 
 // Privacidade de ponta a ponta (4.8b, SCRUM-61, RNF01): varre o HTML de todas as páginas públicas
 // do site e o JSON de todas as rotas da API de leitura atrás de telefone, e-mail ou campo de
@@ -45,19 +46,29 @@ const PADROES: readonly (readonly [string, RegExp])[] = [
 const CAMPO_DE_IDENTIDADE =
   /\\?"(telefone\w*|e-?mail\w*|\w*_hmac|\w*_cifrado|estudante_?id)\\?"\s*:/gi;
 
-/** O número do bot aparece de propósito nos links do WhatsApp (4.3). Não é dado de ninguém. */
-const PERMITIDOS = new Set([process.env.NEXT_PUBLIC_WHATSAPP_BOT ?? '5500000000000']);
+/**
+ * O número do bot aparece de propósito nos links do WhatsApp (4.3). Não é dado de ninguém. Só os
+ * dígitos, como o site gera o link: a variável pode vir com máscara (`+55 82 99999-9999`).
+ */
+export function numerosPermitidos(bot: string | undefined): ReadonlySet<string> {
+  return new Set([numeroDoBot(bot) || '5500000000000']);
+}
+
+const PERMITIDOS = numerosPermitidos(process.env.NEXT_PUBLIC_WHATSAPP_BOT);
 
 /**
  * Tudo o que parece dado pessoal num texto. Separada do `expect` de propósito: é ela que o teste
  * do teste, no fim do arquivo, exercita com um vazamento plantado.
  */
-export function acharDadoPessoal(texto: string): string[] {
+export function acharDadoPessoal(
+  texto: string,
+  permitidos: ReadonlySet<string> = PERMITIDOS,
+): string[] {
   const achados: string[] = [];
   for (const [nome, padrao] of PADROES) {
     for (const casa of texto.matchAll(padrao)) {
       const valor = casa[0];
-      if (!PERMITIDOS.has(valor.replace(/\D/g, ''))) achados.push(`${nome}: ${valor}`);
+      if (!permitidos.has(valor.replace(/\D/g, ''))) achados.push(`${nome}: ${valor}`);
     }
   }
   for (const casa of texto.matchAll(CAMPO_DE_IDENTIDADE)) {
@@ -163,4 +174,12 @@ test.describe('a varredura acusa um vazamento plantado', () => {
       expect(acharDadoPessoal(texto)).toEqual([]);
     });
   }
+
+  test('deixa passar o número do bot configurado com máscara', () => {
+    const permitidos = numerosPermitidos('+55 82 99999-9999');
+    const link = '<a href="https://wa.me/5582999999999?text=apoiar">Apoiar</a>';
+    expect(acharDadoPessoal(link, permitidos)).toEqual([]);
+    // Outro número continua acusado.
+    expect(acharDadoPessoal('<p>5582988887777</p>', permitidos).join(' | ')).toContain('telefone');
+  });
 });
