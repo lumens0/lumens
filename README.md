@@ -288,7 +288,8 @@ exigidos está em [docs/operacao/homologacao.md](docs/operacao/homologacao.md). 
 O painel é um app separado do site público. Só entra quem está na tabela `curador` com
 `ativo = true`, por um link mandado ao e-mail (Auth.js, SCRUM-164): sem senha, o link vale 15
 minutos e uma vez só, e a sessão dura 7 dias. Quem não é curador vê a mesma tela de "confira seu
-e-mail", mas não recebe nada.
+e-mail", mas não recebe nada. No `pnpm --filter @lumens/painel dev` o link não vai por e-mail:
+aparece no terminal do painel.
 
 ```bash
 pnpm --filter @lumens/painel dev     # http://localhost:3002 (lê o .env da raiz)

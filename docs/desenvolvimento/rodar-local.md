@@ -83,6 +83,11 @@ pnpm --filter @lumens/site dev     # http://localhost:3000
 pnpm --filter @lumens/painel dev   # http://localhost:3002
 ```
 
+No `pnpm --filter @lumens/painel dev`, o painel também não envia e-mail: o link de acesso de um
+curador ativo aparece no terminal do painel ("Link de acesso ao painel (pnpm dev: e-mail não
+enviado): ..."). No `build`/`start` e na imagem Docker, o link vai pelo SMTP do `.env`. As
+variáveis `EMAIL_*` continuam obrigatórias nos dois casos.
+
 ## Rodar os testes
 
 ```bash

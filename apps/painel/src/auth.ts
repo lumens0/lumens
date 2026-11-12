@@ -11,6 +11,7 @@ import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
+import { entregarLink } from './link-de-acesso';
 
 const QUINZE_MINUTOS = 15 * 60;
 
@@ -59,21 +60,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         maxAge: QUINZE_MINUTOS,
         // O e-mail sai depois da resposta (`after`). Esperar o SMTP aqui deixaria o pedido de um
         // curador segundos mais lento que o de quem não é, e a demora entregaria quem é curador.
+        // Só chega aqui curador ativo: para os demais o `signIn` abaixo devolve `VERIFIQUE` e o
+        // Auth.js redireciona antes de chamar isto. No `next dev` o link vai para o terminal.
         sendVerificationRequest({ identifier, url, provider }) {
-          after(() =>
-            createTransport(smtp)
-              .sendMail({
-                to: identifier,
-                from: provider.from,
-                subject: 'Seu link de acesso ao painel do Lumens',
-                text:
-                  `Para entrar no painel de curadoria, abra este link:\n\n${url}\n\n` +
-                  'Ele vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
-              })
-              .catch((erro: unknown) => {
-                console.error('Link de acesso do painel não saiu:', erro);
-              }),
-          );
+          entregarLink(url, {
+            emDev: process.env.NODE_ENV === 'development',
+            enviar() {
+              after(() =>
+                createTransport(smtp)
+                  .sendMail({
+                    to: identifier,
+                    from: provider.from,
+                    subject: 'Seu link de acesso ao painel do Lumens',
+                    text:
+                      `Para entrar no painel de curadoria, abra este link:\n\n${url}\n\n` +
+                      'Ele vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
+                  })
+                  .catch((erro: unknown) => {
+                    console.error('Link de acesso do painel não saiu:', erro);
+                  }),
+              );
+            },
+          });
         },
       }) as Provider,
     ],
