@@ -4,6 +4,7 @@ import { enfileirarDisparos, renovarReserva, reservarLote } from '@lumens/domini
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { criarLogger } from '../../infra/logger';
+import { ErroDaEvolution } from '../canais/evolution/cliente';
 import type { AvisoRenderizado } from './aviso';
 import { montarMensagemModelo, type MensagemModelo } from './mensagem-modelo';
 import {
@@ -157,6 +158,42 @@ describe('enviarLote (SCRUM-208)', () => {
 
     expect(await lote(sender)).toEqual({ enviados: 1, falhas: 0, adiados: 1, tomadosPorOutro: 0 });
     expect(recebidas).toHaveLength(2);
+  });
+
+  it('erro permanente da Evolution grava o motivo dela (SCRUM-275)', async () => {
+    const a = await avisoPara('5582900000009');
+    const { sender } = senderFalso([new ErroDaEvolution('numero_inexistente', 'sem WhatsApp')]);
+
+    expect(await lote(sender)).toMatchObject({ enviados: 0, falhas: 1 });
+    expect((await linhaDe(a))?.falha).toBe('evolution:numero_inexistente');
+  });
+
+  it('teto por lote e filtro de quem escreveu chegam à reserva (SCRUM-275)', async () => {
+    await avisoPara('5582900000010');
+    await avisoPara('5582900000011');
+    const { sender, recebidas } = senderFalso([]);
+    const comRitmo = (extra: Partial<EnvioDeps>) =>
+      enviarLote(
+        {
+          db,
+          sender: whatsappAvisoSender(sender),
+          chaves,
+          logger,
+          limite: 250,
+          maximoPorLote: 1,
+          relogio: () => AGORA,
+          ...extra,
+        },
+        AGORA,
+      );
+
+    // Ninguém tem conversa com o bot: com o filtro, nada sai e nada falha.
+    await comRitmo({ somenteQuemEscreveuNosUltimosMs: 24 * 60 * 60 * 1000 });
+    expect(recebidas).toHaveLength(0);
+
+    // Sem o filtro, sai um só: o teto do lote.
+    await comRitmo({});
+    expect(recebidas).toHaveLength(1);
   });
 
   it('telefone que não decifra sai da fila sem chamar a Meta', async () => {

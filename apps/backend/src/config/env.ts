@@ -117,6 +117,32 @@ const esquema = z
         .default(250),
     ),
 
+    /**
+     * Por onde o WhatsApp sai, com CANAL_BOT=whatsapp (SCRUM-275): `meta` é a Cloud API acima;
+     * `evolution` é o WhatsApp não oficial pela Evolution API, para a demonstração. Com
+     * `evolution`, as variáveis META_* deixam de ser exigidas.
+     */
+    CANAL_WHATSAPP: comPadrao(z.enum(['meta', 'evolution']).default('meta')),
+    /** Endereço interno da Evolution (`http://evolution:8080` no compose). Vazio no `pnpm dev` = respostas só no log. */
+    EVOLUTION_URL: opcional.refine(
+      (valor) => valor === undefined || URL.canParse(valor),
+      'não é uma URL — ex.: http://evolution:8080',
+    ),
+    EVOLUTION_API_KEY: opcional,
+    EVOLUTION_INSTANCIA: comPadrao(z.string().min(1).default('lumens')),
+    /** Segredo que a Evolution manda no header `Authorization: Bearer ...` do webhook. */
+    EVOLUTION_WEBHOOK_SEGREDO: opcional.refine(
+      (valor) => valor === undefined || valor.length >= 32,
+      'precisa de pelo menos 32 caracteres — gere com: openssl rand -hex 32',
+    ),
+    /** Pessoas distintas que recebem aviso por 24h. Bem abaixo da Meta: número novo é frágil. */
+    EVOLUTION_LIMITE_PESSOAS: comPadrao(z.coerce.number().int().positive().default(30)),
+    /** Avisos por lote (um lote por minuto). */
+    EVOLUTION_AVISOS_POR_LOTE: comPadrao(z.coerce.number().int().positive().default(2)),
+    /** Intervalo aleatório entre dois avisos, em segundos. */
+    EVOLUTION_INTERVALO_MIN_S: comPadrao(z.coerce.number().int().nonnegative().default(20)),
+    EVOLUTION_INTERVALO_MAX_S: comPadrao(z.coerce.number().int().nonnegative().default(45)),
+
     // Telegram: obrigatório com CANAL_BOT=telegram.
     TELEGRAM_BOT_TOKEN: opcional,
     /** Conferido no header `X-Telegram-Bot-Api-Secret-Token` do webhook. */
@@ -169,10 +195,14 @@ function validarCanais(
       | 'CANAL_BOT'
       | 'TELEGRAM_BOT_TOKEN'
       | 'TELEGRAM_WEBHOOK_SECRET'
-      | 'TELEGRAM_MODO',
+      | 'TELEGRAM_MODO'
+      | 'CANAL_WHATSAPP'
+      | 'EVOLUTION_URL'
+      | 'EVOLUTION_API_KEY'
+      | 'EVOLUTION_WEBHOOK_SEGREDO',
       string | undefined
     >
-  >,
+  > & { EVOLUTION_INTERVALO_MIN_S?: number; EVOLUTION_INTERVALO_MAX_S?: number },
   ctx: z.RefinementCtx,
 ): void {
   if (env.CANAL_BOT === 'telegram') {
@@ -193,6 +223,10 @@ function validarCanais(
     }
     return;
   }
+  if (env.CANAL_WHATSAPP === 'evolution') {
+    validarEvolution(env, ctx);
+    return;
+  }
   for (const nome of VARIAVEIS_META) {
     if (env[nome] === undefined) {
       ctx.addIssue({
@@ -201,6 +235,37 @@ function validarCanais(
         path: [nome],
       });
     }
+  }
+}
+
+/**
+ * WhatsApp pela Evolution (SCRUM-275). O segredo do webhook é sempre exigido: sem ele a rota
+ * recusaria tudo, até o `pnpm sim`. URL e chave vão juntas; as duas vazias só servem no `pnpm dev`
+ * (o `criarCanalEvolution` recusa subir assim fora dele).
+ */
+function validarEvolution(env: Parameters<typeof validarCanais>[0], ctx: z.RefinementCtx): void {
+  if (env.EVOLUTION_WEBHOOK_SEGREDO === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'obrigatória com CANAL_WHATSAPP=evolution — gere com: openssl rand -hex 32',
+      path: ['EVOLUTION_WEBHOOK_SEGREDO'],
+    });
+  }
+  if ((env.EVOLUTION_URL === undefined) !== (env.EVOLUTION_API_KEY === undefined)) {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        'EVOLUTION_URL e EVOLUTION_API_KEY vão juntas: as duas preenchidas ou as duas vazias',
+      path: [env.EVOLUTION_URL === undefined ? 'EVOLUTION_URL' : 'EVOLUTION_API_KEY'],
+    });
+  }
+  const { EVOLUTION_INTERVALO_MIN_S: min, EVOLUTION_INTERVALO_MAX_S: max } = env;
+  if (min !== undefined && max !== undefined && min > max) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'não pode ser menor que EVOLUTION_INTERVALO_MIN_S',
+      path: ['EVOLUTION_INTERVALO_MAX_S'],
+    });
   }
 }
 
@@ -224,11 +289,44 @@ export interface ConfigTelegram {
   segredoDoWebhook?: string;
 }
 
+/** O WhatsApp pela Evolution API (`CANAL_WHATSAPP=evolution`, SCRUM-275). */
+export interface ConfigEvolution {
+  /** Sem URL e chave (só no `pnpm dev`), as respostas e os avisos vão para o log. */
+  url?: string;
+  apiKey?: string;
+  instancia: string;
+  segredoDoWebhook: string;
+  /** Pessoas distintas por 24h que recebem aviso. */
+  limitePessoas: number;
+  avisosPorLote: number;
+  intervaloMinMs: number;
+  intervaloMaxMs: number;
+}
+
 /** O canal ativo (`CANAL_BOT`) com a configuração dele. As variáveis do outro canal ficam de fora. */
 export type ConfigDoCanal =
-  ({ canal: 'whatsapp' } & ConfigWhatsApp) | ({ canal: 'telegram' } & ConfigTelegram);
+  | ({ canal: 'whatsapp' } & ConfigWhatsApp)
+  | ({ canal: 'whatsapp-evolution' } & ConfigEvolution)
+  | ({ canal: 'telegram' } & ConfigTelegram);
 
 export function canalDoEnv(env: Env): ConfigDoCanal {
+  if (env.CANAL_BOT === 'whatsapp' && env.CANAL_WHATSAPP === 'evolution') {
+    // O `carregarEnv` já recusou o ambiente sem o segredo.
+    if (env.EVOLUTION_WEBHOOK_SEGREDO === undefined) {
+      throw new Error('EVOLUTION_WEBHOOK_SEGREDO não definida.');
+    }
+    return {
+      canal: 'whatsapp-evolution',
+      ...(env.EVOLUTION_URL === undefined ? {} : { url: env.EVOLUTION_URL }),
+      ...(env.EVOLUTION_API_KEY === undefined ? {} : { apiKey: env.EVOLUTION_API_KEY }),
+      instancia: env.EVOLUTION_INSTANCIA,
+      segredoDoWebhook: env.EVOLUTION_WEBHOOK_SEGREDO,
+      limitePessoas: env.EVOLUTION_LIMITE_PESSOAS,
+      avisosPorLote: env.EVOLUTION_AVISOS_POR_LOTE,
+      intervaloMinMs: env.EVOLUTION_INTERVALO_MIN_S * 1000,
+      intervaloMaxMs: env.EVOLUTION_INTERVALO_MAX_S * 1000,
+    };
+  }
   if (env.CANAL_BOT === 'telegram') {
     // O `carregarEnv` já recusou o ambiente sem o token.
     if (env.TELEGRAM_BOT_TOKEN === undefined) throw new Error('TELEGRAM_BOT_TOKEN não definida.');

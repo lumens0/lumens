@@ -259,3 +259,82 @@ describe('canal do bot (CANAL_BOT)', () => {
     expect(mensagem).toContain('META_TOKEN');
   });
 });
+
+describe('WhatsApp pela Evolution (CANAL_WHATSAPP, SCRUM-275)', () => {
+  const SEGREDO = 's'.repeat(32);
+  const META = ['META_TOKEN', 'META_APP_SECRET', 'META_VERIFY_TOKEN', 'META_PHONE_NUMBER_ID'];
+  /** WhatsApp pela Evolution, sem nenhuma variável da Meta. */
+  const evolution = (extra: FonteDeAmbiente = {}): FonteDeAmbiente => {
+    const fonte: FonteDeAmbiente = {
+      ...ambienteCompleto(),
+      CANAL_WHATSAPP: 'evolution',
+      EVOLUTION_WEBHOOK_SEGREDO: SEGREDO,
+      ...extra,
+    };
+    // Vazias, como no `.env.producao` com a Evolution: o `opcional` trata vazio como ausente.
+    for (const nome of META) fonte[nome] = '';
+    return fonte;
+  };
+
+  it('vazio é a Meta: nada da Evolution é exigido', () => {
+    expect(carregarEnv(ambienteCompleto()).CANAL_WHATSAPP).toBe('meta');
+  });
+
+  it('com a Evolution, a Meta deixa de ser exigida e vale o ritmo padrão', () => {
+    expect(canalDoEnv(carregarEnv(evolution()))).toEqual({
+      canal: 'whatsapp-evolution',
+      instancia: 'lumens',
+      segredoDoWebhook: SEGREDO,
+      limitePessoas: 30,
+      avisosPorLote: 2,
+      intervaloMinMs: 20_000,
+      intervaloMaxMs: 45_000,
+    });
+  });
+
+  it('URL e chave entram juntas na configuração', () => {
+    const config = canalDoEnv(
+      carregarEnv(evolution({ EVOLUTION_URL: 'http://evolution:8080', EVOLUTION_API_KEY: 'k' })),
+    );
+    expect(config).toMatchObject({ url: 'http://evolution:8080', apiKey: 'k' });
+  });
+
+  it('exige o segredo do webhook, com pelo menos 32 caracteres', () => {
+    expect(mensagemDeErro(evolution({ EVOLUTION_WEBHOOK_SEGREDO: '' }))).toContain(
+      'EVOLUTION_WEBHOOK_SEGREDO',
+    );
+    expect(mensagemDeErro(evolution({ EVOLUTION_WEBHOOK_SEGREDO: 'curto' }))).toContain(
+      'EVOLUTION_WEBHOOK_SEGREDO',
+    );
+  });
+
+  it('URL sem chave é recusada', () => {
+    expect(mensagemDeErro(evolution({ EVOLUTION_URL: 'http://evolution:8080' }))).toContain(
+      'EVOLUTION_API_KEY',
+    );
+  });
+
+  it('intervalo mínimo maior que o máximo é recusado', () => {
+    expect(
+      mensagemDeErro(
+        evolution({ EVOLUTION_INTERVALO_MIN_S: '60', EVOLUTION_INTERVALO_MAX_S: '10' }),
+      ),
+    ).toContain('EVOLUTION_INTERVALO_MAX_S');
+  });
+
+  it('com CANAL_BOT=telegram, CANAL_WHATSAPP=evolution não pesa: vale o Telegram', () => {
+    const env = carregarEnv({
+      ...evolution(),
+      CANAL_BOT: 'telegram',
+      TELEGRAM_BOT_TOKEN: '123:abc',
+      TELEGRAM_WEBHOOK_SECRET: 'segredo_1-a',
+    });
+    expect(canalDoEnv(env).canal).toBe('telegram');
+  });
+
+  it('recusa provedor desconhecido', () => {
+    expect(mensagemDeErro({ ...ambienteCompleto(), CANAL_WHATSAPP: 'twilio' })).toContain(
+      'CANAL_WHATSAPP',
+    );
+  });
+});

@@ -1,0 +1,13 @@
+{
+  "event": "messages.update",
+  "instance": "lumens",
+  "data": {
+    "keyId": "3EB0FIXTURESTATUS",
+    "remoteJid": "5582999990000@s.whatsapp.net",
+    "fromMe": true,
+    "status": "DELIVERY_ACK"
+  },
+  "destination": "http://backend:3000/webhook/evolution",
+  "date_time": "2026-01-01T00:00:00.000Z",
+  "server_url": "http://localhost:8080"
+}
