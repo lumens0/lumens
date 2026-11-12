@@ -36,11 +36,15 @@ beforeEach(async () => {
  * Estudante com o endereço (telefone ou chat id) cifrado de verdade, e um aviso de meta batida
  * para ele na fila.
  */
-async function avisoPara(telefone: string, telefoneCifrado = cifrar(telefone, chaves.cifra)) {
+async function avisoPara(
+  telefone: string,
+  telefoneCifrado = cifrar(telefone, chaves.cifra),
+  prefixo = '',
+) {
   const n = String(++seq);
   const [e] = await db
     .insert(estudantes)
-    .values({ telefoneHmac: `t-${n}`, telefoneCifrado, verificadoEm: AGORA })
+    .values({ telefoneHmac: `${prefixo}t-${n}`, telefoneCifrado, verificadoEm: AGORA })
     .returning();
   if (e === undefined) throw new Error('estudante não criado');
   await db.transaction((tx) =>
@@ -180,10 +184,34 @@ describe('com CANAL_BOT=telegram', () => {
   }
 
   const loteCom = (sender: EnvioDeps['sender'], limite = Number.MAX_SAFE_INTEGER) =>
-    enviarLote({ db, sender, chaves, logger, limite, relogio: () => AGORA }, AGORA);
+    enviarLote(
+      { db, sender, canal: 'telegram', chaves, logger, limite, relogio: () => AGORA },
+      AGORA,
+    );
+  /** Estudante que já se verificou no Telegram: o endereço é o chat id. */
+  const doTelegram = (chat: string) => avisoPara(chat, undefined, 'tg:');
+
+  it('depois da troca de canal, quem ainda tem o telefone do WhatsApp não recebe nem falha', async () => {
+    const naoMigrou = await avisoPara('5582900000999');
+    const telegram = telegramFalso();
+
+    expect(await loteCom(telegram.sender)).toEqual({
+      enviados: 0,
+      falhas: 0,
+      adiados: 0,
+      tomadosPorOutro: 0,
+    });
+    expect(telegram.recebidos).toEqual([]);
+    // Continua pendente: não conta como "avisado" para a remoção do owner inativo (SCRUM-239).
+    expect(await linhaDe(naoMigrou)).toMatchObject({
+      reservadoEm: null,
+      enviadoEm: null,
+      falhouEm: null,
+    });
+  });
 
   it('manda para o chat id (o endereço do estudante), e o envio já vale como entrega', async () => {
-    const t = await avisoPara('987654');
+    const t = await doTelegram('987654');
     const telegram = telegramFalso();
 
     expect(await loteCom(telegram.sender)).toEqual({
@@ -203,15 +231,15 @@ describe('com CANAL_BOT=telegram', () => {
   });
 
   it('sem a cota da Meta, o lote sai inteiro', async () => {
-    for (const chat of ['301', '302', '303']) await avisoPara(chat);
+    for (const chat of ['301', '302', '303']) await doTelegram(chat);
     const telegram = telegramFalso();
     expect((await loteCom(telegram.sender)).enviados).toBe(3);
     expect(telegram.recebidos.map((r) => r.destino).sort()).toEqual(['301', '302', '303']);
   });
 
   it('403 tira só aquele disparo da fila, de vez; o lote segue', async () => {
-    const bloqueou = await avisoPara('401');
-    const outro = await avisoPara('402');
+    const bloqueou = await doTelegram('401');
+    const outro = await doTelegram('402');
     const telegram = telegramFalso([
       new ErroDeEnvio('Forbidden: bot was blocked by the user', 'telegram:403', true, false),
     ]);
@@ -234,8 +262,8 @@ describe('com CANAL_BOT=telegram', () => {
   });
 
   it('erro que para o canal adia o resto do lote, sem marcar falha', async () => {
-    const t1 = await avisoPara('501');
-    const t2 = await avisoPara('502');
+    const t1 = await doTelegram('501');
+    const t2 = await doTelegram('502');
     const telegram = telegramFalso([new ErroDeEnvio('429', 'telegram:429', false, true)]);
 
     expect(await loteCom(telegram.sender)).toEqual({

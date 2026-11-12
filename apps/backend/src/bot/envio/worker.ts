@@ -1,5 +1,6 @@
 import type { Db } from '@lumens/db';
 import {
+  type CanalDoBot,
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
@@ -47,6 +48,11 @@ export interface EnvioDeps {
   db: Db;
   /** Quem envia no canal ativo. */
   sender: AvisoSender;
+  /**
+   * O canal ativo: só os estudantes com endereço dele entram no lote. Depois de uma troca de canal,
+   * o aviso de quem ainda não se verificou no novo fica pendente. O padrão é o WhatsApp.
+   */
+  canal?: CanalDoBot;
   chaves: Chaves;
   logger: Logger;
   /**
@@ -79,7 +85,9 @@ export async function enviarLote(
 ): Promise<ResultadoDoLote> {
   const { db, sender, chaves, logger } = deps;
   const relogio = deps.relogio ?? (() => new Date());
-  const lote = await db.transaction((tx) => reservarLote(tx, { limite: deps.limite, agora }));
+  const lote = await db.transaction((tx) =>
+    reservarLote(tx, { limite: deps.limite, agora, ...(deps.canal ? { canal: deps.canal } : {}) }),
+  );
   const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
 
   const falhar = async (id: string, motivo: string) => {

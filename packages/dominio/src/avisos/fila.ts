@@ -117,9 +117,25 @@ export async function enfileirarDisparos(
   return inseridos.length;
 }
 
+/**
+ * Prefixo em claro do `telefone_hmac` de quem se identificou pelo Telegram (`tg:<HMAC do chat>`),
+ * como a lápide `saiu:`. É por ele que a fila sabe para qual canal é o endereço do estudante
+ * (`telefone_cifrado`), sem decifrar nada.
+ */
+export const PREFIXO_IDENTIDADE_TELEGRAM = 'tg:';
+
+/** Canal do bot nesta implantação (`CANAL_BOT`). */
+export type CanalDoBot = 'whatsapp' | 'telegram';
+
 export interface ParametrosDeLote {
-  /** Pessoas distintas por 24h móveis que a Meta permite hoje ao portfólio. */
+  /** Pessoas distintas por 24h móveis que o canal permite. */
   limite: number;
+  /**
+   * Canal ativo. Só entram no lote os estudantes cujo endereço é deste canal: depois de uma troca
+   * de canal, quem ainda não se verificou no novo continua com o endereço do antigo, e o aviso dele
+   * fica pendente (sem falhar e sem gastar vaga) até ele se verificar. O padrão é o WhatsApp.
+   */
+  canal?: CanalDoBot;
   /** Injetável para teste; o padrão é agora. */
   agora?: Date;
 }
@@ -138,7 +154,7 @@ export interface ParametrosDeLote {
  */
 export async function reservarLote(
   tx: Tx,
-  { limite, agora = new Date() }: ParametrosDeLote,
+  { limite, agora = new Date(), canal = 'whatsapp' }: ParametrosDeLote,
 ): Promise<DisparoReservado[]> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${LOCK_DA_FILA})`);
 
@@ -188,7 +204,13 @@ export async function reservarLote(
     .from(disparos)
     .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
     .where(
-      and(pendente, or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida))),
+      and(
+        pendente,
+        or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida)),
+        canal === 'telegram'
+          ? sql`${estudantes.telefoneHmac} like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`
+          : sql`${estudantes.telefoneHmac} not like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`,
+      ),
     );
 
   const porId = new Map(pendentes.map((p) => [p.id, p]));

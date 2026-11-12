@@ -173,7 +173,7 @@ describe('jobDoTelegram', () => {
     if (r.tipo !== 'mensagem') throw new Error('ignorado');
     const job = jobDoTelegram(r.mensagem, chaves);
     expect(job).toMatchObject({
-      phoneHmac: hashPhone(`tg:${String(CHAT)}`, chaves.hmac),
+      phoneHmac: `tg:${hashPhone(`tg:${String(CHAT)}`, chaves.hmac)}`,
       wamidHmac: hmacHex('tg:1000', chaves.hmac),
       type: 'text',
       timestamp: '1700000000',

@@ -149,6 +149,7 @@ async function iniciar(env: Env): Promise<void> {
       await registerEnvioWorker(boss, {
         db,
         sender: telegramAvisoSender({ api: apiDoTelegram }),
+        canal: 'telegram',
         chaves,
         logger,
         limite: SEM_COTA,
@@ -160,6 +161,7 @@ async function iniciar(env: Env): Promise<void> {
       await registerEnvioWorker(boss, {
         db,
         sender: whatsappAvisoSender(modeloSender),
+        canal: 'whatsapp',
         chaves,
         logger,
         limite: whatsapp.limitePessoas,
