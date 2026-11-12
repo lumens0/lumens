@@ -5,7 +5,7 @@ import { mensagemModeloDe, type MensagemModelo } from './mensagem-modelo';
 
 /**
  * Quem entrega um aviso da fila num canal. O worker de envio escolhe um por disparo, pelo canal
- * do estudante.
+ * que a reserva decidiu (`disparo.canal`).
  */
 export interface AvisoSender {
   /**
@@ -23,6 +23,9 @@ export interface AvisoSender {
  * - `pararLote`: vale para o canal inteiro (limite de taxa, token, rede); o resto do lote naquele
  *   canal espera a próxima rodada.
  * - nenhum dos dois: passageiro, só este disparo espera.
+ * - `destinoPerdido`: o destino não serve mais para canal nenhum deste estudante (a pessoa
+ *   bloqueou o bot no Telegram). O worker esquece o destino, e os próximos avisos vão por outro
+ *   canal.
  */
 export class ErroDeEnvio extends Error {
   constructor(
@@ -30,6 +33,7 @@ export class ErroDeEnvio extends Error {
     readonly motivo: string,
     readonly permanente: boolean,
     readonly pararLote: boolean,
+    readonly destinoPerdido = false,
   ) {
     super(mensagem);
     this.name = 'ErroDeEnvio';

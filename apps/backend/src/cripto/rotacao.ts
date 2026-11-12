@@ -1,4 +1,4 @@
-import { curadores, eq, estudantes, type Db } from '@lumens/db';
+import { chatsTelegram, curadores, eq, estudantes, type Db } from '@lumens/db';
 import { cifrar, decifrar } from './cifra';
 
 const PREFIXO_LAPIDE = 'saiu:';
@@ -10,6 +10,7 @@ const PREFIXO_LAPIDE = 'saiu:';
  * - `curador.email_cifrado`
  * - `estudante.telefone_cifrado` (exceto se for lápide 'saiu:')
  * - `estudante.email_cifrado` (quando não nulo e exceto se for lápide 'saiu:')
+ * - `chat_telegram.chat_cifrado`, `telefone_cifrado` e `comando_pendente_cifrado` (os não nulos)
  *
  * Executa em transação única. Se qualquer decifragem falhar, faz rollback automático.
  */
@@ -17,7 +18,7 @@ export async function rotacionarCifra(
   db: Db,
   chaveAntiga: Buffer,
   chaveNova: Buffer,
-): Promise<{ curadores: number; estudantes: number }> {
+): Promise<{ curadores: number; estudantes: number; chatsTelegram: number }> {
   if (chaveAntiga.length !== 32 || chaveNova.length !== 32) {
     throw new Error('As chaves de cifra precisam ter exatamente 32 bytes.');
   }
@@ -73,6 +74,24 @@ export async function rotacionarCifra(
       }
     }
 
-    return { curadores: curadoresCount, estudantes: estudantesCount };
+    const chats = await tx.select().from(chatsTelegram);
+    const recifrar = (valor: string | null) =>
+      valor === null ? null : cifrar(decifrar(valor, chaveAntiga), chaveNova);
+    for (const chat of chats) {
+      await tx
+        .update(chatsTelegram)
+        .set({
+          chatCifrado: cifrar(decifrar(chat.chatCifrado, chaveAntiga), chaveNova),
+          telefoneCifrado: recifrar(chat.telefoneCifrado),
+          comandoPendenteCifrado: recifrar(chat.comandoPendenteCifrado),
+        })
+        .where(eq(chatsTelegram.chatHmac, chat.chatHmac));
+    }
+
+    return {
+      curadores: curadoresCount,
+      estudantes: estudantesCount,
+      chatsTelegram: chats.length,
+    };
   });
 }

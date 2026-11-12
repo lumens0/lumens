@@ -1,5 +1,6 @@
 import type { Canal, Db } from '@lumens/db';
 import {
+  apagarChatBloqueado,
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
@@ -18,8 +19,8 @@ import { ErroDeEnvio, type AvisoSender } from './sender';
  * Envio em lotes da fila de disparos (SCRUM-208) e registro de entrega por pessoa (SCRUM-209).
  *
  * A cada minuto o worker reserva o lote que cabe no limite da Meta (`reservarLote`, RNF06), manda
- * cada aviso pelo canal do estudante e registra o que aconteceu. Quem decide quem sai e quem
- * espera é a fila; aqui só se executa o plano.
+ * cada aviso pelo canal que a reserva escolheu (`disparo.canal`) e registra o que aconteceu. Quem
+ * decide quem sai e quem espera é a fila; aqui só se executa o plano.
  *
  * O registro de entrega por canal:
  *
@@ -34,6 +35,10 @@ import { ErroDeEnvio, type AvisoSender } from './sender';
  * como entrega. As regras que dependem desses campos continuam iguais nos dois canais: "avisado" é
  * `enviado_em` ou `falhou_em` (SCRUM-239, remoção do owner inativo), e quem bloqueou o bot (403)
  * sai da fila com `falhou_em`, como o número sem WhatsApp.
+ *
+ * O 403 também apaga o chat do Telegram ligado ao telefone: o aviso seguinte dessa pessoa vai pelo
+ * WhatsApp, em vez de bater no bloqueio para sempre. Se ela voltar a falar com o bot, compartilha o
+ * contato de novo.
  */
 
 /** A cada minuto: um aviso espera no máximo isso para sair, se houver cota. */
@@ -87,8 +92,16 @@ export async function enviarLote(
   const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
   const parados = new Set<Canal>();
 
-  const falhar = async (id: string, motivo: string) => {
-    await db.transaction((tx) => registrarFalha(tx, { id, motivo }));
+  /** `chatPerdido`: a pessoa bloqueou o bot; o chat sai junto, na mesma transação. */
+  const falhar = async (
+    id: string,
+    motivo: string,
+    chatPerdido?: { estudanteId: string; chatCifrado: string },
+  ) => {
+    await db.transaction(async (tx) => {
+      await registrarFalha(tx, { id, motivo });
+      if (chatPerdido) await apagarChatBloqueado(tx, chatPerdido);
+    });
     resultado.falhas++;
     logger.warn({ disparo: id, motivo }, 'disparo saiu da fila sem envio');
   };
@@ -142,7 +155,14 @@ export async function enviarLote(
       resultado.enviados++;
     } catch (erro) {
       if (erro instanceof ErroDeEnvio && erro.permanente) {
-        await falhar(disparo.id, erro.motivo);
+        const perdido = erro.destinoPerdido && disparo.canal === 'telegram';
+        await falhar(
+          disparo.id,
+          erro.motivo,
+          perdido
+            ? { estudanteId: disparo.estudanteId, chatCifrado: disparo.telefoneCifrado }
+            : undefined,
+        );
         continue;
       }
       logger.warn(
