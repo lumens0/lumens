@@ -230,7 +230,7 @@ describe('limpeza agendada das conversas', () => {
       ['schedule', JOBS.cleanupConversations, CLEANUP_CRON, null, { tz: CLEANUP_TZ }],
     ]);
     if (!worker) throw new Error('registerCleanupJob não registrou o worker');
-    expect(await worker()).toEqual({ deleted: 1, dedupDeleted: 0 });
+    expect(await worker()).toEqual({ deleted: 1, dedupDeleted: 0, chatsSemContato: 0 });
   });
 });
 

@@ -1,12 +1,19 @@
 import type { Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { vincularChatTelegram } from '@lumens/dominio';
 import type { FastifyInstance } from 'fastify';
 import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
-import type { Chaves } from '../../cripto/cifra';
-import { FakeQueue, mensagensNaFila, prepararFilaFalsa } from '../../infra/queue.fake';
+import { cifrar, type Chaves } from '../../cripto/cifra';
+import {
+  FakeQueue,
+  mensagensNaFila,
+  prepararFilaFalsa,
+  respostasNaFila,
+} from '../../infra/queue.fake';
 import { segredoConfere } from './routes';
+import { chaveDoChat } from './update';
 
 const chaves: Chaves = { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) };
 const SEGREDO = 'segredo-do-webhook_123';
@@ -59,17 +66,31 @@ describe('POST /telegram/webhook', () => {
     });
 
   it('com o segredo certo → 200 e enfileira uma vez, mesmo reenviado', async () => {
+    // O chat já compartilhou o contato: a mensagem vai para a conversa.
+    await vincularChatTelegram(db, {
+      chatHmac: chaveDoChat(42, chaves),
+      chatCifrado: cifrar('42', chaves.cifra),
+      telefoneHmac: 'telefone-hmac',
+      telefoneCifrado: 'telefone-cifrado',
+    });
     expect((await post(SEGREDO)).statusCode).toBe(200);
     expect((await post(SEGREDO)).statusCode).toBe(200);
     const fila = await mensagensNaFila(db);
     expect(fila).toHaveLength(1);
-    expect(fila[0]?.data.canal).toBe('telegram');
+    expect(fila[0]?.data).toMatchObject({ canal: 'telegram', phoneHmac: 'telefone-hmac' });
+  });
+
+  it('com o segredo certo, chat sem contato → 200 e só o pedido do contato', async () => {
+    expect((await post(SEGREDO)).statusCode).toBe(200);
+    expect(await mensagensNaFila(db)).toHaveLength(0);
+    expect(await respostasNaFila(db)).toHaveLength(1);
   });
 
   it('sem segredo ou com segredo errado → 401 e nada na fila', async () => {
     expect((await post()).statusCode).toBe(401);
     expect((await post('outro')).statusCode).toBe(401);
     expect(await mensagensNaFila(db)).toHaveLength(0);
+    expect(await respostasNaFila(db)).toHaveLength(0);
   });
 
   it('update que não usamos → 200 (o Telegram não reenvia)', async () => {

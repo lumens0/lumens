@@ -1,4 +1,4 @@
-import { disparos, eq, estudantes, type Canal, type Db } from '@lumens/db';
+import { chatsTelegram, disparos, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { enfileirarDisparos, renovarReserva, reservarLote } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -32,18 +32,29 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
 }, 30_000);
 
-/** Estudante com telefone cifrado de verdade, e um aviso de meta batida para ele na fila. */
+/**
+ * Estudante com telefone cifrado de verdade, e um aviso de meta batida para ele na fila. Com
+ * `chat`, o telefone também está ligado a um chat do Telegram (o contato foi compartilhado).
+ */
 async function avisoPara(
   telefone: string,
   telefoneCifrado = cifrar(telefone, chaves.cifra),
-  canal: Canal = 'whatsapp',
+  chat?: string,
 ) {
   const n = String(++seq);
   const [e] = await db
     .insert(estudantes)
-    .values({ telefoneHmac: `t-${n}`, telefoneCifrado, canal, verificadoEm: AGORA })
+    .values({ telefoneHmac: `t-${n}`, telefoneCifrado, verificadoEm: AGORA })
     .returning();
   if (e === undefined) throw new Error('estudante não criado');
+  if (chat !== undefined) {
+    await db.insert(chatsTelegram).values({
+      chatHmac: `chat-${n}`,
+      chatCifrado: cifrar(chat, chaves.cifra),
+      telefoneHmac: `t-${n}`,
+      telefoneCifrado,
+    });
+  }
   await db.transaction((tx) =>
     enfileirarDisparos(
       tx,
@@ -172,7 +183,7 @@ describe('um sender por canal (Telegram)', () => {
 
   it('cada estudante recebe pelo seu canal; o WhatsApp recebe o mesmo corpo da Cloud API', async () => {
     const w = await avisoPara('5582900000101');
-    const t = await avisoPara('', cifrar('987654', chaves.cifra), 'telegram');
+    const t = await avisoPara('5582900987654', undefined, '987654');
     const whatsapp = senderFalso(['wamid.W']);
     const telegram = telegramFalso();
 
@@ -210,33 +221,23 @@ describe('um sender por canal (Telegram)', () => {
     });
   });
 
-  it('canal sem sender: o aviso espera na fila, sem falhar e sem reserva', async () => {
-    const t = await avisoPara('', cifrar('111', chaves.cifra), 'telegram');
+  it('Telegram não configurado: quem tem chat recebe pelo WhatsApp, no telefone', async () => {
+    const t = await avisoPara('5582900000111', undefined, '111');
     const w = await avisoPara('5582900000102');
-    const whatsapp = senderFalso([]);
+    const whatsapp = senderFalso(['wamid.A', 'wamid.B']);
 
     expect(await loteCom({ whatsapp: whatsappAvisoSender(whatsapp.sender) })).toEqual({
-      enviados: 1,
+      enviados: 2,
       falhas: 0,
       adiados: 0,
       tomadosPorOutro: 0,
     });
-    expect(await linhaDe(t)).toMatchObject({
-      enviadoEm: null,
-      falhouEm: null,
-      falha: null,
-      reservadoEm: null,
-    });
-    expect((await linhaDe(w))?.enviadoEm).not.toBeNull();
-
-    // Configurado o Telegram, ele sai.
-    const telegram = telegramFalso();
-    expect((await loteCom({ telegram: telegram.sender })).enviados).toBe(1);
-    expect((await linhaDe(t))?.enviadoEm).not.toBeNull();
+    expect(whatsapp.recebidas.map((m) => m.to).sort()).toEqual(['5582900000102', '5582900000111']);
+    for (const id of [t, w]) expect(await linhaDe(id)).toMatchObject({ canal: 'whatsapp' });
   });
 
   it('só o Telegram configurado: o worker anda sem a Meta', async () => {
-    await avisoPara('', cifrar('222', chaves.cifra), 'telegram');
+    await avisoPara('5582900000222', undefined, '222');
     const w = await avisoPara('5582900000103');
 
     expect((await loteCom({ telegram: telegramFalso().sender })).enviados).toBe(1);
@@ -244,8 +245,8 @@ describe('um sender por canal (Telegram)', () => {
   });
 
   it('quem está no Telegram não gasta nem espera pela cota da Meta', async () => {
-    const t1 = await avisoPara('', cifrar('301', chaves.cifra), 'telegram');
-    const t2 = await avisoPara('', cifrar('302', chaves.cifra), 'telegram');
+    const t1 = await avisoPara('5582900000301', undefined, '301');
+    const t2 = await avisoPara('5582900000302', undefined, '302');
     const w1 = await avisoPara('5582900000104');
     const w2 = await avisoPara('5582900000105');
     const whatsapp = senderFalso([]);
@@ -261,10 +262,10 @@ describe('um sender por canal (Telegram)', () => {
   });
 
   it('403 tira só aquele disparo da fila, de vez; o lote segue', async () => {
-    const bloqueou = await avisoPara('', cifrar('401', chaves.cifra), 'telegram');
-    const outro = await avisoPara('', cifrar('402', chaves.cifra), 'telegram');
+    const bloqueou = await avisoPara('5582900000401', undefined, '401');
+    const outro = await avisoPara('5582900000402', undefined, '402');
     const telegram = telegramFalso([
-      new ErroDeEnvio('Forbidden: bot was blocked by the user', 'telegram:403', true, false),
+      new ErroDeEnvio('Forbidden: bot was blocked by the user', 'telegram:403', true, false, true),
     ]);
 
     expect(await loteCom({ telegram: telegram.sender })).toEqual({
@@ -284,9 +285,57 @@ describe('um sender por canal (Telegram)', () => {
     expect(await loteCom({ telegram: telegramFalso().sender })).toMatchObject({ enviados: 0 });
   });
 
+  it('403 apaga o chat: o próximo aviso da pessoa vai pelo WhatsApp', async () => {
+    const bloqueou = await avisoPara('5582900000403', undefined, '403');
+    const outro = await avisoPara('5582900000404', undefined, '404');
+    const whatsapp = senderFalso([]);
+    const senders = {
+      whatsapp: whatsappAvisoSender(whatsapp.sender),
+      telegram: telegramFalso([
+        new ErroDeEnvio(
+          'Forbidden: bot was blocked by the user',
+          'telegram:403',
+          true,
+          false,
+          true,
+        ),
+      ]).sender,
+    };
+
+    await loteCom(senders);
+    const chats = await db.select({ chat: chatsTelegram.telefoneHmac }).from(chatsTelegram);
+    expect(chats).toHaveLength(1);
+    expect((await linhaDe(outro))?.canal).toBe('telegram');
+
+    // Um aviso novo para quem bloqueou sai pelo WhatsApp, para o telefone.
+    await db.transaction((tx) =>
+      enfileirarDisparos(tx, [
+        {
+          tipo: 'meta_batida',
+          aviso: 'pauta-2',
+          estudanteId: bloqueou,
+          modelo: 'lumens_meta_batida',
+          parametros: ['Bebedouro', '120', 'bebedouro'],
+        },
+      ]),
+    );
+    expect((await loteCom(senders)).enviados).toBe(1);
+    expect(whatsapp.recebidas.map((m) => m.to)).toEqual(['5582900000403']);
+  });
+
+  it('400 (e outra falha permanente) não apaga o chat', async () => {
+    await avisoPara('5582900000405', undefined, '405');
+    const telegram = telegramFalso([
+      new ErroDeEnvio('Bad Request: message is too long', 'telegram:400', true, false),
+    ]);
+
+    expect((await loteCom({ telegram: telegram.sender })).falhas).toBe(1);
+    expect(await db.select().from(chatsTelegram)).toHaveLength(1);
+  });
+
   it('erro que para o Telegram não para o WhatsApp do mesmo lote', async () => {
-    const t1 = await avisoPara('', cifrar('501', chaves.cifra), 'telegram');
-    const t2 = await avisoPara('', cifrar('502', chaves.cifra), 'telegram');
+    const t1 = await avisoPara('5582900000501', undefined, '501');
+    const t2 = await avisoPara('5582900000502', undefined, '502');
     const w = await avisoPara('5582900000106');
     const telegram = telegramFalso([new ErroDeEnvio('429', 'telegram:429', false, true)]);
 

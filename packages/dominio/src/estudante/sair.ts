@@ -16,6 +16,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { apagarChatTelegram } from './chat-telegram';
 
 export type ResultadoSaida =
   | {
@@ -29,11 +30,11 @@ export type ResultadoSaida =
 /**
  * Tira a pessoa do Lumens na transação de quem chama. Recusas voltam como resultado, sem exceção.
  *
- * Apaga telefone e e-mail (cifrado e HMAC), a conversa em andamento e o código de verificação;
- * preenche `saiu_em`; encerra os papéis de owner/co-owner com um `owner_removido` por pauta (o
- * evento leva só o papel, nunca quem saiu). `curso` e `verificado_em` ficam: o curso aparece nos
- * apoios e relatos públicos. `apoio`, `resposta_conferencia`, `voluntario` e `relato` não são
- * tocados.
+ * Apaga telefone e e-mail (cifrado e HMAC), a conversa em andamento, o código de verificação e o
+ * chat do Telegram ligado ao telefone; preenche `saiu_em`; encerra os papéis de owner/co-owner com
+ * um `owner_removido` por pauta (o evento leva só o papel, nunca quem saiu). `curso` e
+ * `verificado_em` ficam: o curso aparece nos apoios e relatos públicos. `apoio`,
+ * `resposta_conferencia`, `voluntario` e `relato` não são tocados.
  *
  * `telefone_hmac` e `telefone_cifrado` são NOT NULL (e o HMAC é UNIQUE), então recebem uma lápide
  * aleatória (`saiu:<uuid>`): não deriva do telefone, não tem volta e nunca coincide com um HMAC de
@@ -57,11 +58,13 @@ export async function sairDoLumens(
   if (estudante === undefined) return { saiu: false, motivo: 'estudante_inexistente' };
   if (estudante.saiuEm !== null) return { saiu: false, motivo: 'ja_saiu' };
 
-  // Conversa e código são chaveados pelo HMAC do telefone: saem antes de ele ser trocado.
+  // Conversa, código e chat do Telegram são chaveados pelo HMAC do telefone: saem antes de ele
+  // ser trocado. Sem o chat, quem voltar pelo Telegram compartilha o contato de novo.
   await tx.delete(conversas).where(eq(conversas.telefoneHmac, estudante.telefoneHmac));
   await tx
     .delete(codigosVerificacao)
     .where(eq(codigosVerificacao.telefoneHmac, estudante.telefoneHmac));
+  await apagarChatTelegram(tx, estudante.telefoneHmac);
 
   // Disparos pendentes ou já reservados são cancelados para impedir envios após a saída (LGPD).
   // O worker só avança no lote com renovarReserva (onde falhouEm precisa ser nulo).

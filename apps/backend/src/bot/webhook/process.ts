@@ -1,4 +1,4 @@
-import { lt, mensagensProcessadas, type Canal, type Db } from '@lumens/db';
+import { lt, mensagensProcessadas, type Canal, type Db, type Tx } from '@lumens/db';
 import { z } from 'zod';
 import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import type { Logger } from '../../infra/logger';
@@ -125,8 +125,9 @@ export type ConteudoMensagem = z.infer<typeof conteudoSchema>;
 export interface IncomingMessageJob {
   /**
    * Por onde a mensagem chegou. Job enfileirado antes do Telegram não tem o campo: vale como
-   * WhatsApp (leia com `canalDoJob`). No Telegram, `wamid*` é o `update_id`, `phone*` é o chat id
-   * (o HMAC é o de `tg:<chat_id>`) e `phoneNumberId` é `telegram`.
+   * WhatsApp (leia com `canalDoJob`). No Telegram, `wamid*` é o `update_id`, `phone*` é o telefone
+   * do contato que a pessoa compartilhou (o mesmo `hashPhone` do WhatsApp: a mesma conversa e o
+   * mesmo estudante), `chatCifrado` é para onde responder e `phoneNumberId` é `telegram`.
    */
   canal?: Canal;
   wamidHmac: string;
@@ -139,6 +140,8 @@ export interface IncomingMessageJob {
   timestamp: string;
   /** `ConteudoMensagem` em JSON, cifrado com a CHAVE_CIFRA. Leia com `conteudoDoJob`. */
   contentCifrado: string;
+  /** Só no Telegram: o chat id, cifrado com a CHAVE_CIFRA. É para onde as respostas vão. */
+  chatCifrado?: string;
 }
 
 /** O canal de um job de entrada ou de respostas; sem o campo (job antigo), é o WhatsApp. */
@@ -269,23 +272,30 @@ async function enfileirar(
 
 /**
  * Grava o dedup e enfileira o job na MESMA transação (veja `processWebhookPayload`). Devolve
- * `false` quando o `wamidHmac` já tinha sido processado. Vale para os dois canais: o do Telegram
- * é o HMAC de `tg:<update_id>`.
+ * `false` quando o `wamidHmac` já tinha sido processado.
  */
 export async function enfileirarUmaVez(
   job: IncomingMessageJob,
   deps: Pick<ProcessDeps, 'db' | 'queue'>,
 ): Promise<boolean> {
   return deps.db.transaction(async (tx) => {
-    const inserida = await tx
-      .insert(mensagensProcessadas)
-      .values({ wamidHmac: job.wamidHmac })
-      .onConflictDoNothing()
-      .returning();
-    if (inserida.length === 0) return false;
+    if (!(await marcarProcessada(tx, job.wamidHmac))) return false;
     await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });
     return true;
   });
+}
+
+/**
+ * Grava o dedup, na transação de quem chama. Devolve `false` quando o HMAC já estava lá. Vale
+ * para os dois canais: o do Telegram é o HMAC de `tg:<update_id>`.
+ */
+export async function marcarProcessada(tx: Tx, wamidHmac: string): Promise<boolean> {
+  const inserida = await tx
+    .insert(mensagensProcessadas)
+    .values({ wamidHmac })
+    .onConflictDoNothing()
+    .returning();
+  return inserida.length > 0;
 }
 
 /**

@@ -113,8 +113,9 @@ export function telegramAvisoSender({
         const mensagem = erro instanceof Error ? erro.message : String(erro);
         if (classe === 'permanente') {
           // 403: a pessoa bloqueou o bot ou apagou a conta. 400: chat inexistente, ou mensagem que
-          // o Telegram nunca vai aceitar. Tentar de novo não muda nada para ela.
-          throw new ErroDeEnvio(mensagem, motivo, true, false);
+          // o Telegram nunca vai aceitar. Tentar de novo não muda nada para ela. Só o 403 perde o
+          // chat: um 400 também pode ser defeito da mensagem, e o chat continua bom.
+          throw new ErroDeEnvio(mensagem, motivo, true, false, codigo === 403);
         }
         const segundos = erro instanceof ErroDaApiDoTelegram ? erro.esperarSegundos : undefined;
         if (
