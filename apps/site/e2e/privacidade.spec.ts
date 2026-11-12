@@ -24,11 +24,12 @@ const ROTAS_DA_API = ['/resumo', '/blocos', '/pautas', '/conquistas', '/atividad
 /**
  * Os mesmos padrões da varredura da API, com uma diferença: no HTML cru aparecem números longos
  * (instantes em milissegundos, ids do Next), e o telefone sem borda casaria dentro deles. Por isso
- * aqui ele não pode encostar em outro dígito. O 9 do celular continua obrigatório: é o que segura
- * o falso positivo com data, valor e uuid.
+ * aqui ele não pode encostar em outro dígito. O código do país (`+55`/`55`) é opcional e entra na
+ * correspondência, senão a borda esconderia o número internacional compacto (`5582999990001`). O 9
+ * do celular continua obrigatório: é o que segura o falso positivo com data, valor e uuid.
  */
 const PADROES: readonly (readonly [string, RegExp])[] = [
-  ['telefone', /(?<![\d])\(?\d{2}\)?[\s-]?9\d{4}[-\s]?\d{4}(?![\d])/g],
+  ['telefone', /(?<![\d])(?:\+?55[\s-]?)?\(?\d{2}\)?[\s-]?9\d{4}[-\s]?\d{4}(?![\d])/g],
   // Domínio com letras no fim: "logo@2x.png" e "@media" não são e-mail.
   [
     'e-mail',
@@ -132,6 +133,9 @@ test.describe('a varredura acusa um vazamento plantado', () => {
     ['e-mail num relato', '<p>Falar com fulano.tal@ufal.br sobre isso</p>', 'e-mail'],
     ['celular com DDD', '<p>Liga pra (82) 99999-1234</p>', 'telefone'],
     ['celular colado', '<p>whats 82999991234</p>', 'telefone'],
+    ['celular com +55', '<p>meu zap +5582999990001</p>', 'telefone'],
+    ['celular com 55', '{"texto":"chama no 5582999990001"}', 'telefone'],
+    ['celular com +55 e espaços', '<p>+55 (82) 99999-1234</p>', 'telefone'],
     [
       'campo no payload do React',
       '<script>self.__next_f.push([1,"{\\"telefone\\":\\"x\\"}"])</script>',
