@@ -16,10 +16,8 @@ import {
 import { sendSigned, signPayload, urlPadrao } from '../src/bot/sim/send';
 import {
   DEFAULT_CHAT_ID,
-  DEFAULT_TELEFONE_TELEGRAM,
   HEADER_SEGREDO_TELEGRAM,
   buildTelegramCallback,
-  buildTelegramContact,
   buildTelegramDocument,
   buildTelegramPhoto,
   buildTelegramStart,
@@ -50,9 +48,6 @@ Canal telegram (--canal telegram) — Update da Bot API em POST /telegram/webhoo
   botao <data>                toque em botão do teclado inline (callback_query)
   foto [legenda]              foto (arquivo fictício) com legenda opcional
   documento [mime]            documento (arquivo fictício; padrão image/jpeg)
-  contato [telefone] [user_id]
-                              contato compartilhado (padrão ${DEFAULT_TELEFONE_TELEGRAM}); com
-                              user_id diferente do chat, é o cartão de outra pessoa (o bot recusa)
 
   A rota /telegram/webhook só existe com o back-end em TELEGRAM_MODO=webhook (no modo polling
   ela não é registrada e o POST dá 404). No .env da raiz:
@@ -189,12 +184,6 @@ function buildTelegramFromArgs(
     }
     case 'documento':
       return buildTelegramDocument({ ...common, mimeType: args[0] });
-    case 'contato':
-      return buildTelegramContact({
-        ...common,
-        phoneNumber: args[0],
-        contactUserId: inteiro(args[1], 'user_id'),
-      });
     default:
       fail(`tipo desconhecido no canal telegram: ${kind}`);
   }

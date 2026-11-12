@@ -209,17 +209,6 @@ export {
 export { diaEmMaceio, formatarDia } from './compartilhado/datas';
 
 export { sairDoLumens } from './estudante/sair';
-
-export {
-  CHAT_SEM_CONTATO_EXPIRA_MS,
-  apagarChatBloqueado,
-  apagarChatTelegram,
-  apagarChatsSemContato,
-  chatTelegramDe,
-  guardarComandoPendente,
-  vincularChatTelegram,
-} from './estudante/chat-telegram';
-export type { ChatTelegram } from './estudante/chat-telegram';
 export type { ResultadoSaida } from './estudante/sair';
 
 export {

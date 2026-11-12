@@ -1,6 +1,8 @@
 import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { registrarApoio } from '../pauta/apoio';
+import { criarPauta } from '../teste/fabricas';
 import {
   CODIGO_EXPIRA_MS,
   EMAIL_MAXIMO,
@@ -293,16 +295,52 @@ describe('vincularEmail (SCRUM-137, RN01)', () => {
     ).toHaveLength(1);
   });
 
-  it('e-mail de outro telefone: recusa e não mexe em nenhum dos dois', async () => {
+  it('e-mail de outra identidade, com as duas já cadastradas: recusa e não mexe em nenhuma', async () => {
     await vincularEmail(db, vinculo('3', 'c@ufal.br'));
-    const antes = await estudanteDe('3');
+    await vincularEmail(db, vinculo('4', 'c2@ufal.br'));
+    const [antes3, antes4] = [await estudanteDe('3'), await estudanteDe('4')];
 
     expect(await vincularEmail(db, vinculo('4', 'c@ufal.br'))).toEqual({
       vinculado: false,
       motivo: 'email_em_uso',
     });
-    expect(await estudanteDe('3')).toEqual(antes);
-    expect(await estudanteDe('4')).toBeUndefined();
+    expect(await estudanteDe('3')).toEqual(antes3);
+    expect(await estudanteDe('4')).toEqual(antes4);
+  });
+
+  it('e-mail de outra identidade, e esta sem cadastro: o cadastro passa para ela, com o apoio (SCRUM-267)', async () => {
+    // A pessoa se verificou e apoiou pelo WhatsApp (identidade A)...
+    const { estudanteId } = (await vincularEmail(db, vinculo('A', 'troca@ufal.br'))) as {
+      estudanteId: string;
+    };
+    const verificadoEm = new Date('2026-10-01T12:00:00Z');
+    await db
+      .update(estudantes)
+      .set({ verificadoEm, curso: CURSOS[0] })
+      .where(eq(estudantes.id, estudanteId));
+    const pauta = await criarPauta(db);
+    const apoio = { pautaId: pauta.id, estudanteId, origem: 'bot' as const };
+    expect((await db.transaction((tx) => registrarApoio(tx, apoio))).registrado).toBe(true);
+
+    // ...e o canal virou o Telegram (identidade B): ela acerta o código do mesmo e-mail.
+    expect(await vincularEmail(db, vinculo('B', 'troca@ufal.br'))).toEqual({
+      vinculado: true,
+      estudanteId,
+    });
+    expect(await estudanteDe('A')).toBeUndefined();
+    expect(await estudanteDe('B')).toMatchObject({
+      id: estudanteId,
+      telefoneCifrado: 'cifra-tel-B',
+      emailHmac: 'hmac-troca@ufal.br',
+      curso: CURSOS[0],
+      verificadoEm,
+    });
+    // O apoio é o mesmo: B não apoia a mesma pauta de novo.
+    expect(await db.transaction((tx) => registrarApoio(tx, apoio))).toMatchObject({
+      registrado: false,
+      motivo: 'ja_apoiou',
+      totalApoios: 1,
+    });
   });
 
   it('telefone com cadastro troca de e-mail: mantém verificação e saída, e o antigo fica livre', async () => {

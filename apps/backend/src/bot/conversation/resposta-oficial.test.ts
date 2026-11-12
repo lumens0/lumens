@@ -17,7 +17,6 @@ import {
   ASK_PDF_TEXT,
   NEED_PDF_TEXT,
   NO_PROTOCOL_TEXT,
-  PDF_RECEIVED_TELEGRAM_TEXT,
   PDF_RECEIVED_TEXT,
   PDF_REFUSED_TEXT,
 } from './resposta-oficial';
@@ -98,22 +97,6 @@ describe('owner encaminha o PDF da resposta oficial (3.6)', () => {
     const [doc] = await documentos();
     expect(doc).toMatchObject({ caminhoId, arquivoChave: 'respostas/2026/11/abc.pdf' });
     expect(await passo()).toBe('OWNER_PATHS');
-  });
-
-  it('no Telegram, a confirmação não promete a resposta "pelo WhatsApp"', async () => {
-    await send('resposta:falabr');
-
-    const r = await handleIncoming(
-      { phoneHmac: H, text: '', document: PDF, canal: 'telegram' },
-      { store, db, segredo, respostas },
-    );
-
-    expect(r[0]).toBe(PDF_RECEIVED_TELEGRAM_TEXT);
-    expect(PDF_RECEIVED_TELEGRAM_TEXT).not.toContain('WhatsApp');
-    // O do WhatsApp continua igual, palavra por palavra.
-    expect(PDF_RECEIVED_TEXT).toBe(
-      'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta pelo WhatsApp.',
-    );
   });
 
   it('também atende ao pedido digitado', async () => {

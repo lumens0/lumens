@@ -8,7 +8,6 @@ import { FIXTURES_DIR, fixtures } from './fixtures';
 import {
   DEFAULT_CHAT_ID,
   buildTelegramCallback,
-  buildTelegramContact,
   buildTelegramDocument,
   buildTelegramPhoto,
   buildTelegramStart,
@@ -66,20 +65,6 @@ describe('construtores de Update do Telegram', () => {
     const m = parse(buildTelegramDocument({ mimeType: 'application/pdf' })).message;
     expect(m?.document).toMatchObject({ mime_type: 'application/pdf' });
     expect(m?.document?.file_id).not.toBe('');
-  });
-
-  it('contato próprio: contact.user_id = from.id', () => {
-    const m = parse(buildTelegramContact({ chatId: 42, phoneNumber: '5582988887777' })).message;
-    // O schema guarda só o que o bot usa do contato: o `first_name` do cartão fica de fora.
-    expect(m?.contact).toEqual({ phone_number: '5582988887777', user_id: 42 });
-    expect(m?.from?.id).toBe(42);
-  });
-
-  it('contato de outra pessoa: contact.user_id ≠ from.id', () => {
-    const m = parse(buildTelegramContact({ chatId: 42, contactUserId: 43 })).message;
-    expect(m?.contact).toMatchObject({ user_id: 43 });
-    expect(m?.contact?.phone_number).not.toBe('');
-    expect(m?.from?.id).toBe(42);
   });
 
   it('chat padrão quando não informado', () => {
@@ -152,8 +137,6 @@ describe('fixtures do Telegram', () => {
   it('cobrem os updates que o bot trata', () => {
     expect(telegram.map(([nome]) => nome).sort()).toEqual([
       'telegram-botao',
-      'telegram-contato',
-      'telegram-contato-alheio',
       'telegram-documento',
       'telegram-foto',
       'telegram-start',
@@ -167,16 +150,4 @@ describe('fixtures do Telegram', () => {
       parse(JSON.parse(readFileSync(join(FIXTURES_DIR, `${nome}.json`), 'utf8')));
     });
   }
-
-  it('contato-alheio tem contact.user_id ≠ from.id; contato tem o mesmo', () => {
-    const ler = (nome: string) =>
-      parse(JSON.parse(readFileSync(join(FIXTURES_DIR, `${nome}.json`), 'utf8'))).message;
-    const proprio = ler('telegram-contato');
-    const alheio = ler('telegram-contato-alheio');
-    expect(proprio?.contact?.user_id).toBeDefined();
-    expect(proprio?.contact?.user_id).toBe(proprio?.from?.id);
-    expect(alheio?.contact?.user_id).toBeDefined();
-    expect(alheio?.from?.id).toBeDefined();
-    expect(alheio?.contact?.user_id).not.toBe(alheio?.from?.id);
-  });
 });

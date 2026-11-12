@@ -3,10 +3,7 @@ import type { Logger } from '../../infra/logger';
 import type { AvisoRenderizado } from './aviso';
 import { mensagemModeloDe, type MensagemModelo } from './mensagem-modelo';
 
-/**
- * Quem entrega um aviso da fila num canal. O worker de envio escolhe um por disparo, pelo canal
- * que a reserva decidiu (`disparo.canal`).
- */
+/** Quem entrega um aviso da fila no canal ativo (`CANAL_BOT`). */
 export interface AvisoSender {
   /**
    * Entrega o aviso em `destino` (o telefone ou o chat id, já decifrado). Devolve o id que o canal
@@ -20,12 +17,9 @@ export interface AvisoSender {
  * Falha ao enviar um aviso, de qualquer canal.
  * - `permanente`: tentar de novo não muda nada para ESTE destinatário; o disparo sai da fila com o
  *   `motivo`.
- * - `pararLote`: vale para o canal inteiro (limite de taxa, token, rede); o resto do lote naquele
- *   canal espera a próxima rodada.
+ * - `pararLote`: vale para o canal inteiro (limite de taxa, token, rede); o resto do lote espera a
+ *   próxima rodada.
  * - nenhum dos dois: passageiro, só este disparo espera.
- * - `destinoPerdido`: o destino não serve mais para canal nenhum deste estudante (a pessoa
- *   bloqueou o bot no Telegram). O worker esquece o destino, e os próximos avisos vão por outro
- *   canal.
  */
 export class ErroDeEnvio extends Error {
   constructor(
@@ -33,7 +27,6 @@ export class ErroDeEnvio extends Error {
     readonly motivo: string,
     readonly permanente: boolean,
     readonly pararLote: boolean,
-    readonly destinoPerdido = false,
   ) {
     super(mensagem);
     this.name = 'ErroDeEnvio';

@@ -1,4 +1,4 @@
-import type { Canal, Db } from '@lumens/db';
+import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
@@ -58,11 +58,6 @@ export interface StepContext {
   email?: ServicoDeEmail;
   /** O telefone cifrado do job (CHAVE_CIFRA): o cadastro do estudante guarda assim (2.4). */
   phoneCifrado?: string;
-  /**
-   * Canal da mensagem. A identidade não depende dele (é o telefone nos dois); só os textos que
-   * citam o WhatsApp mudam no Telegram.
-   */
-  canal?: Canal;
   /** HMAC com a CHAVE_HMAC, o mesmo do `phoneHmac`: busca o e-mail sem guardá-lo em claro (2.4). */
   hmac?: (valor: string) => string;
   /** Baixa e guarda o PDF da resposta oficial (3.6). Sem ele, o arquivo é recusado com aviso. */

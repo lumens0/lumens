@@ -1,7 +1,7 @@
 # SCRUM-267 · Telegram como canal reserva do bot
 
 História · 2026-11-12 · @guilhermek32
-**Situação:** decidido; implementação na branch `feat/telegram-bot`, aguardando revisão. O canal
+**Situação:** decidido; implementação na branch `feat/SCRUM-267-telegram`, aguardando revisão. O canal
 principal da demonstração é o WhatsApp não oficial (Evolution API), em história própria; o Telegram
 é a reserva. O código da Meta fica onde está.
 
@@ -30,34 +30,36 @@ decisão sobre o Evolution é da história dele.
 
 ## Decisão
 
-**O Telegram entra como canal reserva, ao lado dos outros canais, sem apagar o código da Meta.**
-A conversa é a mesma; muda só a entrada e a saída.
+**O Telegram entra como canal reserva, sem apagar o código da Meta. O bot tem um canal só por
+implantação**, escolhido por `CANAL_BOT` (`whatsapp`, o padrão, ou `telegram`). Não há WhatsApp e
+Telegram ligados ao mesmo tempo. A conversa é a mesma; muda só a entrada e a saída.
 
-### Identidade: o telefone, nos dois canais
+Revisão de 2026-11-12: a primeira versão desta decisão deixava os canais convivendo e usava o
+telefone compartilhado (`request_contact`) como identidade. O time decidiu pelo canal único e pela
+mescla pelo e-mail, abaixo. Com isso saíram o pedido de contato, a tabela `chat_telegram`, a coluna
+`disparo.canal` e o problema do nono dígito.
 
-- **A identidade é o telefone.** O Telegram não manda o telefone em cada mensagem: a pessoa o
-  compartilha uma vez, pelo botão de compartilhar o próprio contato (`request_contact`), que o bot
-  oferece a todo chat que ainda não tem telefone. O número passa pelo mesmo `hashPhone` do
-  WhatsApp, então **a mesma pessoa é o mesmo estudante nos dois canais**.
-- **Cartão de outra pessoa é recusado.** Se `contact.user_id` for diferente de `from.id` (ou não
-  vier), o contato não é da pessoa que está falando, e o bot não o aceita: pede de novo.
-- **Nada vai para a conversa antes do contato.** O texto que chegou antes (o `/start` de um link
-  do site, por exemplo) fica guardado, cifrado, e roda depois que o contato é aceito.
-- **O chat id do Telegram é guardado para o envio**, nunca em claro: tabela `chat_telegram`, com
-  HMAC de `tg:<chat_id>` para a busca, o chat id cifrado para mandar a mensagem e o telefone em HMAC
-  e cifrado. Um telefone tem um chat só. A rotação da chave de cifra cobre a tabela.
-- **Chat que nunca mandou o contato** é apagado pela limpeza diária depois de um dia parado.
+### Identidade: o chat no Telegram, o e-mail entre canais
+
+- **No Telegram, a identidade é o chat.** O `phoneHmac` do job (e o `telefone_hmac` do estudante)
+  é o HMAC de `tg:<chat_id>`; o prefixo impede que coincida com o HMAC de um telefone. O chat id
+  cifrado vai em `telefone_cifrado`: é o endereço do estudante no canal ativo, e é de lá que os
+  avisos tiram o destino. O telefone não é pedido: não tem função no Telegram (minimização, LGPD).
+- **Quem prova a identidade é o e-mail da UFAL.** A pessoa que se verificou num canal e, depois da
+  troca de canal, acerta o código do mesmo e-mail no outro continua sendo o mesmo estudante: o
+  cadastro troca de chave (`vincularEmail`). Apoios, pautas, curso e `verificado_em` ficam; não há
+  voto duplicado nem o mesmo e-mail verificado duas vezes.
+- **Duas identidades com cadastro e o mesmo e-mail** continuam recusadas (`email_em_uso`): juntar
+  dois cadastros pediria uma regra para os apoios dos dois.
 
 ### Avisos
 
-- O aviso vai pelo Telegram para o estudante que tem chat ligado ao telefone; quem não tem recebe
-  pelo WhatsApp.
-- **Não gasta o limite da Meta** (250 pessoas por 24h, SCRUM-191): ele é só do WhatsApp. O canal
-  de cada disparo é gravado na reserva (`disparo.canal`), e a conta das 24h usa o canal gravado,
-  não o chat de hoje: ela continua certa quando a pessoa liga ou perde o chat dentro das 24h.
-- **403 (bot bloqueado) é falha permanente**: o aviso sai da fila em vez de voltar no retry, e o
-  chat é apagado. Os próximos avisos da pessoa voltam ao WhatsApp; se ela falar com o bot de novo
-  pelo Telegram, compartilha o contato outra vez.
+- O aviso sai pelo canal ativo, para o `telefone_cifrado` do estudante. A fila (`reservarLote`) é
+  a mesma da `main`.
+- **O limite é configuração do canal.** No WhatsApp, o da Meta (`META_LIMITE_PESSOAS`, 250 pessoas
+  por 24h, SCRUM-191). No Telegram não há cota: o ritmo fica com o `telegramAvisoSender` (30/s no
+  total, 1/s por chat, `retry_after` no 429).
+- **403 (bot bloqueado) é falha permanente**: o aviso sai da fila em vez de voltar no retry.
 - **`sendMessage` aceito vale como enviado e entregue.** O Telegram não manda recibo de entrega.
 
 ### Mensagens
@@ -72,35 +74,29 @@ A conversa é a mesma; muda só a entrada e a saída.
 - **Webhook** (`POST /telegram/webhook`) autenticado pelo header
   `X-Telegram-Bot-Api-Secret-Token`, conferido contra o `TELEGRAM_WEBHOOK_SECRET`.
 - **Long polling** (`TELEGRAM_MODO=polling`) para a máquina do dev, sem túnel nem URL pública.
-- **O canal só liga com `TELEGRAM_BOT_TOKEN` definido.** Sem ele, nada do Telegram roda, e o
-  WhatsApp funciona como antes.
+- **O canal só liga com `CANAL_BOT=telegram`**, e aí o `TELEGRAM_BOT_TOKEN` é obrigatório. Sem
+  ele (o padrão), nada do Telegram roda, e o WhatsApp funciona como na `main`.
 
 ## O que esta decisão muda
 
 - O adendo de 2026-11-12 da [SCRUM-192](SCRUM-192-canal-avisos.md) falava em um cadastro por canal
-  (`estudante.canal`). Vale esta decisão: um estudante por telefone, e o aviso sai pelo Telegram
-  para quem tem chat ligado ao telefone.
+  (`estudante.canal`). Vale esta decisão: um canal por implantação, e o cadastro passa de um canal
+  para o outro pelo e-mail.
 
 ## Lacunas conhecidas
 
-- **Nono dígito.** O wa_id que a Meta entrega para algumas contas brasileiras antigas vem sem o
-  nono dígito (55 + DDD + 8 dígitos), enquanto o Telegram manda o número inteiro. Para essa pessoa
-  os dois canais dão hashes diferentes: ela vira dois estudantes, e o e-mail da UFAL dela é
-  recusado no segundo canal, porque já está no cadastro do outro telefone. Nenhuma heurística foi
-  acrescentada: pôr ou tirar o 9 de um lado só não resolve com segurança (comentário de
-  `normalizarTelefone` em `apps/backend/src/bot/telegram/contato.ts`). O que fazer: a confirmar.
 - **Nada foi exercitado contra a Bot API real.** Os testes usam um `fetch` falso e o simulador
   fala com o back-end local.
-- **"Apoiar" ainda não é tratado pelo bot**, em nenhum dos dois canais. O link do site manda o
+- **"Apoiar" ainda não é tratado pelo bot**, em nenhum canal. O link do site manda o
   comando, mas a conversa ainda não o executa.
 - **Os botões de resposta rápida dos avisos** (os da conferência) não têm quem os trate em nenhum
-  dos dois canais. No Telegram, o toque é respondido com um aviso curto e não entra na conversa.
+  canal. No Telegram, o toque é respondido com um aviso curto e não entra na conversa.
 - **Slug com mais de 57 caracteres não cabe no `start`.** O payload de `t.me/<bot>?start=` aceita
   até 64 caracteres, e `apoiar_` ocupa 7. O que fazer com esses slugs: a confirmar.
-- **Ordem das histórias.** A história pede que este canal entre depois do canal do Evolution e
-  reuse as peças comuns (escolha do canal, envio das respostas, simulador). Esta branch foi feita
-  antes, então os pontos de encontro `apps/backend/src/bot/worker.ts`, `apps/backend/src/main.ts`
-  e `apps/backend/src/config/env.ts` vão precisar ser conciliados quando o Evolution entrar.
+- **Ordem das histórias.** A história pede que este canal entre depois do canal do Evolution. Esta
+  branch foi feita antes; os pontos de encontro são `apps/backend/src/main.ts` e
+  `apps/backend/src/config/env.ts` (`CANAL_BOT`, `canalDoEnv`), e o Evolution acrescenta o valor
+  dele ao mesmo `CANAL_BOT`.
 
 ## Quando reabrir
 
@@ -112,7 +108,7 @@ combinado pela equipe: a confirmar.
 
 - História SCRUM-267 no Jira.
 - [Telegram Bot API](https://core.telegram.org/bots/api): `setWebhook` (`secret_token`), `getUpdates`,
-  `sendMessage`, `getFile`, `KeyboardButton.request_contact`.
+  `sendMessage`, `getFile`.
 - [Deep linking](https://core.telegram.org/api/links#bot-links): o `start` aceita até 64
   caracteres de `A-Z a-z 0-9 _ -`.
 - Panorama Mobile Time/Opinion Box, fevereiro de 2025: uso de apps de mensagem no Brasil.

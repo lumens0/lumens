@@ -11,13 +11,8 @@ import { telegramAvisoSender } from './bot/telegram/avisos';
 import { iniciarPolling, type Polling } from './bot/telegram/polling';
 import { telegramSender } from './bot/telegram/sender';
 import { processarUpdate } from './bot/telegram/update';
-import {
-  logSender,
-  registerIncomingWorker,
-  registerReplyWorker,
-  senderPorCanal,
-} from './bot/worker';
-import { carregarEnv, telegramDoEnv, whatsappDoEnv, type Env } from './config/env';
+import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
+import { canalDoEnv, carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto/cifra';
 import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
@@ -59,6 +54,12 @@ try {
  */
 const MODO_DEV = process.argv.includes('--dev');
 
+/**
+ * Limite de pessoas por 24h dos avisos no Telegram: não há cota como a da Meta. O `telegramAvisoSender`
+ * cuida do ritmo (30/s no total, 1/s por chat).
+ */
+const SEM_COTA = Number.MAX_SAFE_INTEGER;
+
 if (process.argv.includes('--so-validar')) {
   console.log(`Ambiente validado. Banco: ${new URL(env.DATABASE_URL).host}`);
 } else {
@@ -67,13 +68,11 @@ if (process.argv.includes('--so-validar')) {
 
 async function iniciar(env: Env): Promise<void> {
   const logger = criarLogger(env.LOG_LEVEL);
-  const whatsapp = whatsappDoEnv(env);
-  const telegram = telegramDoEnv(env);
-  // O token do bot nunca vai para o log: só que o canal está ligado e em que modo.
-  logger.info(
-    { whatsapp: whatsapp !== undefined, telegram: telegram?.modo ?? false },
-    'canais do bot',
-  );
+  // Um canal por implantação (CANAL_BOT). O token nunca vai para o log: só o canal e o modo.
+  const canal = canalDoEnv(env);
+  const whatsapp = canal.canal === 'whatsapp' ? canal : undefined;
+  const telegram = canal.canal === 'telegram' ? canal : undefined;
+  logger.info({ canal: canal.canal, modo: telegram?.modo }, 'canal do bot');
 
   try {
     const pool = criarPool(env.DATABASE_URL, POOL_TIMEOUTS, (erro) => {
@@ -106,48 +105,27 @@ async function iniciar(env: Env): Promise<void> {
       regiao: env.AWS_REGION,
       endpoint: env.S3_ENDPOINT,
     });
-    // PDF da resposta oficial (3.6): mesmo bucket, pasta `respostas/`, que não é pública.
     const avisar = (mensagem: string) => {
       logger.warn(mensagem);
     };
-    // Sem o WhatsApp não há token da Meta: a mídia que chegasse por ele não teria como ser baixada
-    // (e nem chega, porque o webhook da Meta não sobe).
-    const tokenDaMeta = whatsapp?.token ?? '';
+    // A mídia é baixada pela API do canal ativo: `media id` da Meta ou `file_id` do Telegram. A
+    // limpeza e o storage são os mesmos. PDF da resposta oficial (3.6): mesmo bucket, pasta
+    // `respostas/`, que não é pública.
+    const apiDoTelegram = telegram ? criarApiDoTelegram({ token: telegram.token }) : undefined;
+    const baixar = (id: string, opcoes: { tamanhoMaximo?: number } = {}) =>
+      apiDoTelegram
+        ? baixarMidiaDoTelegram(id, { api: apiDoTelegram, ...opcoes })
+        : baixarMidiaDaMeta(id, { token: whatsapp?.token ?? '', ...opcoes });
     const respostas = criarServicoDeRespostas({
-      baixar: (mediaId) =>
-        baixarMidiaDaMeta(mediaId, { token: tokenDaMeta, tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
+      baixar: (id) => baixar(id, { tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
       storage: storageDeArquivos,
       avisar,
     });
     const fotos = criarServicoDeFotos({
-      baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: tokenDaMeta }),
-      storage: criarStorageS3({
-        bucket: env.S3_BUCKET_FOTOS,
-        regiao: env.AWS_REGION,
-        endpoint: env.S3_ENDPOINT,
-      }),
+      baixar: (id) => baixar(id),
+      storage: storageDeArquivos,
       avisar,
     });
-    // Telegram: a mesma limpeza e o mesmo storage, só o download muda (o id é um `file_id`).
-    const apiDoTelegram = telegram ? criarApiDoTelegram({ token: telegram.token }) : undefined;
-    const midiaDoTelegram = apiDoTelegram
-      ? {
-          fotos: criarServicoDeFotos({
-            baixar: (fileId) => baixarMidiaDoTelegram(fileId, { api: apiDoTelegram }),
-            storage: storageDeArquivos,
-            avisar,
-          }),
-          respostas: criarServicoDeRespostas({
-            baixar: (fileId) =>
-              baixarMidiaDoTelegram(fileId, {
-                api: apiDoTelegram,
-                tamanhoMaximo: TAMANHO_MAXIMO_PDF,
-              }),
-            storage: storageDeArquivos,
-            avisar,
-          }),
-        }
-      : undefined;
     // No `pnpm dev` o código aparece no log; fora dele, vai pelo SMTP do `.env`.
     const email = MODO_DEV
       ? logEmail(logger)
@@ -164,30 +142,29 @@ async function iniciar(env: Env): Promise<void> {
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
-    // Cada aviso sai pelo Telegram para quem tem chat ligado ao telefone, e pelo WhatsApp para o
-    // resto. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade, e
-    // enquanto os modelos não forem aprovados a Meta recusa com erro passageiro e os avisos
-    // esperam. Telegram: envia de verdade sempre que o bot está ligado; sem ele, quem tem chat
-    // recebe pelo WhatsApp. Sem sender para nenhum dos dois, o aviso espera na fila.
-    const modeloSender = MODO_DEV
-      ? logModeloSender(logger)
-      : whatsapp && graphSender({ token: whatsapp.token, phoneNumberId: whatsapp.phoneNumberId });
-    const avisoSenders = {
-      ...(modeloSender ? { whatsapp: whatsappAvisoSender(modeloSender) } : {}),
-      ...(apiDoTelegram ? { telegram: telegramAvisoSender({ api: apiDoTelegram }) } : {}),
-    };
-    if (Object.keys(avisoSenders).length > 0) {
+    // Avisos pelo canal ativo. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora dele, envia de
+    // verdade, e enquanto os modelos não forem aprovados a Meta recusa com erro passageiro e os
+    // avisos esperam. Telegram: envia de verdade, sem a cota da Meta; o ritmo é do sender.
+    if (apiDoTelegram) {
       await registerEnvioWorker(boss, {
         db,
-        senders: avisoSenders,
+        sender: telegramAvisoSender({ api: apiDoTelegram }),
         chaves,
         logger,
-        limite: env.META_LIMITE_PESSOAS,
+        limite: SEM_COTA,
       });
-    } else {
-      logger.warn('nenhum canal para avisos: eles ficam na fila sem envio');
+    } else if (whatsapp) {
+      const modeloSender = MODO_DEV
+        ? logModeloSender(logger)
+        : graphSender({ token: whatsapp.token, phoneNumberId: whatsapp.phoneNumberId });
+      await registerEnvioWorker(boss, {
+        db,
+        sender: whatsappAvisoSender(modeloSender),
+        chaves,
+        logger,
+        limite: whatsapp.limitePessoas,
+      });
     }
-    if (!modeloSender) logger.warn('WhatsApp não configurado: os avisos dele ficam na fila');
     await registerStatusWorker(boss, { db, logger });
     await registerGatilhosJob(boss, { db, logger });
     await registerIncomingWorker(boss, {
@@ -199,17 +176,13 @@ async function iniciar(env: Env): Promise<void> {
       fotos,
       email,
       respostas,
-      ...(midiaDoTelegram ? { midiaDoTelegram } : {}),
     });
     await registerReplyWorker(
       boss,
-      senderPorCanal({
-        // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
-        whatsapp: logSender(logger, chaves, { mostrarTexto: MODO_DEV }),
-        ...(apiDoTelegram
-          ? { telegram: telegramSender({ api: apiDoTelegram, chaves, logger }) }
-          : {}),
-      }),
+      apiDoTelegram
+        ? telegramSender({ api: apiDoTelegram, chaves, logger })
+        : // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
+          logSender(logger, chaves, { mostrarTexto: MODO_DEV }),
       logger,
     );
 
@@ -217,13 +190,8 @@ async function iniciar(env: Env): Promise<void> {
       ...(whatsapp
         ? { config: { verifyToken: whatsapp.verifyToken, appSecret: whatsapp.appSecret } }
         : {}),
-      ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined
-        ? {
-            telegram: {
-              segredo: telegram.segredoDoWebhook,
-              ...(apiDoTelegram ? { api: apiDoTelegram } : {}),
-            },
-          }
+      ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined && apiDoTelegram
+        ? { telegram: { segredo: telegram.segredoDoWebhook, api: apiDoTelegram } }
         : {}),
       db,
       queue,

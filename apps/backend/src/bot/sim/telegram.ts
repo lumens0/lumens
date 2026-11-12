@@ -3,7 +3,6 @@
 // header X-Telegram-Bot-Api-Secret-Token (não há assinatura do corpo, como na Meta).
 
 export const DEFAULT_CHAT_ID = 900000001;
-export const DEFAULT_TELEFONE_TELEGRAM = '5582999990000';
 export const DEFAULT_NOME_TELEGRAM = 'Morador';
 const BOT_ID = 800000001;
 const BOT_USERNAME = 'LumensSimBot';
@@ -136,26 +135,6 @@ export function buildTelegramDocument(
       file_size: 250_000,
     },
     ...(opts.caption === undefined ? {} : { caption: opts.caption }),
-  });
-}
-
-/**
- * Contato compartilhado (`message.contact`). Pelo botão "compartilhar meu telefone", o
- * `contact.user_id` é o próprio `from.id` (padrão). Um cartão de outra pessoa tem outro
- * `user_id` — passe `contactUserId` diferente do chat para simular esse caso, que o bot recusa.
- */
-export function buildTelegramContact(
-  opts: TelegramBaseOpts & {
-    phoneNumber?: string | undefined;
-    contactUserId?: number | undefined;
-  },
-) {
-  return mensagem(opts, {
-    contact: {
-      phone_number: opts.phoneNumber ?? DEFAULT_TELEFONE_TELEGRAM,
-      first_name: DEFAULT_NOME_TELEGRAM,
-      user_id: opts.contactUserId ?? opts.chatId ?? DEFAULT_CHAT_ID,
-    },
   });
 }
 

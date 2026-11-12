@@ -1,7 +1,7 @@
 # SCRUM-267 · Teste local do canal do Telegram
 
 Roteiro para rodar o bot do Telegram na sua máquina, do zero, antes de subir a branch
-`feat/telegram-bot` para o GitHub. Nada aqui foi executado contra a Bot API real ainda: os testes
+`feat/SCRUM-267-telegram`. Nada aqui foi executado contra a Bot API real ainda: os testes
 automatizados usam uma API falsa. Este roteiro é a primeira conferência de verdade.
 
 Marque cada passo. Se algum falhar, pare e anote o que apareceu no terminal do back-end.
@@ -10,8 +10,7 @@ Marque cada passo. Se algum falhar, pare e anote o que apareceu no terminal do b
 
 - [ ] Docker Desktop aberto (o Postgres sobe por ele).
 - [ ] Node e pnpm instalados; `pnpm install` na raiz.
-- [ ] Telegram no celular, com a sua conta. Uma segunda conta ajuda no passo 6, mas não é
-      obrigatória.
+- [ ] Telegram no celular, com a sua conta.
 - [ ] `.env` e `.env.database` na raiz (copie dos `.example` se ainda não existirem), com
       `CHAVE_CIFRA` e `CHAVE_HMAC` preenchidas.
 - [ ] Não precisa de SMTP: no `pnpm dev` o e-mail não é enviado, e o código de verificação aparece
@@ -31,13 +30,13 @@ Marque cada passo. Se algum falhar, pare e anote o que apareceu no terminal do b
 Na raiz, no `.env`:
 
 ```sh
+CANAL_BOT=telegram
 TELEGRAM_BOT_TOKEN=<token do BotFather>
 TELEGRAM_MODO=polling
 TELEGRAM_WEBHOOK_SECRET=
 ```
 
-- [ ] Com o `TELEGRAM_BOT_TOKEN` preenchido, as quatro `META_*` podem ficar vazias: o back-end sobe
-      só com o Telegram.
+- [ ] Com `CANAL_BOT=telegram`, as `META_*` são ignoradas: só o Telegram sobe.
 - [ ] Confira a configuração sem subir nada:
 
 ```sh
@@ -46,17 +45,15 @@ pnpm --filter @lumens/backend env:check
 
 ## 3. Banco
 
-A migration `0014` foi reescrita nesta branch com o mesmo carimbo de data. Se você já tinha rodado
-`pnpm db:migrate` com a versão antiga, o `db:migrate` pula a nova em silêncio e o bot quebra ao
-procurar a tabela `chat_telegram`.
+Se você já rodou uma versão anterior desta branch, o banco local tem a migration `0014`, que saiu.
 
-- [ ] Recrie o banco local (**apaga todos os dados locais**):
+- [ ] Nesse caso, recrie o banco local (**apaga todos os dados locais**):
 
 ```sh
 pnpm db:fresh
 ```
 
-- [ ] Se o banco nunca recebeu a `0014` antiga, basta `pnpm db:up` e `pnpm db:migrate`.
+- [ ] Senão, basta `pnpm db:up` e `pnpm db:migrate`.
 
 ## 4. Conferência automática
 
@@ -92,39 +89,26 @@ No Telegram, com a sua conta, abra o bot e siga o roteiro:
 
 | #   | Você faz                                         | O bot deve                                                                            |
 | --- | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| 1   | Toca em **Iniciar** (`/start`)                   | Pedir o contato, com o botão de compartilhar o número                                 |
-| 2   | Manda um texto qualquer, sem compartilhar        | Pedir o contato de novo                                                               |
-| 3   | Toca no botão e compartilha o seu número         | Confirmar o número, recolher o teclado e mostrar o aviso/menu                         |
+| 1   | Toca em **Iniciar** (`/start`)                   | Mostrar o aviso de privacidade e o menu, sem pedir o telefone                         |
 | 4   | Segue a verificação com um e-mail da UFAL        | Pedir o código; copie-o do log do `pnpm dev` (linha "código de verificação") e digite |
 | 5   | Cria uma pauta até o fim (categoria, texto, etc) | Mostrar botões inline em cada escolha e registrar a pauta                             |
 | 6   | Manda uma foto quando o fluxo pedir              | Aceitar a foto (baixa pelo `getFile`)                                                 |
 | 7   | Toca num botão antigo, de uma mensagem anterior  | Responder sem travar a conversa (o "relógio" do botão some)                           |
 | 8   | Manda `menu` e depois `cancelar` no meio de algo | Voltar ao menu / cancelar                                                             |
-| 9   | Manda `sair` e confirma                          | Apagar o vínculo; a próxima mensagem volta a pedir o contato                          |
+| 9   | Manda `sair` e confirma                          | Apagar o cadastro; a próxima mensagem começa do zero                                  |
 
 - [ ] Negrito: os trechos com `*asteriscos*` devem aparecer em negrito, sem os asteriscos.
 - [ ] Mensagem longa (lista de pautas grande) chega inteira, dividida se passar de 4096 caracteres.
 
-## 6. Contato de outra pessoa (critério do ticket)
+## 6. Troca de canal: o mesmo estudante pelo e-mail
 
-- [ ] Num chat que ainda não compartilhou o número (depois do `sair`, ou com uma segunda conta), em
-      vez de tocar no botão, use o clipe 📎 → **Contato** e mande o cartão de outra pessoa.
-- [ ] O bot deve recusar e pedir o contato de novo. Nenhum estudante novo pode aparecer no banco.
+Sem o WhatsApp funcionando, confira pelo simulador:
 
-## 7. Mesma pessoa nos dois canais (critério do ticket)
-
-Só dá para conferir de ponta a ponta com o WhatsApp funcionando. Sem ele, confira pelo simulador:
-
-- [ ] Com o back-end no ar, simule o mesmo número no formato da Meta (precisa das `META_*`
-      preenchidas, com qualquer valor de teste) e veja que é o mesmo estudante, sem novo cadastro:
-
-```sh
-pnpm sim texto 'oi' --from <seu número com DDI, só dígitos>
-```
-
-- [ ] Atenção ao nono dígito: contas antigas do WhatsApp chegam sem o 9, e o Telegram manda o
-      número completo. Nesse caso viram dois estudantes. É um ponto em aberto, não um erro do
-      teste; anote se acontecer com você.
+- [ ] Com `CANAL_BOT` vazio (WhatsApp; as `META_*` com qualquer valor de teste), verifique um e-mail
+      da UFAL pelo simulador no formato da Meta e apoie uma pauta.
+- [ ] Troque para `CANAL_BOT=telegram`, suba de novo e verifique **o mesmo e-mail** pelo Telegram.
+- [ ] Deve continuar o mesmo estudante: no banco, o `estudante` tem o mesmo `id`, com o
+      `telefone_hmac` novo, e o apoio continua lá. Apoiar a mesma pauta de novo não conta.
 
 ## 8. Simulador no formato do Telegram
 
@@ -144,19 +128,10 @@ pnpm sim start --canal telegram
 ```
 
 ```sh
-pnpm sim contato 5582999990000 --canal telegram
-```
-
-```sh
-pnpm sim contato 5582988887777 900000002 --canal telegram
-```
-
-```sh
 pnpm sim texto 'oi' --canal telegram --secret segredo-errado
 ```
 
-- [ ] Os três primeiros são aceitos (o terceiro é o cartão alheio, recusado na conversa). O último
-      deve ser recusado pelo webhook (401/403): é o critério do segredo.
+- [ ] O primeiro é aceito. O último deve ser recusado pelo webhook (401): é o critério do segredo.
 - [ ] As respostas do bot para o chat fictício `900000001` falham no envio; é esperado. Para vê-las
       no seu celular, passe `--chat <seu chat id>`.
 - [ ] Mais comandos em [`apps/backend/SIMULADOR.md`](../../../apps/backend/SIMULADOR.md).
@@ -164,13 +139,13 @@ pnpm sim texto 'oi' --canal telegram --secret segredo-errado
 
 ## 9. Avisos (pode ficar para depois da demo)
 
-- [ ] Com o seu chat ligado ao número (passo 5), provoque um aviso. O mais simples: crie uma pauta
+- [ ] Depois de se verificar pelo Telegram (passo 5), provoque um aviso. O mais simples: crie uma pauta
       e recuse-a pela curadoria; a pessoa autora recebe o aviso de recusa.
 - [ ] O aviso sai pelo worker da fila, que roda por agendamento: pode levar alguns minutos.
 - [ ] Deve chegar no Telegram como texto, com o botão "Ver a pauta". O link aponta para o site de
       produção, não para o `localhost`.
-- [ ] Bloqueie o bot no Telegram e provoque outro aviso: o disparo deve falhar de vez (403) e o
-      vínculo do chat ser apagado, sem novas tentativas.
+- [ ] Bloqueie o bot no Telegram e provoque outro aviso: o disparo deve falhar de vez (403), sem
+      novas tentativas.
 
 ## 10. Site (fora do ticket, opcional)
 
@@ -197,18 +172,11 @@ NEXT_PUBLIC_TELEGRAM_BOT=<usuário do bot, sem @>
 git grep -n "bot[0-9]\{8,\}:" -- . ':!pnpm-lock.yaml'
 ```
 
-- [ ] Commit do retrabalho (identidade por contato) com `[SCRUM-267]` na mensagem. O commit
-      `a4d5706` já existente não tem a etiqueta.
-- [ ] O ticket pede que este canal entre depois do canal da Evolution, em PR próprio. Antes do
-      `git push`, combine com o time: se a Evolution já estiver na `main`, faça o rebase e resolva
-      `bot/worker.ts`, `main.ts` e `config/env.ts`.
+- [ ] O ticket pede que este canal entre depois do canal da Evolution. Antes do merge, combine com o
+      time: se a Evolution já estiver na `main`, faça o rebase e resolva `main.ts` e `config/env.ts`
+      (`CANAL_BOT`).
 - [ ] Decida se os links do site (passo 10) vão neste PR ou em outro: estão fora do escopo do ticket.
 - [ ] Marque no [`SPEC.md`](./SPEC.md) os critérios que este roteiro confirmou.
-- [ ] Só então:
-
-```sh
-git push -u origin feat/telegram-bot
-```
 
 ## Depois: webhook em homologação
 

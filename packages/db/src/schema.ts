@@ -44,13 +44,6 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'recusa',
 ]);
 
-/**
- * Por onde uma mensagem chega ou sai. A identidade é o telefone nos dois: quem usa o WhatsApp e o
- * Telegram com o mesmo número é o mesmo estudante.
- */
-export const canal = pgEnum('canal', ['whatsapp', 'telegram']);
-export type Canal = (typeof canal.enumValues)[number];
-
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
 const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
 
@@ -345,40 +338,6 @@ export const conversas = pgTable(
 );
 
 /**
- * Chat do Telegram e o telefone de quem fala nele (SCRUM-267). Todo update do Telegram traz só o
- * chat id; o telefone vem uma vez, quando a pessoa compartilha o próprio contato, e a partir daí
- * o chat fala com a mesma conversa e o mesmo estudante do WhatsApp (chaveados pelo HMAC do
- * telefone). É também daqui que sai o chat id dos avisos do estudante (junção pelo
- * `telefone_hmac`).
- *
- * Antes do contato, a linha existe só para guardar o comando que chegou junto (o `/start` de um
- * link do site, ou a primeira mensagem) e roda depois que o contato é aceito; a limpeza diária
- * apaga essas linhas sem telefone depois de um dia. Sair do Lumens apaga a linha do telefone.
- *
- * Nada em claro: o chat id e o telefone vão como HMAC (a busca) e cifrados (o envio).
- */
-export const chatsTelegram = pgTable(
-  'chat_telegram',
-  {
-    /** HMAC de `tg:<chat_id>`: o prefixo impede que um chat id coincida com um telefone. */
-    chatHmac: text('chat_hmac').primaryKey(),
-    chatCifrado: text('chat_cifrado').notNull(),
-    /** O mesmo `hashPhone` do WhatsApp. Um telefone, um chat: o último a compartilhar fica. */
-    telefoneHmac: text('telefone_hmac').unique(),
-    telefoneCifrado: text('telefone_cifrado'),
-    /** Texto que espera o contato para ir à conversa, cifrado. */
-    comandoPendenteCifrado: text('comando_pendente_cifrado'),
-    atualizadoEm: instante('atualizado_em').notNull().defaultNow(),
-  },
-  (t) => [
-    check(
-      'chat_telegram_telefone_completo',
-      sql`(${t.telefoneHmac} IS NULL) = (${t.telefoneCifrado} IS NULL)`,
-    ),
-  ],
-);
-
-/**
  * Dedup de mensagens da Meta: a Meta reenvia o mesmo wamid, e ele só pode ser processado uma vez.
  * Guarda o HMAC do wamid, não o wamid: o wamid da Meta é base64 de uma estrutura que contém o
  * telefone do remetente. A limpeza diária apaga as linhas mais velhas que a janela de reenvio.
@@ -417,11 +376,6 @@ export const disparos = pgTable(
     parametros: jsonb('parametros').$type<string[]>().notNull().default([]),
     enfileiradoEm: instante('enfileirado_em').notNull().defaultNow(),
     reservadoEm: instante('reservado_em'),
-    /**
-     * Por onde o lote que reservou mandou o aviso. Só o WhatsApp conta no limite de 24h da Meta;
-     * nulo é linha de antes do Telegram, que saiu pelo WhatsApp.
-     */
-    canal: canal('canal'),
     enviadoEm: instante('enviado_em'),
     /** HMAC do wamid devolvido pela Meta, para casar o status de entrega que chega pelo webhook. */
     wamidHmac: text('wamid_hmac'),

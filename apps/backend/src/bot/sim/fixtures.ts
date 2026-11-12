@@ -12,7 +12,6 @@ import {
 } from './payloads';
 import {
   buildTelegramCallback,
-  buildTelegramContact,
   buildTelegramDocument,
   buildTelegramPhoto,
   buildTelegramStart,
@@ -23,7 +22,6 @@ import {
 const FROM = '5582999990000';
 const TS = '1767225600'; // 2026-01-01T00:00:00Z
 const CHAT = 900000001;
-const OUTRA_PESSOA = 900000002;
 
 export const FIXTURES_DIR = fileURLToPath(new URL('./__fixtures__', import.meta.url));
 
@@ -72,13 +70,5 @@ export function fixtures(): Record<string, MetaWebhookPayload | TelegramUpdate> 
     'telegram-botao': buildTelegramCallback({ ...tg, updateId: 1004, data: 'cat_iluminacao' }),
     'telegram-foto': buildTelegramPhoto({ ...tg, updateId: 1005, caption: 'poste apagado' }),
     'telegram-documento': buildTelegramDocument({ ...tg, updateId: 1006 }),
-    'telegram-contato': buildTelegramContact({ ...tg, updateId: 1007, phoneNumber: FROM }),
-    // Cartão de outra pessoa: contact.user_id ≠ from.id. O bot recusa.
-    'telegram-contato-alheio': buildTelegramContact({
-      ...tg,
-      updateId: 1008,
-      phoneNumber: '5582988887777',
-      contactUserId: OUTRA_PESSOA,
-    }),
   };
 }

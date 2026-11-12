@@ -187,22 +187,16 @@ describe('telegramAvisoSender', () => {
     const erro = await sender.enviar(aviso, String(CHAT)).catch((e: unknown) => e);
 
     expect(erro).toBeInstanceOf(ErroDeEnvio);
-    expect(erro).toMatchObject({
-      motivo: 'telegram:403',
-      permanente: true,
-      pararLote: false,
-      // O chat não serve mais: o worker o apaga, e o próximo aviso vai pelo WhatsApp.
-      destinoPerdido: true,
-    });
+    expect(erro).toMatchObject({ motivo: 'telegram:403', permanente: true, pararLote: false });
   });
 
-  it('400 é falha permanente, mas o chat continua (pode ser defeito da mensagem)', async () => {
+  it('400 também é falha permanente', async () => {
     const { api } = apiFalsa([new ErroDaApiDoTelegram('sendMessage', 400, 'Bad Request')]);
     const sender = telegramAvisoSender({ api, ...tempoFalso() });
 
     const erro = await sender.enviar(aviso, String(CHAT)).catch((e: unknown) => e);
 
-    expect(erro).toMatchObject({ motivo: 'telegram:400', permanente: true, destinoPerdido: false });
+    expect(erro).toMatchObject({ motivo: 'telegram:400', permanente: true, pararLote: false });
   });
 
   it('429 espera o retry_after e manda a mesma mensagem de novo', async () => {

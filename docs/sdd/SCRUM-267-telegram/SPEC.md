@@ -13,22 +13,22 @@
   como o texto do id, e `/start <payload>` chega como o comando que o link do site manda no
   WhatsApp (`nova` → `nova pauta`, `apoiar_<slug>` → `apoiar <slug>`, `ajudar_<slug>` →
   `ajudar <slug>`; `/start` sozinho ou com payload desconhecido → `menu`).
-- **Identidade pelo telefone.** Um chat sem telefone não chega à conversa: recebe o pedido do
-  contato, com um teclado de um botão `request_contact`. A pessoa compartilha o próprio contato; o
-  telefone passa pelo mesmo `hashPhone` do WhatsApp, e a pessoa é o mesmo estudante nos dois
-  canais. Contato de outra pessoa (`contact.user_id` ≠ `from.id`, ou sem `user_id`) é recusado, e o
-  pedido se repete. O texto que chegou antes do contato (o `/start` de um link do site, por
-  exemplo) fica guardado e roda depois que o contato é aceito; sem nada guardado, abre o menu.
+- **Um canal por implantação.** `CANAL_BOT` escolhe `whatsapp` (padrão) ou `telegram`; só o canal
+  escolhido sobe. Nunca os dois ao mesmo tempo.
+- **Identidade pelo chat.** No Telegram a pessoa é o chat: a chave é o HMAC de `tg:<chat_id>`, e o
+  chat id cifrado é o endereço dela. O telefone não é pedido.
+- **Mescla pelo e-mail.** Quem se verificou num canal e, depois da troca, acerta o código do mesmo
+  e-mail da UFAL no outro continua sendo o mesmo estudante: apoios, pautas e verificação ficam.
+  Duas identidades que já têm cadastro com o mesmo e-mail continuam recusadas (`email_em_uso`).
 - **Saída.** As respostas viram `sendMessage` em texto puro: botões e listas viram teclado inline
   (um botão por linha, `callback_data` = id do botão), o `*negrito*` vira `entities`, e nunca há
   `parse_mode`. Texto acima de 4096 caracteres é dividido, com o teclado na última parte.
-- **Avisos.** Saem pelo Telegram para quem tem chat ligado ao telefone, com o texto do catálogo
-  de modelos, sem gastar o limite de 250 pessoas/24h da Meta. `sendMessage` aceito vale como
-  enviado e entregue; 403 (bot bloqueado) é falha permanente e apaga o chat, e os próximos avisos
-  da pessoa saem pelo WhatsApp.
+- **Avisos.** Saem pelo canal ativo, com o texto do catálogo de modelos. No Telegram, sem o limite
+  de 250 pessoas/24h da Meta; `sendMessage` aceito vale como enviado e entregue; 403 (bot
+  bloqueado) é falha permanente.
 - **Mídia.** Foto (a maior resolução) e documento chegam pelo `file_id` e são baixados com o
   `getFile`, até o limite de 20 MB da Bot API.
-- **Configuração.** O canal liga só com `TELEGRAM_BOT_TOKEN`. Em `TELEGRAM_MODO=webhook` (padrão) a
+- **Configuração.** O canal liga com `CANAL_BOT=telegram`, que exige o `TELEGRAM_BOT_TOKEN`. Em `TELEGRAM_MODO=webhook` (padrão) a
   rota `POST /telegram/webhook` confere o `X-Telegram-Bot-Api-Secret-Token`; em
   `TELEGRAM_MODO=polling` o back-end busca os updates com `getUpdates` e a rota não existe.
 
@@ -41,25 +41,25 @@ uma Bot API falsa (nada foi exercitado contra o Telegram de verdade).
       _As peças têm teste — botões e listas em teclado inline (`bot/telegram/sender.test.ts`),
       toque no botão como texto (`bot/telegram/update.test.ts`), resposta pelo canal do job
       (`bot/worker.test.ts`) — mas nenhum teste percorre uma conversa inteira pelo Telegram._
-- [x] Contato compartilhado de outra pessoa (contact.user_id diferente de from.id) é recusado.
-      — `apps/backend/src/bot/telegram/update.test.ts` ("contato de outra pessoa … é recusado e o
-      pedido se repete").
-- [x] Com o mesmo telefone, a pessoa é o mesmo estudante no WhatsApp e no Telegram (mesmo
-      hashPhone). — `apps/backend/src/bot/telegram/update.test.ts` ("com o mesmo telefone, o chat é
-      a mesma pessoa do WhatsApp") e `apps/backend/src/bot/conversation/verificacao.test.ts`
-      ("pelo Telegram, com o mesmo telefone, a verificação do WhatsApp continua valendo").
+- [~] ~~Contato compartilhado de outra pessoa (contact.user_id diferente de from.id) é recusado.~~
+  _Substituído pela decisão do time (revisão do PR): o Telegram não pede contato; a identidade
+  é o chat (`apps/backend/src/bot/telegram/update.test.ts`, "a chave é o HMAC de
+  tg:<chat_id>")._
+- [~] ~~Com o mesmo telefone, a pessoa é o mesmo estudante no WhatsApp e no Telegram (mesmo
+  hashPhone).~~ _Substituído: a mesma pessoa é o mesmo estudante pelo e-mail da UFAL —
+  `packages/dominio/src/estudante/verificacao.test.ts` ("o cadastro passa para ela, com o
+  apoio") e `apps/backend/src/bot/conversation/verificacao.test.ts` ("o cadastro passa para
+  esta (troca de canal)")._
 - [x] Webhook sem o X-Telegram-Bot-Api-Secret-Token correto é recusado.
       — `apps/backend/src/bot/telegram/routes.test.ts` ("sem segredo ou com segredo errado → 401 e
       nada na fila").
 - [x] Aviso chega a quem falou com o bot; quem bloqueou o bot (erro 403) sai da fila como falha
-      permanente. — `packages/dominio/src/avisos/fila.test.ts` (quem tem chat sai pelo Telegram),
-      `apps/backend/src/bot/telegram/avisos.test.ts` (aceito vale como entregue; 403 é falha
-      permanente) e `apps/backend/src/bot/envio/worker.test.ts` ("403 tira só aquele disparo da
-      fila, de vez"; "403 apaga o chat").
-- [x] O canal liga só quando TELEGRAM_BOT_TOKEN está definido e convive com o WhatsApp.
-      — `apps/backend/src/config/env.test.ts` ("canais do bot (WhatsApp e Telegram)"),
-      `apps/backend/src/bot/envio/worker.test.ts` ("erro que para o Telegram não para o WhatsApp do
-      mesmo lote") e `apps/backend/src/bot/worker.test.ts` ("canal (Telegram)").
+      permanente. — `apps/backend/src/bot/telegram/avisos.test.ts` (aceito vale como entregue; 403
+      é falha permanente) e `apps/backend/src/bot/envio/worker.test.ts` ("com CANAL_BOT=telegram":
+      "manda para o chat id"; "403 tira só aquele disparo da fila, de vez").
+- [~] ~~O canal liga só quando TELEGRAM_BOT_TOKEN está definido e convive com o WhatsApp.~~
+  _Substituído: o canal liga com `CANAL_BOT=telegram` e não convive com o WhatsApp —
+  `apps/backend/src/config/env.test.ts` ("canal do bot (CANAL_BOT)")._
 - [ ] Testes falham sem a implementação; pnpm sim aceita o formato do Telegram.
       _A segunda metade tem teste (`apps/backend/src/bot/sim/telegram.test.ts`: construtores e
       fixtures passam no `updateSchema` real). A primeira não foi verificada: ninguém rodou os
@@ -77,15 +77,11 @@ ficar para depois; a demonstração só precisa da conversa.
 - **Casos de borda:** update de grupo, canal ou de outro bot (ignorado); botão de aviso sem
   tratamento (respondido com um aviso curto, não entra na conversa); `update_id` repetido (dedup);
   arquivo acima de 20 MB; 429 com `retry_after`; texto com emoji no limite de corte; `callback_data`
-  acima de 64 bytes; slug acima de 57 caracteres no `start`; cartão de contato sem `user_id` ou com
-  número ilegível (recusado); a mesma pessoa compartilhando o telefone de outra conta do Telegram
-  (o chat antigo perde a ligação); chat que nunca manda o contato (apagado pela limpeza diária).
-- **Limitações conhecidas:** o wa_id da Meta de algumas contas brasileiras antigas vem sem o nono
-  dígito, e o Telegram manda o número inteiro: essa pessoa vira dois estudantes, e o e-mail da UFAL
-  é recusado no segundo canal. Nenhuma heurística foi acrescentada (ver o comentário em
-  `apps/backend/src/bot/telegram/contato.ts`).
+  acima de 64 bytes; slug acima de 57 caracteres no `start`; troca de canal no meio de um fluxo (a
+  conversa recomeça; o cadastro fica); a mesma pessoa em duas contas do Telegram (duas identidades:
+  a segunda recebe `email_em_uso` se a primeira já tem cadastro com o e-mail).
 - **Fora de escopo:** o canal do Evolution e a decisão sobre ele; tratar "Apoiar" e as respostas
-  rápidas da conferência (lacunas nos dois canais); qualquer mudança no comportamento do WhatsApp
+  rápidas da conferência (lacunas em todos os canais); qualquer mudança no comportamento do WhatsApp
   oficial.
 
 ## Padrões aplicáveis
