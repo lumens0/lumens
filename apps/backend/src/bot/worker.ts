@@ -7,7 +7,18 @@ import type { ServicoDeRespostas } from '../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { resumoDoErro, type Logger } from '../infra/logger';
 import { JOBS, StaleJobError, type JobAttempt, type JobQueue } from '../infra/queue';
-import type { HandlerRegistry, IncomingMessage } from './conversation/handlers';
+import {
+  menuDoTurno,
+  resolverEscolha,
+  semMenuPrincipalDepoisDoMenu,
+  type MenuEmTexto,
+} from './canais/menu-em-texto';
+import {
+  MENU_TEXT,
+  type HandlerRegistry,
+  type IncomingMessage,
+  type Segredo,
+} from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
@@ -51,6 +62,11 @@ export interface WorkerDeps {
   /** PDF da resposta oficial (3.6). */
   respostas?: ServicoDeRespostas;
   handlers?: HandlerRegistry;
+  /**
+   * Canal só de texto (SCRUM-275): lista e botões saem como menu numerado, e "2" ou o título
+   * digitado chegam à conversa como o `id` da opção, igual a um toque no botão.
+   */
+  menusEmTexto?: boolean;
 }
 
 /** Job da fila de entrada como o worker o recebe (`includeMetadata` traz o `retryLimit`). */
@@ -157,7 +173,7 @@ export async function processIncomingJob(
   } catch (erro) {
     throw new MensagemIlegivelError(erro);
   }
-  const input = inputOf(conteudo);
+  const lido = inputOf(conteudo);
   return deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
@@ -165,15 +181,20 @@ export async function processIncomingJob(
       telefoneHmac: data.phoneHmac,
       agora: instanteDaMensagem(data.timestamp),
     });
-    const replies =
+    const store = deps.store.withDb(tx);
+    const segredo = segredoCom(deps.chaves.cifra);
+    const input = deps.menusEmTexto
+      ? await comEscolhaDoMenu(lido, data.phoneHmac, store, segredo)
+      : lido;
+    const respondidas =
       input === null
         ? [UNSUPPORTED_TEXT]
         : await handleIncoming(
             { phoneHmac: data.phoneHmac, phoneCifrado: data.phoneCifrado, ...input },
             {
-              store: deps.store.withDb(tx),
+              store,
               db: tx,
-              segredo: segredoCom(deps.chaves.cifra),
+              segredo,
               hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
               ...(deps.fotos ? { fotos: deps.fotos } : {}),
               ...(deps.email ? { email: deps.email } : {}),
@@ -181,6 +202,16 @@ export async function processIncomingJob(
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );
+    const replies = deps.menusEmTexto
+      ? semMenuPrincipalDepoisDoMenu(respondidas, MENU_TEXT)
+      : respondidas;
+    if (deps.menusEmTexto) {
+      const menu = menuDoTurno(replies);
+      await store.guardarMenu(
+        data.phoneHmac,
+        menu === null ? null : segredo.cifrar(JSON.stringify(menu)),
+      );
+    }
     const outgoing: OutgoingReplies = {
       phoneHmac: data.phoneHmac,
       phoneCifrado: data.phoneCifrado,
@@ -192,6 +223,30 @@ export async function processIncomingJob(
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
+}
+
+/**
+ * Num canal só de texto, troca "2" (ou o título digitado) pelo `id` da opção do último menu da
+ * conversa. Foto e arquivo passam como vieram. Menu que não decifra vale como menu nenhum.
+ */
+async function comEscolhaDoMenu(
+  input: IncomingMessage | null,
+  phoneHmac: string,
+  store: ConversationStore,
+  segredo: Segredo,
+): Promise<IncomingMessage | null> {
+  if (input === null || input.image || input.document) return input;
+  // O mesmo lock que o router pega: a leitura do menu e a mudança da conversa ficam juntas.
+  await store.lock(phoneHmac);
+  const cifrado = (await store.get(phoneHmac))?.data.menuEmTexto;
+  let menu: MenuEmTexto | null;
+  try {
+    menu = cifrado === undefined ? null : (JSON.parse(segredo.decifrar(cifrado)) as MenuEmTexto);
+  } catch {
+    menu = null;
+  }
+  const id = resolverEscolha(input.text, menu);
+  return id === null ? input : { text: id };
 }
 
 /**

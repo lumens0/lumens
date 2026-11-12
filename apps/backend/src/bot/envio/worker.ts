@@ -60,6 +60,14 @@ export interface EnvioDeps {
    * Telegram não há cota, e o ritmo fica com o sender.
    */
   limite: number;
+  /** Teto de disparos por lote (um lote por minuto), para o ritmo baixo da Evolution (SCRUM-275). */
+  maximoPorLote?: number;
+  /**
+   * Só manda para quem escreveu ao bot nesse intervalo, em ms (SCRUM-275). Os outros esperam na
+   * fila até escreverem ou o aviso expirar. A Meta não usa: a mensagem modelo é o que permite
+   * escrever primeiro.
+   */
+  somenteQuemEscreveuNosUltimosMs?: number;
   /** Relógio de cada envio. Injetável para teste; o padrão é a hora de agora. */
   relogio?: () => Date;
 }
@@ -86,7 +94,19 @@ export async function enviarLote(
   const { db, sender, chaves, logger } = deps;
   const relogio = deps.relogio ?? (() => new Date());
   const lote = await db.transaction((tx) =>
-    reservarLote(tx, { limite: deps.limite, agora, ...(deps.canal ? { canal: deps.canal } : {}) }),
+    reservarLote(tx, {
+      limite: deps.limite,
+      agora,
+      ...(deps.canal ? { canal: deps.canal } : {}),
+      ...(deps.maximoPorLote === undefined ? {} : { maximo: deps.maximoPorLote }),
+      ...(deps.somenteQuemEscreveuNosUltimosMs === undefined
+        ? {}
+        : {
+            somenteComConversaDesde: new Date(
+              agora.getTime() - deps.somenteQuemEscreveuNosUltimosMs,
+            ),
+          }),
+    }),
   );
   const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
 
