@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { classificarErro, criarApiDoTelegram, ErroDaApiDoTelegram } from './api';
+import { classificarErro, criarApiDoTelegram, destinoPerdido, ErroDaApiDoTelegram } from './api';
 
 const TOKEN = '123456:SEGREDO-DO-BOT';
 
@@ -19,6 +19,21 @@ describe('classificarErro', () => {
     [new Error('qualquer'), 'passageiro'],
   ])('%s → %s', (erro, classe) => {
     expect(classificarErro(erro)).toBe(classe);
+  });
+});
+
+describe('destinoPerdido', () => {
+  it.each([
+    [new ErroDaApiDoTelegram('sendMessage', 403, 'Forbidden: user is deactivated'), true],
+    [new ErroDaApiDoTelegram('sendMessage', 400, 'Bad Request: chat not found'), true],
+    [new ErroDaApiDoTelegram('sendMessage', 400, 'Bad Request: CHAT NOT FOUND'), true],
+    [new ErroDaApiDoTelegram('sendMessage', 400, "Bad Request: can't parse entities"), false],
+    [new ErroDaApiDoTelegram('sendMessage', 400, ''), false],
+    [new ErroDaApiDoTelegram('sendMessage', 429, 'Too Many Requests', 5), false],
+    [new ErroDaApiDoTelegram('sendMessage', undefined, 'TimeoutError'), false],
+    [new Error('chat not found'), false],
+  ])('%s → %s', (erro, perdido) => {
+    expect(destinoPerdido(erro)).toBe(perdido);
   });
 });
 
