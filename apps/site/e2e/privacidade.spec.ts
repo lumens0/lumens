@@ -1,5 +1,5 @@
 import { LIMITE_MAXIMO, type Pautas } from '@lumens/contratos';
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { numeroDoBot } from '../src/whatsapp';
 
 // Privacidade de ponta a ponta (4.8b, SCRUM-61, RNF01): varre o HTML de todas as páginas públicas
@@ -106,6 +106,33 @@ async function slugsPublicos(request: APIRequestContext): Promise<string[]> {
   return slugs;
 }
 
+/**
+ * Varre o HTML de cada caminho e segue o link `rel="next"` até o fim: a atividade é paginada, e um
+ * vazamento que só aparece na renderização da página 2 em diante também conta. Devolve os
+ * vazamentos e os caminhos visitados, para o teste conferir que a paginação foi seguida.
+ */
+async function varrerHtml(
+  page: Page,
+  caminhos: readonly string[],
+): Promise<{ vazamentos: string[]; visitados: ReadonlySet<string> }> {
+  const fila = [...caminhos];
+  const visitados = new Set<string>();
+  const vazamentos: string[] = [];
+  for (let caminho = fila.shift(); caminho !== undefined; caminho = fila.shift()) {
+    if (visitados.has(caminho)) continue;
+    visitados.add(caminho);
+    const resposta = await page.goto(caminho);
+    expect(resposta?.status(), caminho).toBe(200);
+    const html = await page.content();
+    vazamentos.push(...acharDadoPessoal(html).map((a) => `${caminho} → ${a}`));
+    const proximas = await page
+      .locator('a[rel="next"]')
+      .evaluateAll((links) => links.map((a) => a.getAttribute('href')));
+    fila.push(...proximas.filter((href): href is string => href?.startsWith('/') ?? false));
+  }
+  return { vazamentos, visitados };
+}
+
 /** Uma vez basta: o HTML e a API não mudam com o tamanho da tela. */
 function soNoDesktop() {
   test.skip(test.info().project.name !== 'desktop', 'roda só no projeto desktop');
@@ -119,14 +146,28 @@ test.describe('nenhuma página ou rota pública mostra dado pessoal (RNF01)', ()
     // Sem pauta nenhuma, o teste passaria varrendo quase nada.
     expect(slugs.length).toBeGreaterThan(3);
 
-    const vazamentos: string[] = [];
-    for (const caminho of [...PAGINAS_FIXAS, ...slugs.map((s) => `/p/${s}`)]) {
-      const resposta = await page.goto(caminho);
-      expect(resposta?.status(), caminho).toBe(200);
-      const html = await page.content();
-      vazamentos.push(...acharDadoPessoal(html).map((a) => `${caminho} → ${a}`));
-    }
+    const { vazamentos, visitados } = await varrerHtml(page, [
+      ...PAGINAS_FIXAS,
+      ...slugs.map((s) => `/p/${s}`),
+    ]);
+    // O seed tem mais eventos do que cabem numa página da atividade: a 2 precisa ter sido varrida.
+    expect([...visitados]).toContain('/atividade?pagina=2');
     expect(vazamentos).toEqual([]);
+  });
+
+  test('um vazamento só na segunda página da atividade reprova a varredura', async ({ page }) => {
+    // A página 2 é trocada por uma com e-mail; a 1 continua a real, com o link `rel="next"`.
+    await page.route(
+      (url) => url.pathname === '/atividade' && url.searchParams.get('pagina') === '2',
+      (rota) =>
+        rota.fulfill({
+          status: 200,
+          contentType: 'text/html; charset=utf-8',
+          body: '<main><p>Falar com fulano.tal@ufal.br</p></main>',
+        }),
+    );
+    const { vazamentos } = await varrerHtml(page, ['/atividade']);
+    expect(vazamentos.join(' | ')).toContain('/atividade?pagina=2 → e-mail');
   });
 
   test('o JSON de todas as rotas da API, inclusive o detalhe de cada pauta', async ({
