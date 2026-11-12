@@ -29,7 +29,7 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
           href={`/p/${pauta.slug}/card.png`}
           download={`lumens-${pauta.slug}.png`}
           className={estilos.fantasma}
-          aria-label={`Baixar o card da pauta ${pauta.titulo}`}
+          aria-label={`Baixar card da pauta ${pauta.titulo}`}
         >
           Baixar card
         </a>

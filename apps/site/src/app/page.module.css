@@ -93,9 +93,32 @@
   border-color: var(--borda-forte);
 }
 
+.heroMapaLink {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+/* Texto só para leitor de tela: some da tela sem sumir da árvore de acessibilidade. */
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* O contêiner corta o que sai da borda: o contorno de foco fica por dentro. */
+.heroMapaLink:focus-visible {
+  outline-offset: -4px;
+  border-radius: inherit;
+}
+
 /* Paralaxe leve: o mapa sobe um pouco mais devagar que a página nos primeiros 500px de rolagem. */
 @supports (animation-timeline: scroll()) {
-  .heroMapa > svg {
+  .heroMapaLink > svg {
     animation: deriva linear both;
     animation-timeline: scroll(root);
     animation-range: 0 500px;
