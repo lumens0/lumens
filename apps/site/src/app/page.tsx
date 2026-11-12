@@ -51,10 +51,16 @@ export default async function Home({
             </Link>
           </div>
         </div>
-        <Link href="/mapa" className={estilos.heroMapa} aria-label="Abrir o mapa do campus">
-          <MapaResumo marcadores={marcadores} />
+        {/* O nome do link vem do texto oculto, não de aria-label: as siglas desenhadas no mapa são
+            texto visível, e um aria-label sem elas fere a WCAG 2.5.3. O crédito fica fora do link
+            pelo mesmo motivo: é atribuição, não o nome do link. */}
+        <div className={estilos.heroMapa}>
+          <Link href="/mapa" className={estilos.heroMapaLink}>
+            <span className={estilos.somenteLeitor}>Abrir o mapa do campus</span>
+            <MapaResumo marcadores={marcadores} />
+          </Link>
           <span className={estilos.heroCredito}>Contornos © OpenStreetMap</span>
-        </Link>
+        </div>
       </section>
 
       {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
