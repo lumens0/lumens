@@ -51,10 +51,13 @@ export default async function Home({
             </Link>
           </div>
         </div>
-        <Link href="/mapa" className={estilos.heroMapa} aria-label="Abrir o mapa do campus">
-          <MapaResumo marcadores={marcadores} />
+        {/* O crédito fica fora do link: é atribuição, não o nome do link (WCAG 2.5.3). */}
+        <div className={estilos.heroMapa}>
+          <Link href="/mapa" className={estilos.heroMapaLink} aria-label="Abrir o mapa do campus">
+            <MapaResumo marcadores={marcadores} />
+          </Link>
           <span className={estilos.heroCredito}>Contornos © OpenStreetMap</span>
-        </Link>
+        </div>
       </section>
 
       {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
