@@ -15,7 +15,7 @@
  *    (RN01). Só vale curso da lista `CURSOS`, porque o curso de quem cuida da pauta vai para o site.
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import { CURSOS, codigosVerificacao, eq, estudantes, type Canal, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -197,6 +197,8 @@ export interface NovoVinculo {
   /** HMAC do e-mail já normalizado (`normalizarEmail`), com a CHAVE_HMAC: é por ele que se busca. */
   emailHmac: string;
   emailCifrado: string;
+  /** Canal por onde a pessoa fala: gravado só quando o cadastro é criado. Padrão: WhatsApp. */
+  canal?: Canal;
 }
 
 /**
@@ -246,6 +248,7 @@ export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<Resul
       telefoneCifrado: vinculo.telefoneCifrado,
       emailHmac: vinculo.emailHmac,
       emailCifrado: vinculo.emailCifrado,
+      ...(vinculo.canal === undefined ? {} : { canal: vinculo.canal }),
     })
     .onConflictDoNothing()
     .returning({ id: estudantes.id });

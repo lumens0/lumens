@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SEM_APOIO } from '../dados/pautas-publicas';
 import type { Pauta } from '../dados/tipos';
 import { STATUS_PAUTA } from '../dados/tipos';
-import { BotaoVouAjudar, BotaoWhatsApp } from './BotaoWhatsApp';
+import { BotaoRelatar, BotaoVouAjudar, BotaoWhatsApp } from './BotaoWhatsApp';
+import { ListaVazia } from './ListaVazia';
 import { CardPauta } from './CardPauta';
 
 const pauta: Pauta = {
@@ -71,6 +72,30 @@ describe('botões do WhatsApp', () => {
         'apoiar%20',
       );
     }
+  });
+
+  it('com canal telegram, os botões abrem o t.me e o aria-label diz Telegram', () => {
+    vi.stubEnv('NEXT_PUBLIC_CANAL_BOT', 'telegram');
+    vi.stubEnv('NEXT_PUBLIC_TELEGRAM_BOT', 'LumensBot');
+    const relatar = renderToStaticMarkup(<BotaoRelatar />);
+    expect(relatar).toContain('href="https://t.me/LumensBot?start=nova"');
+    expect(relatar).toContain('aria-label="Relatar um problema do campus pelo Telegram"');
+    const ajudar = renderToStaticMarkup(<BotaoVouAjudar slug="faixa" titulo="Mutirão" />);
+    expect(ajudar).toContain('href="https://t.me/LumensBot?start=ajudar_faixa"');
+    expect(ajudar).toContain('aria-label="Vou ajudar na proposta Mutirão pelo Telegram"');
+    const card = renderToStaticMarkup(<CardPauta pauta={pauta} />);
+    expect(card).toContain(`href="https://t.me/LumensBot?start=apoiar_${pauta.slug}"`);
+    expect(card).not.toContain('WhatsApp');
+    expect(renderToStaticMarkup(<ListaVazia bloco={undefined} />)).toContain(
+      'Relate pelo Telegram',
+    );
+  });
+
+  it('com canal telegram sem usuário, os botões somem mesmo com número do WhatsApp', () => {
+    vi.stubEnv('NEXT_PUBLIC_CANAL_BOT', 'telegram');
+    vi.stubEnv('NEXT_PUBLIC_TELEGRAM_BOT', '');
+    expect(renderToStaticMarkup(<BotaoRelatar />)).toBe('');
+    expect(renderToStaticMarkup(<CardPauta pauta={pauta} />)).not.toContain('apoiar');
   });
 
   it('o botão Apoiar fica fora do link do título', () => {

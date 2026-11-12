@@ -32,6 +32,7 @@ import {
   registerIncomingWorker,
   registerReplyWorker,
   respostasDoJob,
+  senderPorCanal,
   UNSUPPORTED_TEXT,
   UNBLOCK_CRON,
   type OutgoingReplies,
@@ -595,5 +596,106 @@ describe('logSender', () => {
     };
     await logSender(logger, chaves, { mostrarTexto: true }).send(mensagem);
     expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({ texto: [GREETING_TEXT, MENU_TEXT] });
+  });
+});
+
+describe('canal (Telegram)', () => {
+  const comCanal = (j: JobDeTeste, canal?: 'whatsapp' | 'telegram'): JobDeTeste => ({
+    ...j,
+    data: { ...j.data, ...(canal === undefined ? {} : { canal }) },
+  });
+
+  it('job antigo, sem canal, responde pelo WhatsApp; o do Telegram, pelo Telegram', async () => {
+    await processIncomingJob(comCanal(texto('oi')), deps);
+    await processIncomingJob(comCanal(texto('menu'), 'telegram'), deps);
+    expect((await respostasNaFila(db)).map((linha) => linha.data.canal)).toEqual([
+      'whatsapp',
+      'telegram',
+    ]);
+  });
+
+  it('foto do Telegram vai para o serviço de mídia do Telegram, e a do WhatsApp para o da Meta', async () => {
+    const usados: string[] = [];
+    const servico = (nome: string) => ({
+      guardarFoto: () => {
+        usados.push(nome);
+        return Promise.resolve({ ok: true as const, chave: nome });
+      },
+    });
+    const canais: (string | undefined)[] = [];
+    const handlers: HandlerRegistry = {
+      ...defaultHandlers,
+      GREETING: async (ctx) => {
+        canais.push(ctx.canal);
+        if (ctx.input.image) await ctx.fotos?.guardarFoto(ctx.input.image);
+        return { next: 'MENU', replies: ['ok'] };
+      },
+    };
+    const comFotos: WorkerDeps = {
+      ...deps,
+      handlers,
+      fotos: servico('meta'),
+      midiaDoTelegram: { fotos: servico('telegram') },
+    };
+    const foto: ConteudoMensagem = { image: { id: 'f', mime_type: 'image/jpeg', sha256: '' } };
+    await processIncomingJob(comCanal(job(foto, 'image', 'b'.repeat(64)), 'telegram'), comFotos);
+    await processIncomingJob(job(foto, 'image', 'c'.repeat(64)), comFotos);
+    expect(usados).toEqual(['telegram', 'meta']);
+    expect(canais).toEqual(['telegram', 'whatsapp']);
+  });
+
+  it('Telegram sem serviço de mídia não cai no download da Meta', async () => {
+    let chamou = false;
+    const handlers: HandlerRegistry = {
+      ...defaultHandlers,
+      GREETING: (ctx) => {
+        chamou = ctx.fotos !== undefined;
+        return { next: 'MENU', replies: ['ok'] };
+      },
+    };
+    const foto: ConteudoMensagem = { image: { id: 'f', mime_type: 'image/jpeg', sha256: '' } };
+    await processIncomingJob(comCanal(job(foto, 'image', 'd'.repeat(64)), 'telegram'), {
+      ...deps,
+      handlers,
+      fotos: { guardarFoto: () => Promise.reject(new Error('não devia')) },
+    });
+    expect(chamou).toBe(false);
+  });
+});
+
+describe('senderPorCanal', () => {
+  const envio = (canal?: 'whatsapp' | 'telegram'): OutgoingReplies => ({
+    ...(canal === undefined ? {} : { canal }),
+    phoneHmac: PHONE_HMAC,
+    phoneCifrado: 'x',
+    phoneNumberId: 'PNID',
+    wamidHmac: 'w',
+    repliesCifradas: 'r',
+  });
+  const gravador = () => {
+    const recebidos: OutgoingReplies[] = [];
+    return {
+      recebidos,
+      send: (m: OutgoingReplies) => {
+        recebidos.push(m);
+        return Promise.resolve();
+      },
+    };
+  };
+
+  it('entrega pelo sender do canal; job sem canal é do WhatsApp', async () => {
+    const whatsapp = gravador();
+    const telegram = gravador();
+    const sender = senderPorCanal({ whatsapp, telegram });
+    await sender.send(envio('telegram'));
+    await sender.send(envio('whatsapp'));
+    await sender.send(envio());
+    expect(telegram.recebidos.map((m) => m.canal)).toEqual(['telegram']);
+    expect(whatsapp.recebidos.map((m) => m.canal)).toEqual(['whatsapp', undefined]);
+  });
+
+  it('canal sem sender falha (o job volta ao retry em vez de sumir)', async () => {
+    const sender = senderPorCanal({ whatsapp: gravador() });
+    await expect(sender.send(envio('telegram'))).rejects.toThrow('telegram');
   });
 });

@@ -281,7 +281,13 @@ describe('vincularEmail (SCRUM-137, RN01)', () => {
       emailCifrado: 'cifra-a@ufal.br',
       verificadoEm: null,
       saiuEm: null,
+      canal: 'whatsapp',
     });
+  });
+
+  it('cadastro criado pelo Telegram guarda o canal', async () => {
+    await vincularEmail(db, { ...vinculo('tg', 'tg@ufal.br'), canal: 'telegram' });
+    expect((await estudanteDe('tg'))?.canal).toBe('telegram');
   });
 
   it('o mesmo telefone com o mesmo e-mail de novo: mesmo estudante, sem duplicar', async () => {

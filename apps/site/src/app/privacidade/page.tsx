@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { metadadosDaMarca } from '../../metadados';
 import Link from 'next/link';
+import { canalAtivo, nomeDoCanal } from '../../whatsapp';
 import estilos from './page.module.css';
 
 export const metadata: Metadata = metadadosDaMarca({
@@ -21,8 +22,9 @@ export default function Privacidade() {
       <p className={estilos.rotulo}>Atualizada em {ATUALIZADA_EM}</p>
       <h1 className={estilos.titulo}>Política de privacidade</h1>
       <p className={estilos.resumo}>
-        O Lumens recebe relatos de estudantes da UFAL pelo WhatsApp e transforma os que juntam apoio
-        em pautas públicas. Esta página diz quais dados isso envolve e o que o sistema faz com eles.
+        O Lumens recebe relatos de estudantes da UFAL pelo {nomeDoCanal()} e transforma os que
+        juntam apoio em pautas públicas. Esta página diz quais dados isso envolve e o que o sistema
+        faz com eles.
       </p>
 
       <section className={estilos.secao}>
@@ -178,7 +180,10 @@ export default function Privacidade() {
         <h2 className={estilos.secaoTitulo}>Com quem compartilhamos</h2>
         <p>
           Com ninguém, para fins comerciais ou de publicidade. As mensagens passam pela
-          infraestrutura do WhatsApp, operada pela Meta, porque é por lá que a conversa acontece.
+          infraestrutura do{' '}
+          {/* Quem opera o Telegram não foi verificado: no Telegram, a frase não nomeia operador. */}
+          {canalAtivo() === 'telegram' ? 'Telegram' : 'WhatsApp, operada pela Meta'}, porque é por
+          lá que a conversa acontece.
         </p>
       </section>
 
@@ -200,8 +205,8 @@ export default function Privacidade() {
           publicadas, que não carregam seus dados pessoais, permanecem no site.
         </p>
         <p>
-          Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do WhatsApp: o
-          pedido é atendido manualmente pela equipe.
+          Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do{' '}
+          {nomeDoCanal()}: o pedido é atendido manualmente pela equipe.
         </p>
       </section>
 

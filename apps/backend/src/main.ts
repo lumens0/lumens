@@ -4,16 +4,27 @@ import { registerGatilhosJob } from './agendador/gatilhos';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
 import { ConversationStore } from './bot/conversation/store';
-import { graphSender, logModeloSender } from './bot/envio/sender';
+import { graphSender, logModeloSender, whatsappAvisoSender } from './bot/envio/sender';
 import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
-import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
-import { carregarEnv, type Env } from './config/env';
+import { criarApiDoTelegram } from './bot/telegram/api';
+import { telegramAvisoSender } from './bot/telegram/avisos';
+import { iniciarPolling, type Polling } from './bot/telegram/polling';
+import { telegramSender } from './bot/telegram/sender';
+import { processarUpdate } from './bot/telegram/update';
+import {
+  logSender,
+  registerIncomingWorker,
+  registerReplyWorker,
+  senderPorCanal,
+} from './bot/worker';
+import { carregarEnv, telegramDoEnv, whatsappDoEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto/cifra';
 import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
 import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
 import { criarStorageS3 } from './fotos/storage';
+import { baixarMidiaDoTelegram } from './fotos/telegram-midia';
 import { criarLogger, resumoDoErro } from './infra/logger';
 import { criarPgBossRuntime } from './infra/pg-boss';
 import { filaPgBoss } from './infra/queue';
@@ -56,6 +67,13 @@ if (process.argv.includes('--so-validar')) {
 
 async function iniciar(env: Env): Promise<void> {
   const logger = criarLogger(env.LOG_LEVEL);
+  const whatsapp = whatsappDoEnv(env);
+  const telegram = telegramDoEnv(env);
+  // O token do bot nunca vai para o log: só que o canal está ligado e em que modo.
+  logger.info(
+    { whatsapp: whatsapp !== undefined, telegram: telegram?.modo ?? false },
+    'canais do bot',
+  );
 
   try {
     const pool = criarPool(env.DATABASE_URL, POOL_TIMEOUTS, (erro) => {
@@ -89,25 +107,47 @@ async function iniciar(env: Env): Promise<void> {
       endpoint: env.S3_ENDPOINT,
     });
     // PDF da resposta oficial (3.6): mesmo bucket, pasta `respostas/`, que não é pública.
+    const avisar = (mensagem: string) => {
+      logger.warn(mensagem);
+    };
+    // Sem o WhatsApp não há token da Meta: a mídia que chegasse por ele não teria como ser baixada
+    // (e nem chega, porque o webhook da Meta não sobe).
+    const tokenDaMeta = whatsapp?.token ?? '';
     const respostas = criarServicoDeRespostas({
       baixar: (mediaId) =>
-        baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN, tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
+        baixarMidiaDaMeta(mediaId, { token: tokenDaMeta, tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
       storage: storageDeArquivos,
-      avisar: (mensagem) => {
-        logger.warn(mensagem);
-      },
+      avisar,
     });
     const fotos = criarServicoDeFotos({
-      baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN }),
+      baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: tokenDaMeta }),
       storage: criarStorageS3({
         bucket: env.S3_BUCKET_FOTOS,
         regiao: env.AWS_REGION,
         endpoint: env.S3_ENDPOINT,
       }),
-      avisar: (mensagem) => {
-        logger.warn(mensagem);
-      },
+      avisar,
     });
+    // Telegram: a mesma limpeza e o mesmo storage, só o download muda (o id é um `file_id`).
+    const apiDoTelegram = telegram ? criarApiDoTelegram({ token: telegram.token }) : undefined;
+    const midiaDoTelegram = apiDoTelegram
+      ? {
+          fotos: criarServicoDeFotos({
+            baixar: (fileId) => baixarMidiaDoTelegram(fileId, { api: apiDoTelegram }),
+            storage: storageDeArquivos,
+            avisar,
+          }),
+          respostas: criarServicoDeRespostas({
+            baixar: (fileId) =>
+              baixarMidiaDoTelegram(fileId, {
+                api: apiDoTelegram,
+                tamanhoMaximo: TAMANHO_MAXIMO_PDF,
+              }),
+            storage: storageDeArquivos,
+            avisar,
+          }),
+        }
+      : undefined;
     // No `pnpm dev` o código aparece no log; fora dele, vai pelo SMTP do `.env`.
     const email = MODO_DEV
       ? logEmail(logger)
@@ -124,18 +164,29 @@ async function iniciar(env: Env): Promise<void> {
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
-    // No `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade. Enquanto os modelos não
-    // forem aprovados, a Meta recusa com erro passageiro e os avisos esperam na fila.
+    // Cada aviso sai pelo canal do estudante. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora
+    // dele, envia de verdade, e enquanto os modelos não forem aprovados a Meta recusa com erro
+    // passageiro e os avisos esperam. Telegram: envia de verdade sempre que o bot está ligado.
+    // Canal sem sender não é reservado: os avisos dele esperam na fila até ele ser configurado.
     const modeloSender = MODO_DEV
       ? logModeloSender(logger)
-      : graphSender({ token: env.META_TOKEN, phoneNumberId: env.META_PHONE_NUMBER_ID });
-    await registerEnvioWorker(boss, {
-      db,
-      sender: modeloSender,
-      chaves,
-      logger,
-      limite: env.META_LIMITE_PESSOAS,
-    });
+      : whatsapp && graphSender({ token: whatsapp.token, phoneNumberId: whatsapp.phoneNumberId });
+    const avisoSenders = {
+      ...(modeloSender ? { whatsapp: whatsappAvisoSender(modeloSender) } : {}),
+      ...(apiDoTelegram ? { telegram: telegramAvisoSender({ api: apiDoTelegram }) } : {}),
+    };
+    if (Object.keys(avisoSenders).length > 0) {
+      await registerEnvioWorker(boss, {
+        db,
+        senders: avisoSenders,
+        chaves,
+        logger,
+        limite: env.META_LIMITE_PESSOAS,
+      });
+    } else {
+      logger.warn('nenhum canal para avisos: eles ficam na fila sem envio');
+    }
+    if (!modeloSender) logger.warn('WhatsApp não configurado: os avisos dele ficam na fila');
     await registerStatusWorker(boss, { db, logger });
     await registerGatilhosJob(boss, { db, logger });
     await registerIncomingWorker(boss, {
@@ -147,11 +198,32 @@ async function iniciar(env: Env): Promise<void> {
       fotos,
       email,
       respostas,
+      ...(midiaDoTelegram ? { midiaDoTelegram } : {}),
     });
-    await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
+    await registerReplyWorker(
+      boss,
+      senderPorCanal({
+        // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
+        whatsapp: logSender(logger, chaves, { mostrarTexto: MODO_DEV }),
+        ...(apiDoTelegram
+          ? { telegram: telegramSender({ api: apiDoTelegram, chaves, logger }) }
+          : {}),
+      }),
+      logger,
+    );
 
     const app = await buildApp({
-      config: { verifyToken: env.META_VERIFY_TOKEN, appSecret: env.META_APP_SECRET },
+      ...(whatsapp
+        ? { config: { verifyToken: whatsapp.verifyToken, appSecret: whatsapp.appSecret } }
+        : {}),
+      ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined
+        ? {
+            telegram: {
+              segredo: telegram.segredoDoWebhook,
+              ...(apiDoTelegram ? { api: apiDoTelegram } : {}),
+            },
+          }
+        : {}),
       db,
       queue,
       logger,
@@ -160,12 +232,24 @@ async function iniciar(env: Env): Promise<void> {
     });
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
+    // Dev: busca as mensagens do Telegram sem túnel. Depois do listen, com as filas já prontas.
+    let polling: Polling | undefined;
+    if (telegram?.modo === 'polling' && apiDoTelegram) {
+      polling = await iniciarPolling({
+        api: apiDoTelegram,
+        processar: (update) =>
+          processarUpdate(update, { db, queue, logger, chaves, api: apiDoTelegram }),
+        logger,
+      });
+    }
+
     let closing = false;
     const shutdown = async (signal: string) => {
       if (closing) return;
       closing = true;
       logger.info({ signal }, 'encerrando');
       try {
+        await polling?.parar();
         await app.close();
         await boss.stop({ graceful: true });
         await pool.end();

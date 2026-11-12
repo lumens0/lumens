@@ -34,9 +34,13 @@ import {
   COURSE_NOT_FOUND_TEXT,
   LINK_LOST_TEXT,
   VERIFIED_TEXT,
+  VERIFIED_TELEGRAM_TEXT,
+  verifiedText,
   listaDeCursos,
   EMAIL_FORMAT_TEXT,
   EMAIL_IN_USE_TEXT,
+  EMAIL_IN_USE_TELEGRAM_TEXT,
+  emailInUseText,
   EMAIL_LOST_TEXT,
   EMAIL_MANY_TEXT,
   EMAIL_MISSING_TEXT,
@@ -364,6 +368,60 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     expect(estudante?.verificadoEm).toBeNull();
     // O e-mail já está no cadastro: sai da conversa.
     expect(await dados()).not.toHaveProperty('emailCifrado');
+  });
+
+  it('cadastro criado por uma conversa do Telegram guarda o canal', async () => {
+    const CHAT = 'tg:123';
+    const chat = hashPhone(CHAT, CHAVE);
+    const doTelegram = (text: string) =>
+      handleIncoming(
+        { phoneHmac: chat, phoneCifrado: segredo.cifrar('123'), canal: 'telegram', text },
+        { store, db, segredo, email: emailFalso, hmac },
+      );
+    await doTelegram('oi');
+    await doTelegram('3');
+    await doTelegram('tg@ufal.br');
+    await doTelegram(ultimoCodigo());
+    expect((await estudanteDe(chat))?.canal).toBe('telegram');
+    // O do WhatsApp continua com o padrão.
+    await send('3');
+    await send('aluno@ufal.br');
+    await send(ultimoCodigo());
+    expect((await estudanteDe(H))?.canal).toBe('whatsapp');
+  });
+
+  it('no Telegram, o texto fala da conta, não do número de WhatsApp', async () => {
+    // O e-mail já está num cadastro do WhatsApp.
+    await pedirCodigo();
+    await send(ultimoCodigo());
+    const chat = hashPhone('tg:456', CHAVE);
+    const doTelegram = (text: string) =>
+      handleIncoming(
+        { phoneHmac: chat, phoneCifrado: segredo.cifrar('456'), canal: 'telegram', text },
+        { store, db, segredo, email: emailFalso, hmac },
+      );
+    await doTelegram('oi');
+    await doTelegram('3');
+    await doTelegram('aluno@ufal.br');
+    expect(await doTelegram(ultimoCodigo())).toEqual([EMAIL_IN_USE_TELEGRAM_TEXT]);
+    expect(EMAIL_IN_USE_TELEGRAM_TEXT).not.toContain('outro número de WhatsApp');
+
+    await doTelegram('tg.aluno@ufal.br');
+    await doTelegram(ultimoCodigo());
+    expect(await doTelegram('curso:Direito')).toEqual([VERIFIED_TELEGRAM_TEXT, MENU_TEXT]);
+    expect(VERIFIED_TELEGRAM_TEXT).toContain('esta conta do Telegram');
+  });
+
+  it('no WhatsApp, os textos continuam os de antes, palavra por palavra', () => {
+    expect(emailInUseText('whatsapp')).toBe(EMAIL_IN_USE_TEXT);
+    expect(emailInUseText(undefined)).toBe(EMAIL_IN_USE_TEXT);
+    expect(EMAIL_IN_USE_TEXT).toMatch(
+      /^Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens\. Cada e-mail vale para um número só/,
+    );
+    expect(verifiedText('whatsapp')).toBe(VERIFIED_TEXT);
+    expect(VERIFIED_TEXT).toBe(
+      'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.',
+    );
   });
 
   it('e-mail já ligado a outro número: explica, pede outro e-mail e não mexe no outro', async () => {
