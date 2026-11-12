@@ -14,8 +14,9 @@
 import { decifrar, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
 import type { Resposta } from '../conversation/resposta';
-import { respostasDoJob, type ReplySender } from '../worker';
+import { respostasDoJob, type OutgoingReplies, type ReplySender } from '../worker';
 import { classificarErro, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
+import { BOTAO_CONTATO_TEXT } from './contato';
 import { cortes, dividirFormatado, negritoDoWhatsapp, type Entidade } from './formatacao';
 
 /** Limite do `text` do `sendMessage`. */
@@ -34,12 +35,46 @@ export interface BotaoDeLink {
   url: string;
 }
 
+/** Teclado de resposta com o botão que manda o contato da própria conta (SCRUM-267). */
+export interface TecladoDeContato {
+  keyboard: { text: string; request_contact: true }[][];
+  one_time_keyboard: true;
+  resize_keyboard: true;
+}
+
 export interface EnvioDeMensagem {
   chat_id: number;
   text: string;
   /** Só quando há negrito: sem `parse_mode`, é assim que o Telegram formata. */
   entities?: Entidade[];
   reply_markup?: { inline_keyboard: (BotaoInline | BotaoDeLink)[][] };
+}
+
+/** Um `sendMessage` que pode levar, no lugar do teclado inline, o de resposta do contato. */
+export type EnvioComTeclado = Omit<EnvioDeMensagem, 'reply_markup'> & {
+  reply_markup?: EnvioDeMensagem['reply_markup'] | TecladoDeContato | { remove_keyboard: true };
+};
+
+export const TECLADO_DE_CONTATO: TecladoDeContato = {
+  keyboard: [[{ text: BOTAO_CONTATO_TEXT, request_contact: true }]],
+  one_time_keyboard: true,
+  resize_keyboard: true,
+};
+
+/**
+ * Põe o teclado de resposta do job (pedir o contato ou recolhê-lo) na última mensagem que não tem
+ * teclado inline: uma mensagem só leva um `reply_markup`. Pura.
+ */
+export function comTeclado(
+  envios: EnvioDeMensagem[],
+  teclado: OutgoingReplies['teclado'],
+): EnvioComTeclado[] {
+  if (teclado === undefined) return envios;
+  const indice = envios.findLastIndex((e) => e.reply_markup === undefined);
+  if (indice === -1) return envios;
+  const marcacao =
+    teclado === 'pedirContato' ? TECLADO_DE_CONTATO : { remove_keyboard: true as const };
+  return envios.map((e, i) => (i === indice ? { ...e, reply_markup: marcacao } : e));
 }
 
 /**
@@ -135,8 +170,13 @@ export function telegramSender({
 }: OpcoesDoSender): ReplySender {
   return {
     async send(message) {
-      const chatId = Number(decifrar(message.phoneCifrado, chaves.cifra));
-      const envios = respostasDoJob(message, chaves).flatMap((r) => paraTelegram(r, chatId));
+      // O destino é o chat, não o telefone: o `phoneCifrado` é o telefone da pessoa.
+      if (message.chatCifrado === undefined) throw new Error('Job do Telegram sem o chat id.');
+      const chatId = Number(decifrar(message.chatCifrado, chaves.cifra));
+      const envios = comTeclado(
+        respostasDoJob(message, chaves).flatMap((r) => paraTelegram(r, chatId)),
+        message.teclado,
+      );
       const log = logger.child({ conversa: message.phoneHmac.slice(0, 12) });
       for (const envio of envios) {
         for (let esperas = 0; ; esperas++) {

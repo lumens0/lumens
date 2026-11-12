@@ -164,10 +164,11 @@ async function iniciar(env: Env): Promise<void> {
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
-    // Cada aviso sai pelo canal do estudante. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora
-    // dele, envia de verdade, e enquanto os modelos não forem aprovados a Meta recusa com erro
-    // passageiro e os avisos esperam. Telegram: envia de verdade sempre que o bot está ligado.
-    // Canal sem sender não é reservado: os avisos dele esperam na fila até ele ser configurado.
+    // Cada aviso sai pelo Telegram para quem tem chat ligado ao telefone, e pelo WhatsApp para o
+    // resto. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade, e
+    // enquanto os modelos não forem aprovados a Meta recusa com erro passageiro e os avisos
+    // esperam. Telegram: envia de verdade sempre que o bot está ligado; sem ele, quem tem chat
+    // recebe pelo WhatsApp. Sem sender para nenhum dos dois, o aviso espera na fila.
     const modeloSender = MODO_DEV
       ? logModeloSender(logger)
       : whatsapp && graphSender({ token: whatsapp.token, phoneNumberId: whatsapp.phoneNumberId });

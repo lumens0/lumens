@@ -15,6 +15,7 @@ import { PRIVACY_NOTICE_TEXT } from '../conversation/privacidade';
 import { listaDeCursos } from '../conversation/verificacao';
 import type { OutgoingReplies } from '../worker';
 import { ErroDaApiDoTelegram } from './api';
+import { BOTAO_CONTATO_TEXT } from './contato';
 import {
   LIMITE_DO_CALLBACK_BYTES,
   LIMITE_DO_TEXTO,
@@ -174,13 +175,19 @@ describe('os ids que a conversa usa cabem no callback_data', () => {
 });
 
 describe('telegramSender', () => {
-  const mensagem = (respostas: Resposta[]): OutgoingReplies => ({
+  const mensagem = (
+    respostas: Resposta[],
+    extra: Partial<OutgoingReplies> = {},
+  ): OutgoingReplies => ({
     canal: 'telegram',
     phoneHmac: 'h'.repeat(64),
-    phoneCifrado: cifrar(String(CHAT), chaves.cifra),
+    // O telefone da pessoa; o destino é o chat.
+    phoneCifrado: cifrar('5582999990000', chaves.cifra),
     phoneNumberId: 'telegram',
     wamidHmac: 'w',
     repliesCifradas: cifrar(JSON.stringify(respostas), chaves.cifra),
+    chatCifrado: cifrar(String(CHAT), chaves.cifra),
+    ...extra,
   });
   const criar = (chamar: (metodo: string, params?: object) => Promise<unknown>) => {
     const esperar = vi.fn(() => Promise.resolve());
@@ -201,6 +208,48 @@ describe('telegramSender', () => {
       ['sendMessage', { chat_id: CHAT, text: 'um' }],
       ['sendMessage', { chat_id: CHAT, text: 'dois' }],
     ]);
+  });
+
+  it('responde no chat, não no telefone; job sem chat lança', async () => {
+    const chamar = vi.fn((_m: string, _p?: object) => Promise.resolve({}));
+    const { sender } = criar(chamar);
+    await sender.send(mensagem(['oi']));
+    expect(chamar).toHaveBeenCalledWith('sendMessage', { chat_id: CHAT, text: 'oi' });
+    const { chatCifrado: _, ...semChat } = mensagem(['oi']);
+    await expect(sender.send(semChat)).rejects.toThrow('chat');
+  });
+
+  it('pedirContato: o botão request_contact vai na última mensagem', async () => {
+    const chamar = vi.fn((_m: string, _p?: object) => Promise.resolve({}));
+    const { sender } = criar(chamar);
+    await sender.send(mensagem(['um', 'dois'], { teclado: 'pedirContato' }));
+    expect(chamar.mock.calls).toEqual([
+      ['sendMessage', { chat_id: CHAT, text: 'um' }],
+      [
+        'sendMessage',
+        {
+          chat_id: CHAT,
+          text: 'dois',
+          reply_markup: {
+            keyboard: [[{ text: BOTAO_CONTATO_TEXT, request_contact: true }]],
+            one_time_keyboard: true,
+            resize_keyboard: true,
+          },
+        },
+      ],
+    ]);
+  });
+
+  it('tirarTeclado: remove_keyboard, sem tirar o lugar de um teclado inline', async () => {
+    const chamar = vi.fn((_m: string, _p?: object) => Promise.resolve({}));
+    const { sender } = criar(chamar);
+    const comBotao = botoes({ corpo: 'Escolha', botoes: [{ id: 'menu', titulo: 'Menu' }] });
+    await sender.send(mensagem(['pronto', comBotao], { teclado: 'tirarTeclado' }));
+    const params = chamar.mock.calls.map(([, p]) => p as { reply_markup?: object });
+    expect(params[0]?.reply_markup).toEqual({ remove_keyboard: true });
+    expect(params[1]?.reply_markup).toEqual({
+      inline_keyboard: [[{ text: 'Menu', callback_data: 'menu' }]],
+    });
   });
 
   it('bloqueado pela pessoa (403): descarta o resto sem lançar', async () => {

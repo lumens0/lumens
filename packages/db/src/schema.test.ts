@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 19 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 20 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -191,6 +191,7 @@ describe('migração inicial em Postgres real', () => {
       'apoio',
       'bloco',
       'caminho',
+      'chat_telegram',
       'codigo_verificacao',
       'conversa',
       'curador',
@@ -331,17 +332,47 @@ describe('migração inicial em Postgres real', () => {
     },
   );
 
-  it('estudante sem canal informado é do WhatsApp; canal fora do enum é recusado', async () => {
-    const id = await estudante();
-    const { rows } = await pool.query<{ canal: string }>(
-      'SELECT canal FROM estudante WHERE id = $1',
-      [id],
-    );
-    expect(rows[0]?.canal).toBe('whatsapp');
+  it('chat do Telegram: telefone e cifra andam juntos, e um telefone tem um chat só', async () => {
+    const chat = () => randomUUID();
     await expect(
       pool.query(
-        `INSERT INTO estudante (telefone_hmac, telefone_cifrado, canal) VALUES ($1, 'c', 'sms')`,
-        [randomUUID()],
+        `INSERT INTO chat_telegram (chat_hmac, chat_cifrado, telefone_hmac) VALUES ($1, 'c', $2)`,
+        [chat(), randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'chat_telegram_telefone_completo' });
+    // Antes do contato, só o chat (e o comando que espera).
+    await pool.query(
+      `INSERT INTO chat_telegram (chat_hmac, chat_cifrado, comando_pendente_cifrado)
+       VALUES ($1, 'c', 'p')`,
+      [chat()],
+    );
+    const telefone = randomUUID();
+    const inserir = () =>
+      pool.query(
+        `INSERT INTO chat_telegram (chat_hmac, chat_cifrado, telefone_hmac, telefone_cifrado)
+         VALUES ($1, 'c', $2, 't')`,
+        [chat(), telefone],
+      );
+    await inserir();
+    await expect(inserir()).rejects.toMatchObject({
+      code: '23505',
+      constraint: 'chat_telegram_telefone_hmac_unique',
+    });
+  });
+
+  it('canal do disparo é opcional e só aceita os do enum', async () => {
+    const id = await estudante();
+    const { rows } = await pool.query<{ canal: string | null }>(
+      `INSERT INTO disparo (tipo, aviso, estudante_id, modelo) VALUES ('meta_batida', $1, $2, 'm')
+       RETURNING canal`,
+      [randomUUID(), id],
+    );
+    expect(rows[0]?.canal).toBeNull();
+    await expect(
+      pool.query(
+        `INSERT INTO disparo (tipo, aviso, estudante_id, modelo, canal)
+         VALUES ('meta_batida', $1, $2, 'm', 'sms')`,
+        [randomUUID(), id],
       ),
     ).rejects.toMatchObject({ code: '22P02' });
   });
@@ -528,7 +559,7 @@ describe('migração inicial em Postgres real', () => {
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
        AND column_name IN ('criado_em', 'criada_em', 'desde', 'aberto_em', 'recebida_em', 'atualizado_em')`,
     );
-    expect(criacoes).toHaveLength(9);
+    expect(criacoes).toHaveLength(10);
     expect(criacoes.every((r) => r.column_default === 'now()')).toBe(true);
   });
 
@@ -593,7 +624,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'
        AND (column_name LIKE '%telefone%' OR column_name LIKE '%email%')`,
     );
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(10);
     expect(rows.every((r) => /_(hmac|cifrado)$/.test(r.column_name))).toBe(true);
   });
 });

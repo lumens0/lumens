@@ -1,0 +1,30 @@
+{
+  "update_id": 1004,
+  "callback_query": {
+    "id": "sim-callback-1004",
+    "from": {
+      "id": 900000001,
+      "is_bot": false,
+      "first_name": "Morador",
+      "language_code": "pt-br"
+    },
+    "chat_instance": "-1000000000000000001",
+    "data": "cat_iluminacao",
+    "message": {
+      "message_id": 1004,
+      "from": {
+        "id": 800000001,
+        "is_bot": true,
+        "first_name": "Lumens",
+        "username": "LumensSimBot"
+      },
+      "chat": {
+        "id": 900000001,
+        "type": "private",
+        "first_name": "Morador"
+      },
+      "date": 1767225600,
+      "text": "Escolha uma opção:"
+    }
+  }
+}

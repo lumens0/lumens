@@ -119,8 +119,11 @@ Por quê:
 
 Como fica:
 
-- **Um canal por cadastro.** `estudante.canal` diz por onde a pessoa fala com o bot, e o aviso sai
-  por ali. Quem usa os dois tem um cadastro em cada.
+- **Um estudante por telefone.** No Telegram a pessoa compartilha o próprio contato, e o telefone
+  passa pelo mesmo `hashPhone` do WhatsApp: quem usa os dois canais é um estudante só. O aviso sai
+  pelo Telegram para quem falou com o bot por lá. Detalhes na
+  [SCRUM-267](SCRUM-267-canal-telegram.md), que substitui o "um cadastro por canal" escrito aqui
+  antes.
 - **Um texto só.** O Telegram manda o corpo do modelo do catálogo (`whatsapp/modelos.ts`) com as
   variáveis preenchidas, o rodapé e os mesmos botões.
 - **A cota é só do WhatsApp.** Quem está no Telegram não gasta vaga nem espera por ela. A ordem de

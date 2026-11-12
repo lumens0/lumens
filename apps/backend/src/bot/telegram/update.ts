@@ -1,30 +1,56 @@
 /**
  * Entrada do Telegram: do `Update` da Bot API até o mesmo job da fila que o webhook da Meta gera.
  *
- *   Update ─▶ zod (só o que usamos) ─▶ mensagemDoUpdate ─▶ jobDoTelegram ─▶ dedup + fila
- *            chat privado, sem bot      (pura)              (HMAC e cifra)   (enfileirarUmaVez)
+ *   Update ─▶ zod (só o que usamos) ─▶ mensagemDoUpdate ─▶ dedup + chat ─▶ fila da conversa
+ *            chat privado, sem bot      (pura)             (uma transação)
  *
- * A identidade da pessoa é o chat id: o HMAC de `tg:<chat_id>` ocupa o lugar do HMAC do telefone
- * (o prefixo impede que um chat id colida com um telefone), e o chat id vai cifrado. O dedup é o
- * HMAC de `tg:<update_id>`, na mesma tabela do wamid.
+ * A identidade da pessoa é o telefone, a mesma do WhatsApp (SCRUM-267). O update só traz o chat
+ * id, então o chat é procurado em `chat_telegram` pelo HMAC de `tg:<chat_id>`:
+ *
+ *   - chat com telefone ─▶ job com o `hashPhone` do telefone: a mesma conversa e o mesmo
+ *     estudante do WhatsApp, e o chat id cifrado para a resposta;
+ *   - chat sem telefone ─▶ nada vai para a conversa. A resposta pede o contato (teclado com
+ *     `request_contact`); um texto (o `/start` de um link do site, ou a primeira mensagem) fica
+ *     guardado e roda depois que o contato for aceito;
+ *   - contato da própria conta ─▶ liga o chat ao telefone, tira o teclado e manda à conversa o
+ *     texto guardado (ou `menu`). Contato de outra pessoa é recusado, e o pedido se repete.
+ *
+ * O dedup é o HMAC de `tg:<update_id>`, na mesma tabela do wamid, e entra na mesma transação.
  *
  * A conversa não sabe de onde veio a mensagem: botão vira o texto do id, `/start <payload>` vira o
  * comando que o link do site manda no WhatsApp.
  */
-import { PRIORIDADE } from '@lumens/dominio';
+import type { Tx } from '@lumens/db';
+import {
+  chatTelegramDe,
+  guardarComandoPendente,
+  PRIORIDADE,
+  vincularChatTelegram,
+  type ChatTelegram,
+} from '@lumens/dominio';
 import { z } from 'zod';
-import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
+import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro } from '../../infra/logger';
+import { JOBS } from '../../infra/queue';
 import { hashPhone } from '../conversation/phone';
+import type { Resposta } from '../conversation/resposta';
 import {
   cifrarConteudo,
-  enfileirarUmaVez,
+  marcarProcessada,
   paraJsonb,
   type ConteudoMensagem,
   type IncomingMessageJob,
   type ProcessDeps,
 } from '../webhook/process';
+import type { OutgoingReplies } from '../worker';
 import type { ApiDoTelegram } from './api';
+import {
+  CONTATO_ACEITO_TEXT,
+  CONTATO_ALHEIO_TEXT,
+  CONTATO_ILEGIVEL_TEXT,
+  normalizarTelefone,
+  PEDIR_CONTATO_TEXT,
+} from './contato';
 
 /** Mesmo saneamento do webhook da Meta: o jsonb do Postgres recusa \u0000 e surrogate solto. */
 const texto = z.string().transform(paraJsonb);
@@ -50,6 +76,10 @@ const mensagemSchema = z.object({
     )
     .optional(),
   document: z.object({ file_id: z.string().min(1), mime_type: texto.optional() }).optional(),
+  // O telefone não passa pelo `paraJsonb`: vira HMAC e cifra antes de ir para qualquer lugar.
+  contact: z
+    .object({ phone_number: z.string().min(1), user_id: z.number().int().optional() })
+    .optional(),
 });
 
 const callbackSchema = z.object({
@@ -82,8 +112,19 @@ export interface MensagemDoTelegram {
   callbackQueryId?: string;
 }
 
+/** Contato compartilhado. O telefone vai como veio; normalize com `normalizarTelefone`. */
+export interface ContatoDoTelegram {
+  updateId: number;
+  chatId: number;
+  timestamp: string;
+  telefone: string;
+  /** O contato é da própria conta de quem mandou (`contact.user_id` = `from.id`). */
+  proprio: boolean;
+}
+
 export type ResultadoDoUpdate =
   | { tipo: 'mensagem'; mensagem: MensagemDoTelegram }
+  | { tipo: 'contato'; contato: ContatoDoTelegram }
   | {
       tipo: 'ignorado';
       motivo: string;
@@ -166,6 +207,18 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
     chatId: message.chat.id,
     timestamp: String(message.date),
   };
+  if (message.contact) {
+    const dono = message.contact.user_id;
+    return {
+      tipo: 'contato',
+      contato: {
+        ...base,
+        telefone: message.contact.phone_number,
+        // Sem `user_id` o cartão não diz de quem é: pode ser um contato salvo na agenda.
+        proprio: dono !== undefined && message.from !== undefined && dono === message.from.id,
+      },
+    };
+  }
   const maior = message.photo?.reduce((a, b) =>
     (b.file_size ?? (b.width ?? 0) * (b.height ?? 0)) >
     (a.file_size ?? (a.width ?? 0) * (a.height ?? 0))
@@ -223,27 +276,54 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
 
 export const PHONE_NUMBER_ID_TELEGRAM = 'telegram';
 
-/** A chave do remetente no Telegram: o HMAC de `tg:<chat_id>`, no lugar do HMAC do telefone. */
+/**
+ * A chave do chat em `chat_telegram`: o HMAC de `tg:<chat_id>`. O prefixo impede que um chat id
+ * coincida com o HMAC de um telefone de mesmos dígitos.
+ */
 export function chaveDoChat(chatId: number, chaves: Chaves): string {
-  return hashPhone(`tg:${String(chatId)}`, chaves.hmac);
+  return hmacHex(`tg:${String(chatId)}`, chaves.hmac);
 }
 
-export function jobDoTelegram(mensagem: MensagemDoTelegram, chaves: Chaves): IncomingMessageJob {
-  const updateId = String(mensagem.updateId);
+const dedupDoUpdate = (updateId: number, chaves: Chaves) =>
+  hmacHex(`tg:${String(updateId)}`, chaves.hmac);
+
+/** Telefone de um chat que já compartilhou o contato. */
+type ChatComTelefone = ChatTelegram & { telefoneHmac: string; telefoneCifrado: string };
+
+const temTelefone = (chat: ChatTelegram | undefined): chat is ChatComTelefone =>
+  chat !== undefined && chat.telefoneHmac !== null && chat.telefoneCifrado !== null;
+
+/** O job da conversa: chaveado pelo telefone (o mesmo do WhatsApp), respondido no chat. */
+export function jobDoTelegram(
+  mensagem: Pick<MensagemDoTelegram, 'updateId' | 'type' | 'timestamp' | 'conteudo'>,
+  chat: Pick<ChatComTelefone, 'chatCifrado' | 'telefoneHmac' | 'telefoneCifrado'>,
+  chaves: Chaves,
+): IncomingMessageJob {
   return {
     canal: 'telegram',
-    wamidHmac: hmacHex(`tg:${updateId}`, chaves.hmac),
-    wamidCifrado: cifrar(updateId, chaves.cifra),
-    phoneHmac: chaveDoChat(mensagem.chatId, chaves),
-    phoneCifrado: cifrar(String(mensagem.chatId), chaves.cifra),
+    wamidHmac: dedupDoUpdate(mensagem.updateId, chaves),
+    wamidCifrado: cifrar(String(mensagem.updateId), chaves.cifra),
+    phoneHmac: chat.telefoneHmac,
+    phoneCifrado: chat.telefoneCifrado,
     phoneNumberId: PHONE_NUMBER_ID_TELEGRAM,
     type: mensagem.type,
     timestamp: mensagem.timestamp,
     contentCifrado: cifrarConteudo(mensagem.conteudo, chaves),
+    chatCifrado: chat.chatCifrado,
   };
 }
 
-export type ResultadoDoTelegram = 'enfileirada' | 'duplicada' | 'ignorada' | 'invalida';
+export type ResultadoDoTelegram =
+  | 'enfileirada'
+  | 'duplicada'
+  | 'ignorada'
+  | 'invalida'
+  /** Chat sem telefone: a resposta pede o contato, e nada vai para a conversa. */
+  | 'contato_pedido'
+  /** Contato aceito: o chat foi ligado ao telefone, e o comando guardado foi para a conversa. */
+  | 'contato_aceito'
+  /** Contato de outra pessoa, ou ilegível: recusado, com o pedido de novo. */
+  | 'contato_recusado';
 
 export interface DepsDoTelegram extends ProcessDeps {
   /** Para o `answerCallbackQuery`. Sem ele, o botão fica girando até o Telegram desistir. */
@@ -251,9 +331,9 @@ export interface DepsDoTelegram extends ProcessDeps {
 }
 
 /**
- * Processa um update (do webhook ou do long polling). Lança só se o dedup + enfileiramento falhar
- * (banco fora): aí o webhook responde 500 e o Telegram reenvia, e o polling não avança o offset.
- * Update fora do formato é ignorado: reenviá-lo não o conserta.
+ * Processa um update (do webhook ou do long polling). Lança só se a transação falhar (banco fora):
+ * aí o webhook responde 500 e o Telegram reenvia, e o polling não avança o offset. Update fora do
+ * formato é ignorado: reenviá-lo não o conserta.
  */
 export async function processarUpdate(
   bruto: unknown,
@@ -272,17 +352,120 @@ export async function processarUpdate(
     responderBotao(resultado.callbackQueryId, deps, resultado.avisoDoBotao);
     return 'ignorada';
   }
-  const job = jobDoTelegram(resultado.mensagem, deps.chaves);
-  const nova = await enfileirarUmaVez(job, deps);
+  const entrada = resultado.tipo === 'contato' ? resultado.contato : resultado.mensagem;
+  const wamidHmac = dedupDoUpdate(entrada.updateId, deps.chaves);
+  const desfecho = await deps.db.transaction(async (tx): Promise<ResultadoDoTelegram> => {
+    if (!(await marcarProcessada(tx, wamidHmac))) return 'duplicada';
+    const chatHmac = chaveDoChat(entrada.chatId, deps.chaves);
+    const chat = await chatTelegramDe(tx, chatHmac);
+    const chatCifrado = chat?.chatCifrado ?? cifrar(String(entrada.chatId), deps.chaves.cifra);
+    const ctx: Contexto = { tx, deps, chatHmac, chatCifrado, wamidHmac };
+
+    if (resultado.tipo === 'contato') return aceitarContato(resultado.contato, chat, ctx);
+    const { mensagem } = resultado;
+    if (temTelefone(chat)) {
+      const job = jobDoTelegram(mensagem, chat, deps.chaves);
+      await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });
+      return 'enfileirada';
+    }
+    // Sem telefone, nada vai para a conversa. Só um texto digitado fica guardado: botão antigo,
+    // foto e documento não fazem sentido antes de a conversa começar.
+    if (mensagem.type === 'text' && mensagem.conteudo.text !== undefined) {
+      await guardarComandoPendente(tx, {
+        chatHmac,
+        chatCifrado,
+        comandoCifrado: cifrar(mensagem.conteudo.text.body, deps.chaves.cifra),
+      });
+    }
+    await responder(ctx, [PEDIR_CONTATO_TEXT], 'pedirContato');
+    return 'contato_pedido';
+  });
   deps.logger
-    .child({ mensagem: job.wamidHmac.slice(0, 12) })
+    .child({ mensagem: wamidHmac.slice(0, 12) })
     .info(
-      { type: job.type, canal: 'telegram' },
-      nova ? 'mensagem enfileirada' : 'mensagem duplicada, ignorando',
+      { type: resultado.tipo === 'contato' ? 'contact' : resultado.mensagem.type, desfecho },
+      'update do Telegram processado',
     );
-  // Depois do enfileiramento: se ele falhar, o reenvio do Telegram ainda tem o botão para responder.
-  responderBotao(resultado.mensagem.callbackQueryId, deps);
-  return nova ? 'enfileirada' : 'duplicada';
+  // Depois da transação: se ela falhar, o reenvio do Telegram ainda tem o botão para responder.
+  if (resultado.tipo === 'mensagem') responderBotao(resultado.mensagem.callbackQueryId, deps);
+  return desfecho;
+}
+
+interface Contexto {
+  tx: Tx;
+  deps: DepsDoTelegram;
+  chatHmac: string;
+  chatCifrado: string;
+  wamidHmac: string;
+}
+
+/**
+ * Contato da própria conta: liga o chat ao telefone, avisa e tira o teclado, e manda à conversa o
+ * comando que esperava (ou `menu`). Daí em diante o chat é a mesma pessoa do WhatsApp.
+ */
+async function aceitarContato(
+  contato: ContatoDoTelegram,
+  chat: ChatTelegram | undefined,
+  ctx: Contexto,
+): Promise<ResultadoDoTelegram> {
+  const { tx, deps, chatHmac, chatCifrado } = ctx;
+  const telefone = contato.proprio ? normalizarTelefone(contato.telefone) : null;
+  if (telefone === null) {
+    const recusa = contato.proprio ? CONTATO_ILEGIVEL_TEXT : CONTATO_ALHEIO_TEXT;
+    await responder(ctx, [recusa], 'pedirContato');
+    return 'contato_recusado';
+  }
+  const ligacao = {
+    chatCifrado,
+    telefoneHmac: hashPhone(telefone, deps.chaves.hmac),
+    telefoneCifrado: cifrar(telefone, deps.chaves.cifra),
+  };
+  await vincularChatTelegram(tx, { chatHmac, ...ligacao });
+  await responder(ctx, [CONTATO_ACEITO_TEXT], 'tirarTeclado');
+  const job = jobDoTelegram(
+    {
+      updateId: contato.updateId,
+      type: 'text',
+      timestamp: contato.timestamp,
+      conteudo: { text: { body: comandoPendente(chat, deps.chaves) } },
+    },
+    ligacao,
+    deps.chaves,
+  );
+  await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });
+  return 'contato_aceito';
+}
+
+/** O texto que esperava o contato; sem ele (ou ilegível), o menu. */
+function comandoPendente(chat: ChatTelegram | undefined, chaves: Chaves): string {
+  if (chat?.comandoPendenteCifrado == null) return 'menu';
+  try {
+    return decifrar(chat.comandoPendenteCifrado, chaves.cifra);
+  } catch {
+    return 'menu';
+  }
+}
+
+/**
+ * Resposta de antes da conversa (o pedido de contato, a confirmação), pela mesma fila das
+ * respostas da conversa. O `phoneHmac` é o do chat: só correlaciona o log, porque o telefone ainda
+ * pode não existir.
+ */
+async function responder(
+  { tx, deps, chatHmac, chatCifrado, wamidHmac }: Contexto,
+  respostas: Resposta[],
+  teclado: NonNullable<OutgoingReplies['teclado']>,
+): Promise<void> {
+  const envio: OutgoingReplies = {
+    canal: 'telegram',
+    phoneHmac: chatHmac,
+    phoneNumberId: PHONE_NUMBER_ID_TELEGRAM,
+    wamidHmac,
+    repliesCifradas: cifrar(JSON.stringify(respostas), deps.chaves.cifra),
+    chatCifrado,
+    teclado,
+  };
+  await deps.queue.send(JOBS.outgoingReplies, envio, tx);
 }
 
 /** Para o spinner do botão. Melhor esforço, sem esperar: a resposta de verdade vem pela fila. */

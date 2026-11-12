@@ -7,10 +7,13 @@
  * O aviso vai no primeiro contato (conversa nova; o router garante isso mesmo quando a primeira
  * mensagem é um comando global). Quem não tem cadastro não tem o que confirmar: a conversa é
  * apagada na hora.
+ *
+ * Nos dois caminhos sai também o chat do Telegram ligado ao telefone (SCRUM-267): apagado o
+ * vínculo, quem voltar pelo Telegram compartilha o contato de novo.
  */
 import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { eq, estudantes } from '@lumens/db';
-import { apagarCodigo, sairDoLumens } from '@lumens/dominio';
+import { apagarChatTelegram, apagarCodigo, sairDoLumens } from '@lumens/dominio';
 import type { StepContext, StepHandler, StepResult } from './handlers';
 import { normalize } from './texto';
 
@@ -49,14 +52,20 @@ async function estudanteDoTelefone(ctx: StepContext): Promise<string | undefined
   return estudante !== undefined && estudante.saiuEm === null ? estudante.id : undefined;
 }
 
+/** O que fica chaveado pelo telefone de quem não tem cadastro: o código e o chat do Telegram. */
+async function apagarSemCadastro(ctx: StepContext): Promise<void> {
+  await apagarCodigo(ctx.db, ctx.phoneHmac);
+  await apagarChatTelegram(ctx.db, ctx.phoneHmac);
+}
+
 /**
- * "sair" de qualquer passo. Sem cadastro, apaga a conversa e o código de verificação; com cadastro,
- * pede confirmação. O código existe sem cadastro: o `verifyAskEmail` o grava antes de o
- * `verifyAskCode` criar o estudante, e ele guarda o HMAC do telefone.
+ * "sair" de qualquer passo. Sem cadastro, apaga a conversa, o código de verificação e o chat do
+ * Telegram; com cadastro, pede confirmação. O código existe sem cadastro: o `verifyAskEmail` o
+ * grava antes de o `verifyAskCode` criar o estudante, e ele guarda o HMAC do telefone.
  */
 export async function pedirSaida(ctx: StepContext): Promise<StepResult> {
   if ((await estudanteDoTelefone(ctx)) === undefined) {
-    await apagarCodigo(ctx.db, ctx.phoneHmac);
+    await apagarSemCadastro(ctx);
     return { next: 'MENU', replies: [NOTHING_TO_DELETE_TEXT], apagarConversa: true };
   }
   return { next: 'LEAVE_CONFIRM', replies: [LEAVE_CONFIRM_TEXT] };
@@ -71,8 +80,8 @@ export const leaveConfirm: StepHandler = async (ctx) => {
     // Savepoint na transação da mensagem, como o `criarPauta` da 2.6.
     await ctx.db.transaction((tx) => sairDoLumens(tx, { estudanteId }));
   } else {
-    // O cadastro sumiu no meio: o `sairDoLumens` não roda, então o código sai aqui.
-    await apagarCodigo(ctx.db, ctx.phoneHmac);
+    // O cadastro sumiu no meio: o `sairDoLumens` não roda, então o código e o chat saem aqui.
+    await apagarSemCadastro(ctx);
   }
   return { next: 'MENU', replies: [LEFT_TEXT], apagarConversa: true };
 };

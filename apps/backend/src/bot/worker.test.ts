@@ -614,6 +614,23 @@ describe('canal (Telegram)', () => {
     ]);
   });
 
+  it('a resposta do Telegram leva o chat do job; a do WhatsApp continua sem ele', async () => {
+    const doTelegram = comCanal(texto('menu'), 'telegram');
+    await processIncomingJob(
+      { ...doTelegram, data: { ...doTelegram.data, chatCifrado: 'chat-cifrado' } },
+      deps,
+    );
+    await processIncomingJob(comCanal(texto('menu'), 'whatsapp'), deps);
+    const [telegram, whatsapp] = (await respostasNaFila(db)).map((linha) => linha.data);
+    // Mesmo telefone (a mesma conversa), e o destino do Telegram é o chat.
+    expect(telegram).toMatchObject({
+      phoneCifrado: 'telefone-cifrado',
+      chatCifrado: 'chat-cifrado',
+    });
+    expect(whatsapp).not.toHaveProperty('chatCifrado');
+    expect(whatsapp).not.toHaveProperty('teclado');
+  });
+
   it('foto do Telegram vai para o serviço de mídia do Telegram, e a do WhatsApp para o da Meta', async () => {
     const usados: string[] = [];
     const servico = (nome: string) => ({

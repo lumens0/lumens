@@ -19,12 +19,14 @@
  * aceitado no instante da queda — e é de propósito: aviso repetido incomoda,
  * mas conferência que não chegou tira o voto de alguém (RN10).
  *
- * Cada estudante fala com o bot por um canal (`estudante.canal`), e o aviso
- * sai por ele. O limite de 24h é da Meta: só quem está no WhatsApp gasta e
- * conta vaga. Quem está no Telegram sai sem cota, na mesma ordem de prioridade.
+ * O aviso sai pelo Telegram para quem tem um chat ligado ao telefone
+ * (`chat_telegram`, SCRUM-267), quando o Telegram está configurado; senão, pelo
+ * WhatsApp. O limite de 24h é da Meta: só o que sai pelo WhatsApp gasta e conta
+ * vaga. O do Telegram sai sem cota, na mesma ordem de prioridade.
  */
 import {
   and,
+  chatsTelegram,
   disparos,
   eq,
   estudantes,
@@ -78,7 +80,7 @@ export interface DisparoReservado {
   estudanteId: string;
   modelo: string;
   parametros: string[];
-  /** Por onde o aviso sai: o canal do estudante. */
+  /** Por onde o aviso sai: o Telegram, se o estudante tem chat ligado e o canal está pedido. */
   canal: Canal;
   /**
    * Destino, cifrado com a CHAVE_CIFRA: o telefone (WhatsApp) ou o chat id (Telegram). Só quem
@@ -133,8 +135,9 @@ export interface ParametrosDeLote {
   /** Injetável para teste; o padrão é agora. */
   agora?: Date;
   /**
-   * Canais que têm quem envie neste processo. Aviso de estudante de outro canal nem é reservado:
-   * fica pendente, sem ocupar vaga, até o canal ser configurado. O padrão é todos.
+   * Canais que têm quem envie neste processo. Sem o Telegram, quem tem chat recebe pelo
+   * WhatsApp; sem o WhatsApp, quem não tem chat nem é reservado: fica pendente, sem ocupar vaga,
+   * até o canal ser configurado. O padrão é todos.
    */
   canais?: readonly Canal[];
 }
@@ -151,10 +154,11 @@ const TODOS_OS_CANAIS: readonly Canal[] = ['whatsapp', 'telegram'];
  * reserva liberaria a vaga minutos antes da hora. O erro, quando há, é para o
  * lado seguro: uma reserva que falhou ainda ocupa a vaga até as 24h passarem.
  *
- * Só o WhatsApp tem esse limite. Quem está no Telegram não conta como alcançado
- * nem gasta vaga: sai inteiro no lote, depois dos do WhatsApp, em ordem de
- * prioridade. O canal de um cadastro não muda (quem usa os dois tem um cadastro
- * em cada), então o canal de hoje é o mesmo de quando o aviso saiu.
+ * Só o WhatsApp tem esse limite. O canal de cada disparo é decidido aqui e
+ * gravado na reserva (`disparo.canal`): o que saiu pelo Telegram não conta como
+ * alcançado nem gasta vaga, e sai inteiro no lote, depois dos do WhatsApp, em
+ * ordem de prioridade. Contar pelo canal gravado, e não pelo chat de hoje, mantém
+ * a conta certa quando a pessoa liga ou perde o chat do Telegram dentro das 24h.
  *
  * Precisa rodar dentro de uma transação: o lock é liberado no commit.
  */
@@ -192,17 +196,19 @@ export async function reservarLote(
       ),
     );
 
-  // Só quem está no WhatsApp ocupa vaga da Meta.
+  // Só o que saiu (ou vai sair) pelo WhatsApp ocupa vaga da Meta. Sem canal: de antes do Telegram.
   const alcancados = await tx
     .selectDistinct({ estudanteId: disparos.estudanteId })
     .from(disparos)
-    .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
     .where(
       and(
-        eq(estudantes.canal, 'whatsapp'),
+        or(isNull(disparos.canal), eq(disparos.canal, 'whatsapp')),
         or(gt(disparos.reservadoEm, inicioDaJanela), gt(disparos.enviadoEm, inicioDaJanela)),
       ),
     );
+
+  const peloTelegram = canais.includes('telegram');
+  const peloWhatsapp = canais.includes('whatsapp');
 
   const pendentes = await tx
     .select({
@@ -213,29 +219,36 @@ export async function reservarLote(
       modelo: disparos.modelo,
       parametros: disparos.parametros,
       enfileiradoEm: disparos.enfileiradoEm,
-      canal: estudantes.canal,
       telefoneCifrado: estudantes.telefoneCifrado,
+      chatCifrado: chatsTelegram.chatCifrado,
     })
     .from(disparos)
     .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
+    .leftJoin(chatsTelegram, eq(chatsTelegram.telefoneHmac, estudantes.telefoneHmac))
     .where(
-      and(
-        pendente,
-        inArray(estudantes.canal, [...canais]),
-        or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida)),
-      ),
+      and(pendente, or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida))),
     );
 
-  const porId = new Map(pendentes.map((p) => [p.id, p]));
-  const paraPlano = (p: (typeof pendentes)[number]): Disparo => ({
+  // Telegram quando há chat e quem envie por ele; senão, WhatsApp, se houver quem envie. Sem
+  // nenhum dos dois, o disparo nem é reservado: fica pendente até o canal ser configurado.
+  type ComCanal = (typeof pendentes)[number] & { canal: Canal; destinoCifrado: string };
+  const comCanal = pendentes.flatMap((p): ComCanal[] => {
+    if (peloTelegram && p.chatCifrado !== null) {
+      return [{ ...p, canal: 'telegram', destinoCifrado: p.chatCifrado }];
+    }
+    return peloWhatsapp ? [{ ...p, canal: 'whatsapp', destinoCifrado: p.telefoneCifrado }] : [];
+  });
+
+  const porId = new Map(comCanal.map((p) => [p.id, p]));
+  const paraPlano = (p: (typeof comCanal)[number]): Disparo => ({
     id: p.id,
     tipo: p.tipo,
     aviso: p.aviso,
     destinatario: p.estudanteId,
     enfileiradoEm: p.enfileiradoEm,
   });
-  const doWhatsapp = pendentes.filter((p) => p.canal === 'whatsapp').map(paraPlano);
-  const semCota = pendentes.filter((p) => p.canal !== 'whatsapp').map(paraPlano);
+  const doWhatsapp = comCanal.filter((p) => p.canal === 'whatsapp').map(paraPlano);
+  const semCota = comCanal.filter((p) => p.canal !== 'whatsapp').map(paraPlano);
   const plano = planejarEnvio({
     pendentes: doWhatsapp,
     limite,
@@ -248,10 +261,21 @@ export async function reservarLote(
     alcancados: new Set(),
   });
 
-  const ids = [...plano.enviarAgora, ...planoSemCota.enviarAgora].map((d) => d.id);
+  const idsDoWhatsapp = plano.enviarAgora.map((d) => d.id);
+  const idsDoTelegram = planoSemCota.enviarAgora.map((d) => d.id);
+  const ids = [...idsDoWhatsapp, ...idsDoTelegram];
   if (ids.length === 0) return [];
 
-  await tx.update(disparos).set({ reservadoEm: agora }).where(inArray(disparos.id, ids));
+  for (const [canal, grupo] of [
+    ['whatsapp', idsDoWhatsapp],
+    ['telegram', idsDoTelegram],
+  ] as const) {
+    if (grupo.length === 0) continue;
+    await tx
+      .update(disparos)
+      .set({ reservadoEm: agora, canal })
+      .where(inArray(disparos.id, [...grupo]));
+  }
 
   return ids.map((id) => {
     const linha = porId.get(id);
@@ -264,7 +288,7 @@ export async function reservarLote(
       modelo: linha.modelo,
       parametros: linha.parametros,
       canal: linha.canal,
-      telefoneCifrado: linha.telefoneCifrado,
+      telefoneCifrado: linha.destinoCifrado,
       reservadoEm: agora,
     };
   });

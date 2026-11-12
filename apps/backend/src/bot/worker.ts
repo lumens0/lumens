@@ -23,10 +23,20 @@ import {
 export interface OutgoingReplies {
   /** Canal de quem vai receber. Job antigo, sem o campo, é do WhatsApp (`canalDoJob`). */
   canal?: Canal;
-  /** Correlação nos logs e chave da conversa; o telefone em si vai cifrado. */
+  /**
+   * Correlação nos logs e chave da conversa; o telefone em si vai cifrado. Na resposta do
+   * Telegram a um chat que ainda não compartilhou o contato, é o HMAC do chat, e não há telefone.
+   */
   phoneHmac: string;
-  phoneCifrado: string;
+  phoneCifrado?: string;
   phoneNumberId: string;
+  /** Só no Telegram: o chat id, cifrado com a CHAVE_CIFRA. É o destino das respostas. */
+  chatCifrado?: string;
+  /**
+   * Só no Telegram: o teclado de resposta (não o inline) que vai na última mensagem. `pedirContato`
+   * mostra o botão que compartilha o telefone; `tirarTeclado` o recolhe depois do contato aceito.
+   */
+  teclado?: 'pedirContato' | 'tirarTeclado';
   /** O wamid da mensagem respondida, para correlacionar. */
   wamidHmac: string;
   /**
@@ -202,6 +212,7 @@ export async function processIncomingJob(
       phoneNumberId: data.phoneNumberId,
       wamidHmac: data.wamidHmac,
       repliesCifradas: cifrar(JSON.stringify(replies), deps.chaves.cifra),
+      ...(data.chatCifrado === undefined ? {} : { chatCifrado: data.chatCifrado }),
     };
     await deps.queue.send(JOBS.outgoingReplies, outgoing, tx);
     await deps.queue.complete(JOBS.incomingMessage, job, tx);

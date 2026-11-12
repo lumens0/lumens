@@ -1,0 +1,25 @@
+{
+  "update_id": 1006,
+  "message": {
+    "message_id": 1006,
+    "from": {
+      "id": 900000001,
+      "is_bot": false,
+      "first_name": "Morador",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 900000001,
+      "type": "private",
+      "first_name": "Morador"
+    },
+    "date": 1767225600,
+    "document": {
+      "file_id": "SIM-DOCUMENTO",
+      "file_unique_id": "SIMDOCUMENTO",
+      "file_name": "foto.jpg",
+      "mime_type": "image/jpeg",
+      "file_size": 250000
+    }
+  }
+}

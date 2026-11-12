@@ -1,5 +1,5 @@
 {
-  "id": "cad78e4c-d21b-4350-a4d0-010a7a8f0308",
+  "id": "6a62e413-e976-4376-ba0f-c9720f145491",
   "prevId": "e2d63857-80a8-4622-8888-9ebd077c41c5",
   "version": "7",
   "dialect": "postgresql",
@@ -216,6 +216,67 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.chat_telegram": {
+      "name": "chat_telegram",
+      "schema": "",
+      "columns": {
+        "chat_hmac": {
+          "name": "chat_hmac",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "chat_cifrado": {
+          "name": "chat_cifrado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefone_hmac": {
+          "name": "telefone_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telefone_cifrado": {
+          "name": "telefone_cifrado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comando_pendente_cifrado": {
+          "name": "comando_pendente_cifrado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "chat_telegram_telefone_hmac_unique": {
+          "name": "chat_telegram_telefone_hmac_unique",
+          "nullsNotDistinct": false,
+          "columns": ["telefone_hmac"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "chat_telegram_telefone_completo": {
+          "name": "chat_telegram_telefone_completo",
+          "value": "(\"chat_telegram\".\"telefone_hmac\" IS NULL) = (\"chat_telegram\".\"telefone_cifrado\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.codigo_verificacao": {
       "name": "codigo_verificacao",
       "schema": "",
@@ -425,6 +486,13 @@
         "reservado_em": {
           "name": "reservado_em",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -749,14 +817,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "canal": {
-          "name": "canal",
-          "type": "canal",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'whatsapp'"
         },
         "email_hmac": {
           "name": "email_hmac",

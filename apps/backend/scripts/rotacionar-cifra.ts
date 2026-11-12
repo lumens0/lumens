@@ -56,7 +56,7 @@ const { db, pool } = criarCliente(databaseUrl);
 try {
   const resultado = await rotacionarCifra(db, chaveAntiga, chaveNova);
   console.log(
-    `Rotação de chaves concluída com sucesso: ${String(resultado.curadores)} curador(es) e ${String(resultado.estudantes)} estudante(s) recifrado(s).`,
+    `Rotação de chaves concluída com sucesso: ${String(resultado.curadores)} curador(es), ${String(resultado.estudantes)} estudante(s) e ${String(resultado.chatsTelegram)} chat(s) do Telegram recifrado(s).`,
   );
 } catch (erro) {
   console.error('Falha na rotação de chaves:', erro);
