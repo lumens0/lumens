@@ -1,12 +1,13 @@
-import { MODELOS, type NomeModelo } from '../whatsapp/modelos';
+import { renderizarAviso, type AvisoRenderizado } from './aviso';
+
+export { ParametrosInvalidosError } from './aviso';
 
 /**
  * Corpo do envio de uma mensagem modelo pela Cloud API (`POST /{phone-number-id}/messages`).
  *
- * Os `parametros` do disparo seguem a ordem do modelo (SCRUM-193): primeiro as variáveis do corpo,
- * depois uma por botão de link — hoje só o slug do "Ver a pauta". Os botões de resposta rápida
- * levam um `payload` com o tipo e o aviso do disparo, para o bot saber a que conferência um "Sim"
- * responde quando a pessoa tem mais de uma aberta.
+ * A conferência do disparo contra o modelo e a ordem dos parâmetros ficam em `renderizarAviso`
+ * (`aviso.ts`), que o Telegram também usa. Aqui só o formato da Meta: o nome do modelo, as
+ * variáveis do corpo, o slug de cada botão de link e o `payload` de cada resposta rápida.
  */
 export interface MensagemModelo {
   messaging_product: 'whatsapp';
@@ -35,71 +36,49 @@ type ComponenteDeEnvio =
       parameters: { type: 'payload'; payload: string }[];
     };
 
-/** O disparo não casa com o modelo aprovado: a Meta recusaria, e tentar de novo não muda isso. */
-export class ParametrosInvalidosError extends Error {
-  constructor(motivo: string) {
-    super(motivo);
-    this.name = 'ParametrosInvalidosError';
-  }
-}
-
-const quantasVariaveis = (texto: string) =>
-  new Set([...texto.matchAll(/\{\{(\d+)\}\}/g)].map((m) => m[1])).size;
-
-export function montarMensagemModelo(
-  disparo: { tipo: string; aviso: string; modelo: string; parametros: readonly string[] },
-  telefone: string,
-): MensagemModelo {
-  if (!(disparo.modelo in MODELOS)) {
-    throw new ParametrosInvalidosError(`modelo desconhecido: ${disparo.modelo}`);
-  }
-  const modelo = MODELOS[disparo.modelo as NomeModelo];
-
-  const noCorpo = quantasVariaveis(modelo.corpo);
-  const links = modelo.botoes.filter((b) => b.tipo === 'URL').length;
-  if (disparo.parametros.length !== noCorpo + links) {
-    throw new ParametrosInvalidosError(
-      `${modelo.nome} espera ${String(noCorpo + links)} parâmetros, veio ${String(disparo.parametros.length)}`,
-    );
-  }
-  if (disparo.parametros.some((p) => p.trim() === '')) {
-    // A Meta recusa variável vazia (erro 132000/100), e o aviso sairia sem sentido.
-    throw new ParametrosInvalidosError(`${modelo.nome} com parâmetro vazio`);
-  }
-
+/** Monta o corpo da Cloud API de um aviso já conferido. Pura. */
+export function mensagemModeloDe(aviso: AvisoRenderizado, telefone: string): MensagemModelo {
   const components: ComponenteDeEnvio[] = [
     {
       type: 'body',
-      parameters: disparo.parametros
-        .slice(0, noCorpo)
-        .map((text) => ({ type: 'text' as const, text })),
+      parameters: aviso.variaveis.map((text) => ({ type: 'text' as const, text })),
     },
   ];
-  let proximoLink = noCorpo;
-  modelo.botoes.forEach((botao, i) => {
-    if (botao.tipo === 'URL') {
-      const text = disparo.parametros[proximoLink++] ?? '';
-      components.push({
-        type: 'button',
-        sub_type: 'url',
-        index: String(i),
-        parameters: [{ type: 'text', text }],
-      });
-    } else {
-      components.push({
-        type: 'button',
-        sub_type: 'quick_reply',
-        index: String(i),
-        parameters: [{ type: 'payload', payload: `${disparo.tipo}:${disparo.aviso}:${String(i)}` }],
-      });
-    }
-  });
+  for (const botao of aviso.botoes) {
+    components.push(
+      botao.tipo === 'URL'
+        ? {
+            type: 'button',
+            sub_type: 'url',
+            index: String(botao.indice),
+            parameters: [{ type: 'text', text: botao.valor }],
+          }
+        : {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: String(botao.indice),
+            parameters: [{ type: 'payload', payload: botao.payload }],
+          },
+    );
+  }
 
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to: telefone,
     type: 'template',
-    template: { name: modelo.nome, language: { code: modelo.idioma }, components },
+    template: {
+      name: aviso.modelo.nome,
+      language: { code: aviso.modelo.idioma },
+      components,
+    },
   };
+}
+
+/** Confere o disparo e monta o corpo da Cloud API. Lança `ParametrosInvalidosError`. */
+export function montarMensagemModelo(
+  disparo: { tipo: string; aviso: string; modelo: string; parametros: readonly string[] },
+  telefone: string,
+): MensagemModelo {
+  return mensagemModeloDe(renderizarAviso(disparo), telefone);
 }

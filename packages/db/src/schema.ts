@@ -44,13 +44,22 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'recusa',
 ]);
 
+/** Por onde a pessoa fala com o bot. Quem usa os dois canais tem um cadastro em cada. */
+export const canal = pgEnum('canal', ['whatsapp', 'telegram']);
+export type Canal = (typeof canal.enumValues)[number];
+
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
 const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
 
 export const estudantes = pgTable('estudante', {
   id: uuid('id').defaultRandom().primaryKey(),
+  /**
+   * Chave do remetente: o HMAC do telefone (WhatsApp) ou de `tg:<chat_id>` (Telegram). O cifrado
+   * guarda o telefone ou o chat id, conforme o `canal`.
+   */
   telefoneHmac: text('telefone_hmac').notNull().unique(),
   telefoneCifrado: text('telefone_cifrado').notNull(),
+  canal: canal('canal').notNull().default('whatsapp'),
   emailHmac: text('email_hmac').unique(),
   emailCifrado: text('email_cifrado'),
   curso: text('curso'),

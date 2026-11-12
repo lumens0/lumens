@@ -1,4 +1,4 @@
-import type { Db } from '@lumens/db';
+import type { Canal, Db } from '@lumens/db';
 import { registrarAtividadePorTelefone } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto/cifra';
@@ -12,10 +12,17 @@ import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
-import { conteudoDoJob, type ConteudoMensagem, type IncomingMessageJob } from './webhook/process';
+import {
+  canalDoJob,
+  conteudoDoJob,
+  type ConteudoMensagem,
+  type IncomingMessageJob,
+} from './webhook/process';
 
 /** Respostas a entregar para uma conversa (fila JOBS.outgoingReplies). */
 export interface OutgoingReplies {
+  /** Canal de quem vai receber. Job antigo, sem o campo, é do WhatsApp (`canalDoJob`). */
+  canal?: Canal;
   /** Correlação nos logs e chave da conversa; o telefone em si vai cifrado. */
   phoneHmac: string;
   phoneCifrado: string;
@@ -50,6 +57,11 @@ export interface WorkerDeps {
   email?: ServicoDeEmail;
   /** PDF da resposta oficial (3.6). */
   respostas?: ServicoDeRespostas;
+  /**
+   * Fotos e PDF que chegam pelo Telegram: o id da mídia é um `file_id`, que só a API do Telegram
+   * baixa. Sem ele, mídia do Telegram é recusada com aviso (os de cima são da Meta).
+   */
+  midiaDoTelegram?: { fotos?: ServicoDeFotos; respostas?: ServicoDeRespostas };
   handlers?: HandlerRegistry;
 }
 
@@ -158,6 +170,8 @@ export async function processIncomingJob(
     throw new MensagemIlegivelError(erro);
   }
   const input = inputOf(conteudo);
+  const canal = canalDoJob(data);
+  const { fotos, respostas } = canal === 'telegram' ? (deps.midiaDoTelegram ?? {}) : deps;
   return deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
@@ -169,19 +183,20 @@ export async function processIncomingJob(
       input === null
         ? [UNSUPPORTED_TEXT]
         : await handleIncoming(
-            { phoneHmac: data.phoneHmac, phoneCifrado: data.phoneCifrado, ...input },
+            { phoneHmac: data.phoneHmac, phoneCifrado: data.phoneCifrado, canal, ...input },
             {
               store: deps.store.withDb(tx),
               db: tx,
               segredo: segredoCom(deps.chaves.cifra),
               hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
-              ...(deps.fotos ? { fotos: deps.fotos } : {}),
+              ...(fotos ? { fotos } : {}),
               ...(deps.email ? { email: deps.email } : {}),
-              ...(deps.respostas ? { respostas: deps.respostas } : {}),
+              ...(respostas ? { respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
             },
           );
     const outgoing: OutgoingReplies = {
+      canal,
       phoneHmac: data.phoneHmac,
       phoneCifrado: data.phoneCifrado,
       phoneNumberId: data.phoneNumberId,
@@ -413,6 +428,26 @@ export async function registerReplyWorker(
       return results;
     },
   );
+}
+
+/**
+ * Entrega cada job pelo sender do canal dele. Canal sem sender (o Telegram desligado depois de
+ * enfileirar) lança: o job volta pelo retry e acaba na fila de mortas, sem sumir calado.
+ */
+export function senderPorCanal(senders: {
+  whatsapp: ReplySender;
+  telegram?: ReplySender;
+}): ReplySender {
+  return {
+    send: (message) => {
+      const canal = canalDoJob(message);
+      const sender = senders[canal];
+      if (sender === undefined) {
+        return Promise.reject(new Error(`Canal ${canal} sem sender configurado.`));
+      }
+      return sender.send(message);
+    },
+  };
 }
 
 /**

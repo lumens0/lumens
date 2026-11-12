@@ -7,6 +7,7 @@ import { STATUS } from '../../componentes/StatusPill';
 import type { StatusPauta } from '../../dados/tipos';
 import { buscarAtividade } from '../../dados/api';
 import { metadadosDaMarca } from '../../metadados';
+import { nomeDoCanal } from '../../whatsapp';
 import estilos from '../page.module.css';
 
 export const metadata: Metadata = metadadosDaMarca({
@@ -95,8 +96,8 @@ export default async function PaginaAtividade({
         <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
         <h1 className={estilos.titulo}>Acontecendo no campus</h1>
         <p className={estilos.subtitulo}>
-          Cada linha vem de uma ação no WhatsApp ou de uma resposta oficial. A mais recente fica em
-          cima.
+          Cada linha vem de uma ação no {nomeDoCanal()} ou de uma resposta oficial. A mais recente
+          fica em cima.
         </p>
       </div>
       {itens.length === 0 ? (

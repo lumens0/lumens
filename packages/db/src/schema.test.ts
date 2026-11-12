@@ -291,6 +291,7 @@ describe('migração inicial em Postgres real', () => {
        GROUP BY t.typname ORDER BY t.typname`,
     );
     expect(Object.fromEntries(rows.map((r) => [r.nome, r.valores]))).toEqual({
+      canal: ['whatsapp', 'telegram'],
       moderacao_relato: ['pendente', 'aprovado', 'recusado'],
       origem_apoio: ['bot', 'site'],
       origem_evento: ['bot', 'curadoria', 'agendador'],
@@ -329,6 +330,21 @@ describe('migração inicial em Postgres real', () => {
       ).rejects.toMatchObject({ code: '23505', constraint: `estudante_${campo}_hmac_unique` });
     },
   );
+
+  it('estudante sem canal informado é do WhatsApp; canal fora do enum é recusado', async () => {
+    const id = await estudante();
+    const { rows } = await pool.query<{ canal: string }>(
+      'SELECT canal FROM estudante WHERE id = $1',
+      [id],
+    );
+    expect(rows[0]?.canal).toBe('whatsapp');
+    await expect(
+      pool.query(
+        `INSERT INTO estudante (telefone_hmac, telefone_cifrado, canal) VALUES ($1, 'c', 'sms')`,
+        [randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '22P02' });
+  });
 
   it('rejeita email HMAC duplicado de curador', async () => {
     const email = randomUUID();

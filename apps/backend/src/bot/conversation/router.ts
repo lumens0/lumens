@@ -1,4 +1,4 @@
-import type { Db } from '@lumens/db';
+import type { Canal, Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
@@ -62,7 +62,7 @@ function comAviso(primeiroContato: boolean, replies: Resposta[]): Resposta[] {
  * (o `hashPhone` do remetente), que o webhook já calcula e põe no job.
  */
 export async function handleIncoming(
-  msg: { phoneHmac: string; phoneCifrado?: string } & IncomingMessage,
+  msg: { phoneHmac: string; phoneCifrado?: string; canal?: Canal } & IncomingMessage,
   deps: RouterDeps,
 ): Promise<Resposta[]> {
   const { store } = deps;
@@ -74,7 +74,7 @@ export async function handleIncoming(
 }
 
 async function responder(
-  msg: { phoneHmac: string; phoneCifrado?: string } & IncomingMessage,
+  msg: { phoneHmac: string; phoneCifrado?: string; canal?: Canal } & IncomingMessage,
   deps: RouterDeps,
   current: Awaited<ReturnType<ConversationStore['get']>>,
 ): Promise<Resposta[]> {
@@ -129,6 +129,7 @@ async function responder(
     ...(deps.email ? { email: deps.email } : {}),
     ...(deps.hmac ? { hmac: deps.hmac } : {}),
     ...(msg.phoneCifrado === undefined ? {} : { phoneCifrado: msg.phoneCifrado }),
+    ...(msg.canal === undefined ? {} : { canal: msg.canal }),
     ...(deps.respostas ? { respostas: deps.respostas } : {}),
   });
   if (ajudar === null) assertTransition(state.step, result.next);

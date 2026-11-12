@@ -29,7 +29,7 @@
  * nova (2.6) continua no título, com o relato da 2.5 se houver. Quem já é verificado e escolhe
  * "3" no menu não refaz a verificação.
  */
-import { CURSOS, type Db } from '@lumens/db';
+import { CURSOS, type Canal, type Db } from '@lumens/db';
 import {
   CODIGO_EXPIRA_MS,
   DIGITOS_DO_CODIGO,
@@ -75,6 +75,12 @@ export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
 export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
 export const VERIFIED_TEXT =
   'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
+export const VERIFIED_TELEGRAM_TEXT =
+  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para esta conta do Telegram: não precisa fazer de novo.';
+
+/** O cadastro é por canal: no Telegram não há número, há a conta. */
+export const verifiedText = (canal: Canal | undefined): string =>
+  canal === 'telegram' ? VERIFIED_TELEGRAM_TEXT : VERIFIED_TEXT;
 export const ALREADY_VERIFIED_TEXT =
   'Você já é estudante verificado ✅ Não precisa verificar de novo.';
 export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
@@ -118,6 +124,12 @@ export const RESEND_FAILED_TEXT =
   'Não consegui enviar o código agora. Tente daqui a pouco: responda *reenviar*.';
 export const EMAIL_LOST_TEXT = `Não consegui recuperar o seu e-mail. ${EMAIL_QUESTION_TEXT}`;
 export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+// O e-mail é único entre os dois canais (`estudante.email_hmac`): o outro cadastro pode ser um
+// número de WhatsApp ou outra conta do Telegram.
+export const EMAIL_IN_USE_TELEGRAM_TEXT = `Esse e-mail da UFAL já está ligado a outro cadastro no Lumens, de um número de WhatsApp ou de outra conta do Telegram. Cada e-mail vale para um cadastro só: é assim que cada estudante apoia uma pauta uma vez. Se o cadastro antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+
+export const emailInUseText = (canal: Canal | undefined): string =>
+  canal === 'telegram' ? EMAIL_IN_USE_TELEGRAM_TEXT : EMAIL_IN_USE_TEXT;
 export const LINK_UNAVAILABLE_TEXT =
   'Não consegui concluir a verificação agora. Digite o código de novo daqui a pouco.';
 
@@ -237,6 +249,7 @@ export const verifyAskCode: StepHandler = async ({
   db,
   phoneHmac,
   phoneCifrado,
+  canal,
   hmac,
   segredo,
   email,
@@ -274,12 +287,13 @@ export const verifyAskCode: StepHandler = async ({
       telefoneCifrado: phoneCifrado,
       emailHmac: hmac(endereco),
       emailCifrado: segredo.cifrar(endereco),
+      ...(canal === undefined ? {} : { canal }),
     });
     if (!vinculo.vinculado) {
       return {
         next: 'VERIFY_ASK_EMAIL',
         data: { emailCifrado: undefined },
-        replies: [EMAIL_IN_USE_TEXT],
+        replies: [emailInUseText(canal)],
       };
     }
     // O e-mail já está no cadastro: a conversa não precisa mais dele.
@@ -317,7 +331,7 @@ const pendenteSchema = z.object({
 });
 
 export const verifyAskCourse: StepHandler = async (ctx) => {
-  const { input, db, phoneHmac, state } = ctx;
+  const { input, db, phoneHmac, state, canal } = ctx;
   const curso = cursoEscolhido(input.text);
   if (curso === undefined) {
     return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
@@ -329,20 +343,21 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
     return { next: 'VERIFY_ASK_EMAIL', replies: [LINK_LOST_TEXT] };
   }
 
+  const verificado = verifiedText(canal);
   // Retoma o que a pessoa pediu antes de ser mandada para a verificação.
   const lidos = pendenteSchema.safeParse(state.data);
   const pendente = lidos.success ? lidos.data.pendingCommand : undefined;
   if (pendente?.kind === 'ajudar' && pendente.id !== undefined) {
-    const ajuda = await vouAjudar(ctx, pendente.id, [VERIFIED_TEXT]);
+    const ajuda = await vouAjudar(ctx, pendente.id, [verificado]);
     return { ...ajuda, data: { ...ajuda.data, pendingCommand: undefined } };
   }
   if (pendente?.kind === 'nova-pauta') {
-    const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
+    const pauta = await entrarNaPautaNova(ctx, [verificado]);
     return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
   }
   if (pendente?.kind === 'apoiar' && pendente.id !== undefined) {
     // 2.7: retoma o apoio pedido antes da verificação (pela 2.5 ou pelo site, na 2.8).
-    return entrarNoApoio(ctx, pendente.id, [VERIFIED_TEXT]);
+    return entrarNoApoio(ctx, pendente.id, [verificado]);
   }
-  return { next: 'MENU', replies: [VERIFIED_TEXT] };
+  return { next: 'MENU', replies: [verificado] };
 };

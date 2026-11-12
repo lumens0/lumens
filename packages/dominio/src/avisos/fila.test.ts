@@ -1,4 +1,4 @@
-import { disparos, estudantes, eq, type Db } from '@lumens/db';
+import { disparos, estudantes, eq, type Canal, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TipoDisparo } from './envio';
@@ -26,11 +26,11 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
 });
 
-async function estudante(): Promise<string> {
+async function estudante(canal: Canal = 'whatsapp'): Promise<string> {
   const n = String(++seq);
   const [linha] = await db
     .insert(estudantes)
-    .values({ telefoneHmac: `tel-${n}`, telefoneCifrado: `cifrado-${n}` })
+    .values({ telefoneHmac: `tel-${n}`, telefoneCifrado: `cifrado-${n}`, canal })
     .returning({ id: estudantes.id });
   if (linha === undefined) throw new Error('estudante não criado');
   return linha.id;
@@ -184,6 +184,75 @@ describe('reservarLote (RNF06)', () => {
       expect(await reservar(10, depois(2 * RESERVA_EXPIRA_MS))).toEqual([]);
       const [linha] = await db.select().from(disparos);
       expect(linha?.falha).toBe('131026');
+    });
+  });
+
+  describe('canal do estudante', () => {
+    it('o disparo reservado leva o canal do estudante', async () => {
+      const [w, t] = [await estudante(), await estudante('telegram')];
+      await enfileirar([aviso('meta_batida', w), aviso('meta_batida', t)]);
+
+      const lote = await reservar(10, T0);
+
+      expect(lote.map((d) => [d.estudanteId, d.canal])).toEqual([
+        [w, 'whatsapp'],
+        [t, 'telegram'],
+      ]);
+    });
+
+    it('quem está no Telegram sai sem cota e não ocupa vaga da Meta', async () => {
+      const [w1, w2] = [await estudante(), await estudante()];
+      const [t1, t2] = [await estudante('telegram'), await estudante('telegram')];
+      await enfileirar([aviso('meta_batida', t1)], T0);
+      await enfileirar([aviso('meta_batida', w1)], depois(1000));
+      await enfileirar([aviso('meta_batida', t2)], depois(2000));
+      await enfileirar([aviso('meta_batida', w2)], depois(3000));
+
+      // Limite de 1: sai um do WhatsApp (o mais antigo) e todos do Telegram.
+      expect(resumo(await enviarLote(1, T0)).sort()).toEqual(
+        [`meta_batida:${w1}`, `meta_batida:${t1}`, `meta_batida:${t2}`].sort(),
+      );
+
+      // W2 continua esperando a cota, e o Telegram de novo sai na hora.
+      await enfileirar([aviso('conferencia', t1, 'promessa-1')], depois(HORA));
+      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([`conferencia:${t1}`]);
+    });
+
+    it('envio pelo Telegram não conta nas 24h da Meta', async () => {
+      const t = await estudante('telegram');
+      await enfileirar([aviso('meta_batida', t)], T0);
+      await enviarLote(1, T0);
+
+      const w = await estudante();
+      await enfileirar([aviso('meta_batida', w)], depois(HORA));
+
+      // Se T contasse como alcançado, a única vaga estaria ocupada e W esperaria.
+      expect(resumo(await reservar(1, depois(2 * HORA)))).toEqual([`meta_batida:${w}`]);
+    });
+
+    it('limite zerado não segura o Telegram', async () => {
+      const t = await estudante('telegram');
+      await enfileirar([aviso('conferencia', t)]);
+
+      expect(resumo(await reservar(0, T0))).toEqual([`conferencia:${t}`]);
+    });
+
+    it('só reserva os canais pedidos; o resto espera sem reserva', async () => {
+      const [w, t] = [await estudante(), await estudante('telegram')];
+      await enfileirar([aviso('meta_batida', w), aviso('meta_batida', t)]);
+
+      const soWhatsapp = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, canais: ['whatsapp'] }),
+      );
+      expect(resumo(soWhatsapp)).toEqual([`meta_batida:${w}`]);
+      const [doTelegram] = await db.select().from(disparos).where(eq(disparos.estudanteId, t));
+      expect(doTelegram?.reservadoEm).toBeNull();
+
+      const nenhum = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, canais: [] }),
+      );
+      expect(nenhum).toEqual([]);
+      expect(resumo(await reservar(10, depois(MINUTO)))).toEqual([`meta_batida:${t}`]);
     });
   });
 

@@ -18,6 +18,10 @@
  * disparo volta ao próximo lote. Isso pode reenviar quem a Meta já tinha
  * aceitado no instante da queda — e é de propósito: aviso repetido incomoda,
  * mas conferência que não chegou tira o voto de alguém (RN10).
+ *
+ * Cada estudante fala com o bot por um canal (`estudante.canal`), e o aviso
+ * sai por ele. O limite de 24h é da Meta: só quem está no WhatsApp gasta e
+ * conta vaga. Quem está no Telegram sai sem cota, na mesma ordem de prioridade.
  */
 import {
   and,
@@ -30,6 +34,7 @@ import {
   lt,
   or,
   sql,
+  type Canal,
   type Tx,
 } from '@lumens/db';
 import { planejarEnvio, type Disparo, type TipoDisparo } from './envio';
@@ -73,7 +78,12 @@ export interface DisparoReservado {
   estudanteId: string;
   modelo: string;
   parametros: string[];
-  /** Telefone do destinatário, cifrado com a CHAVE_CIFRA. Só quem envia decifra. */
+  /** Por onde o aviso sai: o canal do estudante. */
+  canal: Canal;
+  /**
+   * Destino, cifrado com a CHAVE_CIFRA: o telefone (WhatsApp) ou o chat id (Telegram). Só quem
+   * envia decifra.
+   */
   telefoneCifrado: string;
   /**
    * Instante da reserva: é a prova de posse. Quem envia passa este valor a `renovarReserva` antes
@@ -122,7 +132,14 @@ export interface ParametrosDeLote {
   limite: number;
   /** Injetável para teste; o padrão é agora. */
   agora?: Date;
+  /**
+   * Canais que têm quem envie neste processo. Aviso de estudante de outro canal nem é reservado:
+   * fica pendente, sem ocupar vaga, até o canal ser configurado. O padrão é todos.
+   */
+  canais?: readonly Canal[];
 }
+
+const TODOS_OS_CANAIS: readonly Canal[] = ['whatsapp', 'telegram'];
 
 /**
  * Escolhe o próximo lote e o reserva. Devolve os disparos já na ordem de envio.
@@ -134,12 +151,18 @@ export interface ParametrosDeLote {
  * reserva liberaria a vaga minutos antes da hora. O erro, quando há, é para o
  * lado seguro: uma reserva que falhou ainda ocupa a vaga até as 24h passarem.
  *
+ * Só o WhatsApp tem esse limite. Quem está no Telegram não conta como alcançado
+ * nem gasta vaga: sai inteiro no lote, depois dos do WhatsApp, em ordem de
+ * prioridade. O canal de um cadastro não muda (quem usa os dois tem um cadastro
+ * em cada), então o canal de hoje é o mesmo de quando o aviso saiu.
+ *
  * Precisa rodar dentro de uma transação: o lock é liberado no commit.
  */
 export async function reservarLote(
   tx: Tx,
-  { limite, agora = new Date() }: ParametrosDeLote,
+  { limite, agora = new Date(), canais = TODOS_OS_CANAIS }: ParametrosDeLote,
 ): Promise<DisparoReservado[]> {
+  if (canais.length === 0) return [];
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${LOCK_DA_FILA})`);
 
   const inicioDaJanela = new Date(agora.getTime() - JANELA_META_MS);
@@ -169,10 +192,17 @@ export async function reservarLote(
       ),
     );
 
+  // Só quem está no WhatsApp ocupa vaga da Meta.
   const alcancados = await tx
     .selectDistinct({ estudanteId: disparos.estudanteId })
     .from(disparos)
-    .where(or(gt(disparos.reservadoEm, inicioDaJanela), gt(disparos.enviadoEm, inicioDaJanela)));
+    .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
+    .where(
+      and(
+        eq(estudantes.canal, 'whatsapp'),
+        or(gt(disparos.reservadoEm, inicioDaJanela), gt(disparos.enviadoEm, inicioDaJanela)),
+      ),
+    );
 
   const pendentes = await tx
     .select({
@@ -183,28 +213,42 @@ export async function reservarLote(
       modelo: disparos.modelo,
       parametros: disparos.parametros,
       enfileiradoEm: disparos.enfileiradoEm,
+      canal: estudantes.canal,
       telefoneCifrado: estudantes.telefoneCifrado,
     })
     .from(disparos)
     .innerJoin(estudantes, eq(estudantes.id, disparos.estudanteId))
     .where(
-      and(pendente, or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida))),
+      and(
+        pendente,
+        inArray(estudantes.canal, [...canais]),
+        or(isNull(disparos.reservadoEm), lt(disparos.reservadoEm, reservaVencida)),
+      ),
     );
 
   const porId = new Map(pendentes.map((p) => [p.id, p]));
+  const paraPlano = (p: (typeof pendentes)[number]): Disparo => ({
+    id: p.id,
+    tipo: p.tipo,
+    aviso: p.aviso,
+    destinatario: p.estudanteId,
+    enfileiradoEm: p.enfileiradoEm,
+  });
+  const doWhatsapp = pendentes.filter((p) => p.canal === 'whatsapp').map(paraPlano);
+  const semCota = pendentes.filter((p) => p.canal !== 'whatsapp').map(paraPlano);
   const plano = planejarEnvio({
-    pendentes: pendentes.map((p): Disparo => ({
-      id: p.id,
-      tipo: p.tipo,
-      aviso: p.aviso,
-      destinatario: p.estudanteId,
-      enfileiradoEm: p.enfileiradoEm,
-    })),
+    pendentes: doWhatsapp,
     limite,
     alcancados: new Set(alcancados.map((a) => a.estudanteId)),
   });
+  // Mesma política (duplicatas, prioridade, desempate), com um limite que cabe todo mundo.
+  const planoSemCota = planejarEnvio({
+    pendentes: semCota,
+    limite: semCota.length,
+    alcancados: new Set(),
+  });
 
-  const ids = plano.enviarAgora.map((d) => d.id);
+  const ids = [...plano.enviarAgora, ...planoSemCota.enviarAgora].map((d) => d.id);
   if (ids.length === 0) return [];
 
   await tx.update(disparos).set({ reservadoEm: agora }).where(inArray(disparos.id, ids));
@@ -219,6 +263,7 @@ export async function reservarLote(
       estudanteId: linha.estudanteId,
       modelo: linha.modelo,
       parametros: linha.parametros,
+      canal: linha.canal,
       telefoneCifrado: linha.telefoneCifrado,
       reservadoEm: agora,
     };
@@ -273,6 +318,9 @@ export async function registrarEnvio(
 /**
  * O webhook confirmou a entrega (status `delivered` ou `read`). É o registro
  * que a curadoria usa como prova de que a pessoa foi avisada.
+ *
+ * No Telegram não há webhook de entrega: quem envia grava a entrega junto com
+ * o envio, no instante em que o `sendMessage` deu certo (veja o worker de envio).
  *
  * Devolve `false` quando não há disparo com esse wamid ainda sem entrega. O
  * status da Meta pode chegar antes de `registrarEnvio` confirmar; quem chama

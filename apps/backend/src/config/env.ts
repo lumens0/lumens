@@ -93,11 +93,12 @@ const esquema = z
     CHAVE_CIFRA: chaveDe32Bytes,
     CHAVE_HMAC: chaveDe32Bytes,
 
-    // WhatsApp / Meta (parte 2)
-    META_TOKEN: obrigatoria,
-    META_APP_SECRET: obrigatoria,
-    META_VERIFY_TOKEN: obrigatoria,
-    META_PHONE_NUMBER_ID: obrigatoria,
+    // WhatsApp / Meta (parte 2). Obrigatórias sem o Telegram; com ele, opcionais (as quatro ou
+    // nenhuma). A regra fica no `superRefine` abaixo.
+    META_TOKEN: opcional,
+    META_APP_SECRET: opcional,
+    META_VERIFY_TOKEN: opcional,
+    META_PHONE_NUMBER_ID: opcional,
     /**
      * Pessoas distintas que a Meta deixa o bot alcançar por 24h (RNF06). Começa em 250 e sobe
      * quando a Meta sobe o nível do portfólio; muda aqui, sem deploy de código.
@@ -109,6 +110,16 @@ const esquema = z
         .positive()
         .default(250),
     ),
+
+    // Telegram: o segundo canal do bot. Ligado se e só se o token estiver definido.
+    TELEGRAM_BOT_TOKEN: opcional,
+    /** Conferido no header `X-Telegram-Bot-Api-Secret-Token` do webhook. */
+    TELEGRAM_WEBHOOK_SECRET: opcional.refine(
+      (valor) => valor === undefined || /^[A-Za-z0-9_-]{1,256}$/.test(valor),
+      'só letras, números, _ e -, até 256 caracteres (regra do Telegram para o secret_token)',
+    ),
+    /** `polling` é para a máquina do dev: busca as mensagens sem precisar de túnel. */
+    TELEGRAM_MODO: comPadrao(z.enum(['webhook', 'polling']).default('webhook')),
 
     // E-mail do código de verificação
     EMAIL_HOST: obrigatoria,
@@ -129,9 +140,99 @@ const esquema = z
     message:
       'precisa ser DIFERENTE de CHAVE_CIFRA — uma cifra os dados, a outra gera o HMAC de busca; reusar a mesma elimina essa separação',
     path: ['CHAVE_HMAC'],
-  });
+  })
+  .superRefine(validarCanais, { when: () => true });
+
+const VARIAVEIS_META = [
+  'META_TOKEN',
+  'META_APP_SECRET',
+  'META_VERIFY_TOKEN',
+  'META_PHONE_NUMBER_ID',
+] as const;
+
+/**
+ * Pelo menos um canal. Sem o Telegram, as quatro `META_*` são obrigatórias, como sempre foram. Com
+ * ele, o WhatsApp é opcional, mas pela metade não: faltar uma das quatro seria o webhook da Meta
+ * no ar recusando tudo, ou respostas que nunca saem, sem nenhum aviso.
+ *
+ * Roda mesmo com outras variáveis inválidas (`when`), para a mensagem listar tudo de uma vez.
+ */
+function validarCanais(
+  env: Partial<
+    Record<
+      | (typeof VARIAVEIS_META)[number]
+      | 'TELEGRAM_BOT_TOKEN'
+      | 'TELEGRAM_WEBHOOK_SECRET'
+      | 'TELEGRAM_MODO',
+      string | undefined
+    >
+  >,
+  ctx: z.RefinementCtx,
+): void {
+  const faltando = VARIAVEIS_META.filter((nome) => env[nome] === undefined);
+  const comTelegram = env.TELEGRAM_BOT_TOKEN !== undefined;
+  if (!comTelegram || faltando.length < VARIAVEIS_META.length) {
+    const mensagem = comTelegram
+      ? 'o WhatsApp está configurado pela metade — defina as quatro META_* ou nenhuma (com o Telegram ligado)'
+      : 'não definida — veja o .env.example (ou ligue o Telegram com TELEGRAM_BOT_TOKEN)';
+    for (const nome of faltando) ctx.addIssue({ code: 'custom', message: mensagem, path: [nome] });
+  }
+  if (comTelegram && env.TELEGRAM_MODO !== 'polling' && env.TELEGRAM_WEBHOOK_SECRET === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        "obrigatória com TELEGRAM_MODO=webhook — gere com: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+      path: ['TELEGRAM_WEBHOOK_SECRET'],
+    });
+  }
+}
 
 export type Env = z.infer<typeof esquema>;
+
+/** O WhatsApp (Cloud API da Meta), quando as quatro `META_*` estão definidas. */
+export interface ConfigWhatsApp {
+  token: string;
+  appSecret: string;
+  verifyToken: string;
+  phoneNumberId: string;
+}
+
+export function whatsappDoEnv(env: Env): ConfigWhatsApp | undefined {
+  const { META_TOKEN, META_APP_SECRET, META_VERIFY_TOKEN, META_PHONE_NUMBER_ID } = env;
+  if (
+    META_TOKEN === undefined ||
+    META_APP_SECRET === undefined ||
+    META_VERIFY_TOKEN === undefined ||
+    META_PHONE_NUMBER_ID === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    token: META_TOKEN,
+    appSecret: META_APP_SECRET,
+    verifyToken: META_VERIFY_TOKEN,
+    phoneNumberId: META_PHONE_NUMBER_ID,
+  };
+}
+
+/** O Telegram, quando o `TELEGRAM_BOT_TOKEN` está definido. */
+export interface ConfigTelegram {
+  token: string;
+  modo: 'webhook' | 'polling';
+  /** Só falta no modo `polling`: o `carregarEnv` exige no `webhook`. */
+  segredoDoWebhook?: string;
+}
+
+export function telegramDoEnv(env: Env): ConfigTelegram | undefined {
+  if (env.TELEGRAM_BOT_TOKEN === undefined) return undefined;
+  return {
+    token: env.TELEGRAM_BOT_TOKEN,
+    modo: env.TELEGRAM_MODO,
+    ...(env.TELEGRAM_WEBHOOK_SECRET === undefined
+      ? {}
+      : { segredoDoWebhook: env.TELEGRAM_WEBHOOK_SECRET }),
+  };
+}
 
 export type FonteDeAmbiente = Record<string, string | undefined>;
 

@@ -2,10 +2,19 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { SLUG_MAX } from '@lumens/contratos';
 import { sql } from '@lumens/db';
 import { apiPlugin, type ApiPluginOptions } from './api';
-import { webhookPlugin, type WebhookPluginOptions } from './bot/webhook/routes';
+import type { ApiDoTelegram } from './bot/telegram/api';
+import { telegramPlugin } from './bot/telegram/routes';
+import { webhookPlugin, type WebhookConfig, type WebhookPluginOptions } from './bot/webhook/routes';
 import { resumoDoErro } from './infra/logger';
 
-export type AppDeps = WebhookPluginOptions & {
+export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
+  /** Webhook da Meta (WhatsApp). Sem ele, `/webhook` não existe (404): o WhatsApp está desligado. */
+  config?: WebhookConfig;
+  /**
+   * Webhook do Telegram (`/telegram/webhook`), só no `TELEGRAM_MODO=webhook`. A `api` responde o
+   * toque nos botões (`answerCallbackQuery`).
+   */
+  telegram?: { segredo: string; api?: Pick<ApiDoTelegram, 'chamar'> };
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
   leitura: ApiPluginOptions;
 };
@@ -48,8 +57,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(503).send({ ok: false });
     }
   });
-  const { leitura, ...webhook } = deps;
-  await app.register(webhookPlugin, webhook);
+  const { leitura, config, telegram, ...bot } = deps;
+  if (config) await app.register(webhookPlugin, { ...bot, config });
+  if (telegram) {
+    await app.register(telegramPlugin, {
+      ...bot,
+      segredo: telegram.segredo,
+      ...(telegram.api ? { api: telegram.api } : {}),
+    });
+  }
   await app.register(apiPlugin, leitura);
   return app;
 }

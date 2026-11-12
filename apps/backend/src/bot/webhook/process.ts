@@ -1,4 +1,4 @@
-import { lt, mensagensProcessadas, type Db } from '@lumens/db';
+import { lt, mensagensProcessadas, type Canal, type Db } from '@lumens/db';
 import { z } from 'zod';
 import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import type { Logger } from '../../infra/logger';
@@ -32,7 +32,7 @@ export const DEDUP_TTL_MS = 8 * 24 * 60 * 60 * 1000;
  * O jsonb do Postgres recusa \u0000 e surrogate UTF-16 solto. Um texto assim faria o enqueue
  * falhar sempre — 500 em todo reenvio da Meta, por dias.
  */
-function paraJsonb(texto: string): string {
+export function paraJsonb(texto: string): string {
   return texto
     .replaceAll('\u0000', '')
     .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '�');
@@ -123,6 +123,12 @@ export type ConteudoMensagem = z.infer<typeof conteudoSchema>;
  * e-mail, nome ou telefone.
  */
 export interface IncomingMessageJob {
+  /**
+   * Por onde a mensagem chegou. Job enfileirado antes do Telegram não tem o campo: vale como
+   * WhatsApp (leia com `canalDoJob`). No Telegram, `wamid*` é o `update_id`, `phone*` é o chat id
+   * (o HMAC é o de `tg:<chat_id>`) e `phoneNumberId` é `telegram`.
+   */
+  canal?: Canal;
   wamidHmac: string;
   wamidCifrado: string;
   /** Mesmo hash do `hashPhone`: a chave da conversa na tabela conversa. */
@@ -133,6 +139,16 @@ export interface IncomingMessageJob {
   timestamp: string;
   /** `ConteudoMensagem` em JSON, cifrado com a CHAVE_CIFRA. Leia com `conteudoDoJob`. */
   contentCifrado: string;
+}
+
+/** O canal de um job de entrada ou de respostas; sem o campo (job antigo), é o WhatsApp. */
+export function canalDoJob(job: { canal?: Canal }): Canal {
+  return job.canal ?? 'whatsapp';
+}
+
+/** Cifra o conteúdo para o job. O `paraJsonb` já passou pelo schema de quem chama. */
+export function cifrarConteudo(conteudo: ConteudoMensagem, chaves: Chaves): string {
+  return cifrar(JSON.stringify(conteudo), chaves.cifra);
 }
 
 export function conteudoDoJob(job: IncomingMessageJob, chaves: Chaves): ConteudoMensagem {
@@ -231,6 +247,7 @@ async function enfileirar(
   const { chaves } = deps;
   const wamidHmac = hmacHex(id, chaves.hmac);
   const job: IncomingMessageJob = {
+    canal: 'whatsapp',
     wamidHmac,
     wamidCifrado: cifrar(id, chaves.cifra),
     phoneHmac: hashPhone(from, chaves.hmac),
@@ -238,25 +255,37 @@ async function enfileirar(
     phoneNumberId,
     type,
     timestamp,
-    contentCifrado: cifrar(JSON.stringify(content), chaves.cifra),
+    contentCifrado: cifrarConteudo(content, chaves),
   };
 
-  const nova = await deps.db.transaction(async (tx) => {
-    const inserida = await tx
-      .insert(mensagensProcessadas)
-      .values({ wamidHmac })
-      .onConflictDoNothing()
-      .returning();
-    if (inserida.length === 0) return false;
-    await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });
-    return true;
-  });
+  const nova = await enfileirarUmaVez(job, deps);
 
   // Prefixo do HMAC: dá para correlacionar os logs sem expor o wamid.
   deps.logger
     .child({ mensagem: wamidHmac.slice(0, 12) })
     .info({ type }, nova ? 'mensagem enfileirada' : 'mensagem duplicada, ignorando');
   return nova;
+}
+
+/**
+ * Grava o dedup e enfileira o job na MESMA transação (veja `processWebhookPayload`). Devolve
+ * `false` quando o `wamidHmac` já tinha sido processado. Vale para os dois canais: o do Telegram
+ * é o HMAC de `tg:<update_id>`.
+ */
+export async function enfileirarUmaVez(
+  job: IncomingMessageJob,
+  deps: Pick<ProcessDeps, 'db' | 'queue'>,
+): Promise<boolean> {
+  return deps.db.transaction(async (tx) => {
+    const inserida = await tx
+      .insert(mensagensProcessadas)
+      .values({ wamidHmac: job.wamidHmac })
+      .onConflictDoNothing()
+      .returning();
+    if (inserida.length === 0) return false;
+    await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });
+    return true;
+  });
 }
 
 /**
