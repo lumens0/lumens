@@ -44,6 +44,20 @@ if ! grep -qE '^[[:space:]]*AUTH_SECRET=[^[:space:]]+' .env.producao; then
   exit 1
 fi
 
+# WhatsApp pela Evolution (SCRUM-275): liga o perfil dos serviços dela e confere os segredos. Sem
+# a senha do banco dela o Postgres não sobe; sem a chave, a API fica aberta na rede do compose.
+# Com CANAL_BOT=telegram a Evolution não sobe, mesmo com CANAL_WHATSAPP=evolution: um canal só.
+if grep -qE '^[[:space:]]*CANAL_WHATSAPP=evolution[[:space:]]*$' .env.producao &&
+  ! grep -qE '^[[:space:]]*CANAL_BOT=telegram[[:space:]]*$' .env.producao; then
+  for variavel in EVOLUTION_API_KEY EVOLUTION_WEBHOOK_SEGREDO EVOLUTION_PG_SENHA; do
+    if ! grep -qE "^[[:space:]]*${variavel}=[^[:space:]]+" .env.producao; then
+      echo "::error::.env.producao tem CANAL_WHATSAPP=evolution mas não tem ${variavel}. Gere com: openssl rand -hex 32" >&2
+      exit 1
+    fi
+  done
+  COMPOSE+=(--profile evolution)
+fi
+
 echo "--> Atualizando o código para $REF"
 git fetch --prune origin
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
