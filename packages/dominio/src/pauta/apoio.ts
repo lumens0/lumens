@@ -15,7 +15,11 @@ import { transicionarStatus } from './status';
  * `entregue_em_parte` e `descumprida` continuam recebendo: seguem sendo cobradas, e apoio novo é
  * o que dá força para cobrar de novo.
  */
-const SEM_APOIO: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada', 'conquistada']);
+export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set([
+  'em_curadoria',
+  'recusada',
+  'conquistada',
+]);
 
 export interface NovoApoio {
   pautaId: string;

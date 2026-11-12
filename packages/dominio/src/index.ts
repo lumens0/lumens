@@ -131,7 +131,7 @@ export {
 } from './pauta/pauta';
 export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 
-export { registrarApoio } from './pauta/apoio';
+export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 
 export { RELATO_MAXIMO, adicionarRelato } from './pauta/relato';
@@ -182,6 +182,7 @@ export {
   DIAS_SEM_ATIVIDADE,
   LIMITE_DE_OWNERS,
   adicionarCoOwner,
+  podeVirarCoOwner,
   registrarAtividadeOwner,
   registrarAtividadePorTelefone,
   removerOwnerInativo,

@@ -51,13 +51,9 @@ export function BotaoWhatsApp({
   );
 }
 
-/**
- * Se a pauta mostra "Apoiar": o status precisa aceitar apoio, e a flag `NEXT_PUBLIC_FLAG_APOIAR=1`
- * precisa estar ligada. Desligado por padrão até o bot interpretar `apoiar <slug>` (2.8,
- * SCRUM-103): o apoio pelo relato (2.7) já existe, mas o comando que o botão manda ainda não.
- */
+/** Se a pauta mostra "Apoiar": o status precisa aceitar apoio. O bot entende `apoiar <slug>` (2.8). */
 export function mostraApoiar(status: StatusPauta): boolean {
-  return process.env.NEXT_PUBLIC_FLAG_APOIAR === '1' && aceitaApoio(status);
+  return aceitaApoio(status);
 }
 
 /** "Apoiar" uma pauta: abre o bot com `apoiar <slug>`. Quem chama decide com `mostraApoiar`. */

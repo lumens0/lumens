@@ -30,6 +30,7 @@ import {
   reportTooLongText,
   supportedText,
 } from './apoio';
+import { COOWNER_INVITE_TEXT } from './co-owner';
 import { MENU_TEXT } from './handlers';
 import { photoRefusedText } from './nova-pauta';
 import { hashPhone } from './phone';
@@ -70,6 +71,13 @@ async function verificar(telefoneHmac = H) {
   if (!estudante) throw new Error('estudante não inserido');
   return estudante.id;
 }
+
+/** Convite para cuidar da pauta, ao fim do apoio, quando há vaga (2.8). */
+const convite = () => ({
+  tipo: 'botoes',
+  corpo: COOWNER_INVITE_TEXT,
+  botoes: [{ id: `cuidar ${pautaId}`, titulo: 'Quero cuidar' }],
+});
 
 /** Relata o problema e escolhe a pauta parecida ("É essa"). */
 async function escolherAPauta() {
@@ -189,7 +197,7 @@ describe('relato e foto do apoio (2.7)', () => {
   it('"sim" e foto gravam o relato pendente com a foto', async () => {
     expect(await send('sim')).toEqual([SUPPORT_PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, MENU_TEXT]);
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
     const [relato, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
     expect(relato).toMatchObject({
@@ -203,13 +211,13 @@ describe('relato e foto do apoio (2.7)', () => {
 
   it("'pular' a foto grava só o relato, pendente", async () => {
     await send('sim');
-    expect(await send('pular')).toEqual([REPORT_SENT_TEXT, MENU_TEXT]);
+    expect(await send('pular')).toEqual([REPORT_SENT_TEXT, convite(), MENU_TEXT]);
     const [relato] = await relatosDaPauta();
     expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
   });
 
   it('"não" encerra sem relato, com o apoio contado', async () => {
-    expect(await send('não')).toEqual([SUPPORT_DONE_TEXT, MENU_TEXT]);
+    expect(await send('não')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_TEXT]);
     expect(await relatosDaPauta()).toEqual([]);
     expect(await apoiosDaPauta()).toHaveLength(1);
     expect(await dados()).toEqual({});

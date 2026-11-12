@@ -4,7 +4,7 @@ import { isStep, type Step } from './steps';
 export const CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface PendingCommand {
-  kind: 'apoiar' | 'ajudar' | 'nova-pauta';
+  kind: 'apoiar' | 'ajudar' | 'nova-pauta' | 'cuidar';
   id?: string;
 }
 
