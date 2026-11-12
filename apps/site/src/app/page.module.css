@@ -99,6 +99,17 @@
   border-radius: inherit;
 }
 
+/* Texto só para leitor de tela: some da tela sem sumir da árvore de acessibilidade. */
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* O contêiner corta o que sai da borda: o contorno de foco fica por dentro. */
 .heroMapaLink:focus-visible {
   outline-offset: -4px;
