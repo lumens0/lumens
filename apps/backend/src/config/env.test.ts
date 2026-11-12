@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { carregarEnv, type FonteDeAmbiente } from './env';
+import { canalDoEnv, carregarEnv, type FonteDeAmbiente } from './env';
 
 const CHAVE_A = Buffer.alloc(32, 1).toString('base64');
 const CHAVE_B = Buffer.alloc(32, 2).toString('base64');
@@ -188,5 +188,74 @@ describe('carregarEnv', () => {
     const env = carregarEnv({ ...ambienteCompleto(), S3_ENDPOINT: 'http://localhost:9000' });
 
     expect(env.S3_ENDPOINT).toBe('http://localhost:9000');
+  });
+});
+
+describe('canal do bot (CANAL_BOT)', () => {
+  const META = ['META_TOKEN', 'META_APP_SECRET', 'META_VERIFY_TOKEN', 'META_PHONE_NUMBER_ID'];
+  const semMeta = (): FonteDeAmbiente => {
+    const fonte = ambienteCompleto();
+    for (const nome of META) fonte[nome] = '';
+    return fonte;
+  };
+  const TELEGRAM = {
+    CANAL_BOT: 'telegram',
+    TELEGRAM_BOT_TOKEN: '123:abc',
+    TELEGRAM_WEBHOOK_SECRET: 'segredo_1-a',
+  };
+
+  it('vazio é o WhatsApp, como na main; o Telegram fica de fora mesmo com o token', () => {
+    const env = carregarEnv({ ...ambienteCompleto(), TELEGRAM_BOT_TOKEN: '123:abc' });
+    expect(canalDoEnv(env)).toEqual({
+      canal: 'whatsapp',
+      token: 'token',
+      appSecret: 'segredo',
+      verifyToken: 'frase',
+      phoneNumberId: '1234567890',
+      limitePessoas: 250,
+    });
+  });
+
+  it('WhatsApp sem as META_*: recusa e nomeia cada uma', () => {
+    const mensagem = mensagemDeErro(semMeta());
+    for (const nome of META) expect(mensagem).toContain(`${nome}:`);
+  });
+
+  it('Telegram: as META_* deixam de ser obrigatórias; o modo padrão é webhook', () => {
+    const env = carregarEnv({ ...semMeta(), ...TELEGRAM });
+    expect(canalDoEnv(env)).toEqual({
+      canal: 'telegram',
+      token: '123:abc',
+      modo: 'webhook',
+      segredoDoWebhook: 'segredo_1-a',
+    });
+  });
+
+  it('Telegram sem token é recusado', () => {
+    expect(mensagemDeErro({ ...semMeta(), CANAL_BOT: 'telegram' })).toContain('TELEGRAM_BOT_TOKEN');
+  });
+
+  it('webhook do Telegram sem segredo é recusado; polling não precisa dele', () => {
+    const base = { ...semMeta(), CANAL_BOT: 'telegram', TELEGRAM_BOT_TOKEN: '1:a' };
+    expect(mensagemDeErro(base)).toContain('TELEGRAM_WEBHOOK_SECRET');
+    const env = carregarEnv({ ...base, TELEGRAM_MODO: 'polling' });
+    expect(canalDoEnv(env)).toEqual({ canal: 'telegram', token: '1:a', modo: 'polling' });
+  });
+
+  it('recusa CANAL_BOT e TELEGRAM_MODO desconhecidos, e segredo com caractere inválido', () => {
+    expect(mensagemDeErro({ ...ambienteCompleto(), CANAL_BOT: 'sinal' })).toContain('CANAL_BOT');
+    expect(mensagemDeErro({ ...semMeta(), ...TELEGRAM, TELEGRAM_MODO: 'push' })).toContain(
+      'TELEGRAM_MODO',
+    );
+    expect(
+      mensagemDeErro({ ...semMeta(), ...TELEGRAM, TELEGRAM_WEBHOOK_SECRET: 'com espaço' }),
+    ).toContain('TELEGRAM_WEBHOOK_SECRET');
+  });
+
+  it('lista o problema de canal junto com os outros', () => {
+    const { EMAIL_HOST: _e, ...fonte } = semMeta();
+    const mensagem = mensagemDeErro(fonte);
+    expect(mensagem).toContain('EMAIL_HOST');
+    expect(mensagem).toContain('META_TOKEN');
   });
 });

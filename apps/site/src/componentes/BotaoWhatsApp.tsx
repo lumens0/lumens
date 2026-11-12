@@ -1,10 +1,17 @@
 import { aceitaApoio } from '../dados/pautas-publicas';
 import type { StatusPauta } from '../dados/tipos';
-import { COMANDO_NOVA_PAUTA, comandoAjudar, comandoApoiar, linkWhatsApp } from '../whatsapp';
+import {
+  COMANDO_NOVA_PAUTA,
+  comandoAjudar,
+  comandoApoiar,
+  linkDoBot,
+  nomeDoCanal,
+} from '../whatsapp';
 import estilos from './componentes.module.css';
 
 /**
- * Botão que abre o WhatsApp do bot com o comando pronto. Sem número configurado, não aparece.
+ * Botão que abre o bot no canal ativo (WhatsApp ou Telegram) com o comando pronto. Sem bot
+ * configurado no canal, não aparece. O nome ficou do tempo em que só havia WhatsApp.
  * O `rotulo` é o `aria-label`: diz a ação e o alvo, já que o texto visível é curto.
  */
 export function BotaoWhatsApp({
@@ -16,7 +23,7 @@ export function BotaoWhatsApp({
   texto: string;
   rotulo: string;
 }) {
-  const href = linkWhatsApp(comando);
+  const href = linkDoBot(comando);
   if (!href) return null;
   return (
     <a
@@ -59,7 +66,7 @@ export function BotaoApoiar({ slug, titulo }: { slug: string; titulo: string }) 
     <BotaoWhatsApp
       comando={comandoApoiar(slug)}
       texto="Apoiar"
-      rotulo={`Apoiar a pauta ${titulo} pelo WhatsApp`}
+      rotulo={`Apoiar a pauta ${titulo} pelo ${nomeDoCanal()}`}
     />
   );
 }
@@ -70,7 +77,7 @@ export function BotaoVouAjudar({ slug, titulo }: { slug: string; titulo: string 
     <BotaoWhatsApp
       comando={comandoAjudar(slug)}
       texto="Vou ajudar"
-      rotulo={`Vou ajudar na proposta ${titulo} pelo WhatsApp`}
+      rotulo={`Vou ajudar na proposta ${titulo} pelo ${nomeDoCanal()}`}
     />
   );
 }
@@ -81,7 +88,7 @@ export function BotaoRelatar() {
     <BotaoWhatsApp
       comando={COMANDO_NOVA_PAUTA}
       texto="Relatar um problema"
-      rotulo="Relatar um problema do campus pelo WhatsApp"
+      rotulo={`Relatar um problema do campus pelo ${nomeDoCanal()}`}
     />
   );
 }

@@ -67,6 +67,72 @@ pnpm sim texto 'oi' --dry-run
 pnpm sim texto 'oi' --url https://staging.exemplo/webhook --secret outro-segredo
 ```
 
+## Canal Telegram (`--canal telegram`)
+
+Com `--canal telegram`, o simulador monta `Update`s da Bot API do Telegram e faz `POST` em
+`/telegram/webhook` com o header `X-Telegram-Bot-Api-Secret-Token` (o Telegram não assina o
+corpo, como a Meta). Sem `--canal`, ele continua mandando o formato da Meta.
+
+| Tipo               | O que envia                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `texto <mensagem>` | mensagem de texto                                                                             |
+| `start [payload]`  | `/start`, com o payload opcional dos links do site (`nova`, `apoiar_<slug>`, `ajudar_<slug>`) |
+| `botao <data>`     | toque em botão do teclado inline (`callback_query`)                                           |
+| `foto [legenda]`   | foto (arquivo fictício, em três tamanhos) com legenda opcional                                |
+| `documento [mime]` | documento (arquivo fictício; padrão `image/jpeg`)                                             |
+
+| Opção             | Padrão                                                    |
+| ----------------- | --------------------------------------------------------- |
+| `--chat <id>`     | `900000001` (chat privado; é também o `from.id`)          |
+| `--url <url>`     | `http://localhost:<PORT do .env>/telegram/webhook` (3001) |
+| `--update-id <n>` | um novo a cada envio (fixe para testar deduplicação)      |
+| `--secret <s>`    | `TELEGRAM_WEBHOOK_SECRET` do `.env`                       |
+| `--dry-run`       | só imprime o update e o header, não envia                 |
+
+`--from` e `--wamid` só valem no canal Meta; `--chat` e `--update-id`, só no Telegram.
+
+A rota `/telegram/webhook` só existe com o back-end em `TELEGRAM_MODO=webhook`: no modo `polling`
+ela não é registrada, e o `POST` dá 404. No `.env` da raiz:
+
+```sh
+CANAL_BOT=telegram
+TELEGRAM_BOT_TOKEN=<token do @BotFather>   # qualquer valor liga o canal; com um falso, as respostas do bot falham no envio
+TELEGRAM_MODO=webhook
+TELEGRAM_WEBHOOK_SECRET=<letras, números, _ e ->
+```
+
+O back-end não chama o `setWebhook`: o bot real não passa a mandar updates para a sua máquina.
+Para ver as respostas no seu Telegram, passe o seu chat id em `--chat`.
+
+```sh
+# /start de um chat novo: aviso de privacidade e menu
+pnpm sim start --canal telegram
+
+# Link "Apoiar" do site
+pnpm sim start apoiar_bebedouro --canal telegram
+
+# Texto, botão inline, foto e documento
+pnpm sim texto 'buraco no bloco 12' --canal telegram
+pnpm sim botao cat_iluminacao --canal telegram
+pnpm sim foto 'poste apagado' --canal telegram
+pnpm sim documento application/pdf --canal telegram
+
+# Deduplicação: envie duas vezes com o mesmo update_id
+pnpm sim texto 'oi' --canal telegram --update-id 42
+pnpm sim texto 'oi' --canal telegram --update-id 42
+
+# Ver o update e o header sem enviar
+pnpm sim texto 'oi' --canal telegram --dry-run
+
+# Outro chat / destino / segredo
+pnpm sim texto 'oi' --canal telegram --chat 123456789 --url http://localhost:8080/telegram/webhook --secret outro-segredo
+```
+
+Construtores em `src/bot/sim/telegram.ts`: `buildTelegramText`, `buildTelegramStart`,
+`buildTelegramCallback`, `buildTelegramPhoto`, `buildTelegramDocument`, `buildTelegramContact`
+e `sendTelegram`. Fixtures em `src/bot/sim/__fixtures__/telegram-*.json`; o teste
+`src/bot/sim/telegram.test.ts` confere que construtores e fixtures passam no `updateSchema` do bot.
+
 ## Uso programático
 
 ```ts

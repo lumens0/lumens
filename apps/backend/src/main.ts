@@ -4,16 +4,22 @@ import { registerGatilhosJob } from './agendador/gatilhos';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
 import { ConversationStore } from './bot/conversation/store';
-import { graphSender, logModeloSender } from './bot/envio/sender';
+import { graphSender, logModeloSender, whatsappAvisoSender } from './bot/envio/sender';
 import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
+import { criarApiDoTelegram } from './bot/telegram/api';
+import { telegramAvisoSender } from './bot/telegram/avisos';
+import { iniciarPolling, type Polling } from './bot/telegram/polling';
+import { telegramSender } from './bot/telegram/sender';
+import { processarUpdate } from './bot/telegram/update';
 import { logSender, registerIncomingWorker, registerReplyWorker } from './bot/worker';
-import { carregarEnv, type Env } from './config/env';
+import { canalDoEnv, carregarEnv, type Env } from './config/env';
 import { chavesDoEnv } from './cripto/cifra';
 import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
 import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
 import { criarStorageS3 } from './fotos/storage';
+import { baixarMidiaDoTelegram } from './fotos/telegram-midia';
 import { criarLogger, resumoDoErro } from './infra/logger';
 import { criarPgBossRuntime } from './infra/pg-boss';
 import { filaPgBoss } from './infra/queue';
@@ -48,6 +54,12 @@ try {
  */
 const MODO_DEV = process.argv.includes('--dev');
 
+/**
+ * Limite de pessoas por 24h dos avisos no Telegram: não há cota como a da Meta. O `telegramAvisoSender`
+ * cuida do ritmo (30/s no total, 1/s por chat).
+ */
+const SEM_COTA = Number.MAX_SAFE_INTEGER;
+
 if (process.argv.includes('--so-validar')) {
   console.log(`Ambiente validado. Banco: ${new URL(env.DATABASE_URL).host}`);
 } else {
@@ -56,6 +68,11 @@ if (process.argv.includes('--so-validar')) {
 
 async function iniciar(env: Env): Promise<void> {
   const logger = criarLogger(env.LOG_LEVEL);
+  // Um canal por implantação (CANAL_BOT). O token nunca vai para o log: só o canal e o modo.
+  const canal = canalDoEnv(env);
+  const whatsapp = canal.canal === 'whatsapp' ? canal : undefined;
+  const telegram = canal.canal === 'telegram' ? canal : undefined;
+  logger.info({ canal: canal.canal, modo: telegram?.modo }, 'canal do bot');
 
   try {
     const pool = criarPool(env.DATABASE_URL, POOL_TIMEOUTS, (erro) => {
@@ -88,25 +105,26 @@ async function iniciar(env: Env): Promise<void> {
       regiao: env.AWS_REGION,
       endpoint: env.S3_ENDPOINT,
     });
-    // PDF da resposta oficial (3.6): mesmo bucket, pasta `respostas/`, que não é pública.
+    const avisar = (mensagem: string) => {
+      logger.warn(mensagem);
+    };
+    // A mídia é baixada pela API do canal ativo: `media id` da Meta ou `file_id` do Telegram. A
+    // limpeza e o storage são os mesmos. PDF da resposta oficial (3.6): mesmo bucket, pasta
+    // `respostas/`, que não é pública.
+    const apiDoTelegram = telegram ? criarApiDoTelegram({ token: telegram.token }) : undefined;
+    const baixar = (id: string, opcoes: { tamanhoMaximo?: number } = {}) =>
+      apiDoTelegram
+        ? baixarMidiaDoTelegram(id, { api: apiDoTelegram, ...opcoes })
+        : baixarMidiaDaMeta(id, { token: whatsapp?.token ?? '', ...opcoes });
     const respostas = criarServicoDeRespostas({
-      baixar: (mediaId) =>
-        baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN, tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
+      baixar: (id) => baixar(id, { tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
       storage: storageDeArquivos,
-      avisar: (mensagem) => {
-        logger.warn(mensagem);
-      },
+      avisar,
     });
     const fotos = criarServicoDeFotos({
-      baixar: (mediaId) => baixarMidiaDaMeta(mediaId, { token: env.META_TOKEN }),
-      storage: criarStorageS3({
-        bucket: env.S3_BUCKET_FOTOS,
-        regiao: env.AWS_REGION,
-        endpoint: env.S3_ENDPOINT,
-      }),
-      avisar: (mensagem) => {
-        logger.warn(mensagem);
-      },
+      baixar: (id) => baixar(id),
+      storage: storageDeArquivos,
+      avisar,
     });
     // No `pnpm dev` o código aparece no log; fora dele, vai pelo SMTP do `.env`.
     const email = MODO_DEV
@@ -124,18 +142,31 @@ async function iniciar(env: Env): Promise<void> {
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
     await registerCleanupJob(boss, { store, db });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
-    // No `pnpm dev` a fila anda sem a Meta; fora dele, envia de verdade. Enquanto os modelos não
-    // forem aprovados, a Meta recusa com erro passageiro e os avisos esperam na fila.
-    const modeloSender = MODO_DEV
-      ? logModeloSender(logger)
-      : graphSender({ token: env.META_TOKEN, phoneNumberId: env.META_PHONE_NUMBER_ID });
-    await registerEnvioWorker(boss, {
-      db,
-      sender: modeloSender,
-      chaves,
-      logger,
-      limite: env.META_LIMITE_PESSOAS,
-    });
+    // Avisos pelo canal ativo. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora dele, envia de
+    // verdade, e enquanto os modelos não forem aprovados a Meta recusa com erro passageiro e os
+    // avisos esperam. Telegram: envia de verdade, sem a cota da Meta; o ritmo é do sender.
+    if (apiDoTelegram) {
+      await registerEnvioWorker(boss, {
+        db,
+        sender: telegramAvisoSender({ api: apiDoTelegram }),
+        canal: 'telegram',
+        chaves,
+        logger,
+        limite: SEM_COTA,
+      });
+    } else if (whatsapp) {
+      const modeloSender = MODO_DEV
+        ? logModeloSender(logger)
+        : graphSender({ token: whatsapp.token, phoneNumberId: whatsapp.phoneNumberId });
+      await registerEnvioWorker(boss, {
+        db,
+        sender: whatsappAvisoSender(modeloSender),
+        canal: 'whatsapp',
+        chaves,
+        logger,
+        limite: whatsapp.limitePessoas,
+      });
+    }
     await registerStatusWorker(boss, { db, logger });
     await registerGatilhosJob(boss, { db, logger });
     await registerIncomingWorker(boss, {
@@ -148,10 +179,22 @@ async function iniciar(env: Env): Promise<void> {
       email,
       respostas,
     });
-    await registerReplyWorker(boss, logSender(logger, chaves, { mostrarTexto: MODO_DEV }), logger);
+    await registerReplyWorker(
+      boss,
+      apiDoTelegram
+        ? telegramSender({ api: apiDoTelegram, chaves, logger })
+        : // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
+          logSender(logger, chaves, { mostrarTexto: MODO_DEV }),
+      logger,
+    );
 
     const app = await buildApp({
-      config: { verifyToken: env.META_VERIFY_TOKEN, appSecret: env.META_APP_SECRET },
+      ...(whatsapp
+        ? { config: { verifyToken: whatsapp.verifyToken, appSecret: whatsapp.appSecret } }
+        : {}),
+      ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined && apiDoTelegram
+        ? { telegram: { segredo: telegram.segredoDoWebhook, api: apiDoTelegram } }
+        : {}),
       db,
       queue,
       logger,
@@ -160,12 +203,24 @@ async function iniciar(env: Env): Promise<void> {
     });
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
+    // Dev: busca as mensagens do Telegram sem túnel. Depois do listen, com as filas já prontas.
+    let polling: Polling | undefined;
+    if (telegram?.modo === 'polling' && apiDoTelegram) {
+      polling = await iniciarPolling({
+        api: apiDoTelegram,
+        processar: (update) =>
+          processarUpdate(update, { db, queue, logger, chaves, api: apiDoTelegram }),
+        logger,
+      });
+    }
+
     let closing = false;
     const shutdown = async (signal: string) => {
       if (closing) return;
       closing = true;
       logger.info({ signal }, 'encerrando');
       try {
+        await polling?.parar();
         await app.close();
         await boss.stop({ graceful: true });
         await pool.end();

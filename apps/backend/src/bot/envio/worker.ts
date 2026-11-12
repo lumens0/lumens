@@ -1,5 +1,6 @@
 import type { Db } from '@lumens/db';
 import {
+  type CanalDoBot,
   registrarEntrega,
   registrarEnvio,
   registrarFalha,
@@ -11,15 +12,31 @@ import type { Job, PgBoss } from 'pg-boss';
 import { decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
 import { JOBS } from '../../infra/queue';
-import { montarMensagemModelo, ParametrosInvalidosError } from './mensagem-modelo';
-import { ErroDaMeta, type ModeloSender } from './sender';
+import { renderizarAviso, ParametrosInvalidosError, type AvisoRenderizado } from './aviso';
+import { ErroDeEnvio, type AvisoSender } from './sender';
 
 /**
  * Envio em lotes da fila de disparos (SCRUM-208) e registro de entrega por pessoa (SCRUM-209).
  *
- * A cada minuto o worker reserva o lote que cabe no limite da Meta (`reservarLote`, RNF06), manda
- * cada mensagem modelo e registra o que aconteceu. Quem decide quem sai e quem espera é a fila;
- * aqui só se executa o plano.
+ * A cada minuto o worker reserva o lote que cabe no limite do canal (`reservarLote`, RNF06), manda
+ * cada aviso pelo sender do canal ativo (`CANAL_BOT`: um só por processo) e registra o que
+ * aconteceu. Quem decide quem sai e quem espera é a fila; aqui só se executa o plano. O destino é o
+ * endereço do estudante no canal ativo (`telefone_cifrado`): o telefone no WhatsApp, o chat id no
+ * Telegram.
+ *
+ * O registro de entrega por canal:
+ *
+ *   | campo         | WhatsApp                               | Telegram                           |
+ *   | ------------- | -------------------------------------- | ---------------------------------- |
+ *   | `enviado_em`  | a Meta aceitou o envio                 | o `sendMessage` deu certo          |
+ *   | `entregue_em` | webhook `delivered`/`read`             | o mesmo instante do `enviado_em`   |
+ *   | `falhou_em`   | recusa permanente, ou webhook `failed` | recusa permanente (403, 400)       |
+ *
+ * O Telegram não tem recibo de entrega nem de leitura, nem webhook de status: o `sendMessage` que
+ * devolve a mensagem já a gravou no chat da pessoa, e é o único sinal que existe. Por isso ele vale
+ * como entrega. As regras que dependem desses campos continuam iguais nos dois canais: "avisado" é
+ * `enviado_em` ou `falhou_em` (SCRUM-239, remoção do owner inativo), e quem bloqueou o bot (403)
+ * sai da fila com `falhou_em`, como o número sem WhatsApp.
  */
 
 /** A cada minuto: um aviso espera no máximo isso para sair, se houver cota. */
@@ -29,10 +46,19 @@ type Boss = Pick<PgBoss, 'getQueue' | 'createQueue' | 'schedule' | 'work'>;
 
 export interface EnvioDeps {
   db: Db;
-  sender: ModeloSender;
+  /** Quem envia no canal ativo. */
+  sender: AvisoSender;
+  /**
+   * O canal ativo: só os estudantes com endereço dele entram no lote. Depois de uma troca de canal,
+   * o aviso de quem ainda não se verificou no novo fica pendente. O padrão é o WhatsApp.
+   */
+  canal?: CanalDoBot;
   chaves: Chaves;
   logger: Logger;
-  /** Pessoas distintas por 24h que a Meta permite hoje (RNF06). */
+  /**
+   * Pessoas distintas por 24h que o canal permite (RNF06). No WhatsApp é o limite da Meta; no
+   * Telegram não há cota, e o ritmo fica com o sender.
+   */
   limite: number;
   /** Relógio de cada envio. Injetável para teste; o padrão é a hora de agora. */
   relogio?: () => Date;
@@ -59,7 +85,9 @@ export async function enviarLote(
 ): Promise<ResultadoDoLote> {
   const { db, sender, chaves, logger } = deps;
   const relogio = deps.relogio ?? (() => new Date());
-  const lote = await db.transaction((tx) => reservarLote(tx, { limite: deps.limite, agora }));
+  const lote = await db.transaction((tx) =>
+    reservarLote(tx, { limite: deps.limite, agora, ...(deps.canal ? { canal: deps.canal } : {}) }),
+  );
   const resultado: ResultadoDoLote = { enviados: 0, falhas: 0, adiados: 0, tomadosPorOutro: 0 };
 
   const falhar = async (id: string, motivo: string) => {
@@ -69,9 +97,11 @@ export async function enviarLote(
   };
 
   for (const [posicao, disparo] of lote.entries()) {
-    let mensagem;
+    let aviso: AvisoRenderizado;
+    let destino: string;
     try {
-      mensagem = montarMensagemModelo(disparo, decifrar(disparo.telefoneCifrado, chaves.cifra));
+      aviso = renderizarAviso(disparo);
+      destino = decifrar(disparo.telefoneCifrado, chaves.cifra);
     } catch (erro) {
       await falhar(
         disparo.id,
@@ -90,18 +120,28 @@ export async function enviarLote(
     }
 
     try {
-      const { wamid } = await sender.enviar(mensagem);
-      // O wamid em claro codifica o telefone: só o HMAC vai para o banco, como no webhook.
-      const wamidHmac = hmacHex(wamid, chaves.hmac);
-      await db.transaction((tx) => registrarEnvio(tx, { id: disparo.id, wamidHmac }));
+      const { id, entregue } = await sender.enviar(aviso, destino);
+      // O wamid em claro codifica o telefone (e o id do Telegram, o chat): só o HMAC vai para o
+      // banco, como no webhook.
+      const wamidHmac = hmacHex(id, chaves.hmac);
+      if (entregue) {
+        // Telegram: sem recibo depois, o envio que deu certo é a entrega (veja o topo do arquivo).
+        const instante = relogio();
+        await db.transaction(async (tx) => {
+          await registrarEnvio(tx, { id: disparo.id, wamidHmac, agora: instante });
+          await registrarEntrega(tx, { wamidHmac, agora: instante });
+        });
+      } else {
+        await db.transaction((tx) => registrarEnvio(tx, { id: disparo.id, wamidHmac }));
+      }
       resultado.enviados++;
     } catch (erro) {
-      if (erro instanceof ErroDaMeta && erro.permanente) {
-        await falhar(disparo.id, `meta:${String(erro.codigo)}`);
+      if (erro instanceof ErroDeEnvio && erro.permanente) {
+        await falhar(disparo.id, erro.motivo);
         continue;
       }
       logger.warn({ disparo: disparo.id, erro: resumoDoErro(erro) }, 'envio adiado');
-      if (!(erro instanceof ErroDaMeta) || erro.pararLote) {
+      if (!(erro instanceof ErroDeEnvio) || erro.pararLote) {
         // O resto do lote também volta quando a reserva vencer.
         resultado.adiados += lote.length - posicao;
         break;

@@ -66,6 +66,7 @@ export { ORCAMENTO_SEM_VERIFICACAO, PRIORIDADE, planejarEnvio } from './avisos/e
 export type { Disparo, ParametrosDeEnvio, PlanoDeEnvio, TipoDisparo } from './avisos/envio';
 
 export {
+  PREFIXO_IDENTIDADE_TELEGRAM,
   RESERVA_EXPIRA_MS,
   VALIDADE_DO_AVISO_MS,
   enfileirarDisparos,
@@ -83,7 +84,7 @@ export {
   enfileirarAvisoMetaBatida,
   pautasComMetaBatidaSemAviso,
 } from './avisos/aviso-meta-batida';
-export type { DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
+export type { CanalDoBot, DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
 
 export { ErroDeRegra } from './compartilhado/erros';
 export type { CodigoErroDeRegra } from './compartilhado/erros';
