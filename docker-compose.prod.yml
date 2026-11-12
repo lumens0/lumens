@@ -116,7 +116,79 @@ services:
       - backend
       - painel
 
+  # WhatsApp não oficial pela Evolution API (SCRUM-275). Só sobe com o perfil `evolution`, que o
+  # deploy liga quando o .env.producao tem CANAL_WHATSAPP=evolution. Passo a passo, pareamento por QR
+  # e troca de chip: docs/operacao/evolution.md
+  #
+  # Banco próprio, separado do do Lumens: guarda só a sessão do WhatsApp (as chaves do aparelho
+  # conectado). Mensagens, contatos e conversas NÃO são gravados (DATABASE_SAVE_DATA_* abaixo).
+  evolution-postgres:
+    profiles: ['evolution']
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_PG_SENHA:-}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U evolution -d evolution']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  evolution:
+    profiles: ['evolution']
+    # Versão fixada por tag E digest (v2.3.7, Baileys 7.0.0-rc.9). Não atualize perto da demo:
+    # cada versão nova da Baileys muda o comportamento do WhatsApp Web.
+    image: evoapicloud/evolution-api:v2.3.7@sha256:1bd8afc4a6cf48822e6cf02469aeae7bd35a12a6b616eacd1291926307f4d339
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+    # Só no loopback da VM, para o pareamento por túnel SSH. O back-end fala com ela pela rede
+    # interna (http://evolution:8080), e ela manda o webhook para http://backend:3000.
+    ports:
+      - '127.0.0.1:8081:8080'
+    environment:
+      SERVER_URL: http://localhost:8081
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'false'
+      TELEMETRY_ENABLED: 'false'
+      LOG_LEVEL: ERROR,WARN
+      LOG_BAILEYS: error
+      LOG_COLOR: 'false'
+      DEL_INSTANCE: 'false'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_PG_SENHA:-}@evolution-postgres:5432/evolution?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: lumens
+      DATABASE_SAVE_DATA_INSTANCE: 'true'
+      DATABASE_SAVE_DATA_NEW_MESSAGE: 'false'
+      DATABASE_SAVE_MESSAGE_UPDATE: 'false'
+      DATABASE_SAVE_DATA_CONTACTS: 'false'
+      DATABASE_SAVE_DATA_CHATS: 'false'
+      DATABASE_SAVE_DATA_LABELS: 'false'
+      DATABASE_SAVE_DATA_HISTORIC: 'false'
+      DATABASE_SAVE_IS_ON_WHATSAPP: 'false'
+      CACHE_REDIS_ENABLED: 'false'
+      CACHE_LOCAL_ENABLED: 'true'
+      WEBHOOK_GLOBAL_ENABLED: 'false'
+      CONFIG_SESSION_PHONE_CLIENT: Lumens
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: '30'
+    volumes:
+      - evolution-instances:/evolution/instances
+    # A v2.3.7 escreve no stdout cada mensagem recebida, com número e texto (`console.log` no
+    # webhook de mensagens). Sem log de contêiner, isso não fica guardado na VM (RNF01). Para
+    # investigar algo, troque por `driver: local` por pouco tempo e volte.
+    logging:
+      driver: none
+
 volumes:
   lumens-pgdata:
   caddy-data:
   caddy-config:
+  # Sessão do WhatsApp. Perder estes volumes só obriga a parear o chip de novo.
+  evolution-pgdata:
+  evolution-instances:
