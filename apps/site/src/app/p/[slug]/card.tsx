@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import type { PautaDetalhe } from '@lumens/contratos';
 import { formatarNumero, percentual } from '../../../componentes/BarraApoios';
@@ -10,6 +12,9 @@ import { fonteDoTitulo, tituloDoCard } from './card.png/titulo';
 // (1200 × 630, `og.png`, a prévia do link). Muda só o arranjo; as peças, os dados, o 404 e o cache
 // são os mesmos. Mesma fonte de dados da página (`buscarPauta`), então os números batem com os
 // dela. Só título, bloco, status e apoios: nenhum dado pessoal (nem o curso dos responsáveis).
+//
+// Visual do site (SCRUM-104): a noite do campus, a janela acesa da marca, o número em âmbar e uma
+// fachada cujas janelas acendem conforme os apoios chegam perto da meta.
 
 export type Formato = 'story' | 'og';
 export type Contexto = { params: Promise<{ slug: string }> };
@@ -28,8 +33,29 @@ const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
 /** Bloco em uma linha só na prévia: com o título em 3 linhas, não sobra altura para a segunda. */
 const LIMITE_BLOCO_OG = 55;
 
-const ROXO = '#5a22c8';
-const CINZA = '#5b4e75';
+// As cores da faixa de noite do site (`globals.css`, `.noite`).
+const NOITE = '#141936';
+const NOITE_2 = '#1d2450';
+const JANELA_APAGADA = '#262f66';
+const TINTA = '#f5f3ff';
+const TINTA_2 = '#c9cbe3';
+const TINTA_3 = '#a3a7c7';
+const LUZ = '#ffc23d';
+const LUZ_FORTE = '#ffa41b';
+
+/**
+ * As fontes do site em TTF estático (o satori não lê woff2 nem fonte variável), geradas a partir
+ * de `src/fontes/*-var.woff2`. Lidas uma vez por instância.
+ */
+let fontes: ReturnType<typeof lerFontes> | undefined;
+function lerFontes() {
+  const ler = (arquivo: string) => readFile(join(process.cwd(), 'src/fontes/card', arquivo));
+  return Promise.all([
+    ler('bricolage-800.ttf').then((data) => ({ name: 'Bricolage', data, weight: 800 as const })),
+    ler('instrument-500.ttf').then((data) => ({ name: 'Instrument', data, weight: 500 as const })),
+    ler('instrument-700.ttf').then((data) => ({ name: 'Instrument', data, weight: 700 as const })),
+  ]);
+}
 
 export async function respostaDoCard(request: Request, slug: string, formato: Formato) {
   const pauta = await buscarPauta(slug);
@@ -41,6 +67,7 @@ export async function respostaDoCard(request: Request, slug: string, formato: Fo
   const card = formato === 'story' ? cardStory(pauta, endereco) : cardOg(pauta);
   return new ImageResponse(card, {
     ...TAMANHO[formato],
+    fonts: await (fontes ??= lerFontes()),
     headers: { 'Cache-Control': CACHE_CONTROL },
   });
 }
@@ -48,25 +75,37 @@ export async function respostaDoCard(request: Request, slug: string, formato: Fo
 function cardStory(pauta: PautaDetalhe, endereco: string) {
   const titulo = tituloDoCard(pauta.titulo);
   return (
-    <div style={{ ...fundo, justifyContent: 'space-between', padding: '120px 90px' }}>
+    <div style={{ ...fundo, padding: '112px 96px 104px' }}>
+      <Brilho tamanho={1200} x={980} y={-520} />
       <Logo tamanho={56} />
-      <div style={{ ...caixa, gap: 48, padding: 72, borderRadius: 48 }}>
-        <div style={{ display: 'flex', fontSize: 38, color: CINZA }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 40, marginTop: 'auto' }}>
+        <div style={{ display: 'flex', fontSize: 38, color: TINTA_3 }}>
           {pauta.bloco_nome ?? 'Todo o campus'}
         </div>
-        <div style={{ ...estiloTitulo, fontSize: fonteDoTitulo(titulo) }}>{titulo}</div>
-        <div style={{ display: 'flex' }}>
-          <Status pauta={pauta} fonte={38} />
+        <div style={{ ...estiloTitulo, fontSize: Math.round(fonteDoTitulo(titulo) * 1.15) }}>
+          {titulo}
         </div>
-        <Apoios pauta={pauta} numero={120} legenda={44} barra={36} />
+        <Status pauta={pauta} fonte={38} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 44, marginTop: 88 }}>
+        <Numero pauta={pauta} numero={210} legenda={48} />
+        <Fachada pauta={pauta} colunas={10} linhas={3} janela={72} vao={18} />
       </div>
       <div
-        style={{ display: 'flex', flexShrink: 0, flexDirection: 'column', gap: 12, fontSize: 40 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          marginTop: 'auto',
+          paddingTop: 56,
+          borderTop: `2px solid rgba(255, 255, 255, 0.12)`,
+          fontSize: 40,
+        }}
       >
-        <span style={{ fontWeight: 700 }}>
+        <span style={{ fontWeight: 700, color: TINTA }}>
           {aceitaApoio(pauta.status) ? 'Apoie também:' : 'Veja a pauta:'}
         </span>
-        <span style={{ color: ROXO }}>{endereco}</span>
+        <span style={{ color: LUZ }}>{endereco}</span>
       </div>
     </div>
   );
@@ -79,48 +118,93 @@ function cardStory(pauta: PautaDetalhe, endereco: string) {
 function cardOg(pauta: PautaDetalhe) {
   const titulo = tituloDoCard(pauta.titulo);
   return (
-    <div style={{ ...fundo, gap: 24, padding: '40px 56px' }}>
+    <div style={{ ...fundo, gap: 24, padding: '48px 64px' }}>
+      <Brilho tamanho={700} x={1000} y={-300} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Logo tamanho={44} />
-        <Status pauta={pauta} fonte={30} />
+        <Logo tamanho={40} />
+        <Status pauta={pauta} fonte={28} />
       </div>
-      <div style={{ ...caixa, flexGrow: 1, gap: 28, padding: '40px 48px', borderRadius: 36 }}>
-        <div style={{ display: 'flex', fontSize: 30, color: CINZA }}>
-          {tituloDoCard(pauta.bloco_nome ?? 'Todo o campus', LIMITE_BLOCO_OG)}
-        </div>
-        <div
-          style={{
-            ...estiloTitulo,
-            flexGrow: 1,
-            fontSize: Math.round(fonteDoTitulo(titulo) * 0.7),
-          }}
-        >
-          {titulo}
-        </div>
-        <Apoios pauta={pauta} numero={84} legenda={36} barra={24} />
+      <div style={{ display: 'flex', fontSize: 28, color: TINTA_3, marginTop: 12 }}>
+        {tituloDoCard(pauta.bloco_nome ?? 'Todo o campus', LIMITE_BLOCO_OG)}
+      </div>
+      <div
+        style={{
+          ...estiloTitulo,
+          flexGrow: 1,
+          fontSize: Math.round(fonteDoTitulo(titulo) * 0.72),
+        }}
+      >
+        {titulo}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <Numero pauta={pauta} numero={96} legenda={32} />
+        <Fachada pauta={pauta} colunas={10} linhas={2} janela={30} vao={10} />
       </div>
     </div>
   );
 }
 
 const fundo = {
+  position: 'relative',
   width: '100%',
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  background: '#e7e1f2',
-  color: '#1e1433',
+  backgroundColor: NOITE,
+  backgroundImage: `linear-gradient(180deg, ${NOITE} 0%, ${NOITE_2} 100%)`,
+  color: TINTA,
+  fontFamily: 'Instrument',
+  fontWeight: 500,
 } as const;
 
-const caixa = { display: 'flex', flexDirection: 'column', background: '#fff' } as const;
+const estiloTitulo = {
+  display: 'flex',
+  fontFamily: 'Bricolage',
+  fontWeight: 800,
+  lineHeight: 1.06,
+  letterSpacing: '-0.015em',
+} as const;
 
-const estiloTitulo = { display: 'flex', fontWeight: 700, lineHeight: 1.1 } as const;
-
-function Logo({ tamanho }: { tamanho: number }) {
+/** Halo âmbar no alto, como a luz que vem das janelas. */
+function Brilho({ tamanho, x, y }: { tamanho: number; x: number; y: number }) {
   return (
     <div
-      style={{ display: 'flex', flexShrink: 0, fontSize: tamanho, fontWeight: 700, color: ROXO }}
+      style={{
+        position: 'absolute',
+        left: x - tamanho / 2,
+        top: y,
+        width: tamanho,
+        height: tamanho,
+        backgroundImage:
+          'radial-gradient(circle, rgba(255, 194, 61, 0.13) 0%, rgba(255, 194, 61, 0) 65%)',
+      }}
+    />
+  );
+}
+
+function Logo({ tamanho }: { tamanho: number }) {
+  const janela = Math.round(tamanho * 0.42);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: Math.round(tamanho * 0.32),
+        fontFamily: 'Bricolage',
+        fontWeight: 800,
+        fontSize: tamanho,
+        letterSpacing: '-0.005em',
+      }}
     >
+      <div
+        style={{
+          width: janela,
+          height: janela,
+          borderRadius: Math.round(janela * 0.22),
+          background: LUZ,
+          boxShadow: `0 0 ${String(janela)}px ${String(Math.round(janela / 6))}px rgba(255, 194, 61, 0.55)`,
+        }}
+      />
       Lumens
     </div>
   );
@@ -128,25 +212,29 @@ function Logo({ tamanho }: { tamanho: number }) {
 
 function Status({ pauta, fonte }: { pauta: PautaDetalhe; fonte: number }) {
   const status = STATUS[pauta.status];
+  const janela = Math.round(fonte * 0.5);
   return (
     <div
       style={{
         display: 'flex',
+        alignSelf: 'flex-start',
         alignItems: 'center',
-        gap: Math.round(fonte * 0.5),
-        padding: `${String(Math.round(fonte * 0.37))}px ${String(Math.round(fonte * 0.84))}px`,
+        gap: Math.round(fonte * 0.45),
+        padding: `${String(Math.round(fonte * 0.32))}px ${String(Math.round(fonte * 0.7))}px`,
         borderRadius: 999,
+        border: '2px solid rgba(255, 255, 255, 0.16)',
+        background: 'rgba(255, 255, 255, 0.06)',
         fontSize: fonte,
-        background: '#FFFEFB',
-        color: '#1C1917',
+        color: TINTA_2,
       }}
     >
       <div
         style={{
-          width: Math.round(fonte * 0.6),
-          height: Math.round(fonte * 0.6),
-          borderRadius: Math.round(fonte * 0.12),
+          width: janela,
+          height: janela,
+          borderRadius: Math.round(janela * 0.2),
           background: status.ponto,
+          boxShadow: `0 0 ${String(janela)}px ${status.ponto}`,
         }}
       />
       {status.rotulo}
@@ -154,46 +242,85 @@ function Status({ pauta, fonte }: { pauta: PautaDetalhe; fonte: number }) {
   );
 }
 
-function Apoios({
+function Numero({
   pauta,
   numero,
   legenda,
-  barra,
 }: {
   pauta: PautaDetalhe;
   numero: number;
   legenda: number;
-  barra: number;
 }) {
-  const progresso = percentual(pauta.apoios, pauta.meta);
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexShrink: 0,
-        flexDirection: 'column',
-        gap: Math.round((barra * 2) / 3),
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 20 }}>
-        <span style={{ fontSize: numero, fontWeight: 700 }}>{formatarNumero(pauta.apoios)}</span>
-        <span style={{ fontSize: legenda, color: CINZA }}>
-          {`de ${formatarNumero(pauta.meta)} apoios`}
-        </span>
-      </div>
-      <div
-        style={{ display: 'flex', height: barra, borderRadius: barra / 2, background: '#ede7f7' }}
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: Math.round(legenda * 0.5) }}>
+      <span
+        style={{
+          fontFamily: 'Bricolage',
+          fontWeight: 800,
+          fontSize: numero,
+          lineHeight: 0.9,
+          letterSpacing: '-0.02em',
+          color: LUZ,
+        }}
       >
-        <div
-          style={{
-            display: 'flex',
-            width: `${String(progresso)}%`,
-            height: '100%',
-            borderRadius: barra / 2,
-            background: '#7b3fe4',
-          }}
-        />
-      </div>
+        {formatarNumero(pauta.apoios)}
+      </span>
+      <span style={{ fontSize: legenda, color: TINTA_2 }}>
+        {`de ${formatarNumero(pauta.meta)} apoios`}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * O progresso como fachada: uma janela acesa a cada fração da meta, de baixo para cima e da
+ * esquerda para a direita. Com algum apoio, pelo menos uma acende.
+ */
+export function janelasAcesas(apoios: number, meta: number, total: number): number {
+  if (apoios <= 0) return 0;
+  return Math.max(1, Math.min(total, Math.round((percentual(apoios, meta) / 100) * total)));
+}
+
+function Fachada({
+  pauta,
+  colunas,
+  linhas,
+  janela,
+  vao,
+}: {
+  pauta: PautaDetalhe;
+  colunas: number;
+  linhas: number;
+  janela: number;
+  vao: number;
+}) {
+  const acesas = janelasAcesas(pauta.apoios, pauta.meta, colunas * linhas);
+  const raio = Math.round(janela * 0.16);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: vao }}>
+      {Array.from({ length: linhas }, (_, linha) => (
+        <div key={linha} style={{ display: 'flex', gap: vao }}>
+          {Array.from({ length: colunas }, (_, coluna) => {
+            const acesa = linha * colunas + coluna < acesas;
+            return (
+              <div
+                key={coluna}
+                style={{
+                  width: janela,
+                  height: janela,
+                  borderRadius: raio,
+                  background: acesa
+                    ? `linear-gradient(180deg, ${LUZ} 0%, ${LUZ_FORTE} 100%)`
+                    : JANELA_APAGADA,
+                  boxShadow: acesa
+                    ? `0 0 ${String(janela / 2)}px rgba(255, 194, 61, 0.45)`
+                    : 'none',
+                }}
+              />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

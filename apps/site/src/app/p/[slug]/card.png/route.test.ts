@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buscarPauta } from '../../../../dados/api';
 import { fixture } from '../../../../dados/pauta-detalhe-teste';
+import { janelasAcesas } from '../card';
 import { GET } from './route';
 
 vi.mock('../../../../dados/api', () => ({ buscarPauta: vi.fn() }));
@@ -52,5 +53,17 @@ describe('GET /p/[slug]/card.png', () => {
     // Status que a API nunca devolve: o card, como a página, não confia só no filtro de lá.
     vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, status } as never);
     expect((await pedir(fixture.slug)).status).toBe(404);
+  });
+});
+
+describe('janelasAcesas (a fachada do card)', () => {
+  it.each([
+    [0, 120, 0],
+    [1, 120, 1],
+    [72, 120, 18],
+    [120, 120, 30],
+    [300, 120, 30],
+  ])('%i de %i apoios acendem %i de 30 janelas', (apoios, meta, acesas) => {
+    expect(janelasAcesas(apoios, meta, 30)).toBe(acesas);
   });
 });

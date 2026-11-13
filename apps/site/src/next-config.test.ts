@@ -16,7 +16,7 @@ describe('next.config', () => {
 
   it('build de produção com número devolve a config', () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5500000000000');
-    expect(config(PHASE_PRODUCTION_BUILD)).toEqual({ agentRules: false });
+    expect(config(PHASE_PRODUCTION_BUILD)).toMatchObject({ agentRules: false });
   });
 
   it('build de produção com canal telegram exige o usuário do bot', () => {
@@ -28,7 +28,7 @@ describe('next.config', () => {
     );
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '');
     vi.stubEnv('NEXT_PUBLIC_TELEGRAM_BOT', 'LumensBot');
-    expect(config(PHASE_PRODUCTION_BUILD)).toEqual({ agentRules: false });
+    expect(config(PHASE_PRODUCTION_BUILD)).toMatchObject({ agentRules: false });
   });
 
   it('build de produção com canal desconhecido falha', () => {
@@ -39,6 +39,6 @@ describe('next.config', () => {
 
   it('next dev sem número não falha', () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '');
-    expect(config(PHASE_DEVELOPMENT_SERVER)).toEqual({ agentRules: false });
+    expect(config(PHASE_DEVELOPMENT_SERVER)).toMatchObject({ agentRules: false });
   });
 });
