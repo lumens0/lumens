@@ -2,7 +2,7 @@
  * Mensagens modelo da Parte 3 (RNF04).
  *
  * Fora da janela de atendimento de 24h, o bot só pode escrever primeiro com uma
- * mensagem modelo que a Meta aprovou antes. Os seis avisos que o bot inicia
+ * mensagem modelo que a Meta aprovou antes. Os sete avisos que o bot inicia
  * moram aqui, num lugar só, porque o texto que a Meta aprovou e o código que
  * envia precisam concordar em nome, idioma e número de variáveis: qualquer
  * diferença e a Meta recusa o envio.
@@ -24,7 +24,8 @@ export type NomeModelo =
   | 'lumens_conferencia'
   | 'lumens_lembrete_prazo'
   | 'lumens_owner_inativo'
-  | 'lumens_pauta_recusada';
+  | 'lumens_pauta_recusada'
+  | 'lumens_conquista';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -34,6 +35,16 @@ export type BotaoModelo =
    * o site ainda está em homologação: `{{1}}` é o slug, como em `/p/{slug}`.
    */
   | { tipo: 'URL'; texto: string; caminho: '/p/{{1}}'; exemploSlug: string };
+
+/**
+ * Imagem no cabeçalho: o card da pauta gerado pelo site (4.4). O `{{1}}` é o mesmo slug do botão
+ * "Ver a pauta", então o disparo não leva parâmetro a mais. A imagem vai por link e o domínio é o
+ * de quem envia; na submissão, a Meta pede uma imagem de exemplo já enviada a ela (o handle).
+ */
+export interface CabecalhoDeImagem {
+  tipo: 'IMAGEM';
+  caminho: '/p/{{1}}/card.png';
+}
 
 export interface ModeloMensagem {
   nome: NomeModelo;
@@ -47,6 +58,7 @@ export interface ModeloMensagem {
   exemplos: readonly string[];
   rodape: string;
   botoes: readonly BotaoModelo[];
+  cabecalho?: CabecalhoDeImagem;
 }
 
 const RODAPE = 'Lumens · pautas estudantis da UFAL';
@@ -158,6 +170,22 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     rodape: RODAPE,
     botoes: [],
   },
+
+  // Card de vitória (3.7c, SCRUM-241). Vai para quem apoiou quando a conferência fecha com a pauta
+  // conquistada. O card no cabeçalho mostra o status "Conquistada"; o texto só relata o resultado.
+  lumens_conquista: {
+    nome: 'lumens_conquista',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'apoiadores',
+    corpo:
+      'A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem respondeu ' +
+      'confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta.',
+    exemplos: ['Bebedouro quebrado no bloco 12'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
+    cabecalho: { tipo: 'IMAGEM', caminho: '/p/{{1}}/card.png' },
+  },
 });
 
 /** Componentes no formato da Graph API (`POST /{waba-id}/message_templates`). */
@@ -166,6 +194,7 @@ export interface SubmissaoModelo {
   language: string;
   category: string;
   components: (
+    | { type: 'HEADER'; format: 'IMAGE'; example: { header_handle: string[] } }
     | { type: 'BODY'; text: string; example: { body_text: string[][] } }
     | { type: 'FOOTER'; text: string }
     | {
@@ -183,14 +212,30 @@ export interface SubmissaoModelo {
  *
  * @param siteUrl origem pública do site, em https e sem barra no fim. É o que
  *   vai fixo no botão: mudar de domínio depois exige nova aprovação.
+ * @param opcoes.imagemDeExemplo handle da imagem de exemplo que a Meta devolveu no upload
+ *   (Resumable Upload API). Obrigatório para modelo com imagem no cabeçalho.
  */
-export function paraSubmissao(modelo: ModeloMensagem, siteUrl: string): SubmissaoModelo {
+export function paraSubmissao(
+  modelo: ModeloMensagem,
+  siteUrl: string,
+  opcoes: { imagemDeExemplo?: string } = {},
+): SubmissaoModelo {
   const origem = exigirOrigemHttps(siteUrl);
 
-  const components: SubmissaoModelo['components'] = [
+  const components: SubmissaoModelo['components'] = [];
+  if (modelo.cabecalho !== undefined) {
+    const handle = opcoes.imagemDeExemplo?.trim() ?? '';
+    if (handle === '') {
+      throw new RangeError(
+        `${modelo.nome} tem imagem no cabeçalho: falta o handle da imagem de exemplo`,
+      );
+    }
+    components.push({ type: 'HEADER', format: 'IMAGE', example: { header_handle: [handle] } });
+  }
+  components.push(
     { type: 'BODY', text: modelo.corpo, example: { body_text: [[...modelo.exemplos]] } },
     { type: 'FOOTER', text: modelo.rodape },
-  ];
+  );
 
   if (modelo.botoes.length > 0) {
     components.push({

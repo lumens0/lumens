@@ -1,3 +1,4 @@
+import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { renderizarAviso, type AvisoRenderizado } from './aviso';
 
 export { ParametrosInvalidosError } from './aviso';
@@ -22,6 +23,7 @@ export interface MensagemModelo {
 }
 
 type ComponenteDeEnvio =
+  | { type: 'header'; parameters: { type: 'image'; image: { link: string } }[] }
   | { type: 'body'; parameters: { type: 'text'; text: string }[] }
   | {
       type: 'button';
@@ -36,14 +38,28 @@ type ComponenteDeEnvio =
       parameters: { type: 'payload'; payload: string }[];
     };
 
-/** Monta o corpo da Cloud API de um aviso já conferido. Pura. */
-export function mensagemModeloDe(aviso: AvisoRenderizado, telefone: string): MensagemModelo {
-  const components: ComponenteDeEnvio[] = [
-    {
-      type: 'body',
-      parameters: aviso.variaveis.map((text) => ({ type: 'text' as const, text })),
-    },
-  ];
+/**
+ * Monta o corpo da Cloud API de um aviso já conferido. Pura.
+ *
+ * @param origem origem pública do site, sem barra no fim: a imagem do cabeçalho (o card) vai por
+ *   link, e a Meta baixa de lá. O padrão é a de produção, a mesma do botão aprovado.
+ */
+export function mensagemModeloDe(
+  aviso: AvisoRenderizado,
+  telefone: string,
+  origem: string = ORIGEM_SITE_PRODUCAO,
+): MensagemModelo {
+  const components: ComponenteDeEnvio[] = [];
+  if (aviso.imagem !== undefined) {
+    components.push({
+      type: 'header',
+      parameters: [{ type: 'image', image: { link: origem + aviso.imagem.caminho } }],
+    });
+  }
+  components.push({
+    type: 'body',
+    parameters: aviso.variaveis.map((text) => ({ type: 'text' as const, text })),
+  });
   for (const botao of aviso.botoes) {
     components.push(
       botao.tipo === 'URL'
@@ -79,6 +95,7 @@ export function mensagemModeloDe(aviso: AvisoRenderizado, telefone: string): Men
 export function montarMensagemModelo(
   disparo: { tipo: string; aviso: string; modelo: string; parametros: readonly string[] },
   telefone: string,
+  origem?: string,
 ): MensagemModelo {
-  return mensagemModeloDe(renderizarAviso(disparo), telefone);
+  return mensagemModeloDe(renderizarAviso(disparo), telefone, origem);
 }

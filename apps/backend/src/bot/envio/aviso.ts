@@ -18,6 +18,11 @@ export interface AvisoRenderizado {
   texto: string;
   /** Na ordem do modelo; `indice` é a posição do botão no modelo aprovado. */
   botoes: BotaoDoAviso[];
+  /**
+   * Imagem do cabeçalho, quando o modelo tem (o card de vitória): o caminho já preenchido, como
+   * `/p/{slug}/card.png?status=conquistada`. A origem é de quem envia.
+   */
+  imagem?: { caminho: string };
 }
 
 export type BotaoDoAviso =
@@ -97,5 +102,19 @@ export function renderizarAviso(disparo: {
     };
   });
 
-  return { modelo, variaveis, texto, botoes };
+  let imagem: AvisoRenderizado['imagem'];
+  if (modelo.cabecalho !== undefined) {
+    // O slug do card é o mesmo do botão "Ver a pauta": o disparo não carrega parâmetro a mais.
+    const link = botoes.find((b) => b.tipo === 'URL');
+    if (link?.tipo !== 'URL') {
+      throw new ParametrosInvalidosError(`${modelo.nome} tem imagem no cabeçalho e nenhum link`);
+    }
+    // A query string muda a chave do cache de 5 min do card: a imagem sai com o status de agora,
+    // não com o "Prometido" que a CDN guardou antes da apuração.
+    imagem = {
+      caminho: `${modelo.cabecalho.caminho.replace('{{1}}', encodeURIComponent(link.valor))}?status=conquistada`,
+    };
+  }
+
+  return { modelo, variaveis, texto, botoes, ...(imagem ? { imagem } : {}) };
 }

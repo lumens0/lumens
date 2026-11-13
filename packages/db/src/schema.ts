@@ -42,6 +42,7 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'meta_batida',
   'lembrete',
   'recusa',
+  'vitoria',
 ]);
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
