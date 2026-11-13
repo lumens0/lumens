@@ -179,7 +179,7 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     idioma: 'pt_BR',
     destinatario: 'apoiadores',
     corpo:
-      'A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem apoiou ' +
+      'A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem respondeu ' +
       'confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta.',
     exemplos: ['Bebedouro quebrado no bloco 12'],
     rodape: RODAPE,

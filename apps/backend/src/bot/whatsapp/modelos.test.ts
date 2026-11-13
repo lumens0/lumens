@@ -115,6 +115,13 @@ describe('MODELOS (RNF04)', () => {
     });
   });
 
+  it('o card de vitória fala da maioria de quem respondeu, não de quem apoiou (RN10)', () => {
+    // A maioria da RN10 é sobre as respostas, com quórum de 10%: 6 "sim" e 4 "não" entre 100
+    // apoiadores já é conquista. Dizer "a maioria de quem apoiou" exageraria a confirmação.
+    expect(MODELOS.lumens_conquista.corpo).toContain('a maioria de quem respondeu');
+    expect(MODELOS.lumens_conquista.corpo).not.toMatch(/maioria de quem apoiou/);
+  });
+
   it('a conferência oferece exatamente as três respostas da RN10', () => {
     expect(MODELOS.lumens_conferencia.botoes.map((b) => b.texto)).toEqual([
       'Sim',
