@@ -3,7 +3,9 @@
  *
  * - texto ──────────▶ uma mensagem (ou várias, se passar de 4096 caracteres);
  * - botões ─────────▶ o corpo com um botão inline por linha, `callback_data` = id do botão;
- * - lista ──────────▶ o corpo, as descrições das linhas como texto, e um botão por linha.
+ * - lista ──────────▶ o corpo, as descrições das linhas como texto, e um botão por linha;
+ * - imagem ─────────▶ `sendPhoto` com o link e a legenda (o card da pauta, 2.9). Se o Telegram não
+ *                      conseguir a imagem, vai só a legenda em texto, que leva o link.
  *
  * O toque no botão volta como `callback_query` com o id, e a conversa o recebe como texto — o mesmo
  * que o `button_reply`/`list_reply` do WhatsApp.
@@ -20,6 +22,8 @@ import { cortes, dividirFormatado, negritoDoWhatsapp, type Entidade } from './fo
 
 /** Limite do `text` do `sendMessage`. */
 export const LIMITE_DO_TEXTO = 4096;
+/** Limite da legenda do `sendPhoto`. */
+export const LIMITE_DA_LEGENDA = 1024;
 /** Limite do `callback_data` de um botão inline, em bytes UTF-8. */
 export const LIMITE_DO_CALLBACK_BYTES = 64;
 
@@ -85,12 +89,17 @@ function botao(id: string, titulo: string): BotaoInline[] {
   return [botaoDeResposta(id, titulo)];
 }
 
-/** Monta os `sendMessage` de uma resposta. Pura. Lança se um id não cabe no `callback_data`. */
+/**
+ * Monta os `sendMessage` de uma resposta. Pura. Lança se um id não cabe no `callback_data`. A
+ * imagem vira a legenda em texto: é o que vai quando o `sendPhoto` falha.
+ */
 export function paraTelegram(resposta: Resposta, chatId: number): EnvioDeMensagem[] {
   let texto: string;
   let teclado: BotaoInline[][] | undefined;
   if (typeof resposta === 'string') {
     texto = resposta;
+  } else if (resposta.tipo === 'imagem') {
+    texto = resposta.legenda;
   } else if (resposta.tipo === 'botoes') {
     texto = resposta.corpo;
     teclado = resposta.botoes.map((b) => botao(b.id, b.titulo));
@@ -138,13 +147,13 @@ export function telegramSender({
       // No Telegram, o endereço da pessoa (`phoneCifrado`) é o chat id.
       const chatId = Number(decifrar(message.phoneCifrado, chaves.cifra));
       if (!Number.isSafeInteger(chatId)) throw new Error('Job do Telegram sem chat id válido.');
-      const envios = respostasDoJob(message, chaves).flatMap((r) => paraTelegram(r, chatId));
       const log = logger.child({ conversa: message.phoneHmac.slice(0, 12) });
-      for (const envio of envios) {
+      /** Envia um, esperando os 429 curtos. `false`: destino perdido, o resto não vai. */
+      const enviar = async (metodo: string, corpo: object): Promise<boolean> => {
         for (let esperas = 0; ; esperas++) {
           try {
-            await api.chamar('sendMessage', envio);
-            break;
+            await api.chamar(metodo, corpo);
+            return true;
           } catch (erro) {
             const classe = classificarErro(erro);
             // Um 400 que não é "chat not found" é defeito da mensagem: lança, e o job acaba na
@@ -154,7 +163,7 @@ export function telegramSender({
                 { erro: resumoDoErro(erro) },
                 'Telegram recusou de vez (bloqueio ou chat inexistente); respostas descartadas',
               );
-              return;
+              return false;
             }
             const segundos = erro instanceof ErroDaApiDoTelegram ? erro.esperarSegundos : undefined;
             if (
@@ -168,6 +177,30 @@ export function telegramSender({
             }
             throw erro;
           }
+        }
+      };
+      // Monta tudo antes de enviar: um id que não cabe lança sem deixar a conversa pela metade.
+      const respostas = respostasDoJob(message, chaves).map((r) => ({
+        resposta: r,
+        envios: paraTelegram(r, chatId),
+      }));
+      for (const { resposta, envios } of respostas) {
+        if (typeof resposta !== 'string' && resposta.tipo === 'imagem') {
+          try {
+            const foto = {
+              chat_id: chatId,
+              photo: resposta.url,
+              caption: resposta.legenda.slice(0, LIMITE_DA_LEGENDA),
+            };
+            if (!(await enviar('sendPhoto', foto))) return;
+            continue;
+          } catch (erro) {
+            // Site fora do ar, card que não abre, URL recusada: vai a legenda, com o link (2.9).
+            log.warn({ erro: resumoDoErro(erro) }, 'card não foi como imagem; vai o link em texto');
+          }
+        }
+        for (const envio of envios) {
+          if (!(await enviar('sendMessage', envio))) return;
         }
       }
     },

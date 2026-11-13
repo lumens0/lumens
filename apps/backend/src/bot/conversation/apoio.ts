@@ -16,6 +16,7 @@
  * na 2.5. Bater a meta grava `meta_batida` na linha do tempo (dentro de `registrarApoio`) e já
  * põe o aviso coletivo na fila, na mesma transação.
  */
+import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { eq, pautas, type Db } from '@lumens/db';
 import {
   RELATO_MAXIMO,
@@ -29,7 +30,7 @@ import { conviteCoOwner } from './co-owner';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { photoRefusedText } from './nova-pauta';
-import type { Resposta } from './resposta';
+import type { MensagemDeImagem, Resposta } from './resposta';
 import { normalize } from './texto';
 
 export const SUPPORT_VERIFY_FIRST_TEXT =
@@ -75,6 +76,19 @@ export function alreadySupportsText(titulo: string, total: number, meta: number)
 
 export function goalReachedText(meta: number): string {
   return `Com o seu apoio, a pauta chegou à meta de ${String(meta)} apoios! 🎉 Quem apoia vai receber o aviso.`;
+}
+
+/**
+ * Card da pauta para compartilhar (2.9), gerado pelo site. O total na query string fura o cache de
+ * 5 min do card, para a imagem sair com o número de agora.
+ */
+export function cardDaPauta(slug: string, totalApoios: number): MensagemDeImagem {
+  const link = `${ORIGEM_SITE_PRODUCAO}/p/${slug}`;
+  return {
+    tipo: 'imagem',
+    url: `${link}/card.png?apoios=${String(totalApoios)}`,
+    legenda: `Compartilhe para juntar mais apoios: ${link}`,
+  };
 }
 
 const YES = new Set(['sim', 's', 'quero', 'pode']);
@@ -128,7 +142,7 @@ async function fimDoApoio(
 
 async function pautaDoPlacar(db: Db, pautaId: string) {
   const [pauta] = await db
-    .select({ titulo: pautas.titulo, meta: pautas.meta })
+    .select({ titulo: pautas.titulo, slug: pautas.slug, meta: pautas.meta })
     .from(pautas)
     .where(eq(pautas.id, pautaId));
   return pauta;
@@ -178,6 +192,7 @@ export async function entrarNoApoio(
   } else {
     replies.push(alreadySupportsText(pauta.titulo, resultado.totalApoios, pauta.meta));
   }
+  replies.push(cardDaPauta(pauta.slug, resultado.totalApoios));
 
   const temRelato = dadosDoApoio(state.data).relatoCifrado !== undefined;
   replies.push(temRelato ? ASK_ATTACH_REPORT_TEXT : ASK_WRITE_REPORT_TEXT);

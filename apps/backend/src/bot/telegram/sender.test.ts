@@ -262,6 +262,54 @@ describe('telegramSender', () => {
     expect(esperar).not.toHaveBeenCalled();
   });
 
+  describe('card da pauta (2.9)', () => {
+    const CARD: Resposta = {
+      tipo: 'imagem',
+      url: 'https://lumens-ufal.vercel.app/p/bebedouros/card.png?apoios=3',
+      legenda: 'Compartilhe para juntar mais apoios: https://lumens-ufal.vercel.app/p/bebedouros',
+    };
+
+    it('vai como sendPhoto, com o link da imagem e a legenda, entre as outras respostas', async () => {
+      const chamar = vi.fn((_m: string, _p?: object) => Promise.resolve({}));
+      const { sender } = criar(chamar);
+      await sender.send(mensagem(['apoiou', CARD, 'relato?']));
+      expect(chamar.mock.calls).toEqual([
+        ['sendMessage', { chat_id: CHAT, text: 'apoiou' }],
+        ['sendPhoto', { chat_id: CHAT, photo: CARD.url, caption: CARD.legenda }],
+        ['sendMessage', { chat_id: CHAT, text: 'relato?' }],
+      ]);
+    });
+
+    it.each([
+      [
+        'o Telegram não consegue baixar o card (400)',
+        new ErroDaApiDoTelegram('sendPhoto', 400, 'Bad Request: failed to get HTTP URL content'),
+      ],
+      ['o Telegram está instável (5xx)', new ErroDaApiDoTelegram('sendPhoto', 502, 'Bad Gateway')],
+    ])('%s: vai só a legenda, com o link, e a conversa segue', async (_caso, erro) => {
+      const chamar = vi.fn((metodo: string, _p?: object) =>
+        metodo === 'sendPhoto' ? Promise.reject(erro) : Promise.resolve({}),
+      );
+      const { sender } = criar(chamar);
+      await expect(sender.send(mensagem([CARD, 'relato?']))).resolves.toBeUndefined();
+      expect(chamar.mock.calls.slice(1)).toEqual([
+        ['sendMessage', { chat_id: CHAT, text: CARD.legenda }],
+        ['sendMessage', { chat_id: CHAT, text: 'relato?' }],
+      ]);
+    });
+
+    it('bloqueado pela pessoa no card: não tenta o link nem o resto', async () => {
+      const chamar = vi.fn(() =>
+        Promise.reject(
+          new ErroDaApiDoTelegram('sendPhoto', 403, 'Forbidden: bot was blocked by the user'),
+        ),
+      );
+      const { sender } = criar(chamar);
+      await expect(sender.send(mensagem([CARD, 'relato?']))).resolves.toBeUndefined();
+      expect(chamar).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('erro passageiro (5xx, rede) lança para o retry do pg-boss', async () => {
     const chamar = vi.fn(() =>
       Promise.reject(new ErroDaApiDoTelegram('sendMessage', 502, 'Bad Gateway')),
