@@ -66,7 +66,7 @@ export function criarCanalEvolution(opcoes: {
   });
   return {
     envio,
-    respostas: respostasPelaEvolution(chamar, chaves),
+    respostas: respostasPelaEvolution(chamar, chaves, logger),
     avisos: avisosPelaEvolution(chamar, {
       intervaloMinMs: config.intervaloMinMs,
       intervaloMaxMs: config.intervaloMaxMs,

@@ -67,6 +67,13 @@ describe('menuDoTurno', () => {
   it('turno só de texto não deixa menu', () => {
     expect(menuDoTurno(['oi', 'tchau'])).toBeNull();
   });
+
+  it('a imagem (card da pauta) não é menu nem apaga o menu antes dela', () => {
+    const card = { tipo: 'imagem' as const, url: 'https://x/card.png', legenda: 'Veja a pauta' };
+    expect(menuDoTurno([card])).toBeNull();
+    expect(menuDoTurno([LISTA, card])).toEqual(MENU);
+    expect(renderizarEmTexto(card)).toBe('Veja a pauta');
+  });
 });
 
 describe('semMenuPrincipalDepoisDoMenu', () => {
