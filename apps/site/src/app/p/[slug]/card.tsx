@@ -13,7 +13,7 @@ import { fonteDoTitulo, tituloDoCard } from './card.png/titulo';
 // são os mesmos. Mesma fonte de dados da página (`buscarPauta`), então os números batem com os
 // dela. Só título, bloco, status e apoios: nenhum dado pessoal (nem o curso dos responsáveis).
 //
-// Visual do site (SCRUM-104): a noite do campus, a janela acesa da marca, o número em âmbar e uma
+// Visual do site (SCRUM-104): a noite do campus, a marca do cabeçalho, o número em âmbar e uma
 // fachada cujas janelas acendem conforme os apoios chegam perto da meta.
 
 export type Formato = 'story' | 'og';
@@ -45,16 +45,26 @@ const LUZ_FORTE = '#ffa41b';
 
 /**
  * As fontes do site em TTF estático (o satori não lê woff2 nem fonte variável), geradas a partir
- * de `src/fontes/*-var.woff2`. Lidas uma vez por instância.
+ * de `src/fontes/*-var.woff2`, e a marca do cabeçalho (`public/lumens-marca.svg`). Lidas uma vez
+ * por instância.
  */
-let fontes: ReturnType<typeof lerFontes> | undefined;
-function lerFontes() {
-  const ler = (arquivo: string) => readFile(join(process.cwd(), 'src/fontes/card', arquivo));
-  return Promise.all([
-    ler('bricolage-800.ttf').then((data) => ({ name: 'Bricolage', data, weight: 800 as const })),
-    ler('instrument-500.ttf').then((data) => ({ name: 'Instrument', data, weight: 500 as const })),
-    ler('instrument-700.ttf').then((data) => ({ name: 'Instrument', data, weight: 700 as const })),
+let recursos: ReturnType<typeof lerRecursos> | undefined;
+async function lerRecursos() {
+  const ler = (arquivo: string) => readFile(join(process.cwd(), arquivo));
+  const [bricolage, instrument500, instrument700, marca] = await Promise.all([
+    ler('src/fontes/card/bricolage-800.ttf'),
+    ler('src/fontes/card/instrument-500.ttf'),
+    ler('src/fontes/card/instrument-700.ttf'),
+    ler('public/lumens-marca.svg'),
   ]);
+  return {
+    fontes: [
+      { name: 'Bricolage', data: bricolage, weight: 800 as const },
+      { name: 'Instrument', data: instrument500, weight: 500 as const },
+      { name: 'Instrument', data: instrument700, weight: 700 as const },
+    ],
+    marca: `data:image/svg+xml;base64,${marca.toString('base64')}`,
+  };
 }
 
 export async function respostaDoCard(request: Request, slug: string, formato: Formato) {
@@ -64,20 +74,21 @@ export async function respostaDoCard(request: Request, slug: string, formato: Fo
     return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
   }
   const endereco = `${new URL(request.url).host}/p/${pauta.slug}`;
-  const card = formato === 'story' ? cardStory(pauta, endereco) : cardOg(pauta);
+  const { fontes, marca } = await (recursos ??= lerRecursos());
+  const card = formato === 'story' ? cardStory(pauta, endereco, marca) : cardOg(pauta, marca);
   return new ImageResponse(card, {
     ...TAMANHO[formato],
-    fonts: await (fontes ??= lerFontes()),
+    fonts: fontes,
     headers: { 'Cache-Control': CACHE_CONTROL },
   });
 }
 
-function cardStory(pauta: PautaDetalhe, endereco: string) {
+function cardStory(pauta: PautaDetalhe, endereco: string, marca: string) {
   const titulo = tituloDoCard(pauta.titulo);
   return (
     <div style={{ ...fundo, padding: '112px 96px 104px' }}>
       <Brilho tamanho={1200} x={980} y={-520} />
-      <Logo tamanho={56} />
+      <Logo tamanho={56} marca={marca} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 40, marginTop: 'auto' }}>
         <div style={{ display: 'flex', fontSize: 38, color: TINTA_3 }}>
           {pauta.bloco_nome ?? 'Todo o campus'}
@@ -115,13 +126,13 @@ function cardStory(pauta: PautaDetalhe, endereco: string) {
  * Prévia do link: sem endereço nem chamada (o WhatsApp já mostra o link ao lado), e com título e
  * número grandes, porque a miniatura aparece pequena na conversa.
  */
-function cardOg(pauta: PautaDetalhe) {
+function cardOg(pauta: PautaDetalhe, marca: string) {
   const titulo = tituloDoCard(pauta.titulo);
   return (
     <div style={{ ...fundo, gap: 24, padding: '48px 64px' }}>
       <Brilho tamanho={700} x={1000} y={-300} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Logo tamanho={40} />
+        <Logo tamanho={40} marca={marca} />
         <Status pauta={pauta} fonte={28} />
       </div>
       <div style={{ display: 'flex', fontSize: 28, color: TINTA_3, marginTop: 12 }}>
@@ -182,28 +193,28 @@ function Brilho({ tamanho, x, y }: { tamanho: number; x: number; y: number }) {
   );
 }
 
-function Logo({ tamanho }: { tamanho: number }) {
-  const janela = Math.round(tamanho * 0.42);
+/** A marca do cabeçalho do site (o círculo aceso) e o nome ao lado. */
+function Logo({ tamanho, marca }: { tamanho: number; marca: string }) {
+  // O SVG tem folga em volta do círculo para o halo: em 44 px, o círculo tem ~24 px.
+  const lado = Math.round(tamanho * 1.15);
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: Math.round(tamanho * 0.32),
+        gap: Math.round(tamanho * 0.12),
         fontFamily: 'Bricolage',
         fontWeight: 800,
         fontSize: tamanho,
         letterSpacing: '-0.005em',
       }}
     >
-      <div
-        style={{
-          width: janela,
-          height: janela,
-          borderRadius: Math.round(janela * 0.22),
-          background: LUZ,
-          boxShadow: `0 0 ${String(janela)}px ${String(Math.round(janela / 6))}px rgba(255, 194, 61, 0.55)`,
-        }}
+      <img
+        src={marca}
+        alt=""
+        width={lado}
+        height={lado}
+        style={{ marginLeft: -Math.round(lado * 0.2) }}
       />
       Lumens
     </div>
