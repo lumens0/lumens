@@ -84,6 +84,7 @@ export {
   enfileirarAvisoMetaBatida,
   pautasComMetaBatidaSemAviso,
 } from './avisos/aviso-meta-batida';
+export { MODELO_VITORIA, enfileirarAvisoDeVitoria } from './avisos/aviso-vitoria';
 export type { CanalDoBot, DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
 
 export { ErroDeRegra } from './compartilhado/erros';
