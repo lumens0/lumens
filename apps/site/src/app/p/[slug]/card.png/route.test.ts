@@ -17,7 +17,8 @@ function dimensoes(png: Buffer) {
   return { largura: png.readUInt32BE(16), altura: png.readUInt32BE(20) };
 }
 
-describe('GET /p/[slug]/card.png', () => {
+// Gerar a imagem leva segundos no CI, e o primeiro teste ainda lê as fontes e inicia o satori.
+describe('GET /p/[slug]/card.png', { timeout: 30_000 }, () => {
   beforeEach(() => vi.mocked(buscarPauta).mockReset());
 
   it('devolve PNG 1080 × 1920 com cache de 5 min, lendo a mesma pauta da página', async () => {
