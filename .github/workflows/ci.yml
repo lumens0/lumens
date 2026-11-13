@@ -37,7 +37,9 @@ jobs:
     # nada; e o `ready_for_review` refaz o check no mesmo commit antes do merge.
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Instalação, builds e os testes de todos os pacotes passam de 10 min (só o backend leva ~6,5);
+    # com 10, o job era cancelado com tudo verde.
+    timeout-minutes: 15
 
     # Equivalente ao docker-compose.yml do ambiente local. A partir da T4 é aqui que
     # os testes de integração (migrações, trigger da T5, views da T14) vão rodar.
