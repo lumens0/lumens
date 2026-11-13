@@ -7,6 +7,7 @@
  */
 import { and, apoios, eq, promessas, respostasConferencia, sql, type Tx } from '@lumens/db';
 import { apurarConferencia, type ResultadoApuracao } from './conferencia';
+import { enfileirarAvisoDeVitoria } from '../avisos/aviso-vitoria';
 import { registrarEvento } from '../compartilhado/eventos';
 import { transicionarStatus } from '../pauta/status';
 
@@ -19,6 +20,9 @@ export type ResultadoEncerramento =
  *
  * "Apoiadores" é quem já apoiava quando a conferência abriu: quem apoiou depois não entra no
  * denominador nem tem a resposta contada, para o quórum não mudar com a janela aberta.
+ *
+ * Quando a pauta vira conquista, o card de vitória (3.7c) entra na fila na mesma transação: ou a
+ * conquista e os avisos ficam gravados juntos, ou nenhum dos dois.
  *
  * Idempotente: promessa já apurada devolve `ja_apurada` e nada muda.
  */
@@ -84,6 +88,10 @@ export async function encerrarConferencia(
     dados: { promessa_id: promessaId, resultado, total_respostas: respondentes },
     origem: 'agendador',
   });
+
+  if (resultado === 'conquistada') {
+    await enfileirarAvisoDeVitoria(tx, { pautaId: promessa.pautaId, agora });
+  }
 
   return { apurada: true, resultado, respondentes, apoiadores };
 }

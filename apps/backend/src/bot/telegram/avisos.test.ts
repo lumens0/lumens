@@ -3,7 +3,7 @@ import { renderizarAviso } from '../envio/aviso';
 import { ErroDeEnvio } from '../envio/sender';
 import { MODELOS, type NomeModelo } from '../whatsapp/modelos';
 import { ErroDaApiDoTelegram } from './api';
-import { mensagensDoAviso, telegramAvisoSender } from './avisos';
+import { fotoDoAviso, mensagensDoAviso, telegramAvisoSender } from './avisos';
 
 const ORIGEM = 'https://lumens.exemplo.br';
 const CHAT = 4242;
@@ -16,6 +16,7 @@ const TIPO: Record<NomeModelo, string> = {
   lumens_lembrete_prazo: 'lembrete',
   lumens_owner_inativo: 'lembrete',
   lumens_pauta_recusada: 'recusa',
+  lumens_conquista: 'vitoria',
 };
 
 /** O disparo de um modelo com os exemplos do catálogo e, se houver link, o slug de exemplo. */
@@ -30,11 +31,11 @@ function disparoDe(nome: NomeModelo) {
   };
 }
 
-describe('mensagensDoAviso: os seis modelos no Telegram', () => {
+describe('mensagensDoAviso: os sete modelos no Telegram', () => {
   const nomes = Object.keys(MODELOS) as NomeModelo[];
 
-  it('cobre os seis modelos do catálogo', () => {
-    expect(nomes).toHaveLength(6);
+  it('cobre os sete modelos do catálogo', () => {
+    expect(nomes).toHaveLength(7);
   });
 
   it.each(nomes)('%s: o texto do catálogo preenchido, o rodapé e os botões', (nome) => {
@@ -252,4 +253,76 @@ describe('telegramAvisoSender', () => {
     // Do 1 para o 2: o intervalo geral. Do 2 para o 2 de novo: o que falta para 1 s.
     expect(tempo.esperas).toEqual([40, 1000]);
   });
+});
+
+describe('card de vitória no Telegram (3.7c)', () => {
+  const vitoria = renderizarAviso(disparoDe('lumens_conquista'));
+  const slug = 'bebedouro-quebrado-bloco-12';
+
+  it('vira sendPhoto com o card, o texto na legenda e o botão da pauta', () => {
+    const [texto] = mensagensDoAviso(vitoria, CHAT, ORIGEM);
+    expect(fotoDoAviso(vitoria, CHAT, ORIGEM)).toEqual({
+      chat_id: CHAT,
+      photo: `${ORIGEM}/p/${slug}/card.png?status=conquistada`,
+      caption: texto?.text,
+      reply_markup: { inline_keyboard: [[{ text: 'Ver a pauta', url: `${ORIGEM}/p/${slug}` }]] },
+    });
+  });
+
+  it('aviso sem imagem não tem foto', () => {
+    expect(fotoDoAviso(aviso, CHAT, ORIGEM)).toBeNull();
+  });
+
+  it('legenda acima de 1024 caracteres: vai só o texto', () => {
+    const longo = renderizarAviso({
+      ...disparoDe('lumens_conquista'),
+      parametros: ['x'.repeat(1100), slug],
+    });
+    expect(fotoDoAviso(longo, CHAT, ORIGEM)).toBeNull();
+  });
+
+  it('o sender manda a foto, e ela vale como entregue', async () => {
+    const { api, chamadas } = apiFalsa([901]);
+    const sender = telegramAvisoSender({ api, origem: ORIGEM, ...tempoFalso() });
+
+    expect(await sender.enviar(vitoria, String(CHAT))).toEqual({
+      id: `tg:${String(CHAT)}:901`,
+      entregue: true,
+    });
+    expect(chamadas).toEqual([
+      { metodo: 'sendPhoto', parametros: fotoDoAviso(vitoria, CHAT, ORIGEM) },
+    ]);
+  });
+
+  it('o Telegram não consegue a imagem (400): vai o texto, e o aviso não se perde', async () => {
+    const { api, chamadas } = apiFalsa([
+      new ErroDaApiDoTelegram('sendPhoto', 400, 'Bad Request: failed to get HTTP URL content'),
+      902,
+    ]);
+    const sender = telegramAvisoSender({ api, origem: ORIGEM, ...tempoFalso() });
+
+    expect(await sender.enviar(vitoria, String(CHAT))).toEqual({
+      id: `tg:${String(CHAT)}:902`,
+      entregue: true,
+    });
+    expect(chamadas.map((c) => c.metodo)).toEqual(['sendPhoto', 'sendMessage']);
+    expect(chamadas[1]?.parametros).toEqual(mensagensDoAviso(vitoria, CHAT, ORIGEM)[0]);
+  });
+
+  it.each([
+    [403, 'Forbidden: bot was blocked by the user'],
+    [400, 'Bad Request: chat not found'],
+  ])(
+    'destino perdido na foto (%i) é falha permanente, sem tentar o texto',
+    async (codigo, desc) => {
+      const { api, chamadas } = apiFalsa([new ErroDaApiDoTelegram('sendPhoto', codigo, desc)]);
+      const sender = telegramAvisoSender({ api, origem: ORIGEM, ...tempoFalso() });
+
+      await expect(sender.enviar(vitoria, String(CHAT))).rejects.toMatchObject({
+        motivo: `telegram:${String(codigo)}`,
+        permanente: true,
+      });
+      expect(chamadas).toHaveLength(1);
+    },
+  );
 });

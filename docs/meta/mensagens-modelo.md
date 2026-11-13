@@ -3,7 +3,7 @@
 SCRUM-193 · RNF04 · Parte 3.
 
 Fora da janela de atendimento de 24h, o bot só escreve primeiro com uma mensagem modelo aprovada pela
-Meta. São seis, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
+Meta. São sete, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
 [`apps/backend/src/bot/whatsapp/modelos.ts`](../../apps/backend/src/bot/whatsapp/modelos.ts); este
 documento só mostra os textos para revisão e registra o andamento da aprovação.
 
@@ -20,6 +20,12 @@ Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um
 | `lumens_lembrete_prazo`   | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
 | `lumens_owner_inativo`    | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
 | `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                  | (nenhum)                     |
+| `lumens_conquista`        | apoiadores   | A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem apoiou confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta.    | Ver a pauta                  |
+
+`lumens_conquista` é o card de vitória (3.7c, SCRUM-241): leva no cabeçalho uma **imagem**, o card
+da pauta gerado pelo site (`<site>/p/{slug}/card.png`), com o mesmo slug do botão. Sai para todos os
+apoiadores quando a conferência fecha com a pauta conquistada. No Telegram vai como foto, com o
+texto na legenda.
 
 ### Por que os textos são assim
 
@@ -79,6 +85,19 @@ pnpm --filter @lumens/backend modelos --site https://<dominio-do-site>
 - [x] **Dry-run conferido** com o domínio definitivo: os seis pedidos, textos iguais aos da tabela
       acima.
 - [ ] **`pnpm --filter @lumens/backend test` verde** na versão que será submetida.
+
+### Modelo com imagem no cabeçalho
+
+A Meta só aceita `lumens_conquista` com uma imagem de exemplo, enviada antes pela Resumable Upload
+API. O script faz o upload quando recebe `--imagem` e precisa também de `META_APP_ID` (id do app da
+Meta) no `.env`. Use um card real do site, baixado de `<site>/p/<slug>/card.png`:
+
+```bash
+pnpm --filter @lumens/backend modelos --site https://<dominio-do-site> --so lumens_conquista --imagem card-exemplo.png --enviar
+```
+
+Sem `--imagem`, o envio de todos para nesse modelo com uma mensagem; use `--so` para submeter os
+outros.
 
 ### Enviar
 
