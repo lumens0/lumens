@@ -16,7 +16,12 @@ import type { PgBoss } from 'pg-boss';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
-import { ASK_ATTACH_REPORT_TEXT, SUPPORT_DONE_TEXT, supportedText } from './bot/conversation/apoio';
+import {
+  ASK_ATTACH_REPORT_TEXT,
+  cardDaPauta,
+  SUPPORT_DONE_TEXT,
+  supportedText,
+} from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT } from './bot/conversation/co-owner';
 import { estudanteVerificado } from './bot/conversation/estudante';
 import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
@@ -220,10 +225,11 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       // "É essa": o apoio conta na hora, com o placar.
       const aposEscolher = await mandar(
         buildListReply({ id: `pauta:${pautaId}`, title: PAUTA.titulo, from: TELEFONE }),
-        2,
+        3,
       );
       expect(aposEscolher).toEqual([
         supportedText(PAUTA.titulo, 1, PAUTA.meta),
+        cardDaPauta(PAUTA.slug, 1),
         ASK_ATTACH_REPORT_TEXT,
       ]);
 

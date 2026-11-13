@@ -7,6 +7,7 @@ import {
   ASK_WRITE_REPORT_TEXT,
   SUPPORT_CLOSED_TEXT,
   SUPPORT_VERIFY_FIRST_TEXT,
+  cardDaPauta,
   supportedText,
 } from './apoio';
 import {
@@ -152,6 +153,7 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
 
     expect(await p.send(`apoiar ${SLUG}`)).toEqual([
       supportedText(TITULO, 1, 30),
+      cardDaPauta(SLUG, 1),
       ASK_WRITE_REPORT_TEXT,
     ]);
     expect(await p.passo()).toBe('SUPPORT_ASK_REPORT');
@@ -172,6 +174,7 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     expect(await p.verificarPeloBot('aluno2@ufal.br')).toEqual([
       VERIFIED_TEXT,
       supportedText(TITULO, 1, 30),
+      cardDaPauta(SLUG, 1),
       ASK_WRITE_REPORT_TEXT,
     ]);
     expect(await p.passo()).toBe('SUPPORT_ASK_REPORT');

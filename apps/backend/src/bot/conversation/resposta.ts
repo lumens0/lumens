@@ -35,7 +35,18 @@ export interface MensagemDeBotoes {
   botoes: BotaoDeResposta[];
 }
 
-export type Resposta = string | MensagemDeLista | MensagemDeBotoes;
+/**
+ * Imagem por link, com legenda (o card da pauta, 2.9). O canal baixa a imagem do link; quem não
+ * consegue mandar a imagem manda só a legenda, que leva o link da pauta.
+ */
+export interface MensagemDeImagem {
+  tipo: 'imagem';
+  /** URL pública em https: quem baixa é o servidor do canal, não o bot. */
+  url: string;
+  legenda: string;
+}
+
+export type Resposta = string | MensagemDeLista | MensagemDeBotoes | MensagemDeImagem;
 
 /**
  * Limites da Meta para a mensagem de lista. Passou de algum, a Meta recusa a mensagem inteira — e
@@ -109,6 +120,7 @@ export function botoes(mensagem: Omit<MensagemDeBotoes, 'tipo'>): MensagemDeBoto
 /** A resposta como texto corrido: para o log do `pnpm dev` e para contar caracteres. */
 export function textoDaResposta(resposta: Resposta): string {
   if (typeof resposta === 'string') return resposta;
+  if (resposta.tipo === 'imagem') return `${resposta.legenda}\n[imagem: ${resposta.url}]`;
   if (resposta.tipo === 'botoes') {
     return [resposta.corpo, ...resposta.botoes.map((b) => `[${b.titulo}] (${b.id})`)].join('\n');
   }
