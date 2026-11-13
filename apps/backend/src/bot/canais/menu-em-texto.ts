@@ -24,9 +24,9 @@ export interface MenuEmTexto {
 
 export const DICA_DO_MENU = 'Responda com o número da opção.';
 
-/** As opções de uma resposta interativa, ou `null` para texto puro. */
+/** As opções de uma resposta interativa, ou `null` para texto e imagem. */
 export function menuDaResposta(resposta: Resposta): MenuEmTexto | null {
-  if (typeof resposta === 'string') return null;
+  if (typeof resposta === 'string' || resposta.tipo === 'imagem') return null;
   const opcoes = resposta.tipo === 'lista' ? resposta.linhas : resposta.botoes;
   return { opcoes: opcoes.map(({ id, titulo }) => ({ id, titulo })) };
 }
@@ -63,9 +63,13 @@ export function semMenuPrincipalDepoisDoMenu(
   });
 }
 
-/** A resposta como o canal de texto manda: lista e botões viram linhas numeradas. */
+/**
+ * A resposta como texto: lista e botões viram linhas numeradas. A imagem vira a legenda, que já
+ * leva o link da pauta; é o que vai quando o canal não consegue mandar a imagem.
+ */
 export function renderizarEmTexto(resposta: Resposta): string {
   if (typeof resposta === 'string') return resposta;
+  if (resposta.tipo === 'imagem') return resposta.legenda;
   const linhas =
     resposta.tipo === 'lista'
       ? resposta.linhas.map(

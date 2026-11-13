@@ -134,6 +134,34 @@ describe('respostas pela Evolution', () => {
     ]);
   });
 
+  const CARD = { tipo: 'imagem', url: 'https://lumens.exemplo/card.png', legenda: 'Veja a pauta' };
+
+  it('o card da pauta vai como imagem, pelo link, com a legenda', async () => {
+    const { fn, chamadas } = fetchFalso([ENVIADA]);
+
+    await respostasPelaEvolution(cliente(fn), chaves).send(job([CARD]));
+
+    expect(chamadas[0]?.url).toBe('http://evolution:8080/message/sendMedia/lumens');
+    expect(chamadas[0]?.corpo).toMatchObject({
+      number: PHONE,
+      mediatype: 'image',
+      media: CARD.url,
+      caption: CARD.legenda,
+    });
+  });
+
+  it('se a imagem falhar, vai a legenda em texto (ela leva o link)', async () => {
+    const { fn, chamadas } = fetchFalso([{ status: 400, corpo: {} }, ENVIADA]);
+
+    await respostasPelaEvolution(cliente(fn), chaves).send(job([CARD]));
+
+    expect(chamadas.map((c) => c.url)).toEqual([
+      'http://evolution:8080/message/sendMedia/lumens',
+      'http://evolution:8080/message/sendText/lumens',
+    ]);
+    expect(chamadas[1]?.corpo).toMatchObject({ text: CARD.legenda, linkPreview: false });
+  });
+
   it('falha no envio sobe para o retry do worker', async () => {
     const { fn } = fetchFalso([{ status: 500, corpo: {} }]);
     await expect(respostasPelaEvolution(cliente(fn), chaves).send(job(['oi']))).rejects.toThrow(
