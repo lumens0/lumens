@@ -17,6 +17,7 @@ import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import { ASK_ATTACH_REPORT_TEXT, SUPPORT_DONE_TEXT, supportedText } from './bot/conversation/apoio';
+import { COOWNER_INVITE_TEXT } from './bot/conversation/co-owner';
 import { estudanteVerificado } from './bot/conversation/estudante';
 import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
 import { PRIVACY_NOTICE_TEXT } from './bot/conversation/privacidade';
@@ -226,7 +227,16 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
         ASK_ATTACH_REPORT_TEXT,
       ]);
 
-      expect(await texto('não', 2)).toEqual([SUPPORT_DONE_TEXT, MENU_TEXT]);
+      // Fim do apoio: com vaga, o convite para cuidar da pauta (2.8) vem antes do menu.
+      expect(await texto('não', 3)).toEqual([
+        SUPPORT_DONE_TEXT,
+        {
+          tipo: 'botoes',
+          corpo: COOWNER_INVITE_TEXT,
+          botoes: [{ id: `cuidar ${pautaId}`, titulo: 'Quero cuidar' }],
+        },
+        MENU_TEXT,
+      ]);
     });
 
     it('o apoio está no banco, ligado ao estudante verificado', async () => {

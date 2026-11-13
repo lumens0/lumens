@@ -24,8 +24,8 @@
   é o bot, na 2.7 (SCRUM-102).
 - "Apoiar" só aparece para status que recebem apoio: todos, menos `em_curadoria`, `recusada` e
   `conquistada` (a mesma regra de `registrarApoio` no domínio).
-- "Apoiar" também depende de `NEXT_PUBLIC_FLAG_APOIAR=1`, desligada por padrão até o bot
-  interpretar `apoiar <slug>` (2.7, SCRUM-102). Sem isso, o comando cairia no "Não entendi".
+- "Apoiar" ficou atrás de `NEXT_PUBLIC_FLAG_APOIAR=1` até o bot interpretar `apoiar <slug>`. A
+  flag saiu na 2.8 (SCRUM-103), quando o comando passou a valer em qualquer passo da conversa.
 - "Relatar um problema" depende de `NEXT_PUBLIC_FLAG_RELATAR=1`, desligada por padrão até o bot
   salvar a pauta relatada (2.6, SCRUM-101): hoje as etapas de título, local e descrição descartam
   a resposta.
