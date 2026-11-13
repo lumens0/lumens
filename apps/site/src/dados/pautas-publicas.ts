@@ -47,6 +47,21 @@ const ABERTAS: ReadonlySet<StatusPauta> = new Set([
   'prometido',
 ]);
 
+const plural = (n: number, um: string, varios: string) =>
+  `${new Intl.NumberFormat('pt-BR').format(n)} ${n === 1 ? um : varios}`;
+
+/**
+ * Os totais numa frase, para quem usa leitor de tela: é o que a região viva da home anuncia quando
+ * o filtro de bloco muda. Os números visíveis sobem de zero com animação e por isso ficam fora da
+ * região viva — dentro dela, cada quadro da animação viraria um anúncio (SCRUM-58).
+ */
+export function resumoDosTotais(
+  onde: string,
+  { abertas, apoios, conquistas }: ReturnType<typeof totais>,
+): string {
+  return `${onde}: ${plural(abertas, 'pauta aberta', 'pautas abertas')}, ${plural(apoios, 'apoio', 'apoios')} e ${plural(conquistas, 'conquista', 'conquistas')}.`;
+}
+
 /** Totais da faixa do topo, sobre a lista que está na tela (já filtrada por bloco, se houver filtro). */
 export function totais(pautas: readonly Pauta[]) {
   return {
