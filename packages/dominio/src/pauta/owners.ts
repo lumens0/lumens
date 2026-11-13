@@ -16,6 +16,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { SEM_APOIO } from './apoio';
 
 export const LIMITE_DE_OWNERS = 3;
 export const DIAS_SEM_ATIVIDADE = 30;
@@ -29,7 +30,8 @@ export type ResultadoCoOwner =
   | { adicionado: true }
   | {
       adicionado: false;
-      motivo: 'pauta_inexistente' | 'nao_apoiou' | 'ja_e_owner' | 'limite_de_owners';
+      motivo:
+        'pauta_inexistente' | 'pauta_fechada' | 'nao_apoiou' | 'ja_e_owner' | 'limite_de_owners';
     };
 
 /** Apoiador vira co-owner, se houver vaga. Recusas voltam como resultado, sem exceção. */
@@ -41,13 +43,16 @@ export async function adicionarCoOwner(
     agora = new Date(),
   }: { pautaId: string; estudanteId: string; agora?: Date },
 ): Promise<ResultadoCoOwner> {
-  // FOR UPDATE na pauta: dois pedidos simultâneos para a última vaga contam um depois do outro.
+  // FOR UPDATE na pauta: dois pedidos simultâneos para a última vaga contam um depois do outro, e
+  // o status lido aqui não muda até o fim (uma transição que já estava em curso termina antes).
   const [pauta] = await tx
-    .select({ id: pautas.id })
+    .select({ id: pautas.id, status: pautas.status })
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
   if (pauta === undefined) return { adicionado: false, motivo: 'pauta_inexistente' };
+  // Em curadoria, recusada ou conquistada: a pauta não recebe novas pessoas para cuidar dela.
+  if (SEM_APOIO.has(pauta.status)) return { adicionado: false, motivo: 'pauta_fechada' };
 
   // FOR UPDATE no estudante: serializa com sairDoLumens para impedir co-owner de quem está saindo.
   const [estudante] = await tx
