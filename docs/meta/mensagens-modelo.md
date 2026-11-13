@@ -20,7 +20,7 @@ Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um
 | `lumens_lembrete_prazo`   | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
 | `lumens_owner_inativo`    | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
 | `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                  | (nenhum)                     |
-| `lumens_conquista`        | apoiadores   | A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem apoiou confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta.    | Ver a pauta                  |
+| `lumens_conquista`        | apoiadores   | A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem respondeu confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta. | Ver a pauta                  |
 
 `lumens_conquista` é o card de vitória (3.7c, SCRUM-241): leva no cabeçalho uma **imagem**, o card
 da pauta gerado pelo site (`<site>/p/{slug}/card.png`), com o mesmo slug do botão. Sai para todos os
