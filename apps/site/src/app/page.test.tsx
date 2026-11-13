@@ -27,7 +27,7 @@ describe('home', () => {
   it('com a lista vazia, "Relatar um problema" aparece uma vez só (o da ListaVazia)', async () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
     const html = await render();
-    expect(html).toContain('role="status"');
+    expect(html).toContain('Ainda não tem pauta no site.');
     expect(html.match(/Relatar um problema<\/a>/g)).toHaveLength(1);
   });
 
@@ -41,6 +41,17 @@ describe('home', () => {
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
     expect(html).toContain('<dt>Apoios</dt><dd>499</dd>');
     expect(html).toContain('<dt>Pautas abertas</dt><dd>0</dd>');
+  });
+
+  it('o leitor de tela ouve os totais uma vez, sem os quadros da animação (SCRUM-58)', async () => {
+    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
+    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
+    const html = await render('bloco-a');
+    // Os números visíveis sobem de zero: dentro de uma região viva, cada quadro seria anunciado.
+    expect(html).not.toContain('aria-live');
+    expect(html).toMatch(
+      /<p role="status"[^>]*>Bloco A: 0 pautas abertas, 499 apoios e 0 conquistas\.<\/p>/,
+    );
   });
 
   it('bloco que não existe busca todas as pautas', async () => {
