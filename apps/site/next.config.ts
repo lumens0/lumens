@@ -4,6 +4,8 @@ import { exigirBotDoCanal } from './src/whatsapp';
 
 const nextConfig: NextConfig = {
   agentRules: false,
+  // As fontes do card da pauta são lidas do disco na hora de gerar a imagem (SCRUM-104).
+  outputFileTracingIncludes: { '/p/**': ['./src/fontes/card/*.ttf'] },
 };
 
 /**
