@@ -15,7 +15,7 @@ import { decifrar, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
 import type { Resposta } from '../conversation/resposta';
 import { respostasDoJob, type ReplySender } from '../worker';
-import { classificarErro, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
+import { classificarErro, destinoPerdido, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
 import { cortes, dividirFormatado, negritoDoWhatsapp, type Entidade } from './formatacao';
 
 /** Limite do `text` do `sendMessage`. */
@@ -120,8 +120,8 @@ export interface OpcoesDoSender {
 const esperarPadrao = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Entrega as respostas de um job, em ordem. Erro permanente (a pessoa bloqueou o bot) descarta o
- * resto sem lançar: o retry só repetiria a recusa até a fila de mortas. 429 espera o `retry_after`
+ * Entrega as respostas de um job, em ordem. Destino perdido (403, ou 400 "chat not found") descarta
+ * o resto sem lançar: o retry só repetiria a recusa até a fila de mortas. 429 espera o `retry_after`
  * e tenta a mesma mensagem de novo. O resto lança e volta pelo retry — que reenvia o job inteiro,
  * então uma parte já entregue pode chegar duas vezes (o mesmo "pelo menos uma vez" da fila).
  */
@@ -147,7 +147,9 @@ export function telegramSender({
             break;
           } catch (erro) {
             const classe = classificarErro(erro);
-            if (classe === 'permanente') {
+            // Um 400 que não é "chat not found" é defeito da mensagem: lança, e o job acaba na
+            // fila de mortas, onde aparece, em vez de sumir com as respostas da pessoa.
+            if (classe === 'permanente' && destinoPerdido(erro)) {
               log.warn(
                 { erro: resumoDoErro(erro) },
                 'Telegram recusou de vez (bloqueio ou chat inexistente); respostas descartadas',

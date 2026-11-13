@@ -37,9 +37,21 @@ export function classificarErro(erro: unknown): ClasseDoErro {
   if (!(erro instanceof ErroDaApiDoTelegram) || erro.codigo === undefined) return 'passageiro';
   if (erro.codigo === 429) return 'esperar';
   // 403: "bot was blocked by the user", "user is deactivated". 400 "chat not found" é o mesmo caso
-  // de quem nunca mais vai receber; outros 400 são bug nosso, e repetir também não resolve.
+  // de quem nunca mais vai receber; outros 400 são bug nosso, e repetir também não resolve. Quem
+  // descarta sem deixar rastro (as respostas da conversa) confere antes `destinoPerdido`.
   if (erro.codigo === 403 || erro.codigo === 400) return 'permanente';
   return 'passageiro';
+}
+
+/**
+ * A recusa é do destino, não da mensagem: 403 (bloqueou o bot, conta apagada) ou 400 "chat not
+ * found". Os outros 400 (entidade ou teclado inválido) são defeito nosso: quem descarta só o que
+ * passa aqui não esconde um bug.
+ */
+export function destinoPerdido(erro: unknown): boolean {
+  if (!(erro instanceof ErroDaApiDoTelegram)) return false;
+  if (erro.codigo === 403) return true;
+  return erro.codigo === 400 && /chat not found/i.test(erro.descricao);
 }
 
 export interface ApiDoTelegram {
