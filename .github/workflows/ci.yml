@@ -269,7 +269,7 @@ jobs:
           fi
 
       # Versão fixa: com `latest`, o build de produção mudava sozinho quando saía CLI nova. Para
-      # atualizar, troque aqui e confira o deploy do PR (65.15.0 é a do último deploy da main).
+      # atualizar, troque aqui e confira o deploy seguinte da main (65.15.0 é a do último que passou).
       - name: Instalar Vercel CLI
         run: npm install --global vercel@65.15.0
 
