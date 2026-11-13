@@ -42,6 +42,53 @@ describe('montarMensagemModelo', () => {
     });
   });
 
+  it('vitória: o card da pauta no cabeçalho, por link, com o status na query string', () => {
+    const mensagem = montarMensagemModelo(
+      {
+        tipo: 'vitoria',
+        aviso: 'pauta-1',
+        modelo: 'lumens_conquista',
+        parametros: ['Bebedouro do bloco 12', 'bebedouro-bloco-12'],
+      },
+      TELEFONE,
+      'https://lumens.exemplo.br',
+    );
+
+    expect(mensagem.template.components).toEqual([
+      {
+        type: 'header',
+        parameters: [
+          {
+            type: 'image',
+            image: {
+              link: 'https://lumens.exemplo.br/p/bebedouro-bloco-12/card.png?status=conquistada',
+            },
+          },
+        ],
+      },
+      { type: 'body', parameters: [{ type: 'text', text: 'Bebedouro do bloco 12' }] },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: 'bebedouro-bloco-12' }],
+      },
+    ]);
+  });
+
+  it('sem imagem no modelo, nenhum cabeçalho', () => {
+    const mensagem = montarMensagemModelo(
+      {
+        tipo: 'recusa',
+        aviso: 'pauta-1',
+        modelo: 'lumens_pauta_recusada',
+        parametros: ['Bebedouro do bloco 12', 'duplicada'],
+      },
+      TELEFONE,
+    );
+    expect(mensagem.template.components.map((c) => c.type)).toEqual(['body']);
+  });
+
   it('conferência: os botões de resposta levam o aviso, para saber a que promessa respondem', () => {
     const mensagem = montarMensagemModelo(
       {

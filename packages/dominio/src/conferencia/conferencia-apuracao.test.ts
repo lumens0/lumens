@@ -1,5 +1,6 @@
 import {
   apoios,
+  disparos,
   eq,
   estudantes,
   eventos,
@@ -194,6 +195,31 @@ describe('encerrarConferencia, regras de execução', () => {
     const r = await encerrar(promessaId);
 
     expect(r).toEqual({ apurada: true, resultado: 'conquistada', respondentes: 1, apoiadores: 10 });
+  });
+
+  it('virou conquista: o card de vitória entra na fila para cada apoiador (3.7c)', async () => {
+    const { pauta, promessaId, ids } = await cenario(20, { sim: 15, em_parte: 3, nao: 2 });
+
+    await encerrar(promessaId);
+
+    const avisos = await db
+      .select({ tipo: disparos.tipo, estudanteId: disparos.estudanteId })
+      .from(disparos)
+      .where(eq(disparos.aviso, pauta.id));
+    expect(avisos.map((a) => a.estudanteId).sort()).toEqual([...ids].sort());
+    expect(new Set(avisos.map((a) => a.tipo))).toEqual(new Set(['vitoria']));
+  });
+
+  it.each([
+    ['entregue em parte', { sim: 5, em_parte: 12, nao: 3 }],
+    ['descumprida', { sim: 4, em_parte: 4, nao: 12 }],
+    ['sem quórum', { sim: 1, em_parte: 0, nao: 0 }],
+  ] as const)('%s: ninguém recebe card de vitória', async (_, respostas) => {
+    const { pauta, promessaId } = await cenario(20, respostas);
+
+    await encerrar(promessaId);
+
+    expect(await db.select().from(disparos).where(eq(disparos.aviso, pauta.id))).toHaveLength(0);
   });
 
   it('promessa que não existe', async () => {
