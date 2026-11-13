@@ -16,7 +16,8 @@ function dimensoes(png: Buffer) {
   return { largura: png.readUInt32BE(16), altura: png.readUInt32BE(20) };
 }
 
-describe('GET /p/[slug]/og.png', () => {
+// Gerar a imagem leva segundos no CI, e o primeiro teste ainda lê as fontes e inicia o satori.
+describe('GET /p/[slug]/og.png', { timeout: 30_000 }, () => {
   beforeEach(() => vi.mocked(buscarPauta).mockReset());
 
   it('devolve PNG 1200 × 630 abaixo de 300 KB, com o cache do card vertical', async () => {
@@ -28,7 +29,7 @@ describe('GET /p/[slug]/og.png', () => {
     const png = Buffer.from(await resposta.arrayBuffer());
     expect(dimensoes(png)).toEqual({ largura: 1200, altura: 630 });
     expect(png.length).toBeLessThan(300 * 1024);
-    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug);
+    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug, { fresca: true });
   });
 
   it('título e bloco longos ainda geram um PNG válido (o encaixe foi conferido no olho)', async () => {
