@@ -19,8 +19,12 @@ function urlDaApi(): string {
   return url.replace(/\/+$/, '');
 }
 
-/** O cache de 30 s acompanha o `Cache-Control` da API. */
-const buscar = (caminho: string) => fetch(`${urlDaApi()}${caminho}`, { next: { revalidate: 30 } });
+/**
+ * O cache de 30 s acompanha o `Cache-Control` da API. `fresca` lê sem ele: o card da pauta, que o
+ * bot pede logo depois de um apoio, precisa do total de agora.
+ */
+const buscar = (caminho: string, fresca = false) =>
+  fetch(`${urlDaApi()}${caminho}`, fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } });
 
 /** GET que só aceita 200. Qualquer erro sobe e cai no `error.tsx`. */
 async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {
@@ -34,8 +38,11 @@ async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {
  * Uma pauta pública pelo slug. `null` quando a API responde 404 (não existe ou não é pública)
  * ou 400 (slug mal formado). Qualquer outro erro sobe e cai no `error.tsx`.
  */
-export async function buscarPauta(slug: string): Promise<PautaDetalhe | null> {
-  const resposta = await buscar(`/pautas/${encodeURIComponent(slug)}`);
+export async function buscarPauta(
+  slug: string,
+  { fresca = false }: { fresca?: boolean } = {},
+): Promise<PautaDetalhe | null> {
+  const resposta = await buscar(`/pautas/${encodeURIComponent(slug)}`, fresca);
   if (resposta.status === 404 || resposta.status === 400) return null;
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para a pauta.`);

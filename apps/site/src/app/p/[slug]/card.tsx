@@ -68,7 +68,9 @@ async function lerRecursos() {
 }
 
 export async function respostaDoCard(request: Request, slug: string, formato: Formato) {
-  const pauta = await buscarPauta(slug);
+  // Sem o cache de 30 s da leitura: o `?apoios=N` do bot só muda a chave do cache da imagem, e o
+  // total precisa ser o de agora. O cache de 5 min do card, na CDN, segura as visitas repetidas.
+  const pauta = await buscarPauta(slug, { fresca: true });
   // Não existe, em curadoria ou recusada: 404 sem corpo, e o bot cai no fallback do link.
   if (!pauta || FORA_DO_SITE.has(pauta.status)) {
     return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });

@@ -28,7 +28,7 @@ describe('GET /p/[slug]/og.png', () => {
     const png = Buffer.from(await resposta.arrayBuffer());
     expect(dimensoes(png)).toEqual({ largura: 1200, altura: 630 });
     expect(png.length).toBeLessThan(300 * 1024);
-    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug);
+    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug, { fresca: true });
   });
 
   it('título e bloco longos ainda geram um PNG válido (o encaixe foi conferido no olho)', async () => {
