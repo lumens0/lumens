@@ -296,7 +296,9 @@ pnpm --filter @lumens/painel build   # build de produção
 ```
 
 O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
-`.env`. Na homologação, elas vêm do `.env.producao` da VM.
+`.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também `AWS_REGION`,
+`S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do `.env.producao`
+da VM.
 
 **Adicionar um curador** (ou reativar quem saiu):
 
