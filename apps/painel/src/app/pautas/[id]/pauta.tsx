@@ -2,6 +2,7 @@ import type { PautaDaCuradoria } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
 import { dataHora, textoDoPrazo } from '../../prazo';
+import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
 
 export const STATUS: Record<PautaDaCuradoria['status'], string> = {
@@ -70,11 +71,7 @@ export function Pauta({
           </>
         )}
         <dt>Foto</dt>
-        <dd>
-          {pauta.fotoChave === null
-            ? 'Sem foto'
-            : 'Tem foto no relato (o painel ainda não mostra a imagem)'}
-        </dd>
+        <dd>{pauta.fotoChave === null ? 'Sem foto' : <Foto chave={pauta.fotoChave} />}</dd>
         {pauta.motivoRecusa !== null && (
           <>
             <dt>Motivo da recusa</dt>
