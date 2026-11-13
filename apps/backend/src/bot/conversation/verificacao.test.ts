@@ -13,7 +13,7 @@ import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
-import { ASK_WRITE_REPORT_TEXT, supportedText } from './apoio';
+import { ASK_WRITE_REPORT_TEXT, cardDaPauta, supportedText } from './apoio';
 import { MENU_TEXT } from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
 import { NO_PROPOSAL_TEXT } from './proposta';
@@ -534,6 +534,7 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     expect(await send('curso:Direito')).toEqual([
       VERIFIED_TEXT,
       supportedText('Bebedouros', 1, 30),
+      cardDaPauta('bebedouros', 1),
       ASK_WRITE_REPORT_TEXT,
     ]);
     expect(await passo()).toBe('SUPPORT_ASK_REPORT');

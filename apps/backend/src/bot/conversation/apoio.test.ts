@@ -26,6 +26,7 @@ import {
   SUPPORT_PHOTO_ASK_TEXT,
   SUPPORT_VERIFY_FIRST_TEXT,
   alreadySupportsText,
+  cardDaPauta,
   goalReachedText,
   reportTooLongText,
   supportedText,
@@ -117,7 +118,11 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
   it('"É essa" registra o apoio, mostra o placar e oferece juntar o relato', async () => {
     await verificar();
     const respostas = await escolherAPauta();
-    expect(respostas).toEqual([supportedText(TITULO, 1, 30), ASK_ATTACH_REPORT_TEXT]);
+    expect(respostas).toEqual([
+      supportedText(TITULO, 1, 30),
+      cardDaPauta('bebedouros', 1),
+      ASK_ATTACH_REPORT_TEXT,
+    ]);
     expect(await apoiosDaPauta()).toHaveLength(1);
     expect((await apoiosDaPauta())[0]?.origem).toBe('bot');
     expect(await passo()).toBe('SUPPORT_ASK_REPORT');
@@ -140,6 +145,8 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     const respostas = await escolherAPauta();
     expect(respostas[0]).toBe(alreadySupportsText(TITULO, 1, 30));
     expect(respostas[0]).toContain('Você já apoia esta pauta');
+    // O card vai de novo: quem toca em "Apoiar" outra vez também quer compartilhar.
+    expect(respostas[1]).toEqual(cardDaPauta('bebedouros', 1));
     expect(await apoiosDaPauta()).toHaveLength(1);
     // Mesmo quem já apoiava pode juntar um relato novo.
     expect(await passo()).toBe('SUPPORT_ASK_REPORT');
@@ -152,6 +159,7 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     expect(respostas).toEqual([
       supportedText(TITULO, 1, 1),
       goalReachedText(1),
+      cardDaPauta('bebedouros', 1),
       ASK_ATTACH_REPORT_TEXT,
     ]);
     const tipos = (
