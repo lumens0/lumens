@@ -1,8 +1,24 @@
-import { and, apoios, criarDb, criarPool, eq, eventos, papeisPauta, type Db } from '@lumens/db';
+import {
+  and,
+  apoios,
+  criarDb,
+  criarPool,
+  eq,
+  eventos,
+  papeisPauta,
+  pautas,
+  sql,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
-import { adicionarCoOwner, registrarAtividadeOwner, removerOwnerInativo } from './owners';
+import {
+  adicionarCoOwner,
+  podeVirarCoOwner,
+  registrarAtividadeOwner,
+  removerOwnerInativo,
+} from './owners';
 
 let db: Db;
 
@@ -88,12 +104,52 @@ describe('adicionarCoOwner (RN06)', () => {
     });
   });
 
+  it('pauta conquistada, recusada ou em curadoria não recebe co-owner', async () => {
+    const { pauta, apoiadores } = await pautaComApoiadores(1);
+    const [a] = apoiadores;
+    if (a === undefined) throw new Error('faltou apoiador');
+    for (const status of ['conquistada', 'recusada', 'em_curadoria'] as const) {
+      await db.update(pautas).set({ status }).where(eq(pautas.id, pauta.id));
+      expect(await adicionar(pauta.id, a.id)).toEqual({
+        adicionado: false,
+        motivo: 'pauta_fechada',
+      });
+    }
+    expect(await ownersAtivos(pauta.id)).toHaveLength(1);
+  });
+
   it('quem já é owner não entra de novo', async () => {
     const { pauta, criador } = await pautaComApoiadores(0);
     expect(await adicionar(pauta.id, criador.id)).toEqual({
       adicionado: false,
       motivo: 'ja_e_owner',
     });
+  });
+});
+
+describe('podeVirarCoOwner (convite do bot)', () => {
+  const pode = (pautaId: string, estudanteId: string) =>
+    podeVirarCoOwner(db, { pautaId, estudanteId });
+
+  it('apoiador sem papel, com vaga, pode; quem não apoiou e quem já é owner não', async () => {
+    const { pauta, criador, apoiadores } = await pautaComApoiadores(1);
+    const [a] = apoiadores;
+    if (a === undefined) throw new Error('faltou apoiador');
+    const estranho = await criarEstudanteVerificado(db);
+
+    expect(await pode(pauta.id, a.id)).toBe(true);
+    expect(await pode(pauta.id, estranho.id)).toBe(false);
+    expect(await pode(pauta.id, criador.id)).toBe(false);
+  });
+
+  it('com 3 owners ativos, ninguém mais pode', async () => {
+    const { pauta, apoiadores } = await pautaComApoiadores(3);
+    const [a, b, c] = apoiadores;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('faltou apoiador');
+    await adicionar(pauta.id, a.id);
+    await adicionar(pauta.id, b.id);
+
+    expect(await pode(pauta.id, c.id)).toBe(false);
   });
 });
 
@@ -207,6 +263,50 @@ describe.skipIf(!URL_TESTE)('adicionarCoOwner com Postgres de verdade', () => {
         .from(papeisPauta)
         .where(eq(papeisPauta.pautaId, pauta.id));
       expect(ativos.filter((o) => o.ate === null)).toHaveLength(3);
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
+
+  it('pauta concluída enquanto o pedido espera a trava: o co-owner não entra', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real, { status: 'prometido' });
+      const criador = await criarEstudanteVerificado(real);
+      const apoiador = await criarEstudanteVerificado(real);
+      for (const e of [criador, apoiador]) {
+        await real.insert(apoios).values({ pautaId: pauta.id, estudanteId: e.id, origem: 'bot' });
+      }
+      await tornarOwner(real, pauta.id, criador.id);
+
+      // A transação do agendador trava a pauta e conclui; o pedido chega enquanto ela está aberta.
+      let pedido: Promise<Awaited<ReturnType<typeof adicionarCoOwner>>> | undefined;
+      await real.transaction(async (agendador) => {
+        await agendador.select().from(pautas).where(eq(pautas.id, pauta.id)).for('update');
+        pedido = real.transaction((tx) =>
+          adicionarCoOwner(tx, { pautaId: pauta.id, estudanteId: apoiador.id }),
+        );
+        // Dá tempo de o pedido chegar à trava e esperar por ela.
+        await agendador.execute(sql`select pg_sleep(0.3)`);
+        await agendador
+          .update(pautas)
+          .set({ status: 'conquistada' })
+          .where(eq(pautas.id, pauta.id));
+      });
+
+      expect(await pedido).toEqual({ adicionado: false, motivo: 'pauta_fechada' });
+      const papeis = await real
+        .select({ estudanteId: papeisPauta.estudanteId })
+        .from(papeisPauta)
+        .where(eq(papeisPauta.pautaId, pauta.id));
+      expect(papeis).toEqual([{ estudanteId: criador.id }]);
     } finally {
       await pool.end();
       await temporario.apagar();

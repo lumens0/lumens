@@ -49,6 +49,7 @@ import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { entrarNoApoio } from './apoio';
+import { cuidarDaPauta } from './co-owner';
 import { entrarNaPautaNova } from './nova-pauta';
 import { vouAjudar } from './proposta';
 import { lista, type MensagemDeLista } from './resposta';
@@ -343,6 +344,11 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
   if (pendente?.kind === 'apoiar' && pendente.id !== undefined) {
     // 2.7: retoma o apoio pedido antes da verificação (pela 2.5 ou pelo site, na 2.8).
     return entrarNoApoio(ctx, pendente.id, [VERIFIED_TEXT]);
+  }
+  if (pendente?.kind === 'cuidar' && pendente.id !== undefined) {
+    // 2.8: retoma o pedido de virar co-owner.
+    const cuidar = await cuidarDaPauta(ctx, pendente.id, [VERIFIED_TEXT]);
+    return { ...cuidar, data: { ...cuidar.data, pendingCommand: undefined } };
   }
   return { next: 'MENU', replies: [VERIFIED_TEXT] };
 };
