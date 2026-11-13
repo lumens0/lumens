@@ -20,6 +20,13 @@ describe('buscarPauta', () => {
     });
   });
 
+  it('fresca lê sem o cache de 30 s (o card que o bot pede logo depois do apoio)', async () => {
+    const fetch = responder(200, { slug: 'a' });
+    vi.stubGlobal('fetch', fetch);
+    await buscarPauta('a', { fresca: true });
+    expect(fetch).toHaveBeenCalledWith('http://api.teste/pautas/a', { cache: 'no-store' });
+  });
+
   it.each([404, 400])('%i vira null', async (status) => {
     vi.stubGlobal('fetch', responder(status));
     expect(await buscarPauta('nao-existe')).toBeNull();

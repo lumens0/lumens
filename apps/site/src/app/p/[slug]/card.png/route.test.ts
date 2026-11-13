@@ -30,7 +30,7 @@ describe('GET /p/[slug]/card.png', () => {
       largura: 1080,
       altura: 1920,
     });
-    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug);
+    expect(buscarPauta).toHaveBeenCalledWith(fixture.slug, { fresca: true });
   });
 
   it('título muito longo ainda gera a imagem no mesmo tamanho', async () => {
