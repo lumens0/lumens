@@ -46,10 +46,11 @@ existia (formato story, 1080 × 1920).
 - **Também para quem já apoiava.** Quem toca em "Apoiar" de novo recebe o placar e o card: é o
   momento de compartilhar do mesmo jeito.
 - **Visual do card.** O card (e a prévia `og.png`, que usa o mesmo modelo) ganhou o visual do
-  site: a noite do campus, a janela acesa da marca, o número em âmbar e uma fachada em que cada
-  janela acesa é uma fração da meta (`janelasAcesas`). As fontes vão em TTF estático em
-  `apps/site/src/fontes/card/`, geradas dos woff2 variáveis do site, porque o `next/og` não lê
-  woff2 nem fonte variável; o `outputFileTracingIncludes` leva os arquivos para a função da Vercel.
+  site: a noite do campus, a marca do cabeçalho (o círculo, `public/lumens-marca.svg`), o número
+  em âmbar e uma fachada em que cada janela acesa é uma fração da meta (`janelasAcesas`). As fontes
+  vão em TTF estático em `apps/site/src/fontes/card/`, geradas dos woff2 variáveis do site, porque
+  o `next/og` não lê woff2 nem fonte variável; o `outputFileTracingIncludes` leva as fontes e a
+  marca para a função da Vercel.
 
 ## Fora do escopo
 
