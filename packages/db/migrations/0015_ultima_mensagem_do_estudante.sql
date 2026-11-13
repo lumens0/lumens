@@ -1,0 +1,1 @@
+ALTER TABLE "estudante" ADD COLUMN "ultima_mensagem_em" timestamp with time zone;

@@ -66,11 +66,20 @@ decisão.
 
 ## Casos — fila e worker de avisos
 
-- [fila] `somenteComConversaDesde`: só quem escreveu dentro da janela é reservado; os outros ficam
+- [fila] `somenteQuemEscreveuDesde`: só quem escreveu dentro da janela é reservado; os outros ficam
   pendentes, sem reserva nem falha, e saem quando escrevem.
 - [fila] `maximo`: o lote corta na ordem e o resto sai no lote seguinte.
 - [worker] erro permanente de outro canal grava `evolution:numero_inexistente`.
 - [worker] teto por lote e filtro chegam à reserva.
+
+## Casos — última mensagem do estudante (`estudante/ultima-mensagem.test.ts`, `bot/worker.test.ts`)
+
+- [domínio] grava o instante; mensagem atrasada na fila não volta o relógio; quem não tem
+  cadastro não grava nada.
+- [regressão] **texto, áudio e foto fora de hora** contam como mensagem recebida no worker. O
+  áudio não passa pela conversa; antes, quem só mandava áudio ficava sem os avisos (revisão do
+  Codex no PR #133).
+- [privacidade] o `sair` apaga o `ultima_mensagem_em` (`estudante/sair.test.ts`).
 
 ## Casos — ambiente (`config/env.test.ts`)
 

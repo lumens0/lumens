@@ -102,7 +102,7 @@ export async function enviarLote(
       ...(deps.somenteQuemEscreveuNosUltimosMs === undefined
         ? {}
         : {
-            somenteComConversaDesde: new Date(
+            somenteQuemEscreveuDesde: new Date(
               agora.getTime() - deps.somenteQuemEscreveuNosUltimosMs,
             ),
           }),

@@ -1,5 +1,5 @@
 import type { Db } from '@lumens/db';
-import { registrarAtividadePorTelefone } from '@lumens/dominio';
+import { registrarAtividadePorTelefone, registrarMensagemRecebida } from '@lumens/dominio';
 import type { JobResult, PgBoss, Queue } from 'pg-boss';
 import { cifrar, decifrar, hmacHex, segredoCom, type Chaves } from '../cripto/cifra';
 import type { ServicoDeEmail } from '../email/codigo';
@@ -177,10 +177,11 @@ export async function processIncomingJob(
   return deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
-    await registrarAtividadePorTelefone(tx, {
-      telefoneHmac: data.phoneHmac,
-      agora: instanteDaMensagem(data.timestamp),
-    });
+    const recebidaEm = instanteDaMensagem(data.timestamp);
+    await registrarAtividadePorTelefone(tx, { telefoneHmac: data.phoneHmac, agora: recebidaEm });
+    // SCRUM-275: toda mensagem, entendida ou não (áudio, foto fora de hora), conta como "escreveu
+    // ao bot". É o que libera os avisos pela Evolution, que só vão para quem escreveu em 24h.
+    await registrarMensagemRecebida(tx, { telefoneHmac: data.phoneHmac, agora: recebidaEm });
     const store = deps.store.withDb(tx);
     const segredo = segredoCom(deps.chaves.cifra);
     const input = deps.menusEmTexto

@@ -53,7 +53,8 @@
 - **Menu principal depois de menu numerado.** Neste canal, o `MENU_TEXT` que o router acrescenta
   depois de botões ou lista sai das respostas (seriam duas numerações seguidas).
 - **Avisos.** O worker de disparos é o mesmo. Com `evolution`:
-  - só reserva quem tem `conversa` atualizada nas últimas 24h; os outros ficam pendentes;
+  - só reserva quem mandou mensagem nas últimas 24h (`estudante.ultima_mensagem_em`, gravado em
+    toda mensagem recebida, inclusive as que o bot não entende); os outros ficam pendentes;
   - limite de `EVOLUTION_LIMITE_PESSOAS` pessoas por 24h (padrão 30) e
     `EVOLUTION_AVISOS_POR_LOTE` por lote (padrão 2, um lote por minuto);
   - a mensagem modelo vira texto (corpo com as variáveis, link "Ver a pauta: <site>/p/<slug>",

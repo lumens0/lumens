@@ -193,6 +193,31 @@ describe('atividade do owner', () => {
   });
 });
 
+describe('última mensagem do estudante (SCRUM-275)', () => {
+  const ultimaMensagem = async () =>
+    (await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, PHONE_HMAC)))[0]
+      ?.ultimaMensagemEm;
+  // O `job` dos testes manda timestamp 1700000000.
+  const QUANDO = new Date(1_700_000_000_000);
+
+  it.each<[string, JobDeTeste]>([
+    ['texto entendido', texto('oi')],
+    // Regressão (revisão do PR #133): o áudio não passa pela conversa, e antes não contava como
+    // "escreveu ao bot" — a pessoa ficava sem os avisos da Evolution.
+    ['áudio, que o bot não entende', job({}, 'audio')],
+    [
+      'foto fora de hora',
+      job({ image: { id: 'm1', mime_type: 'image/jpeg', sha256: 's' } }, 'image'),
+    ],
+  ])('%s conta como mensagem recebida', async (_caso, mensagem) => {
+    expect(await ultimaMensagem()).toBeNull();
+
+    await processIncomingJob(mensagem, deps);
+
+    expect(await ultimaMensagem()).toEqual(QUANDO);
+  });
+});
+
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
     const entrada = texto('oi');

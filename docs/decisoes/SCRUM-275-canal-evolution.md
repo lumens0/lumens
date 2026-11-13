@@ -70,7 +70,9 @@ da Meta continua e volta a ser o padrão assim que um número de produção func
 - `apps/backend/src/bot/canais/menu-em-texto.ts`: menu numerado e a tradução de volta para o `id`.
   O Telegram não precisa, porque tem teclado inline.
 - `packages/dominio/src/avisos/fila.ts`: `reservarLote` ganhou `maximo` e
-  `somenteComConversaDesde`, ao lado do `canal`. A Meta e o Telegram não usam.
+  `somenteQuemEscreveuDesde`, ao lado do `canal`. A Meta e o Telegram não usam.
+- `estudante.ultima_mensagem_em` (migração `0015`): o worker grava em toda mensagem recebida,
+  entendida ou não, e é por ela que a fila sabe quem escreveu nas últimas 24h. O `sair` apaga.
 - Operação: [canal da Evolution](../operacao/evolution.md).
 
 ## Spike
