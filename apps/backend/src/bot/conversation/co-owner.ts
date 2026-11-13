@@ -88,6 +88,9 @@ export async function cuidarDaPauta(
       return { next: 'MENU', replies: [...antes, ownersFullText(pauta.titulo)] };
     case 'pauta_inexistente':
       return { next: 'MENU', replies: [...antes, COOWNER_NOT_FOUND_TEXT] };
+    case 'pauta_fechada':
+      // A pauta fechou entre a leitura acima e a trava de `adicionarCoOwner`.
+      return { next: 'MENU', replies: [...antes, COOWNER_CLOSED_TEXT] };
     case 'nao_apoiou':
       return {
         next: 'MENU',
