@@ -11,11 +11,11 @@ dedup, cifra, ordem por conversa e retry não ganham uma segunda versão.
 
 As peças novas fora da pasta da Evolution, sem nada específico dela:
 
-| Peça                                 | Onde                                                   |
-| ------------------------------------ | ------------------------------------------------------ |
-| Menu numerado e tradução para o `id` | `apps/backend/src/bot/canais/menu-em-texto.ts`         |
-| Ritmo e filtro da fila               | `maximo` e `somenteComConversaDesde` em `reservarLote` |
-| Provedor do WhatsApp                 | `CANAL_WHATSAPP` em `config/env.ts` e `main.ts`        |
+| Peça                                 | Onde                                                    |
+| ------------------------------------ | ------------------------------------------------------- |
+| Menu numerado e tradução para o `id` | `apps/backend/src/bot/canais/menu-em-texto.ts`          |
+| Ritmo e filtro da fila               | `maximo` e `somenteQuemEscreveuDesde` em `reservarLote` |
+| Provedor do WhatsApp                 | `CANAL_WHATSAPP` em `config/env.ts` e `main.ts`         |
 
 **Em cima do Telegram (PR #132).** O Telegram entrou primeiro e definiu as peças compartilhadas;
 este canal as usa em vez de criar outras:
@@ -36,9 +36,14 @@ no `AppDeps`, o provedor no `canalDoEnv` e o ramo dela no `main.ts`.
 
 ## Fontes e decisões
 
-- **Sem migration.** O último menu fica em `conversa.dados.menuEmTexto`: expira com a conversa
-  (24h), some no `sair` e na limpeza diária. "Escreveu nas últimas 24h" é ter `conversa` com
-  `atualizado_em` dentro da janela: só o router grava nessa tabela, e só quando chega mensagem.
+- **Último menu sem migration.** Ele fica em `conversa.dados.menuEmTexto`: expira com a conversa
+  (24h), some no `sair` e na limpeza diária.
+- **"Escreveu nas últimas 24h" com migration (`0015_ultima_mensagem_do_estudante`).** A coluna
+  `estudante.ultima_mensagem_em` é gravada pelo worker em toda mensagem, entendida ou não, na
+  mesma transação. A primeira versão usava `conversa.atualizado_em`, e a revisão do Codex mostrou
+  o furo: áudio, figurinha e foto fora de hora não passam pela conversa e não a atualizam, e a
+  conversa expira. A coluna é nula para quem nunca escreveu desde a migração (o ambiente funciona
+  com o canal ligado ou desligado) e o `sair` a apaga.
 - **Menu cifrado.** Os títulos podem ser de pauta ainda em curadoria (`minhas-pautas`).
 - **Último menu = última resposta interativa do turno.** Texto depois do menu não o apaga. A
   exceção é o `MENU_TEXT` que o router acrescenta quando o fluxo volta ao menu ("Vou ajudar"):

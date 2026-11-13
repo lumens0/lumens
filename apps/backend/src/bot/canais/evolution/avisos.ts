@@ -56,7 +56,7 @@ const dormir = (ms: number) =>
  * Avisos pela Evolution (SCRUM-275): o aviso vira texto comum (`textoDoAviso`), com uma abertura
  * sorteada, "digitando…" antes e um intervalo aleatório desde o aviso anterior.
  *
- * Quem decide quem recebe é a fila (`reservarLote` com `somenteComConversaDesde` e `maximo`):
+ * Quem decide quem recebe é a fila (`reservarLote` com `somenteQuemEscreveuDesde` e `maximo`):
  * aqui só se cuida do ritmo de cada envio. A entrega chega depois, pelo `messages.update` da
  * Evolution, que casa com o id devolvido aqui.
  */

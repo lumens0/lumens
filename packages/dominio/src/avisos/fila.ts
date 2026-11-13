@@ -21,7 +21,6 @@
  */
 import {
   and,
-  conversas,
   disparos,
   eq,
   estudantes,
@@ -145,10 +144,10 @@ export interface ParametrosDeLote {
    */
   maximo?: number;
   /**
-   * Só entra quem tem conversa com o bot atualizada depois deste instante, isto é, quem escreveu
-   * (SCRUM-275). Os outros continuam pendentes, sem ocupar vaga, até escreverem ou o aviso expirar.
+   * Só entra quem mandou mensagem ao bot depois deste instante (`ultima_mensagem_em`, SCRUM-275).
+   * Os outros continuam pendentes, sem ocupar vaga, até escreverem ou o aviso expirar.
    */
-  somenteComConversaDesde?: Date;
+  somenteQuemEscreveuDesde?: Date;
 }
 
 /**
@@ -170,7 +169,7 @@ export async function reservarLote(
     agora = new Date(),
     canal = 'whatsapp',
     maximo,
-    somenteComConversaDesde,
+    somenteQuemEscreveuDesde,
   }: ParametrosDeLote,
 ): Promise<DisparoReservado[]> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${LOCK_DA_FILA})`);
@@ -227,11 +226,9 @@ export async function reservarLote(
         canal === 'telegram'
           ? sql`${estudantes.telefoneHmac} like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`
           : sql`${estudantes.telefoneHmac} not like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`,
-        somenteComConversaDesde === undefined
+        somenteQuemEscreveuDesde === undefined
           ? undefined
-          : sql`exists (select 1 from ${conversas}
-              where ${conversas.telefoneHmac} = ${estudantes.telefoneHmac}
-                and ${conversas.atualizadoEm} > ${somenteComConversaDesde.toISOString()}::timestamptz)`,
+          : gt(estudantes.ultimaMensagemEm, somenteQuemEscreveuDesde),
       ),
     );
 

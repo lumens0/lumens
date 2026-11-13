@@ -86,6 +86,7 @@ export async function sairDoLumens(
       telefoneCifrado: lapide,
       emailHmac: null,
       emailCifrado: null,
+      ultimaMensagemEm: null,
       saiuEm: agora,
     })
     .where(eq(estudantes.id, estudanteId));
