@@ -1,4 +1,4 @@
-import { buscarPautaDaCuradoria } from '@lumens/dominio';
+import { buscarPautaDaCuradoria, documentosDeResposta } from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../../auth';
 import { sair } from '../../../acoes';
@@ -26,6 +26,7 @@ export default async function PaginaDaPromessa({
     <Moldura nome={curador.nome} sair={sair}>
       <FormularioDaPromessa
         pauta={pauta}
+        documentos={await documentosDeResposta(servidor().db, pauta.id)}
         hoje={hojeEmMaceio()}
         erro={(await searchParams).erro}
         registrar={registrar}
