@@ -214,3 +214,48 @@
   font-weight: 600;
   text-decoration: none;
 }
+
+/* Foto do relato (SCRUM-262): pequena na ficha, inteira ao tocar. */
+.foto {
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.foto img {
+  display: block;
+  max-width: min(100%, 360px);
+  max-height: 360px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+/* Formulário da promessa com o PDF da resposta ao lado (SCRUM-262); um embaixo do outro no celular. */
+.aoLado {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 1000px) {
+  .aoLado {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.documentos {
+  display: grid;
+  gap: 12px;
+}
+
+.documentos h2 {
+  margin: 0;
+}
+
+.pdf {
+  width: 100%;
+  height: 70vh;
+  min-height: 420px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+}

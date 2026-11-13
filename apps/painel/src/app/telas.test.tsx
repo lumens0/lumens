@@ -76,6 +76,18 @@ describe('fila das pautas novas', () => {
 });
 
 describe('tela da pauta', () => {
+  it('com foto: mostra a imagem pela rota que exige sessão e abre inteira em outra aba', () => {
+    const FOTO = 'fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.png';
+    const html = renderToStaticMarkup(
+      <Pauta pauta={pauta({ fotoChave: FOTO })} aprovar={acao} recusar={acao} />,
+    );
+
+    expect(html).toContain(
+      `<img src="/curadoria/arquivos/${FOTO}" alt="Foto enviada com o relato"`,
+    );
+    expect(html).toContain(`href="/curadoria/arquivos/${FOTO}" target="_blank"`);
+  });
+
   it('em curadoria: mostra título, bloco, descrição e as duas decisões com o id da pauta', () => {
     const html = renderToStaticMarkup(<Pauta pauta={pauta()} aprovar={acao} recusar={acao} />);
 
@@ -159,6 +171,35 @@ describe('promessa pela tela', () => {
     expect(html).toContain('name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
   });
 
+  it('o PDF da resposta fica ao lado: o mais novo aberto e todos em links (SCRUM-262)', () => {
+    const PDF = 'respostas/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.pdf';
+    const ANTIGO = 'respostas/2026/10/0a1b2c3d-4e5f-4a6b-8c7d-0123456789ab.pdf';
+    const html = renderToStaticMarkup(
+      <FormularioDaPromessa
+        pauta={pauta({ status: 'cobrando' })}
+        documentos={[
+          { id: 'd2', arquivoChave: PDF, recebidoEm: new Date('2026-11-12T15:00:00.000Z') },
+          { id: 'd1', arquivoChave: ANTIGO, recebidoEm: new Date('2026-10-30T15:00:00.000Z') },
+        ]}
+        hoje="2026-11-10"
+        registrar={acao}
+      />,
+    );
+    const sem = renderToStaticMarkup(
+      <FormularioDaPromessa
+        pauta={pauta({ status: 'cobrando' })}
+        hoje="2026-11-10"
+        registrar={acao}
+      />,
+    );
+
+    expect(html).toMatch(new RegExp(`<iframe[^>]*src="/curadoria/arquivos/${PDF}"`));
+    expect(html).toContain(`href="/curadoria/arquivos/${ANTIGO}"`);
+    expect(html).toContain('PDF recebido em 12/11/2026, 12:00');
+    expect(sem).not.toContain('<iframe');
+    expect(sem).toContain('Nenhum PDF de resposta chegou pelo bot');
+  });
+
   it('pauta fora de cobrança não mostra o formulário; erro do registro aparece', () => {
     const fora = renderToStaticMarkup(
       <FormularioDaPromessa pauta={pauta()} hoje="2026-11-10" registrar={acao} />,
@@ -209,7 +250,7 @@ describe('relatos novos', () => {
             {
               id: 'r1',
               texto: 'Falem com a professora Marta: fulano@ufal.br',
-              fotoChave: 'fotos/a.jpg',
+              fotoChave: 'fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.jpg',
               achados: [
                 {
                   severidade: 'aviso',
@@ -238,7 +279,11 @@ describe('relatos novos', () => {
     expect(html).toContain('nome de pessoa, ofensa e dado pessoal');
     expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
     expect(html).toContain('Campus inteiro');
-    expect(html).toContain('Tem foto (o painel ainda não mostra a imagem)');
+    // A foto aparece para a curadoria conferir, pela rota que exige sessão (SCRUM-262).
+    expect(html).toContain(
+      'src="/curadoria/arquivos/fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.jpg"',
+    );
+    expect(html).not.toContain('ainda não mostra a imagem');
     expect(html).toContain('Sem foto');
     expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
     expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');

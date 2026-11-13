@@ -1,5 +1,6 @@
 import type { PautaComRelatosPendentes } from '@lumens/dominio';
 import Link from 'next/link';
+import { Foto } from '../arquivos';
 import estilos from '../painel.module.css';
 
 const FEITO: Record<string, string> = {
@@ -66,11 +67,11 @@ export function Relatos({
               {pauta.relatos.map((relato) => (
                 <li key={relato.id} className={estilos.cartao}>
                   <p className={estilos.descricaoDaPauta}>{relato.texto}</p>
-                  <p className={estilos.detalhes}>
-                    {relato.fotoChave === null
-                      ? 'Sem foto'
-                      : 'Tem foto (o painel ainda não mostra a imagem)'}
-                  </p>
+                  {relato.fotoChave === null ? (
+                    <p className={estilos.detalhes}>Sem foto</p>
+                  ) : (
+                    <Foto chave={relato.fotoChave} />
+                  )}
                   {relato.achados.length > 0 && (
                     <ul className={estilos.aviso}>
                       {relato.achados.map((achado) => (
