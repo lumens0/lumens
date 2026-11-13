@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
 import exemplo from './blocos-teste.json';
-import { SEM_APOIO, blocoDaUrl, contextoDaPauta, pautasPublicas, totais } from './pautas-publicas';
+import {
+  SEM_APOIO,
+  blocoDaUrl,
+  contextoDaPauta,
+  pautasPublicas,
+  resumoDosTotais,
+  totais,
+} from './pautas-publicas';
 
 describe('pautasPublicas', () => {
   const lista = pautasPublicas(PAUTAS_TESTE);
@@ -55,6 +62,23 @@ describe('totais', () => {
 
   it('lista vazia dá tudo zero', () => {
     expect(totais([])).toEqual({ abertas: 0, apoios: 0, conquistas: 0 });
+  });
+});
+
+describe('resumoDosTotais (o anúncio do leitor de tela)', () => {
+  it('diz onde e os três números, com milhar e plural', () => {
+    expect(resumoDosTotais('Todo o campus', { abertas: 4, apoios: 2530, conquistas: 2 })).toBe(
+      'Todo o campus: 4 pautas abertas, 2.530 apoios e 2 conquistas.',
+    );
+  });
+
+  it('singular quando é um, plural no zero', () => {
+    expect(resumoDosTotais('Bloco 18', { abertas: 1, apoios: 1, conquistas: 1 })).toBe(
+      'Bloco 18: 1 pauta aberta, 1 apoio e 1 conquista.',
+    );
+    expect(resumoDosTotais('Bloco 18', { abertas: 0, apoios: 0, conquistas: 0 })).toBe(
+      'Bloco 18: 0 pautas abertas, 0 apoios e 0 conquistas.',
+    );
   });
 });
 

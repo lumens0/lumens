@@ -24,6 +24,24 @@ em cada família.
 Nas duas famílias o `adjustFontFallback` fica ligado, e o Next calcula as métricas a partir dos
 próprios arquivos.
 
+## O que o site serve: recortes
+
+O `layout.tsx` não carrega os originais (`*-var.woff2`), e sim recortes gerados a partir deles por
+`apps/site/scripts/recortar-fontes.py` (SCRUM-59):
+
+| arquivo servido                           | recorte                                          | tamanho        |
+| ----------------------------------------- | ------------------------------------------------ | -------------- |
+| `bricolage-grotesque-latin-600-800.woff2` | pesos 600–800 (os dos títulos), largura fixa 100 | 129 KB → 67 KB |
+| `instrument-sans-latin-400-700.woff2`     | largura fixa 100                                 | 56 KB → 29 KB  |
+
+Nada muda na tela: o site não usa `font-stretch`, e os títulos só usam 600, 700 e 800. O eixo de
+tamanho óptico da Bricolage fica inteiro. As duas fontes vão no `preload` e, no celular em 4G, são
+o que mais pesa no LCP de texto: o recorte tira quase meio segundo.
+
+Se um título passar a usar peso fora de 600–800, ou se um original for trocado, rode o script de
+novo (o comando está no topo dele) e ajuste o `weight` no `layout.tsx`. Os originais ficam aqui
+porque são a fonte do recorte e dos TTF do card da pauta (`card/`).
+
 ## Origem
 
 Baixados do Google Fonts, bloco `/* latin */` do CSS de cada família.

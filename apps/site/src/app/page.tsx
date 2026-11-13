@@ -9,7 +9,7 @@ import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
-import { blocoDaUrl, pautasPublicas, totais } from '../dados/pautas-publicas';
+import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
 import { nomeDoCanal } from '../whatsapp';
 import estilos from './page.module.css';
 import { metadadosDaMarca } from '../metadados';
@@ -30,7 +30,9 @@ export default async function Home({
   const bloco = blocoDaUrl(blocos, blocoParam);
   // A API já filtra e ordena; o `pautasPublicas` repete a regra como segunda barreira.
   const lista = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
-  const { abertas, apoios, conquistas } = totais(lista);
+  const contagem = totais(lista);
+  const { abertas, apoios, conquistas } = contagem;
+  const onde = bloco?.nome ?? 'Todo o campus';
   const marcadores = marcadoresDoMapa(blocos, lista);
   return (
     <main className={estilos.pagina}>
@@ -64,11 +66,15 @@ export default async function Home({
         </div>
       </section>
 
-      {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. */}
-      <section className={estilos.totais} aria-labelledby="totais-titulo" aria-live="polite">
+      {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. A região viva é só o
+          resumo escondido: os números visíveis sobem com animação e anunciariam cada quadro. */}
+      <section className={estilos.totais} aria-labelledby="totais-titulo">
+        <p role="status" className={estilos.somenteLeitor}>
+          {resumoDosTotais(onde, contagem)}
+        </p>
         <div className={estilos.totaisTopo}>
           <h2 id="totais-titulo" className={estilos.totaisTitulo}>
-            {bloco?.nome ?? 'Todo o campus'}
+            {onde}
           </h2>
           <FiltroBloco blocos={blocos} atual={bloco?.slug} />
         </div>
