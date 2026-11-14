@@ -1,0 +1,23 @@
+{
+  "event": "messages.upsert",
+  "instance": "lumens",
+  "data": {
+    "key": {
+      "remoteJid": "5582999990000@s.whatsapp.net",
+      "remoteJidAlt": "5582999990000@s.whatsapp.net",
+      "addressingMode": "lid",
+      "fromMe": false,
+      "id": "3EB0FIXTURELID"
+    },
+    "pushName": "Pessoa Simulada",
+    "message": {
+      "conversation": "buraco no bloco 12"
+    },
+    "messageType": "conversation",
+    "messageTimestamp": 1767225600,
+    "source": "android"
+  },
+  "destination": "http://backend:3000/webhook/evolution",
+  "date_time": "2026-01-01T00:00:00.000Z",
+  "server_url": "http://localhost:8080"
+}

@@ -47,6 +47,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       .set({
         emailHmac: `email-hmac-${randomUUID()}`,
         emailCifrado: `cifrado-${randomUUID()}`,
+        ultimaMensagemEm: new Date(AGORA.getTime() - 60_000),
       })
       .where(eq(estudantes.id, estudante.id));
 
@@ -101,6 +102,8 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     expect(estudanteApos.telefoneCifrado).toBe(estudanteApos.telefoneHmac);
     expect(estudanteApos.emailHmac).toBeNull();
     expect(estudanteApos.emailCifrado).toBeNull();
+    // SCRUM-275: o instante da última mensagem também sai.
+    expect(estudanteApos.ultimaMensagemEm).toBeNull();
     expect(estudanteApos.saiuEm).toEqual(AGORA);
     expect(estudanteApos.curso).toBe(estudante.curso);
     expect(estudanteApos.verificadoEm).toEqual(estudante.verificadoEm);

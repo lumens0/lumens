@@ -57,6 +57,12 @@ export const estudantes = pgTable('estudante', {
   curso: text('curso'),
   verificadoEm: instante('verificado_em'),
   saiuEm: instante('saiu_em'),
+  /**
+   * Quando a pessoa mandou a última mensagem ao bot, de qualquer tipo, entendida ou não
+   * (SCRUM-275). No WhatsApp pela Evolution, só recebe aviso quem escreveu nas últimas 24h. Só o
+   * instante, sem o conteúdo; o `sair` apaga.
+   */
+  ultimaMensagemEm: instante('ultima_mensagem_em'),
 });
 
 export const codigosVerificacao = pgTable(
