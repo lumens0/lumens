@@ -10,6 +10,11 @@ export interface PendingCommand {
 
 export interface ConversationData extends Record<string, unknown> {
   pendingCommand?: PendingCommand;
+  /**
+   * Último menu numerado mandado por um canal só de texto (SCRUM-275), cifrado com a CHAVE_CIFRA:
+   * os títulos podem ser de pauta ainda em curadoria. Quem lê e grava é o worker.
+   */
+  menuEmTexto?: string;
 }
 
 export interface ConversationState {
@@ -92,6 +97,22 @@ export class ConversationStore {
       .where(lt(conversas.expiraEm, now))
       .returning({ phoneHmac: conversas.telefoneHmac });
     return rows.length;
+  }
+
+  /**
+   * Troca o menu numerado da conversa (`null` apaga). Não cria conversa: se ela foi apagada no
+   * turno (a pessoa saiu), não sobra nada guardado com o HMAC do telefone.
+   */
+  async guardarMenu(phoneHmac: string, menuCifrado: string | null): Promise<void> {
+    const current = await this.get(phoneHmac);
+    if (!current) return;
+    const { menuEmTexto: anterior, ...rest } = current.data;
+    if (menuCifrado === null && anterior === undefined) return;
+    await this.save(
+      phoneHmac,
+      current.step,
+      menuCifrado === null ? rest : { ...rest, menuEmTexto: menuCifrado },
+    );
   }
 
   /** Guarda um comando pendente (ex.: link "apoiar <id>") para depois do fluxo atual. */

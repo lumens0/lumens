@@ -78,7 +78,7 @@ const conteudoSchema = z.object({
     .optional(),
 });
 
-const mensagemSchema = conteudoSchema.extend({
+export const mensagemSchema = conteudoSchema.extend({
   // id e from não vão crus para a fila (viram HMAC e cifra), então não passam pelo paraJsonb.
   id: z.string().min(1),
   from: z.string().min(1),
@@ -230,7 +230,7 @@ export async function processWebhookPayload(
   return result;
 }
 
-async function enfileirar(
+export async function enfileirar(
   mensagem: z.infer<typeof mensagemSchema>,
   phoneNumberId: string,
   deps: ProcessDeps,
@@ -292,7 +292,7 @@ export async function marcarProcessada(tx: Tx, wamidHmac: string): Promise<boole
  * Vai só o HMAC do wamid: o wamid em claro e o `recipient_id` são o telefone. Não há dedup: gravar
  * a mesma entrega duas vezes não muda nada (`registrarEntrega` é idempotente).
  */
-async function enfileirarStatus(
+export async function enfileirarStatus(
   status: z.infer<typeof statusSchema>,
   deps: ProcessDeps,
 ): Promise<void> {

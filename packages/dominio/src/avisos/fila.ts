@@ -138,6 +138,16 @@ export interface ParametrosDeLote {
   canal?: CanalDoBot;
   /** Injetável para teste; o padrão é agora. */
   agora?: Date;
+  /**
+   * Teto de disparos neste lote, para provedores que precisam de ritmo baixo (SCRUM-275). O que
+   * passar do teto não é reservado e fica para o próximo lote, na mesma ordem.
+   */
+  maximo?: number;
+  /**
+   * Só entra quem mandou mensagem ao bot depois deste instante (`ultima_mensagem_em`, SCRUM-275).
+   * Os outros continuam pendentes, sem ocupar vaga, até escreverem ou o aviso expirar.
+   */
+  somenteQuemEscreveuDesde?: Date;
 }
 
 /**
@@ -154,7 +164,13 @@ export interface ParametrosDeLote {
  */
 export async function reservarLote(
   tx: Tx,
-  { limite, agora = new Date(), canal = 'whatsapp' }: ParametrosDeLote,
+  {
+    limite,
+    agora = new Date(),
+    canal = 'whatsapp',
+    maximo,
+    somenteQuemEscreveuDesde,
+  }: ParametrosDeLote,
 ): Promise<DisparoReservado[]> {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${LOCK_DA_FILA})`);
 
@@ -210,6 +226,9 @@ export async function reservarLote(
         canal === 'telegram'
           ? sql`${estudantes.telefoneHmac} like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`
           : sql`${estudantes.telefoneHmac} not like ${`${PREFIXO_IDENTIDADE_TELEGRAM}%`}`,
+        somenteQuemEscreveuDesde === undefined
+          ? undefined
+          : gt(estudantes.ultimaMensagemEm, somenteQuemEscreveuDesde),
       ),
     );
 
@@ -226,7 +245,9 @@ export async function reservarLote(
     alcancados: new Set(alcancados.map((a) => a.estudanteId)),
   });
 
-  const ids = plano.enviarAgora.map((d) => d.id);
+  const ids = plano.enviarAgora
+    .slice(0, maximo === undefined ? undefined : Math.max(0, maximo))
+    .map((d) => d.id);
   if (ids.length === 0) return [];
 
   await tx.update(disparos).set({ reservadoEm: agora }).where(inArray(disparos.id, ids));

@@ -213,6 +213,7 @@ export { diaEmMaceio, formatarDia } from './compartilhado/datas';
 
 export { sairDoLumens } from './estudante/sair';
 export type { ResultadoSaida } from './estudante/sair';
+export { registrarMensagemRecebida } from './estudante/ultima-mensagem';
 
 export {
   CODIGO_EXPIRA_MS,

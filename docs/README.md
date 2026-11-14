@@ -30,6 +30,7 @@ Cada pasta responde a uma pergunta. Comece pelo [README da raiz](../README.md) p
 - [Homologação](operacao/homologacao.md): a VM, o Caddy, os secrets e o deploy.
 - [Backup do banco](operacao/backup.md): backup diário, teste de restauração e incidentes.
 - [Chaves de criptografia](operacao/chaves.md): gerar, rotacionar e o que fazer se vazar.
+- [Canal da Evolution](operacao/evolution.md): WhatsApp não oficial, pareamento e troca de chip.
 
 ## Meta (WhatsApp)
 

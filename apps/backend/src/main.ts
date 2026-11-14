@@ -3,6 +3,7 @@ import { registerAvisoMetaBatidaJob } from './agendador/aviso-meta-batida';
 import { registerGatilhosJob } from './agendador/gatilhos';
 import { registerCleanupJob } from './agendador/limpeza-conversas';
 import { buildApp } from './app';
+import { criarCanalEvolution } from './bot/canais/evolution';
 import { ConversationStore } from './bot/conversation/store';
 import { graphSender, logModeloSender, whatsappAvisoSender } from './bot/envio/sender';
 import { registerEnvioWorker, registerStatusWorker } from './bot/envio/worker';
@@ -72,6 +73,8 @@ async function iniciar(env: Env): Promise<void> {
   const canal = canalDoEnv(env);
   const whatsapp = canal.canal === 'whatsapp' ? canal : undefined;
   const telegram = canal.canal === 'telegram' ? canal : undefined;
+  // WhatsApp pela Evolution API (CANAL_WHATSAPP=evolution, SCRUM-275): no lugar da Cloud API.
+  const configEvolution = canal.canal === 'whatsapp-evolution' ? canal : undefined;
   logger.info({ canal: canal.canal, modo: telegram?.modo }, 'canal do bot');
 
   try {
@@ -112,10 +115,15 @@ async function iniciar(env: Env): Promise<void> {
     // limpeza e o storage são os mesmos. PDF da resposta oficial (3.6): mesmo bucket, pasta
     // `respostas/`, que não é pública.
     const apiDoTelegram = telegram ? criarApiDoTelegram({ token: telegram.token }) : undefined;
+    const evolution = configEvolution
+      ? criarCanalEvolution({ config: configEvolution, logger, chaves, modoDev: MODO_DEV })
+      : undefined;
     const baixar = (id: string, opcoes: { tamanhoMaximo?: number } = {}) =>
-      apiDoTelegram
-        ? baixarMidiaDoTelegram(id, { api: apiDoTelegram, ...opcoes })
-        : baixarMidiaDaMeta(id, { token: whatsapp?.token ?? '', ...opcoes });
+      evolution
+        ? evolution.baixarMidia(id, opcoes)
+        : apiDoTelegram
+          ? baixarMidiaDoTelegram(id, { api: apiDoTelegram, ...opcoes })
+          : baixarMidiaDaMeta(id, { token: whatsapp?.token ?? '', ...opcoes });
     const respostas = criarServicoDeRespostas({
       baixar: (id) => baixar(id, { tamanhoMaximo: TAMANHO_MAXIMO_PDF }),
       storage: storageDeArquivos,
@@ -154,6 +162,17 @@ async function iniciar(env: Env): Promise<void> {
         logger,
         limite: SEM_COTA,
       });
+    } else if (evolution) {
+      // Evolution: só para quem escreveu nas últimas 24h, poucos por lote, com pausa entre um e
+      // outro (veja docs/operacao/evolution.md).
+      await registerEnvioWorker(boss, {
+        db,
+        sender: evolution.avisos,
+        canal: 'whatsapp',
+        chaves,
+        logger,
+        ...evolution.envio,
+      });
     } else if (whatsapp) {
       const modeloSender = MODO_DEV
         ? logModeloSender(logger)
@@ -178,13 +197,16 @@ async function iniciar(env: Env): Promise<void> {
       fotos,
       email,
       respostas,
+      // A Evolution não tem lista nem botão: os menus saem numerados (SCRUM-275).
+      ...(evolution ? { menusEmTexto: true } : {}),
     });
     await registerReplyWorker(
       boss,
       apiDoTelegram
         ? telegramSender({ api: apiDoTelegram, chaves, logger })
-        : // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
-          logSender(logger, chaves, { mostrarTexto: MODO_DEV }),
+        : (evolution?.respostas ??
+            // Ainda não há envio pela Cloud API: no WhatsApp as respostas só vão para o log.
+            logSender(logger, chaves, { mostrarTexto: MODO_DEV })),
       logger,
     );
 
@@ -195,6 +217,7 @@ async function iniciar(env: Env): Promise<void> {
       ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined && apiDoTelegram
         ? { telegram: { segredo: telegram.segredoDoWebhook, api: apiDoTelegram } }
         : {}),
+      ...(configEvolution ? { evolution: { segredo: configEvolution.segredoDoWebhook } } : {}),
       db,
       queue,
       logger,

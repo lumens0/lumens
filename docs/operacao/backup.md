@@ -19,6 +19,11 @@ gerenciado. Então o backup é próprio:
 | Onde fica    | `/var/backups/lumens/{diario,semanal}` na própria VM, legível só pelo `azureuser`   |
 | Acesso       | Só quem tem SSH na VM. O banco continua sem porta publicada: o dump sai pelo `exec` |
 
+> **Fora do backup, de propósito:** os volumes da Evolution (`evolution-pgdata` e
+> `evolution-instances`, SCRUM-275). Eles guardam só a sessão do chip do WhatsApp, nenhum dado do
+> Lumens, e essa sessão não deve sair da VM. Perdê-los só obriga a parear o chip de novo
+> ([canal da Evolution](evolution.md)).
+
 > **Limitação conhecida:** os backups ficam no mesmo disco da VM. Eles cobrem erro humano,
 > migração ruim e banco corrompido, mas não a perda do disco ou da VM. Até a equipe decidir um
 > destino fora dela (Azure Blob Storage privado, por exemplo), copie um backup para fora antes de

@@ -8,6 +8,10 @@
 {$DOMINIO} {
 	encode zstd gzip
 
+	# O webhook da Evolution (SCRUM-275) chega pela rede interna do compose, nunca pela
+	# internet. O back-end já exige o segredo; fechar aqui tira a rota da superfície pública.
+	respond /webhook/evolution* 404
+
 	# O webhook da Meta chega aqui. O back-end confere a assinatura do corpo, então o
 	# proxy não pode reescrever o payload — só repassa.
 	reverse_proxy backend:3000

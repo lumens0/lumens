@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { SLUG_MAX } from '@lumens/contratos';
 import { sql } from '@lumens/db';
 import { apiPlugin, type ApiPluginOptions } from './api';
+import { webhookDaEvolution } from './bot/canais/evolution/webhook';
 import type { ApiDoTelegram } from './bot/telegram/api';
 import { telegramPlugin } from './bot/telegram/routes';
 import { webhookPlugin, type WebhookConfig, type WebhookPluginOptions } from './bot/webhook/routes';
@@ -15,6 +16,11 @@ export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
    * toque nos botões (`answerCallbackQuery`).
    */
   telegram?: { segredo: string; api?: Pick<ApiDoTelegram, 'chamar'> };
+  /**
+   * Webhook da Evolution (`/webhook/evolution`, SCRUM-275), quando o WhatsApp sai por ela
+   * (`CANAL_WHATSAPP=evolution`). O segredo vem no header `Authorization`.
+   */
+  evolution?: { segredo: string };
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
   leitura: ApiPluginOptions;
 };
@@ -57,8 +63,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(503).send({ ok: false });
     }
   });
-  const { leitura, config, telegram, ...bot } = deps;
+  const { leitura, config, telegram, evolution, ...bot } = deps;
   if (config) await app.register(webhookPlugin, { ...bot, config });
+  if (evolution) await app.register(webhookDaEvolution(evolution.segredo), bot);
   if (telegram) {
     await app.register(telegramPlugin, {
       ...bot,

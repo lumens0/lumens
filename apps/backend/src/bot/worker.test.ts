@@ -17,7 +17,7 @@ import {
   MENU_TEXT,
   type HandlerRegistry,
 } from './conversation/handlers';
-import type { Resposta } from './conversation/resposta';
+import { lista, type Resposta } from './conversation/resposta';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
 import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
@@ -193,6 +193,31 @@ describe('atividade do owner', () => {
   });
 });
 
+describe('última mensagem do estudante (SCRUM-275)', () => {
+  const ultimaMensagem = async () =>
+    (await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, PHONE_HMAC)))[0]
+      ?.ultimaMensagemEm;
+  // O `job` dos testes manda timestamp 1700000000.
+  const QUANDO = new Date(1_700_000_000_000);
+
+  it.each<[string, JobDeTeste]>([
+    ['texto entendido', texto('oi')],
+    // Regressão (revisão do PR #133): o áudio não passa pela conversa, e antes não contava como
+    // "escreveu ao bot" — a pessoa ficava sem os avisos da Evolution.
+    ['áudio, que o bot não entende', job({}, 'audio')],
+    [
+      'foto fora de hora',
+      job({ image: { id: 'm1', mime_type: 'image/jpeg', sha256: 's' } }, 'image'),
+    ],
+  ])('%s conta como mensagem recebida', async (_caso, mensagem) => {
+    expect(await ultimaMensagem()).toBeNull();
+
+    await processIncomingJob(mensagem, deps);
+
+    expect(await ultimaMensagem()).toEqual(QUANDO);
+  });
+});
+
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
     const entrada = texto('oi');
@@ -311,6 +336,71 @@ function bossFalso(filasExistentes: string[] | Record<string, FilaExistente> = [
 }
 
 const statuses = (resultados: unknown) => (resultados as { status: string }[]).map((r) => r.status);
+
+describe('menu em texto (SCRUM-275)', () => {
+  // A saudação manda uma lista; no menu, o handler devolve o que recebeu.
+  const handlers: HandlerRegistry = {
+    ...defaultHandlers,
+    GREETING: () => ({
+      next: 'MENU',
+      replies: [
+        lista({
+          corpo: 'Escolha:',
+          botao: 'Opções',
+          linhas: [
+            { id: 'pauta:1', titulo: 'Bebedouro' },
+            { id: 'pauta:2', titulo: 'Iluminação' },
+          ],
+        }),
+      ],
+    }),
+    MENU: (ctx) => ({ next: 'MENU', replies: [`escolheu:${ctx.input.text}`] }),
+  };
+  const processar = async (j: JobDeTeste, menusEmTexto = true) =>
+    processIncomingJob(j, { ...deps, handlers, menusEmTexto });
+
+  it('"2" chega à conversa como o id da opção, igual ao toque no botão', async () => {
+    await processar(texto('oi'));
+
+    const peloNumero = await processar(texto('2'));
+    // Mesma lista de novo, agora respondida pelo botão.
+    await deps.store.delete(PHONE_HMAC);
+    await processar(texto('oi'));
+    const peloBotao = await processar(
+      job({
+        interactive: { type: 'list_reply', list_reply: { id: 'pauta:2', title: 'Iluminação' } },
+      }),
+    );
+
+    expect(peloNumero).toEqual(['escolheu:pauta:2']);
+    expect(peloBotao).toEqual(peloNumero);
+  });
+
+  it('o título digitado também escolhe', async () => {
+    await processar(texto('oi'));
+    expect(await processar(texto('iluminacao'))).toEqual(['escolheu:pauta:2']);
+  });
+
+  it('depois de uma resposta sem menu, "2" volta a ser só "2"', async () => {
+    await processar(texto('oi'));
+    await processar(texto('qualquer coisa'));
+    expect(await processar(texto('2'))).toEqual(['escolheu:2']);
+  });
+
+  it('no canal da Meta nada muda: "2" é "2" e nenhum menu é guardado', async () => {
+    await processar(texto('oi'), false);
+    expect(await processar(texto('2'), false)).toEqual(['escolheu:2']);
+    expect((await deps.store.get(PHONE_HMAC))?.data.menuEmTexto).toBeUndefined();
+  });
+
+  it('o menu fica cifrado na conversa', async () => {
+    await processar(texto('oi'));
+    const guardado = (await deps.store.get(PHONE_HMAC))?.data.menuEmTexto;
+    expect(typeof guardado).toBe('string');
+    expect(guardado).not.toContain('Iluminação');
+    expect(guardado).not.toContain('pauta:2');
+  });
+});
 
 describe('registerIncomingWorker', () => {
   const opcoesDaEntrada = {

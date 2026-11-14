@@ -133,6 +133,49 @@ Construtores em `src/bot/sim/telegram.ts`: `buildTelegramText`, `buildTelegramSt
 e `sendTelegram`. Fixtures em `src/bot/sim/__fixtures__/telegram-*.json`; o teste
 `src/bot/sim/telegram.test.ts` confere que construtores e fixtures passam no `updateSchema` do bot.
 
+## Canal da Evolution (`--canal evolution`)
+
+Com `--canal evolution` (SCRUM-275), o simulador monta o payload da Evolution API
+(`messages.upsert`), manda o `EVOLUTION_WEBHOOK_SEGREDO` do `.env` no header `Authorization`
+e faz `POST` em `/webhook/evolution`. O servidor precisa estar com `CANAL_BOT=whatsapp` (ou vazio) e `CANAL_WHATSAPP=evolution`.
+Sem `EVOLUTION_URL` no `.env`, as respostas aparecem no log do `pnpm dev`, já com o texto.
+
+Não há botões nem listas nesse canal: o bot manda os menus numerados e a pessoa responde com o
+número (ou com o título da opção).
+
+| Tipo                          | O que envia                                                    |
+| ----------------------------- | -------------------------------------------------------------- |
+| `texto <mensagem>`            | `conversation`                                                 |
+| `encaminhada <mensagem>`      | `extendedTextMessage` com `contextInfo.isForwarded`            |
+| `imagem [legenda]`            | `imageMessage` (mídia fictícia: o download falha de propósito) |
+| `grupo <mensagem>`            | mensagem num grupo (o webhook deve ignorar)                    |
+| `propria <mensagem>`          | mensagem do próprio chip, `fromMe` (o webhook deve ignorar)    |
+| `sem-numero <mensagem>`       | conversa só com LID, sem número (o webhook deve ignorar)       |
+| `status <DELIVERY_ACK\|READ>` | entrega de uma mensagem do bot; exige `--wamid`                |
+
+| Opção          | O que faz                                                         |
+| -------------- | ----------------------------------------------------------------- |
+| `--lid <lid>`  | endereça por LID, com o número em `remoteJidAlt` (como a v2.3.7)  |
+| `--wamid <id>` | id fixo da mensagem (para testar o dedup)                         |
+| `--secret <s>` | segredo do header (padrão: `EVOLUTION_WEBHOOK_SEGREDO` do `.env`) |
+
+```sh
+# Conversa com menu numerado
+pnpm sim texto 'oi' --canal evolution
+pnpm sim texto '1' --canal evolution
+
+# Endereçamento por LID com o número junto, e sem o número
+pnpm sim texto 'oi' --canal evolution --lid 123456789012345
+pnpm sim sem-numero 'oi' --canal evolution
+
+# Ver o payload sem enviar
+pnpm sim encaminhada 'repassem' --canal evolution --dry-run
+```
+
+O formato segue o código da v2.3.7 da Evolution. Quando o spike com o chip rodar, confira com os
+payloads reais e ajuste `src/bot/sim/evolution.ts` (e as fixtures `evolution-*.json`) no que
+divergir.
+
 ## Uso programático
 
 ```ts

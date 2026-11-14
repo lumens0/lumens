@@ -466,3 +466,53 @@ describe('renovarReserva', () => {
     ).toBeNull();
   });
 });
+
+describe('reservarLote para o canal da Evolution (SCRUM-275)', () => {
+  describe('canal com ritmo baixo (SCRUM-275)', () => {
+    /** O estudante mandou a última mensagem ao bot em `quando`. */
+    const escreveu = (estudanteId: string, quando: Date) =>
+      db.update(estudantes).set({ ultimaMensagemEm: quando }).where(eq(estudantes.id, estudanteId));
+
+    it('só reserva para quem escreveu depois do instante pedido; o resto fica pendente', async () => {
+      const [a, b, c] = [await estudante(), await estudante(), await estudante()];
+      await escreveu(a, depois(-HORA));
+      await escreveu(b, depois(-25 * HORA));
+      await enfileirar([aviso('meta_batida', a), aviso('meta_batida', b), aviso('meta_batida', c)]);
+
+      const lote = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, somenteQuemEscreveuDesde: depois(-24 * HORA) }),
+      );
+      expect(resumo(lote)).toEqual([`meta_batida:${a}`]);
+
+      // B e C não foram reservados nem falharam: saem quando escreverem.
+      const pendentes = await db.select().from(disparos).where(eq(disparos.estudanteId, c));
+      expect(pendentes[0]).toMatchObject({ reservadoEm: null, falhouEm: null });
+      await escreveu(b, depois(MINUTO));
+      const depoisQueBEscreveu = await db.transaction((tx) =>
+        reservarLote(tx, {
+          limite: 10,
+          agora: depois(2 * MINUTO),
+          somenteQuemEscreveuDesde: depois(2 * MINUTO - 24 * HORA),
+        }),
+      );
+      expect(resumo(depoisQueBEscreveu)).toEqual([`meta_batida:${b}`]);
+    });
+
+    it('o teto por lote corta na ordem e deixa o resto para o lote seguinte', async () => {
+      const [a, b, c] = [await estudante(), await estudante(), await estudante()];
+      await enfileirar([aviso('meta_batida', a)], T0);
+      await enfileirar([aviso('meta_batida', b)], depois(1000));
+      await enfileirar([aviso('meta_batida', c)], depois(2000));
+
+      const primeiro = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: T0, maximo: 2 }),
+      );
+      const segundo = await db.transaction((tx) =>
+        reservarLote(tx, { limite: 10, agora: depois(MINUTO), maximo: 2 }),
+      );
+
+      expect(resumo(primeiro)).toEqual([`meta_batida:${a}`, `meta_batida:${b}`]);
+      expect(resumo(segundo)).toEqual([`meta_batida:${c}`]);
+    });
+  });
+});
