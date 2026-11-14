@@ -186,6 +186,32 @@ function converter(
   return { type: 'unsupported' };
 }
 
+/**
+ * Embrulhos que a Baileys põe em volta da mensagem: conversa com mensagens temporárias e
+ * visualização única. A Evolution v2.3.7 manda o embrulho como veio (`prepareMessage` copia a
+ * `message` inteira), então o texto de `{ ephemeralMessage: { message: { conversation } } }`
+ * estaria um nível abaixo do que o `converter` procura.
+ */
+const EMBRULHOS = [
+  'ephemeralMessage',
+  'viewOnceMessage',
+  'viewOnceMessageV2',
+  'viewOnceMessageV2Extension',
+] as const;
+
+/** A mensagem de dentro dos embrulhos (até três níveis), ou a própria mensagem. */
+function desembrulhar(mensagem: Objeto): Objeto {
+  let atual = mensagem;
+  for (let nivel = 0; nivel < 3; nivel++) {
+    const interna = EMBRULHOS.map((embrulho) => objeto(objeto(atual[embrulho])?.message)).find(
+      (m) => m !== undefined,
+    );
+    if (interna === undefined) return atual;
+    atual = interna;
+  }
+  return atual;
+}
+
 /** Lista de itens, venha o `data` como objeto ou como lista. */
 const itens = (data: unknown): unknown[] => (Array.isArray(data) ? data : [data]);
 
@@ -259,7 +285,7 @@ export async function processarWebhookDaEvolution(
       continue;
     }
 
-    const conteudo = converter(key, message);
+    const conteudo = converter(key, desembrulhar(message));
     if (conteudo.type === 'reaction' || conteudo.type === 'system') {
       deps.logger.info({ type: conteudo.type }, 'mensagem sem resposta (ignorada)');
       resultado.ignoradas++;

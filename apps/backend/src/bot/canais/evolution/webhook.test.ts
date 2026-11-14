@@ -179,6 +179,49 @@ describe('webhook da Evolution (SCRUM-275)', () => {
     });
   });
 
+  // Revisão do Codex no PR #133: a Evolution manda o embrulho da Baileys como veio.
+  it('texto de conversa com mensagens temporárias (ephemeralMessage) é texto', async () => {
+    await post(
+      envelope('messages.upsert', {
+        key: { remoteJid: `${PHONE}@s.whatsapp.net`, fromMe: false, id: '3EB0TEMPORARIA' },
+        message: {
+          ephemeralMessage: { message: { extendedTextMessage: { text: 'oi' } } },
+          messageContextInfo: {},
+        },
+      }),
+    );
+
+    const [job] = await jobs();
+    expect(job?.data.type).toBe('text');
+    expect(await conteudo()).toEqual({ text: { body: 'oi' } });
+  });
+
+  it('foto de visualização única dentro de mensagem temporária vira imagem', async () => {
+    await post(
+      envelope('messages.upsert', {
+        key: { remoteJid: `${PHONE}@s.whatsapp.net`, fromMe: false, id: '3EB0VIEWONCE' },
+        message: {
+          ephemeralMessage: {
+            message: {
+              viewOnceMessageV2: {
+                message: { imageMessage: { mimetype: 'image/jpeg', caption: 'poste' } },
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    const [job] = await jobs();
+    expect(job?.data.type).toBe('image');
+    const { image } = await conteudo();
+    expect(image).toMatchObject({ mime_type: 'image/jpeg', caption: 'poste' });
+    // A referência leva a imagem já desembrulhada, que é o que o download da Evolution aceita.
+    expect(JSON.parse(image?.id ?? '')).toMatchObject({
+      message: { imageMessage: { mimetype: 'image/jpeg' } },
+    });
+  });
+
   it('áudio entra na fila como tipo que o bot ainda não entende', async () => {
     await post(
       envelope('messages.upsert', {
