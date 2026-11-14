@@ -92,20 +92,27 @@ reconhece ninguém.
 **Conferido com a Evolution rodando localmente** (Docker, sem chip), em 2026-11-12: a imagem fixada
 sobe, cria a instância com o webhook e manda o `Authorization` configurado.
 
-**Falta, com o chip pareado** (o chip novo está sendo aquecido antes de ser conectado):
+**Com o chip pareado, em 2026-11-14** (Evolution local, bot da branch em `pnpm dev`, chip
+"Lumens" pareado por código de 8 letras; a equipe decidiu que bastava para a homologação):
 
-- [ ] Mensagens 1:1 de quem nunca falou com o chip e de quem está nos contatos chegam com o número
-      (direto ou em `remoteJidAlt`). Se alguma chegar só com `@lid`, o bot a ignora e registra
-      "mensagem 1:1 sem número" no log. **Se isso acontecer, esta decisão volta para a equipe**:
-      as saídas são identificar pelo LID ou consultar o número pela Evolution.
-- [ ] O formato real de `messages.upsert` e `messages.update` bate com os construtores do
-      simulador (`src/bot/sim/evolution.ts`).
-- [ ] A foto baixa pela mensagem inteira com `DATABASE_SAVE_DATA_NEW_MESSAGE=false`.
-- [ ] Sem as mensagens gravadas na Evolution, quem recebe não vê "Aguardando mensagem" com
-      frequência (a Baileys usa a mensagem gravada para reenviar quando o aparelho pede).
-- [ ] O que chega quando a VM religa depois de ficar desligada.
-- [ ] Como a instância desconectada responde ao envio (o código trata "Connection Closed" como
-      erro que para o lote).
+- [x] **O número vem.** As 6 mensagens 1:1 recebidas chegaram com `addressingMode: lid` e, mesmo
+      assim, com o número de quem escreveu em `remoteJid` e `remoteJidAlt`. O bot achou a
+      pessoa pelo telefone; nenhuma caiu em "mensagem 1:1 sem número".
+- [x] **Conversa de verdade:** saudação, aviso de privacidade, menu numerado ("1" escolheu a
+      opção) e pedido de verificação de e-mail, com as respostas entregues (`DELIVERY_ACK`).
+- [x] **Formato de `messages.upsert`** bate com os construtores do simulador para texto
+      (`conversation`). **`messages.update`** vem com `keyId`, `fromMe`, `status` (`SERVER_ACK`,
+      `DELIVERY_ACK`) e o `remoteJid` só em LID, sem número; a entrega casa pelo id, então não
+      atrapalha.
+- [x] **Instância desconectada:** a Evolution não responde ao `sendText`; o bot desiste em 30 s
+      ("sem resposta"), a resposta volta pelo retry e, num lote de avisos, o lote para.
+- [x] **Mensagem temporária** (`ephemeralMessage`) e de visualização única: apontadas na
+      revisão do PR e tratadas no webhook, com teste.
+- [ ] **Não conferido com mensagens reais:** foto (download pela mensagem inteira), mensagem
+      encaminhada, áudio, grupo, uma segunda pessoa (só um número escreveu), "Aguardando
+      mensagem" sem as mensagens gravadas na Evolution e o que chega quando a VM religa. Ficam
+      para a primeira semana na homologação; se a foto falhar, a pessoa recebe o aviso de foto
+      indisponível e o relato segue sem ela.
 
 ## O risco que esta decisão aceita
 
