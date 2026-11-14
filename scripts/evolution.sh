@@ -12,13 +12,18 @@
 # Passo a passo e troca de chip: docs/operacao/evolution.md
 set -Eeuo pipefail
 
+SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 REPO_DIR=${REPO_DIR:-/opt/lumens}
 API=${EVOLUTION_LOCAL:-http://127.0.0.1:8081}
 cd "$REPO_DIR"
 
 # Lê uma variável do .env.producao sem `source`: o arquivo tem valores que o shell interpretaria.
+#
+# Variável ausente vale vazio: com `set -e` e `pipefail`, o grep sem resultado encerraria o script
+# antes do padrão (EVOLUTION_INSTANCIA é opcional, como no back-end). As obrigatórias são
+# conferidas logo abaixo.
 valor() {
-  grep -E "^[[:space:]]*$1=" .env.producao | tail -n 1 | cut -d= -f2- | tr -d '\r'
+  { grep -E "^[[:space:]]*$1=" .env.producao || true; } | tail -n 1 | cut -d= -f2- | tr -d '\r'
 }
 
 CHAVE=$(valor EVOLUTION_API_KEY)
@@ -68,7 +73,7 @@ case "${1:-}" in
     chamar DELETE "/instance/logout/$INSTANCIA"
     ;;
   *)
-    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,12p' "$SCRIPT" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
