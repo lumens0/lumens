@@ -119,11 +119,12 @@ letras com a instância criada já com o número; os três códigos do dia anter
       número", e as 43 chamadas do webhook voltaram 200.
 - [x] **Status de entrega das respostas comuns** (que não são aviso) tentam uma vez de novo e
       somem em silêncio, como previsto (`DisparoNaoEncontradoError`).
+- [x] **Segunda pessoa:** outro número conversou com o bot pelo menu (Minhas pautas, abrir o
+      caminho da comunidade) e recebeu as respostas; a VM registrou duas conversas.
 - [ ] **Não conferido com mensagens reais:** o download da foto (a conversa estava no menu, então
-      a foto não entrou num relato), grupo, uma segunda pessoa (as 5 mensagens vieram de uma
-      conversa só), "Aguardando mensagem" sem as mensagens gravadas na Evolution e o que chega
-      quando a VM religa. Se a foto falhar, a pessoa recebe o aviso de foto indisponível e o
-      relato segue sem ela.
+      a foto não entrou num relato), grupo, "Aguardando mensagem" sem as mensagens gravadas na
+      Evolution e o que chega quando a VM religa. Se a foto falhar, a pessoa recebe o aviso de foto
+      indisponível e o relato segue sem ela.
 
 ## O risco que esta decisão aceita
 
