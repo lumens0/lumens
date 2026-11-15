@@ -1,6 +1,20 @@
 export { META_MAXIMA, META_MINIMA, calcularMeta } from './pauta/meta';
 export type { BlocoParaMeta } from './pauta/meta';
 
+export {
+  adicionarCurador,
+  desativarCurador,
+  hmacDoEmailDeCurador,
+  listarCuradores,
+  reativarCurador,
+} from './curadores/curadores';
+export type {
+  ChavesDeCurador,
+  CuradorListado,
+  MotivoRecusaCurador,
+  ResultadoCurador,
+} from './curadores/curadores';
+
 export { conferirAnonimato } from './compartilhado/anonimato';
 export type {
   Achado,
@@ -245,3 +259,4 @@ export type {
 
 export { documentosDeResposta, registrarDocumentoDeResposta } from './caminhos/documento-resposta';
 export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-resposta';
+export { cifrar, decifrar } from './compartilhado/cifra';

@@ -25,7 +25,7 @@ export default async function PaginaDaPauta({
   const numero = Number(avisados);
   const avisadosValido = feito === 'promessa' && Number.isInteger(numero) && numero >= 0;
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <Pauta
         pauta={pauta}
         erro={erro}

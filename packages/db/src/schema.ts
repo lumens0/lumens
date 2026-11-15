@@ -236,12 +236,31 @@ export const voluntarios = pgTable(
   ],
 );
 
+export const papelCurador = pgEnum('papel_curador', ['curador', 'administrador']);
+export const acaoCurador = pgEnum('acao_curador', ['adicionou', 'desativou', 'reativou']);
+
+/** `papel` administrador gerencia quem entra no painel (SCRUM-295); curador só faz a curadoria. */
 export const curadores = pgTable('curador', {
   id: uuid('id').defaultRandom().primaryKey(),
   emailHmac: text('email_hmac').notNull().unique(),
   emailCifrado: text('email_cifrado').notNull(),
   nome: text('nome').notNull(),
   ativo: boolean('ativo').notNull().default(true),
+  papel: papelCurador('papel').notNull().default('curador'),
+  criadoEm: instante('criado_em').notNull().defaultNow(),
+});
+
+/** Quem adicionou, desativou ou reativou quem, e quando. Só inserção; sem e-mail em claro. */
+export const curadorAuditoria = pgTable('curador_auditoria', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  acao: acaoCurador('acao').notNull(),
+  autorId: uuid('autor_id')
+    .notNull()
+    .references(() => curadores.id, { onDelete: 'restrict' }),
+  alvoId: uuid('alvo_id')
+    .notNull()
+    .references(() => curadores.id, { onDelete: 'restrict' }),
+  criadoEm: instante('criado_em').notNull().defaultNow(),
 });
 
 /**
