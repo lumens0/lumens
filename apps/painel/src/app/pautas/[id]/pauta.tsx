@@ -19,6 +19,7 @@ export const STATUS: Record<PautaDaCuradoria['status'], string> = {
 
 const ERRO: Record<string, string> = {
   motivo_obrigatorio: 'Para recusar, escreva o motivo. Ele é enviado a quem criou a pauta.',
+  motivo_longo: 'O motivo passou de 500 caracteres. Resuma e recuse de novo.',
   ja_decidida: 'Outra pessoa da curadoria já decidiu esta pauta.',
 };
 

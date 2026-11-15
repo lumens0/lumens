@@ -101,9 +101,15 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
-  | { decidida: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' };
+  | {
+      decidida: false;
+      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'motivo_longo';
+    };
 
 async function decidir(
   tx: Tx,
@@ -160,6 +166,9 @@ export async function recusarPauta(
     agora = new Date(),
   }: { pautaId: string; curadorId: string; motivo: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
+  if (Array.from(motivo.trim()).length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
+  }
   const resultado = await decidir(tx, pautaId, curadorId, 'recusada', motivo, agora);
   if (!resultado.decidida) return resultado;
 

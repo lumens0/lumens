@@ -281,6 +281,24 @@ describe('recusarPauta', () => {
     );
   });
 
+  it('motivo acima de 500 caracteres é recusado pelo servidor, sem mudar nada nem avisar', async () => {
+    const pauta = await novaEmCuradoria();
+
+    const longo = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'a'.repeat(501) }),
+    );
+    expect(longo).toEqual({ decidida: false, motivo: 'motivo_longo' });
+    expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
+    expect(await eventosDa(pauta.id)).toHaveLength(0);
+    expect(await filaDa(pauta.id)).toEqual([]);
+
+    // O teto conta o texto sem os espaços das pontas, como o que fica gravado.
+    const noLimite = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: `  ${'a'.repeat(500)}  ` }),
+    );
+    expect(noLimite).toEqual({ decidida: true });
+  });
+
   it.each(['', '   '])('recusa sem motivo (%j) é bloqueada e nada muda', async (motivo) => {
     const pauta = await novaEmCuradoria();
 
