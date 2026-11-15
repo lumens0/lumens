@@ -48,17 +48,33 @@ chamar() {
 
 # Estado da instância, sem o token dela que a listagem também traz. Instância inexistente: "nenhuma".
 estado() {
-  local resposta
-  # Sem -f: a instância inexistente volta 404 com JSON. Resposta vazia é a Evolution ainda subindo.
-  resposta=$(curl -sS "$API/instance/fetchInstances?instanceName=$INSTANCIA" -H "apikey: $CHAVE" || true)
-  if [[ -z "$resposta" ]]; then
-    echo "erro: a Evolution não respondeu em $API; logo depois de ligar a VM, espere um minuto" >&2
-    return 1
-  fi
+  local resposta http
+  # Sem -f, com o status no fim: a instância inexistente volta 404, e só ela vale "nenhuma". Chave
+  # errada (401) ou erro da Evolution não podem passar por ausência, ou o parear recriaria às cegas.
+  resposta=$(curl -sS -w '\n%{http_code}' "$API/instance/fetchInstances?instanceName=$INSTANCIA" -H "apikey: $CHAVE" || true)
+  http=${resposta##*$'\n'}
+  resposta=${resposta%$'\n'*}
+  case "$http" in
+    200) ;;
+    404)
+      echo nenhuma
+      return
+      ;;
+    000 | '')
+      echo "erro: a Evolution não respondeu em $API; logo depois de ligar a VM, espere um minuto" >&2
+      return 1
+      ;;
+    *)
+      echo "erro: a Evolution respondeu HTTP $http ao consultar a instância $INSTANCIA (401: confira a EVOLUTION_API_KEY)" >&2
+      return 1
+      ;;
+  esac
   python3 -c '
 import json, sys
 dados = json.load(sys.stdin)
-if not isinstance(dados, list) or not dados:
+if not isinstance(dados, list):
+    sys.exit("erro: resposta inesperada da Evolution ao listar as instâncias")
+if not dados:
     print("nenhuma")
     sys.exit()
 i = dados[0]
