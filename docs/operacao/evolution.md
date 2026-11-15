@@ -54,42 +54,49 @@ celular ──WhatsApp──▶ chip ◀──aparelho conectado── evolution
    Com `CANAL_WHATSAPP=evolution`, o script confere os três segredos e sobe também `evolution` e
    `evolution-postgres`.
 
-3. Crie a instância, já com o webhook do back-end (uma vez só; ela fica no volume):
-
-   ```bash
-   cd /opt/lumens && ./scripts/evolution.sh criar
-   ```
-
 ## Parear o chip
 
-Há dois jeitos. O código é mais simples, porque não precisa de túnel.
+O `parear` cria a instância já com o número do chip e com o webhook do back-end. Se houver uma
+instância desconectada, ele a apaga antes: a Evolution só gera o código de 8 letras para a
+instância **criada** com o número. Conectada, ele recusa (use `desvincular` antes).
 
-**Pelo código de 8 letras.** Na VM:
+O número vai como o WhatsApp o vê, só dígitos: DDI, DDD e o número. Com DDD acima de 30, ele
+costuma ficar **sem o 9** da frente (o chip +55 82 9xxxx-xxxx vira `5582xxxxxxxx`).
 
-```bash
-cd /opt/lumens && ./scripts/evolution.sh parear 5582XXXXXXXXX
-```
-
-No celular do chip: WhatsApp → **Aparelhos conectados** → **Conectar um aparelho** →
-**Conectar com número de telefone**, e digite o `pairingCode` que o script mostrou.
-
-**Pelo QR code.** No seu computador, abra um túnel até a VM:
+Antes de rodar, deixe a pessoa do chip com o celular na mão, já em WhatsApp → **Aparelhos
+conectados** → **Conectar um aparelho**. O QR e o código expiram em poucos segundos.
 
 ```bash
-ssh -i ~/Downloads/lumens-homolog-key.pem -L 8081:127.0.0.1:8081 azureuser@<IP>
+cd /opt/lumens && ./scripts/evolution.sh parear 5582XXXXXXXX
 ```
 
-Com o túnel aberto, entre em `http://localhost:8081/manager` com a `EVOLUTION_API_KEY`, abra a
-instância `lumens` e leia o QR no celular do chip (Aparelhos conectados → Conectar um aparelho).
+O script mostra o `pairingCode` e salva o QR em `/tmp/evolution-qr.png` (só o dono da VM lê).
+Nunca mostra a resposta inteira da Evolution, que traz o token da instância e o segredo do
+webhook.
 
-Confira:
+- **Pelo QR (preferido).** Traga a imagem para o seu computador, abra e a pessoa do chip a lê
+  com o celular. Se expirou, `./scripts/evolution.sh qr` salva um QR novo no mesmo lugar.
+
+  ```bash
+  scp -i ~/Downloads/lumens-homolog-key.pem azureuser@<IP>:/tmp/evolution-qr.png .
+  ```
+
+- **Pelo código.** No celular, **Conectar com número de telefone**, e digite o `pairingCode`.
+
+Apague o PNG depois (`rm /tmp/evolution-qr.png` na VM e a cópia local). Confira:
 
 ```bash
 cd /opt/lumens && ./scripts/evolution.sh estado
 ```
 
-Esperado: `"state":"open"`. Mande "oi" de outro celular para o chip: o bot responde com o aviso de
+Esperado: `open`. Mande "oi" de outro celular para o chip: o bot responde com o aviso de
 privacidade e o menu.
+
+**Se o celular der erro ao vincular**, o `estado` mostra a última queda (`código 401` é o
+WhatsApp recusando o vínculo). Não gere código atrás de código: o WhatsApp limita as tentativas
+de conectar aparelho e passa a recusar todas por algumas horas. Espere (de preferência para o dia
+seguinte), confira se sobrou aparelho velho em **Aparelhos conectados** e tente uma vez só, pelo
+QR.
 
 ## O site
 
@@ -108,7 +115,7 @@ telefone **deles** (`telefone_hmac`), não pelo número do bot.
    cd /opt/lumens && ./scripts/evolution.sh desvincular
    ```
 
-2. Pareie o chip reserva (seção acima).
+2. Pareie o chip reserva (seção acima), com o número dele.
 3. Troque o `NEXT_PUBLIC_WHATSAPP_BOT` na Vercel e faça um deploy novo do site.
 4. Avise quem já conversava com o bot de que o número mudou: o bot novo não tem o histórico do
    WhatsApp, só os dados do Lumens.
@@ -173,7 +180,7 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
 ## VM desligada
 
 A homologação fica desligada por padrão. Ao ligar, a Evolution reconecta sozinha com a sessão do
-volume; confira com `./scripts/evolution.sh estado`. Se voltar `close`, pareie de novo.
+volume; confira com `./scripts/evolution.sh estado`. Se voltar `close`, rode o `parear` de novo.
 
 O que acontece com as mensagens mandadas enquanto a VM estava desligada ainda precisa ser
 conferido no spike (veja a decisão).
