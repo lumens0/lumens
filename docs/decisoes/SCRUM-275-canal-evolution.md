@@ -108,11 +108,22 @@ sobe, cria a instância com o webhook e manda o `Authorization` configurado.
       ("sem resposta"), a resposta volta pelo retry e, num lote de avisos, o lote para.
 - [x] **Mensagem temporária** (`ephemeralMessage`) e de visualização única: apontadas na
       revisão do PR e tratadas no webhook, com teste.
-- [ ] **Não conferido com mensagens reais:** foto (download pela mensagem inteira), mensagem
-      encaminhada, áudio, grupo, uma segunda pessoa (só um número escreveu), "Aguardando
-      mensagem" sem as mensagens gravadas na Evolution e o que chega quando a VM religa. Ficam
-      para a primeira semana na homologação; se a foto falhar, a pessoa recebe o aviso de foto
-      indisponível e o relato segue sem ela.
+
+**Na VM da homologação, em 2026-11-15** (deploy da `main`, chip "Lumens" pareado por código de 8
+letras com a instância criada já com o número; os três códigos do dia anterior tinham falhado com
+`401`, provavelmente pelo limite de tentativas de conectar aparelho):
+
+- [x] **Texto, foto com legenda, encaminhada e áudio chegam com o número.** As 5 mensagens
+      viraram 5 jobs de entrada (`text` ×3, `image`, `audio`) e 5 de resposta, todos concluídos,
+      e as respostas apareceram no celular de quem escreveu. Nenhuma caiu em "mensagem 1:1 sem
+      número", e as 43 chamadas do webhook voltaram 200.
+- [x] **Status de entrega das respostas comuns** (que não são aviso) tentam uma vez de novo e
+      somem em silêncio, como previsto (`DisparoNaoEncontradoError`).
+- [ ] **Não conferido com mensagens reais:** o download da foto (a conversa estava no menu, então
+      a foto não entrou num relato), grupo, uma segunda pessoa (as 5 mensagens vieram de uma
+      conversa só), "Aguardando mensagem" sem as mensagens gravadas na Evolution e o que chega
+      quando a VM religa. Se a foto falhar, a pessoa recebe o aviso de foto indisponível e o
+      relato segue sem ela.
 
 ## O risco que esta decisão aceita
 
