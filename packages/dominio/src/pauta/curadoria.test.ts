@@ -176,6 +176,51 @@ describe('aprovarPauta', () => {
     expect(await eventosDa(pauta.id)).toHaveLength(antes.length);
   });
 
+  it('avisa cada responsável ativo, com título e slug, e ninguém mais', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria', titulo: 'Bebedouro do bloco 12' });
+    const owner = await criarEstudanteVerificado(db);
+    const coOwner = await criarEstudanteVerificado(db);
+    const saiuDoSistema = await criarEstudanteVerificado(db);
+    const saiuDoPapel = await criarEstudanteVerificado(db);
+    const apoiador = await criarEstudanteVerificado(db);
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date() })
+      .where(eq(estudantes.id, saiuDoSistema.id));
+    await db.insert(papeisPauta).values([
+      { pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' },
+      { pautaId: pauta.id, estudanteId: coOwner.id, papel: 'co_owner' },
+      { pautaId: pauta.id, estudanteId: saiuDoSistema.id, papel: 'co_owner' },
+      { pautaId: pauta.id, estudanteId: saiuDoPapel.id, papel: 'co_owner', ate: new Date() },
+    ]);
+
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+
+    const fila = await filaDa(pauta.id);
+    expect(fila.map((d) => d.estudanteId).sort()).toEqual([owner.id, coOwner.id].sort());
+    expect(fila).not.toContainEqual(expect.objectContaining({ estudanteId: apoiador.id }));
+    for (const d of fila) {
+      expect(d).toMatchObject({
+        tipo: 'aprovacao',
+        modelo: 'lumens_pauta_aprovada',
+        parametros: ['Bebedouro do bloco 12', pauta.slug],
+      });
+    }
+  });
+
+  it('pauta que não está em curadoria não avisa ninguém', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    const owner = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+
+    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+
+    expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
+    expect(await filaDa(pauta.id)).toEqual([]);
+  });
+
   it('pauta que não existe', async () => {
     const r = await db.transaction((tx) =>
       aprovarPauta(tx, { pautaId: '00000000-0000-0000-0000-000000000000', curadorId }),
