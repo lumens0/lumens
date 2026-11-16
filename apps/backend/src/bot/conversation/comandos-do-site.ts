@@ -27,7 +27,8 @@ export const PAUTA_NOT_FOUND_TEXT =
   'Não encontrei essa pauta. Ela pode ter mudado de endereço: abra a página dela no site e toque no botão de novo.';
 
 export type ComandoDoSite =
-  { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string } | { kind: 'nova-pauta' };
+  | { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string }
+  | { kind: 'nova-pauta' };
 
 const COM_ALVO = /^(apoiar|ajudar|cuidar)\s+(\S+)$/i;
 
@@ -53,21 +54,41 @@ async function pautaDoAlvo(db: Db, alvo: string) {
 const SEM_PERGUNTA_ABERTA: readonly Step[] = ['GREETING', 'MENU'];
 
 /**
+ * A forma do endereço de uma pauta no site: minúsculas, números e hífens, com pelo menos um hífen
+ * (`gerarSlug` sempre termina em `-<8 do id>`). "apoiar estudantes" não tem essa forma e pode ser
+ * só uma resposta; "apoiar pauta-que-nao-existe" é o botão do site com um endereço velho.
+ */
+const FORMA_DE_ENDERECO = /^[a-z0-9]+(?:-[a-z0-9]+)+$/;
+
+export const PAUTA_NOT_FOUND_IN_FLOW_TEXT = `${PAUTA_NOT_FOUND_TEXT} Enquanto isso, a conversa continua de onde parou: responda à última pergunta, ou mande *menu* para voltar ao início.`;
+
+/** O comando não muda nada na conversa: só avisa, e a pessoa segue no passo em que estava. */
+export interface AvisoNoPasso {
+  avisoNoPasso: string;
+}
+
+/**
  * Executa o comando. `null` quando a mensagem deve seguir para o passo atual (alvo que não existe
  * no meio de um fluxo). O fluxo largado não deixa dados: o `state` passado aos fluxos vem vazio.
+ * `AvisoNoPasso` quando o endereço tem a forma do site mas a pauta não existe (SCRUM-307).
  */
 export async function executarComandoDoSite(
   ctx: StepContext,
   comando: ComandoDoSite,
-): Promise<StepResult | null> {
+): Promise<StepResult | AvisoNoPasso | null> {
   const limpo: StepContext = { ...ctx, state: { step: ctx.state.step, data: {} } };
   if (comando.kind === 'nova-pauta') return entrarNaPautaNova(limpo);
   if (comando.kind === 'ajudar') return vouAjudar(limpo, comando.alvo);
 
   const pauta = await pautaDoAlvo(ctx.db, comando.alvo);
   if (pauta === undefined) {
-    return SEM_PERGUNTA_ABERTA.includes(ctx.state.step)
-      ? { next: 'MENU', replies: [PAUTA_NOT_FOUND_TEXT] }
+    if (SEM_PERGUNTA_ABERTA.includes(ctx.state.step)) {
+      return { next: 'MENU', replies: [PAUTA_NOT_FOUND_TEXT] };
+    }
+    // SCRUM-307: no meio de um fluxo, o endereço velho do botão do site não pode sumir em silêncio
+    // (no passo da foto, só repetia o pedido da foto). Avisa e deixa a conversa como está.
+    return FORMA_DE_ENDERECO.test(comando.alvo)
+      ? { avisoNoPasso: PAUTA_NOT_FOUND_IN_FLOW_TEXT }
       : null;
   }
   if (comando.kind === 'cuidar') return cuidarDaPauta(limpo, pauta.id);

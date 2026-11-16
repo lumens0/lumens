@@ -25,8 +25,10 @@ import {
   BOT_QUEUE_OPTIONS,
   BOT_WORK_OPTIONS,
   INCOMING_QUEUE_POLICY,
+  OUTGOING_QUEUE_POLICY,
   inputOf,
   instanteDaMensagem,
+  desbloquearConversas,
   logSender,
   processIncomingJob,
   registerIncomingWorker,
@@ -237,6 +239,13 @@ describe('processIncomingJob', () => {
     });
     expect(await respostas()).toEqual([[GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]]);
     expect(await jobsConcluidos(db)).toEqual([{ name: JOBS.incomingMessage, id: entrada.id }]);
+  });
+
+  it('as respostas vão para a fila com a chave da conversa, para sair em ordem (SCRUM-307)', async () => {
+    await processIncomingJob(texto('oi'), deps);
+    await processIncomingJob(texto('2'), deps);
+
+    expect(queue.chaves).toEqual([PHONE_HMAC, PHONE_HMAC]);
   });
 
   it('o texto da pessoa e as respostas não ficam em claro na fila', async () => {
@@ -620,10 +629,16 @@ describe('registerReplyWorker', () => {
       deps.logger,
     );
     expect(chamadas[0]).toEqual(['createQueue', JOBS.outgoingRepliesDead]);
+    // SCRUM-307: ordenada por conversa, como a entrada.
     expect(chamadas[1]).toEqual([
       'createQueue',
       JOBS.outgoingReplies,
-      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead },
+      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead, policy: OUTGOING_QUEUE_POLICY },
+    ]);
+    expect(OUTGOING_QUEUE_POLICY).toBe('key_strict_fifo');
+    // Sem a fila antiga, não há o que esvaziar.
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingReplies,
     ]);
 
     await handler(JOBS.outgoingReplies)([
@@ -631,6 +646,28 @@ describe('registerReplyWorker', () => {
       saida(['primeira'], new Date(1000)),
     ]);
     expect(entregues).toEqual([['primeira'], ['segunda']]);
+  });
+
+  it('com a fila antiga (sem ordem) ainda existindo, entrega o que sobrou nela (SCRUM-307)', async () => {
+    const { boss, chamadas, handler } = bossFalso([JOBS.outgoingRepliesLegacy]);
+    const entregues: Resposta[][] = [];
+    await registerReplyWorker(
+      boss,
+      {
+        send: (mensagem) => {
+          entregues.push(respostasDoJob(mensagem, chaves));
+          return Promise.resolve();
+        },
+      },
+      deps.logger,
+    );
+
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingReplies,
+      JOBS.outgoingRepliesLegacy,
+    ]);
+    await handler(JOBS.outgoingRepliesLegacy)([saida(['sobrou do deploy'])]);
+    expect(entregues).toEqual([['sobrou do deploy']]);
   });
 
   it('um envio que falha não derruba os outros do lote', async () => {
@@ -653,6 +690,28 @@ describe('registerReplyWorker', () => {
       ['falha', 'failed'],
       ['ok', 'completed'],
     ]);
+  });
+});
+
+describe('desbloquearConversas (SCRUM-307)', () => {
+  it('tira da frente o job falhado de vez também na fila de respostas', async () => {
+    const apagados: [string, string[]][] = [];
+    const boss = {
+      getBlockedKeys: (fila: string) =>
+        Promise.resolve(fila === JOBS.outgoingReplies ? [PHONE_HMAC] : []),
+      findJobs: () =>
+        Promise.resolve([
+          { id: 'falhou', state: 'failed' },
+          { id: 'esperando', state: 'created' },
+        ]),
+      deleteJob: (fila: string, ids: string[]) => {
+        apagados.push([fila, ids]);
+        return Promise.resolve();
+      },
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(1);
+    expect(apagados).toEqual([[JOBS.outgoingReplies, ['falhou']]]);
   });
 });
 
