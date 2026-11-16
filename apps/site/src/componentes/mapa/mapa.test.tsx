@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
 import { PREDIOS, siglaDe } from './predios';
+import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
 let n = 0;
@@ -111,5 +112,23 @@ describe('prédios do OpenStreetMap', () => {
       'engenharias',
       'saude',
     ]);
+  });
+});
+
+describe('legenda do mapa', () => {
+  it('mostra a cor de toda etapa que o mapa pinta, cada uma uma vez', () => {
+    const cores = LEGENDA.map((l) => l.cor);
+    for (const status of [
+      'juntando_apoios',
+      'meta_batida',
+      'cobrando',
+      'prometido',
+      'entregue_em_parte',
+      'descumprida',
+      'conquistada',
+    ] as const) {
+      expect(cores).toContain(STATUS[status].ponto);
+    }
+    expect(new Set(cores).size).toBe(cores.length);
   });
 });

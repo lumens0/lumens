@@ -17,7 +17,10 @@ const SEM_PAUTAS = '#9ea2b8';
 export const LEGENDA = [
   { cor: COR.juntando_apoios, rotulo: 'Juntando apoios' },
   { cor: COR.meta_batida, rotulo: 'Meta batida' },
-  { cor: COR.cobrando, rotulo: 'Cobrando ou prometida' },
+  // Cada etapa da cobrança tem a sua cor (SCRUM-317): a legenda mostra as três.
+  { cor: COR.cobrando, rotulo: 'Cobrando' },
+  { cor: COR.prometido, rotulo: 'Prometido' },
+  { cor: COR.entregue_em_parte, rotulo: 'Entregue em parte' },
   { cor: COR.descumprida, rotulo: 'Promessa descumprida' },
   { cor: SO_CONQUISTAS, rotulo: 'Só conquistas' },
   { cor: SEM_PAUTAS, rotulo: 'Sem pautas' },
