@@ -131,6 +131,10 @@ async function decidir(
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
   }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
+  }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
   // Quem decidiu fica na pauta, não no evento: evento não leva identidade.
@@ -166,9 +170,6 @@ export async function recusarPauta(
     agora = new Date(),
   }: { pautaId: string; curadorId: string; motivo: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  if (Array.from(motivo.trim()).length > MOTIVO_RECUSA_MAXIMO) {
-    return { decidida: false, motivo: 'motivo_longo' };
-  }
   const resultado = await decidir(tx, pautaId, curadorId, 'recusada', motivo, agora);
   if (!resultado.decidida) return resultado;
 

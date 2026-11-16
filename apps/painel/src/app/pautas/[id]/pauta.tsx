@@ -1,4 +1,4 @@
-import type { PautaDaCuradoria } from '@lumens/dominio';
+import { MOTIVO_RECUSA_MAXIMO, type PautaDaCuradoria } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
 import { dataHora, textoDoPrazo } from '../../prazo';
@@ -19,7 +19,7 @@ export const STATUS: Record<PautaDaCuradoria['status'], string> = {
 
 const ERRO: Record<string, string> = {
   motivo_obrigatorio: 'Para recusar, escreva o motivo. Ele é enviado a quem criou a pauta.',
-  motivo_longo: 'O motivo passou de 500 caracteres. Resuma e recuse de novo.',
+  motivo_longo: `O motivo passou de ${String(MOTIVO_RECUSA_MAXIMO)} caracteres. Resuma e recuse de novo.`,
   ja_decidida: 'Outra pessoa da curadoria já decidiu esta pauta.',
 };
 
@@ -109,7 +109,7 @@ export function Pauta({
             <h2>Recusar</h2>
             <input type="hidden" name="pautaId" value={pauta.id} />
             <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
-            <textarea id="motivo" name="motivo" required maxLength={500} />
+            <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
             <button className={estilos.botaoPerigo} type="submit">
               Recusar pauta
             </button>
