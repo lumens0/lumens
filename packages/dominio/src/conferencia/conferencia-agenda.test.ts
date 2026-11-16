@@ -287,8 +287,8 @@ describe('fecho da conferência', () => {
     });
     expect((await promessa(promessaId))?.resultado).toBe('sem_quorum');
     expect(await eventosDa(pautaId, 'conferencia_apurada')).toHaveLength(1);
-    // Mesmo caminho de qualquer sem_quorum na segunda rodada (o destino da pauta é a SCRUM-308).
-    expect(await statusDa(pautaId)).toBe('prometido');
+    // Mesmo caminho de qualquer sem_quorum na segunda rodada: a pauta volta a ser cobrada (SCRUM-308).
+    expect(await statusDa(pautaId)).toBe('cobrando');
   });
 
   it('não fecha conferência que nunca abriu', async () => {
