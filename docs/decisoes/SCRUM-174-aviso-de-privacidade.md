@@ -79,6 +79,15 @@ remoção de metadados não existem — as duas já estão no ar.
 
 ## O que a equipe precisa confirmar na PR
 
+A aprovação não foi registrada quando a SCRUM-174 fechou. A SCRUM-342 retoma: quem aprovar marca o
+item na PR da SCRUM-342, com o nome e a data; quem discordar abre a mudança ali mesmo.
+
 - [ ] Consentimento como base legal, manifestado na verificação.
 - [ ] O texto do aviso, como está acima.
 - [ ] Se há encarregado de dados indicado pela disciplina; se houver, o contato entra na página.
+
+### Decidido na SCRUM-342
+
+- **Filas do pg-boss:** o `sair` também apaga os jobs do telefone, em vez de esperar os 7 dias (14 se
+  falhar). É o commit 553240a da branch `feat/SCRUM-174-texto-aviso`, que tinha ficado fora da `main`
+  e entrou pela SCRUM-342. O resto conhecido está em "O que o sistema trata", acima.
