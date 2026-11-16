@@ -13,12 +13,13 @@
  * estudantes" pode ser só a resposta (o título de uma pauta nova, por exemplo), então a mensagem
  * segue para o passo atual. No menu ou no primeiro contato, o alvo que não existe vira um aviso.
  */
-import { eq, pautas, sql, type Db } from '@lumens/db';
+import { eq, pautas, type Db } from '@lumens/db';
 import { SEM_APOIO } from '@lumens/dominio';
 import { SUPPORT_CLOSED_TEXT, entrarNoApoio } from './apoio';
 import { cuidarDaPauta } from './co-owner';
 import type { StepContext, StepResult } from './handlers';
 import { entrarNaPautaNova } from './nova-pauta';
+import { pautaDoLink } from './pauta-do-link';
 import { UUID, vouAjudar } from './proposta';
 import type { Step } from './steps';
 import { normalize } from './texto';
@@ -40,28 +41,14 @@ export function parseComandoDoSite(texto: string): ComandoDoSite | null {
   return normalize(texto) === 'nova pauta' ? { kind: 'nova-pauta' } : null;
 }
 
-/**
- * Os 8 primeiros caracteres do id, que fecham todo slug gerado (`gerarSlug`). É o que o link do
- * Telegram manda quando `apoiar_<slug>` não cabe nos 64 caracteres do `start` (SCRUM-293).
- */
-const ID_CURTO = /^[0-9a-f]{8}$/;
-
-/** Pauta pelo slug do site, pelo id (botões do próprio bot) ou pelo id curto (link do Telegram). */
+/** Pauta pelo id (botões do próprio bot) ou pelo link do site: slug ou id curto (SCRUM-293). */
 async function pautaDoAlvo(db: Db, alvo: string) {
-  const chave = alvo.toLowerCase();
-  const campos = { id: pautas.id, status: pautas.status };
+  if (!UUID.test(alvo)) return pautaDoLink(db, alvo);
   const [pauta] = await db
-    .select(campos)
+    .select({ id: pautas.id, status: pautas.status })
     .from(pautas)
-    .where(UUID.test(chave) ? eq(pautas.id, chave) : eq(pautas.slug, chave));
-  if (pauta !== undefined || !ID_CURTO.test(chave)) return pauta;
-  // Dois ids com o mesmo começo são raros (1 em 4 bilhões por par), mas aí não se adivinha.
-  const achadas = await db
-    .select(campos)
-    .from(pautas)
-    .where(sql`${pautas.id}::text like ${`${chave}%`}`)
-    .limit(2);
-  return achadas.length === 1 ? achadas[0] : undefined;
+    .where(eq(pautas.id, alvo.toLowerCase()));
+  return pauta;
 }
 
 /** Passos em que nenhuma resposta está em aberto: lá, o alvo que não existe vira aviso. */

@@ -1,4 +1,14 @@
-import { apoios, blocos, eq, estudantes, eventos, papeisPauta, pautas, type Db } from '@lumens/db';
+import {
+  apoios,
+  blocos,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  propostas,
+  type Db,
+} from '@lumens/db';
 import { gerarSlug } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -294,6 +304,35 @@ describe('"ajudar <slug>" sem proposta aberta (2.8)', () => {
     expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
     expect(await p.passo()).toBe('MENU');
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
+  });
+});
+
+describe('"ajudar" com o id curto do link do Telegram (SCRUM-293)', () => {
+  it('slug longo: acha a pauta pelo id curto e oferece a proposta aberta', async () => {
+    const titulo = 'Reforma completa dos banheiros do bloco de engenharia e do anexo';
+    const id = '9f8e7d6c-0000-4000-8000-000000000002';
+    await db.insert(pautas).values({
+      id,
+      slug: gerarSlug(titulo, id),
+      titulo,
+      descricao: 'Os banheiros estão sem porta.',
+      categoria: 'infraestrutura',
+      status: 'cobrando',
+      meta: 30,
+    });
+    const [proposta] = await db
+      .insert(propostas)
+      .values({ pautaId: id, descricao: 'Mutirão de pintura', pessoasNecessarias: 5 })
+      .returning({ id: propostas.id });
+    if (!proposta) throw new Error('proposta não inserida');
+    const p = pessoa('5582999990021');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    const respostas = await p.send(`ajudar ${id.slice(0, 8)}`);
+
+    expect(ids(respostas)).toContain(`ajudar ${proposta.id}`);
+    expect(respostas).not.toContain(NO_PROPOSAL_TEXT);
   });
 });
 
