@@ -355,8 +355,12 @@ jobs:
         run: |
           # O SHA exato que passou no `check`, não `origin/main`: entre o fim do check e
           # este passo pode entrar outro merge, e subiria código que ninguém testou.
+          #
+          # VERSAO vai no ambiente da chamada (SCRUM-322): no primeiro deploy depois de uma mudança
+          # no script, quem roda é a versão antiga dele, já aberta antes do `git reset`, e ela não
+          # sabe calcular a versão. Pelo ambiente, o compose a recebe de qualquer jeito.
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$SSH_USUARIO@$SSH_HOST" \
-            "/opt/lumens/scripts/deploy-homologacao.sh '$SHA'"
+            "VERSAO='$SHA' /opt/lumens/scripts/deploy-homologacao.sh '$SHA'"
 
       - name: Smoke test
         if: ${{ steps.alcance.outputs.ligada == 'sim' }}
@@ -410,19 +414,21 @@ jobs:
   # novo publica tudo: ali não há o que avisar.
   deploy-perdido:
     name: deploy-perdido
-    needs: [check, deploy, deploy-backend]
+    # O e2e entrou nos `needs` dos deploys (SCRUM-312): cancelado, ele também deixa o merge de fora.
+    needs: [check, e2e, deploy, deploy-backend]
     if: >-
       ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && (needs.check.result == 'cancelled' || needs.deploy.result == 'cancelled'
-      || needs.deploy-backend.result == 'cancelled') }}
+      && (needs.check.result == 'cancelled' || needs.e2e.result == 'cancelled'
+      || needs.deploy.result == 'cancelled' || needs.deploy-backend.result == 'cancelled') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Avisar que o merge não foi publicado
         env:
           CHECK: ${{ needs.check.result }}
+          E2E: ${{ needs.e2e.result }}
           SITE: ${{ needs.deploy.result }}
           BACKEND: ${{ needs.deploy-backend.result }}
         run: |
-          echo "::error title=Merge não publicado::check=$CHECK, deploy-site=$SITE, deploy-backend=$BACKEND. O código deste merge NÃO está na homologação. Reexecute o run (Re-run all jobs) ou dispare Actions > CI > Run workflow na main."
+          echo "::error title=Merge não publicado::check=$CHECK, e2e=$E2E, deploy-site=$SITE, deploy-backend=$BACKEND. O código deste merge NÃO está na homologação. Reexecute o run (Re-run all jobs) ou dispare Actions > CI > Run workflow na main."
           exit 1
