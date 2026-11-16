@@ -447,6 +447,36 @@ describe('migração inicial em Postgres real', () => {
     },
   );
 
+  it('garante um papel ativo por pessoa na pauta e libera outro depois de encerrado (SCRUM-315)', async () => {
+    const pautaId = await pauta();
+    const estudanteId = await estudante();
+    const inserir = (papel: string, desde: string) =>
+      pool.query(
+        `INSERT INTO papel_pauta (pauta_id, estudante_id, papel, desde) VALUES ($1, $2, $3, $4)`,
+        [pautaId, estudanteId, papel, desde],
+      );
+    await inserir('owner', '2026-10-01T12:00:00Z');
+
+    // Mesma pessoa, mesma pauta, outro papel ainda ativo: o banco recusa.
+    await expect(inserir('co_owner', '2026-10-02T12:00:00Z')).rejects.toMatchObject({
+      code: '23505',
+      constraint: 'papel_pauta_ativo_unico',
+    });
+
+    // Encerrado o primeiro, a pessoa pode voltar a cuidar da pauta.
+    await pool.query(
+      `UPDATE papel_pauta SET ate = '2026-10-03T12:00:00Z' WHERE pauta_id = $1 AND estudante_id = $2`,
+      [pautaId, estudanteId],
+    );
+    await inserir('co_owner', '2026-10-04T12:00:00Z');
+
+    // Outra pessoa na mesma pauta continua livre.
+    await pool.query(
+      `INSERT INTO papel_pauta (pauta_id, estudante_id, papel) VALUES ($1, $2, 'co_owner')`,
+      [pautaId, await estudante()],
+    );
+  });
+
   it('garante uma promessa ativa por pauta e libera outra ao preencher resultado', async () => {
     const pautaId = await pauta();
     const curadorId = await curador();
@@ -578,6 +608,9 @@ describe('migração inicial em Postgres real', () => {
     expect(indices.pauta_bloco_id_idx).toContain('(bloco_id)');
     expect(indices.evento_pauta_criado_em_idx).toContain('(pauta_id, criado_em)');
     expect(indices.promessa_ativa_por_pauta_unique).toContain('WHERE (resultado IS NULL)');
+    expect(indices.papel_pauta_ativo_unico).toContain(
+      '(pauta_id, estudante_id) WHERE (ate IS NULL)',
+    );
   });
 
   it('não cria colunas de telefone/email em texto puro', async () => {
