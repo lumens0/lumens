@@ -67,8 +67,12 @@ services:
       start_period: 30s
 
   # Painel de curadoria. Fica aqui, e não na Vercel, porque precisa do banco e o banco não tem
-  # porta publicada. Usa o mesmo .env.producao do back-end (DATABASE_URL de lumens_app,
-  # CHAVE_HMAC, EMAIL_*) mais o AUTH_SECRET, que só ele lê.
+  # porta publicada.
+  #
+  # SCRUM-303: só as variáveis que o painel lê, tiradas do .env.producao (o deploy passa
+  # `--env-file .env.producao`). Antes ele recebia o arquivo inteiro, com CHAVE_CIFRA (que decifra
+  # telefones e e-mails), META_* e TELEGRAM_BOT_TOKEN: uma falha no Next, que atende a internet,
+  # entregaria tudo isso. Variável nova no painel tem de entrar aqui.
   painel:
     build:
       context: .
@@ -77,9 +81,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env.producao
     environment:
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no .env.producao}
+      CHAVE_HMAC: ${CHAVE_HMAC:?defina CHAVE_HMAC no .env.producao}
+      AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET no .env.producao}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-}
+      EMAIL_USUARIO: ${EMAIL_USUARIO:-}
+      EMAIL_SENHA: ${EMAIL_SENHA:-}
+      EMAIL_REMETENTE: ${EMAIL_REMETENTE:-}
+      # Foto do relato e PDF da resposta (SCRUM-262). Credencial só se não houver papel na máquina.
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET_FOTOS: ${S3_BUCKET_FOTOS:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       # O link do e-mail é montado a partir desta URL. Atrás do Caddy o Auth.js só confia no
       # Host repassado com AUTH_TRUST_HOST; fixar a URL evita depender do cabeçalho.
       AUTH_URL: https://painel.${DOMINIO:?defina DOMINIO no .env.producao}

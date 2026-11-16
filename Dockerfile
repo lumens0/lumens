@@ -10,6 +10,9 @@ FROM node:24-slim
 
 # corepack lê o campo packageManager do package.json e fixa o pnpm 10.34.7 — a mesma
 # versão do CI. Sem ele, a imagem usaria o pnpm que vier na base.
+# Fora do HOME do root (SCRUM-303): o pnpm que o corepack baixa no build precisa estar
+# legível para o usuário `node`, que roda o processo. Sem isto ele baixaria de novo na subida.
+ENV COREPACK_HOME=/opt/corepack
 RUN corepack enable
 
 WORKDIR /app
@@ -32,5 +35,9 @@ ENV NODE_ENV=production
 
 # Mesma porta do PORT padrão do .env.example. O Caddy é quem fala com a internet.
 EXPOSE 3000
+
+# Sem root (SCRUM-303): uma falha no back-end não vira root no contêiner. Nada é escrito em /app
+# em tempo de execução (as fotos vão para o storage, o cache do tsx vai para /tmp).
+USER node
 
 CMD ["pnpm", "--filter", "@lumens/backend", "start"]
