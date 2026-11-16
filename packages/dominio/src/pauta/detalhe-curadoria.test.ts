@@ -54,6 +54,13 @@ describe('detalharPautaDaCuradoria', () => {
     ]);
     await db.insert(relatos).values([
       { pautaId: pauta.id, estudanteId: owner.id, texto: 'Relato inicial.', moderacao: 'pendente' },
+      // O owner manda outro relato depois: sem moderação, nenhum dos dois tem data confiável.
+      {
+        pautaId: pauta.id,
+        estudanteId: owner.id,
+        texto: 'Relato posterior do owner.',
+        moderacao: 'pendente',
+      },
       {
         pautaId: pauta.id,
         estudanteId: relator.id,
@@ -94,6 +101,14 @@ describe('detalharPautaDaCuradoria', () => {
       })
       .returning({ id: promessas.id });
     if (!promessa) throw new Error('promessa não criada');
+    // Quem apoiou depois de a conferência abrir pode responder, mas o voto não entra na apuração
+    // (conferencia-apuracao.ts); o painel mostra os mesmos totais.
+    await db.insert(apoios).values({
+      pautaId: pauta.id,
+      estudanteId: relator.id,
+      origem: 'bot',
+      criadoEm: new Date('2030-01-21T12:00:00Z'),
+    });
     await db.insert(respostasConferencia).values([
       { promessaId: promessa.id, estudanteId: apoiador1.id, resposta: 'sim' },
       { promessaId: promessa.id, estudanteId: apoiador2.id, resposta: 'em_parte' },
@@ -109,14 +124,14 @@ describe('detalharPautaDaCuradoria', () => {
     const detalhe = await detalharPautaDaCuradoria(db, pauta.id);
 
     expect(detalhe).toMatchObject({
-      apoios: 2,
+      apoios: 3,
       meta: 2,
       metaBatidaEm: new Date('2030-01-03T12:00:00Z'),
       promessa: {
         resumo: 'Troca do equipamento.',
         fonte: 'Direção do campus',
         dataEntrega: '2030-01-20',
-        votos: { sim: 1, em_parte: 1, nao: 1 },
+        votos: { sim: 1, em_parte: 1, nao: 0 },
       },
     });
     expect(detalhe?.responsaveis).toEqual(
@@ -129,13 +144,19 @@ describe('detalharPautaDaCuradoria', () => {
         texto: 'Relato inicial.',
         curso: 'Arquitetura e Urbanismo',
         moderacao: 'pendente',
-        data: pauta.criadaEm,
+        data: null,
       },
       {
         texto: 'Relato moderado.',
         fotoChave: 'fotos/relato.jpg',
         moderacao: 'aprovado',
         data: new Date('2030-01-04T12:00:00Z'),
+      },
+      {
+        texto: 'Relato posterior do owner.',
+        curso: 'Arquitetura e Urbanismo',
+        moderacao: 'pendente',
+        data: null,
       },
       {
         texto: 'Relato recusado.',
