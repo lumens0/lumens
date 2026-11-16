@@ -5,16 +5,13 @@
 # A AWS bloqueia emissão para *.amazonaws.com, então o DNS público da instância não serve:
 # precisa de um domínio de verdade (o da UFAL, ou um subdomínio gratuito).
 
-# Cabeçalhos de segurança da API e do painel (SCRUM-303). Nenhuma das duas é feita para abrir
-# dentro de outra página: frame-ancestors e X-Frame-Options fecham o clickjacking (o painel tem
-# botões de aprovar e recusar). O HSTS vale para os subdomínios, que são todos HTTPS pelo Caddy.
-# `-Server` e `-X-Powered-By` tiram a versão do software da resposta.
+# Cabeçalhos de segurança da API e do painel (SCRUM-303). O HSTS vale para os subdomínios, que são
+# todos HTTPS pelo Caddy. `-Server` e `-X-Powered-By` tiram a versão do software da resposta. Quem
+# pode abrir cada site dentro de outra página (o clickjacking) fica em cada bloco, abaixo.
 (cabecalhos_de_seguranca) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Content-Security-Policy "frame-ancestors 'none'"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 		-X-Powered-By
@@ -24,6 +21,11 @@
 {$DOMINIO} {
 	encode zstd gzip
 	import cabecalhos_de_seguranca
+	# A API e o webhook não abrem dentro de página nenhuma.
+	header {
+		X-Frame-Options "DENY"
+		Content-Security-Policy "frame-ancestors 'none'"
+	}
 
 	# O webhook da Evolution (SCRUM-275) chega pela rede interna do compose, nunca pela
 	# internet. O back-end já exige o segredo; fechar aqui tira a rota da superfície pública.
@@ -57,5 +59,12 @@
 painel.{$DOMINIO} {
 	encode zstd gzip
 	import cabecalhos_de_seguranca
+	# Só o próprio painel abre o painel num quadro: o PDF da resposta (/curadoria/arquivos/...) é
+	# mostrado num iframe ao lado do formulário da promessa. Outro site não consegue (clickjacking nos
+	# botões de aprovar e recusar).
+	header {
+		X-Frame-Options "SAMEORIGIN"
+		Content-Security-Policy "frame-ancestors 'self'"
+	}
 	reverse_proxy painel:3002
 }
