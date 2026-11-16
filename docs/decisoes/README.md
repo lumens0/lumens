@@ -16,5 +16,6 @@ arquivo novo que diz qual substitui.
 | [SCRUM-251](SCRUM-251-fotos-sem-storage.md)      | Envio de foto quebrado até existir um bucket             |
 | [SCRUM-267](SCRUM-267-canal-telegram.md)         | Telegram como canal reserva do bot                       |
 | [SCRUM-275](SCRUM-275-canal-evolution.md)        | WhatsApp pela Evolution API para a demonstração          |
+| [SCRUM-308](SCRUM-308-pauta-sem-quorum.md)       | Pauta depois de duas conferências sem quórum             |
 
 Por que a homologação não está na AWS: [operação › homologação](../operacao/homologacao.md).
