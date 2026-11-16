@@ -68,6 +68,16 @@ describe('buscarPautas e buscarBlocos', () => {
     ]);
   });
 
+  it('repassa status combinado com bloco à API', async () => {
+    const fetch = responder(200, { itens: [], proximo: null });
+    vi.stubGlobal('fetch', fetch);
+    await buscarPautas('bloco-a', 'prometido');
+    expect(fetch).toHaveBeenCalledWith(
+      'http://api.teste/pautas?limit=100&offset=0&bloco=bloco-a&status=prometido',
+      { next: { revalidate: 30 } },
+    );
+  });
+
   it('pauta repetida entre páginas aparece uma vez só', async () => {
     const paginas = [
       { itens: [{ slug: 'a' }, { slug: 'b' }], proximo: 2 },

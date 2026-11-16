@@ -7,9 +7,13 @@ import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { Numero } from '../componentes/Numero';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
+import { FiltroStatus } from '../componentes/FiltroStatus';
+import { STATUS } from '../componentes/StatusPill';
 import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
+import type { Pauta } from '../dados/tipos';
 import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import { STATUS_PUBLICOS } from '@lumens/contratos';
 import { nomeDoCanal } from '../whatsapp';
 import estilos from './page.module.css';
 import { metadadosDaMarca } from '../metadados';
@@ -19,17 +23,35 @@ export const metadata: Metadata = metadadosDaMarca({ caminho: '/' });
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ bloco?: string | string[] }>;
+  searchParams: Promise<{ bloco?: string | string[]; status?: string | string[] }>;
 }) {
   // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
   // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
   // O `searchParams` vem antes da primeira busca: lê-lo torna a página dinâmica, então o
   // `next build` não tenta pré-renderizar a home chamando a API (que pode nem estar no ar).
-  const { bloco: blocoParam } = await searchParams;
+  const { bloco: blocoParam, status: statusParam } = await searchParams;
   const blocos = await buscarBlocos();
   const bloco = blocoDaUrl(blocos, blocoParam);
+  const status =
+    typeof statusParam === 'string'
+      ? STATUS_PUBLICOS.find((etapa) => etapa === statusParam)
+      : undefined;
   // A API já filtra e ordena; o `pautasPublicas` repete a regra como segunda barreira.
-  const lista = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
+  const [pautasDaLista, pautasParaContar] = await Promise.all([
+    buscarPautas(bloco?.slug, status),
+    status ? buscarPautas(bloco?.slug) : Promise.resolve<Pauta[]>([]),
+  ]);
+  const lista = pautasPublicas(pautasDaLista, bloco).filter(
+    (pauta) => !status || pauta.status === status,
+  );
+  const contagens = Object.fromEntries(
+    STATUS_PUBLICOS.map((etapa) => [
+      etapa,
+      pautasDaLista.length && !status
+        ? pautasDaLista.filter((pauta) => pauta.status === etapa).length
+        : pautasParaContar.filter((pauta) => pauta.status === etapa).length,
+    ]),
+  );
   const contagem = totais(lista);
   const { abertas, apoios, conquistas } = contagem;
   const onde = bloco?.nome ?? 'Todo o campus';
@@ -76,7 +98,10 @@ export default async function Home({
           <h2 id="totais-titulo" className={estilos.totaisTitulo}>
             {onde}
           </h2>
-          <FiltroBloco blocos={blocos} atual={bloco?.slug} />
+          <div className={estilos.filtros}>
+            <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
+            <FiltroStatus atual={status} bloco={bloco?.slug} contagens={contagens} />
+          </div>
         </div>
         <dl>
           <div>
@@ -100,7 +125,7 @@ export default async function Home({
         </dl>
       </section>
       {lista.length === 0 ? (
-        <ListaVazia bloco={bloco} />
+        <ListaVazia bloco={bloco} status={status} />
       ) : (
         <ul className={[estilos.lista, estilos.grade].join(' ')}>
           {lista.map((pauta) => (
@@ -110,6 +135,17 @@ export default async function Home({
           ))}
         </ul>
       )}
+      <aside className={estilos.legenda} aria-label="Etapas públicas das pautas">
+        <h2>Etapas das pautas</h2>
+        <ul>
+          {STATUS_PUBLICOS.map((etapa) => (
+            <li key={etapa}>
+              <i style={{ background: STATUS[etapa].ponto }} aria-hidden="true" />
+              {STATUS[etapa].rotulo}
+            </li>
+          ))}
+        </ul>
+      </aside>
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
           <Link href="/privacidade">Política de privacidade</Link>
