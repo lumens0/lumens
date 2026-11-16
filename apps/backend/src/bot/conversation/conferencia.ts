@@ -89,7 +89,11 @@ export function entradaDeConferencia(texto: string, passo: Step): EntradaDeConfe
     if (!UUID.test(promessaId) || resposta === null) return { tipo: 'outro_aviso' };
     return { tipo: 'botao', promessaId, resposta };
   }
-  if (!PASSOS_SEM_PERGUNTA.includes(passo) || /^\s*\d+\s*$/.test(texto)) return null;
+  // Número com qualquer pontuação ("1.", "2)", "(3)") é opção do menu, não voto: o
+  // `interpretarResposta` ignora a pontuação e leria "1." como "sim".
+  if (!PASSOS_SEM_PERGUNTA.includes(passo) || /^\d+$/.test(texto.replace(/[^\p{L}\p{N}]/gu, ''))) {
+    return null;
+  }
   const resposta = interpretarResposta(texto);
   return resposta === null ? null : { tipo: 'digitada', resposta };
 }
