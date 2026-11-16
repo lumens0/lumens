@@ -75,7 +75,7 @@ export const CODE_OK_TEXT = 'Código certo ✅';
 export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
 export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
 export const VERIFIED_TEXT =
-  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
+  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para esta conversa: não precisa fazer de novo.';
 export const ALREADY_VERIFIED_TEXT =
   'Você já é estudante verificado ✅ Não precisa verificar de novo.';
 export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
@@ -118,7 +118,7 @@ export const CODE_RESENT_TEXT = `Enviei um código novo para o seu e-mail da UFA
 export const RESEND_FAILED_TEXT =
   'Não consegui enviar o código agora. Tente daqui a pouco: responda *reenviar*.';
 export const EMAIL_LOST_TEXT = `Não consegui recuperar o seu e-mail. ${EMAIL_QUESTION_TEXT}`;
-export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outra conversa no Lumens. Cada e-mail vale para uma conversa só: é assim que cada estudante apoia uma pauta uma vez. Se a outra conversa era sua, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
 export const LINK_UNAVAILABLE_TEXT =
   'Não consegui concluir a verificação agora. Digite o código de novo daqui a pouco.';
 
