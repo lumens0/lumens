@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "papel_pauta_ativo_unico" ON "papel_pauta" USING btree ("pauta_id","estudante_id") WHERE "papel_pauta"."ate" IS NULL;
