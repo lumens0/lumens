@@ -117,6 +117,7 @@ export {
   MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
+  definirCategoria,
   buscarPautaDaCuradoria,
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
@@ -134,17 +135,25 @@ export type {
 
 export { listarLinhaDoTempo } from './pauta/linha-do-tempo';
 export type { EventoDaLinha } from './pauta/linha-do-tempo';
+export { detalharPautaDaCuradoria } from './pauta/detalhe-curadoria';
+export type {
+  DetalhePautaDaCuradoria,
+  PromessaDaCuradoria,
+  RelatoDaCuradoria,
+} from './pauta/detalhe-curadoria';
 
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './pauta/status';
 export type { Transicao } from './pauta/status';
 
 export {
   CATEGORIA_A_CLASSIFICAR,
+  CATEGORIAS,
   DESCRICAO_MAXIMA,
   TITULO_MAXIMO,
   criarPauta,
   gerarSlug,
 } from './pauta/pauta';
+export type { Categoria } from './pauta/pauta';
 export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
