@@ -299,6 +299,40 @@ describe('recusarPauta', () => {
     expect(noLimite).toEqual({ decidida: true });
   });
 
+  it('o teto conta caracteres, não unidades UTF-16: 500 emojis passam, 501 não', async () => {
+    const pauta = await novaEmCuradoria();
+
+    const longo = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: '😀'.repeat(501) }),
+    );
+    expect(longo).toEqual({ decidida: false, motivo: 'motivo_longo' });
+
+    const noLimite = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: '😀'.repeat(500) }),
+    );
+    expect(noLimite).toEqual({ decidida: true });
+  });
+
+  it('motivo longo em pauta já decidida ou inexistente devolve o motivo do status', async () => {
+    const pauta = await novaEmCuradoria();
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+    const longo = 'a'.repeat(501);
+
+    const decidida = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: longo }),
+    );
+    expect(decidida).toEqual({ decidida: false, motivo: 'ja_decidida' });
+
+    const inexistente = await db.transaction((tx) =>
+      recusarPauta(tx, {
+        pautaId: '00000000-0000-4000-8000-000000000000',
+        curadorId,
+        motivo: longo,
+      }),
+    );
+    expect(inexistente).toEqual({ decidida: false, motivo: 'pauta_inexistente' });
+  });
+
   it.each(['', '   '])('recusa sem motivo (%j) é bloqueada e nada muda', async (motivo) => {
     const pauta = await novaEmCuradoria();
 
