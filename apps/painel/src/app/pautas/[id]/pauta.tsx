@@ -1,21 +1,11 @@
-import { CATEGORIAS, type DetalhePautaDaCuradoria } from '@lumens/dominio';
+import { CATEGORIAS, type DetalhePautaDaCuradoria, type EventoDaLinha } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
 import { dataHora, textoDoPrazo } from '../../prazo';
 import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
-
-export const STATUS: Record<DetalhePautaDaCuradoria['status'], string> = {
-  em_curadoria: 'Esperando decisão da curadoria',
-  recusada: 'Recusada',
-  juntando_apoios: 'Juntando apoios',
-  meta_batida: 'Meta batida',
-  cobrando: 'Em cobrança',
-  prometido: 'Prometido',
-  entregue_em_parte: 'Entregue em parte',
-  descumprida: 'Promessa descumprida',
-  conquistada: 'Conquistada',
-};
+import { LinhaDoTempo } from './linha-do-tempo/linha';
+import { STATUS } from '../status';
 
 const ERRO: Record<string, string> = {
   motivo_obrigatorio: 'Para recusar, escreva o motivo. Ele é enviado a quem criou a pauta.',
@@ -32,11 +22,20 @@ const TIPO_CAMINHO = {
   representante: 'Representante',
 };
 const MODERACAO = { pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado' };
+const MOTIVO_ACHADO: Record<string, string> = {
+  nome_conhecido: 'nome de quem participa',
+  email: 'e-mail',
+  telefone: 'telefone',
+  matricula: 'matrícula',
+  possivel_nome: 'possível nome de pessoa',
+};
 
 export function Pauta({
   pauta,
   erro,
+  feito,
   avisados,
+  eventos = [],
   aprovar,
   recusar,
   definirCategoria = async () => {},
@@ -44,6 +43,8 @@ export function Pauta({
 }: {
   pauta: DetalhePautaDaCuradoria;
   erro?: string | undefined;
+  feito?: string | undefined;
+  eventos?: EventoDaLinha[];
   /** Vem depois de registrar a promessa: quantos apoiadores entraram na fila de aviso. */
   avisados?: number | undefined;
   aprovar: Acao;
@@ -59,6 +60,17 @@ export function Pauta({
   return (
     <>
       <h1>{pauta.titulo}</h1>
+      {feito === 'aprovada' && (
+        <p className={estilos.aviso} role="status">
+          Pauta aprovada. Ela já aparece no site e pode receber apoios; o relato de quem a criou
+          também foi publicado.
+        </p>
+      )}
+      {feito === 'recusada' && (
+        <p className={estilos.aviso} role="status">
+          Pauta recusada. Quem criou recebe o motivo pelo WhatsApp.
+        </p>
+      )}
       {avisados !== undefined && (
         <p className={estilos.aviso} role="status">
           Promessa registrada.{' '}
@@ -122,6 +134,16 @@ export function Pauta({
             {pauta.relatos.map((relato, indice) => (
               <li className={estilos.cartao} key={`${String(indice)}-${relato.texto}`}>
                 <p>{relato.texto}</p>
+                {relato.achados.length > 0 && (
+                  <ul className={estilos.aviso}>
+                    {relato.achados.map((achado) => (
+                      <li key={`${String(achado.inicio)}-${achado.motivo}`}>
+                        {achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}:{' '}
+                        {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p>Curso: {relato.curso ?? 'Não informado'}</p>
                 <p>Situação da moderação: {MODERACAO[relato.moderacao]}</p>
                 <p>Data registrada: {relato.data ? dataHora(relato.data) : 'Não registrada'}</p>
@@ -176,9 +198,7 @@ export function Pauta({
         </section>
       )}
 
-      <p>
-        <Link href={`/pautas/${pauta.id}/linha-do-tempo`}>Ver a linha do tempo</Link>
-      </p>
+      <LinhaDoTempo pautaId={pauta.id} titulo={pauta.titulo} eventos={eventos} recolhivel />
 
       {ACEITA_PROMESSA.includes(pauta.status) && (
         <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>
@@ -193,6 +213,10 @@ export function Pauta({
             <p className={estilos.detalhes}>
               A pauta passa a aparecer no site e a juntar apoios. Confira antes se o texto não tem
               nome de pessoa, ofensa nem dado pessoal.
+            </p>
+            <p className={estilos.detalhes}>
+              Aprovar a pauta também publica o relato de quem a criou. Confira o texto, a foto e os
+              achados de dado pessoal.
             </p>
             <input type="hidden" name="pautaId" value={pauta.id} />
             <label htmlFor="categoria">Categoria</label>
