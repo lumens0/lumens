@@ -96,7 +96,14 @@ export async function sairDoLumens(
     .update(papeisPauta)
     .set({ ate: agora })
     .where(and(eq(papeisPauta.estudanteId, estudanteId), isNull(papeisPauta.ate)))
-    .returning({ pautaId: papeisPauta.pautaId, papel: papeisPauta.papel });
+    .returning({
+      pautaId: papeisPauta.pautaId,
+      papel: papeisPauta.papel,
+      desde: papeisPauta.desde,
+    });
+  // SCRUM-315: o UPDATE não garante a ordem das linhas (com o índice único de papel ativo, o plano
+  // mudou). Ordena pela data em que a pessoa assumiu cada pauta: resultado e eventos estáveis.
+  encerrados.sort((a, b) => a.desde.localeCompare(b.desde));
 
   for (const { pautaId, papel } of encerrados) {
     await registrarEvento(tx, { pautaId, tipo: 'owner_removido', dados: { papel }, origem: 'bot' });
