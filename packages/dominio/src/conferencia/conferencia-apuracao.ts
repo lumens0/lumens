@@ -67,7 +67,14 @@ export async function encerrarConferencia(
   const respostas = { sim: 0, em_parte: 0, nao: 0 };
   for (const { resposta, total } of contagem) respostas[resposta] = total;
 
-  const { resultado, respondentes } = apurarConferencia({ apoiadores, respostas });
+  // SCRUM-297: promessa sem apoiadores existe (quem cria a pauta não conta como apoio, e o
+  // protocolo do Fala.BR leva a pauta a `cobrando` antes de qualquer apoio). Ninguém para responder
+  // é falta de quórum, não erro: sem isto `apurarConferencia` lançava a cada rodada do agendador e a
+  // pauta ficava presa sem resultado.
+  const { resultado, respondentes } =
+    apoiadores === 0
+      ? { resultado: 'sem_quorum' as const, respondentes: 0 }
+      : apurarConferencia({ apoiadores, respostas });
 
   await tx.update(promessas).set({ resultado }).where(eq(promessas.id, promessaId));
 

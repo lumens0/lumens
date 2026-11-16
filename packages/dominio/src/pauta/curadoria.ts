@@ -101,9 +101,15 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
-  | { decidida: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' };
+  | {
+      decidida: false;
+      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'motivo_longo';
+    };
 
 async function decidir(
   tx: Tx,
@@ -124,6 +130,10 @@ async function decidir(
   if (pauta.status !== 'em_curadoria') return { decidida: false, motivo: 'ja_decidida' };
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
+  }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
   }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
