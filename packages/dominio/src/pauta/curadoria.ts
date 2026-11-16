@@ -49,6 +49,7 @@ export interface PautaNaFila {
   restanteMs: number;
   apoios: number;
   meta: number;
+  urgente: boolean;
 }
 
 /** A pauta como a curadoria vê na tela dela (SCRUM-168), em qualquer status. */
@@ -75,6 +76,7 @@ function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]
         limit 1)`,
       apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
       meta: pautas.meta,
+      urgente: pautas.urgente,
       criadaEm: pautas.criadaEm,
       status: pautas.status,
       motivoRecusa: pautas.motivoRecusa,
@@ -244,14 +246,31 @@ export async function aprovarPauta(
     pautaId,
     curadorId,
     categoria,
+    urgente = false,
     agora = new Date(),
-  }: { pautaId: string; curadorId: string; categoria: string; agora?: Date },
+  }: { pautaId: string; curadorId: string; categoria: string; urgente?: boolean; agora?: Date },
 ): Promise<ResultadoDecisao> {
   if (!categoria || !Object.hasOwn(CATEGORIAS, categoria))
     return { decidida: false, motivo: 'categoria_invalida' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (resultado.decidida) {
-    await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+    await tx
+      .update(pautas)
+      .set({
+        categoria,
+        urgente,
+        urgenteDesde: urgente ? agora : null,
+        urgentePor: urgente ? curadorId : null,
+      })
+      .where(eq(pautas.id, pautaId));
+    if (urgente) {
+      await registrarEvento(tx, {
+        pautaId,
+        tipo: 'pauta_urgente',
+        dados: { urgente: true },
+        origem: 'curadoria',
+      });
+    }
     const relatosDeOrigem = await tx
       .select({ id: relatos.id })
       .from(relatos)
@@ -270,6 +289,56 @@ export async function aprovarPauta(
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   }
   return resultado;
+}
+
+export type ResultadoUrgencia =
+  | { atualizada: true }
+  | { atualizada: false; motivo: 'pauta_inexistente' | 'pauta_nao_publica' | 'motivo_invalido' };
+
+/** Marca ou remove a urgência de uma pauta já pública e registra a mudança na linha do tempo. */
+export async function marcarUrgencia(
+  tx: Tx,
+  {
+    pautaId,
+    curadorId,
+    urgente,
+    motivo,
+    agora = new Date(),
+  }: { pautaId: string; curadorId: string; urgente: boolean; motivo?: string; agora?: Date },
+): Promise<ResultadoUrgencia> {
+  if (
+    motivo !== undefined &&
+    (Array.from(motivo.trim()).length > 200 || /[\r\n\u2028\u2029]/u.test(motivo))
+  ) {
+    return { atualizada: false, motivo: 'motivo_invalido' };
+  }
+  const [pauta] = await tx
+    .select({ status: pautas.status, urgente: pautas.urgente })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { atualizada: false, motivo: 'pauta_inexistente' };
+  if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
+    return { atualizada: false, motivo: 'pauta_nao_publica' };
+  }
+  if (pauta.urgente === urgente) return { atualizada: true };
+  const motivoLimpo = motivo?.trim();
+
+  await tx
+    .update(pautas)
+    .set({
+      urgente,
+      urgenteDesde: urgente ? agora : null,
+      urgentePor: urgente ? curadorId : null,
+    })
+    .where(eq(pautas.id, pautaId));
+  await registrarEvento(tx, {
+    pautaId,
+    tipo: 'pauta_urgente',
+    dados: motivoLimpo ? { urgente, motivo: motivoLimpo } : { urgente },
+    origem: 'curadoria',
+  });
+  return { atualizada: true };
 }
 
 export async function definirCategoria(

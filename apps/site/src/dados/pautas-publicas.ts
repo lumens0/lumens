@@ -31,7 +31,12 @@ export function contextoDaPauta(categoria: string, blocoNome: string | null | un
 export function pautasPublicas(pautas: readonly Pauta[], bloco?: Bloco): Pauta[] {
   return pautas
     .filter((p) => !FORA_DO_SITE.has(p.status) && (!bloco || p.bloco_slug === bloco.slug))
-    .sort((a, b) => b.apoios - a.apoios || Date.parse(b.criada_em) - Date.parse(a.criada_em));
+    .sort(
+      (a, b) =>
+        Number(b.urgente) - Number(a.urgente) ||
+        b.apoios - a.apoios ||
+        Date.parse(b.criada_em) - Date.parse(a.criada_em),
+    );
 }
 
 /** Bloco do `?bloco=`; slug que não existe ou repetido na URL vale como "Todos os blocos". */

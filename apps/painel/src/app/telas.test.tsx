@@ -24,6 +24,7 @@ const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCur
   categoria: 'infraestrutura',
   apoios: 80,
   meta: 300,
+  urgente: false,
   metaBatidaEm: null,
   responsaveis: [],
   relatos: [],
@@ -67,6 +68,7 @@ describe('tela da pauta', () => {
     expect(html).toContain('Bloco 12');
     expect(html).toContain('O bebedouro do térreo não funciona desde agosto.');
     expect(html).toContain('Sem foto');
+    expect(html).toContain('Marcar como urgente');
     expect(html).toContain('<details id="linha-do-tempo"');
     expect(html).toContain('Linha do tempo');
     expect(html).toContain('Aprovar pauta');
@@ -81,6 +83,26 @@ describe('tela da pauta', () => {
     expect(html).toContain('Infraestrutura');
     expect(html).toContain('Segurança');
     expect(html).toContain('Permanência');
+  });
+
+  it('pauta pública oferece formulário para marcar ou desmarcar urgência', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({ status: 'juntando_apoios', urgente: true })}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+    expect(html).toContain('name="urgente"');
+    expect(html).toContain('checked=""');
+    expect(html).toContain('Motivo curto (opcional)');
+  });
+
+  it('lista de pautas mostra selo textual nas urgentes', () => {
+    const html = renderToStaticMarkup(
+      <ListaDePautas pautas={[pauta({ urgente: true })]} status="todas" q="" />,
+    );
+    expect(html).toContain('>Urgente</span>');
   });
 
   it('mostra informações operacionais da pauta sem expor identidade de estudante', () => {

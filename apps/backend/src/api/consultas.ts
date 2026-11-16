@@ -68,6 +68,7 @@ const COLUNAS_PAUTA = sql.join(
   [
     sql.raw('slug, titulo, descricao, categoria, status::text AS status'),
     sql.raw('meta::int AS meta, apoios::int AS apoios, bloco_slug, bloco_nome'),
+    sql.raw('urgente'),
     sql.raw('cursos_responsaveis'),
     iso('criada_em'),
     iso('aprovada_em'),
@@ -83,7 +84,8 @@ export async function listarPautas(db: Db, query: PautasQuery) {
   const itens = await linhas<Pauta>(
     db,
     sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica ${filtro}
-        ORDER BY v_pauta_publica.apoios DESC, v_pauta_publica.criada_em DESC, slug
+        ORDER BY v_pauta_publica.urgente DESC, v_pauta_publica.apoios DESC,
+                 v_pauta_publica.criada_em DESC, slug
         LIMIT ${query.limit + 1} OFFSET ${query.offset}`,
   );
   return paginar(itens, query);
