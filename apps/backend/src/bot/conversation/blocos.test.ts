@@ -34,6 +34,20 @@ describe('blocoEscolhido com o rótulo digitado (SCRUM-325)', () => {
     }
   });
 
+  it('rótulo cortado pela Meta, digitado com as reticências, escolhe o bloco', () => {
+    expect(blocoEscolhido('Bloco da Saúde (fictíci…', BLOCOS)).toEqual({ blocoId: 'saude' });
+    // Sem as reticências, um pedaço do meio da palavra não é rótulo: continua sem achar.
+    expect(blocoEscolhido('Bloco da Saúde (fictíci', BLOCOS)).toBeUndefined();
+  });
+
+  it('rótulo cortado que começa igual em dois blocos não escolhe nenhum', () => {
+    const parecidos = [
+      { id: 'x', slug: 'bloco-de-artes-a', nome: 'Bloco de Artes Visuais' },
+      { id: 'y', slug: 'bloco-de-artes-c', nome: 'Bloco de Artes Cênicas' },
+    ];
+    expect(blocoEscolhido('Bloco de Artes…', parecidos)).toBeUndefined();
+  });
+
   it.each([
     ['Bloco 18 (fictício)', 'b18'],
     ['Biblioteca Central', 'bib'],
