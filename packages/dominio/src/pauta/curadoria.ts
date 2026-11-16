@@ -20,6 +20,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { registrarApoio } from './apoio';
 import { transicionarStatus } from './status';
@@ -102,9 +103,15 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
-  | { decidida: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' };
+  | {
+      decidida: false;
+      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'motivo_longo';
+    };
 
 async function decidir(
   tx: Tx,
@@ -126,6 +133,10 @@ async function decidir(
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
   }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
+  }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
   // Quem decidiu fica na pauta, não no evento: evento não leva identidade.
@@ -140,13 +151,15 @@ async function decidir(
 }
 
 /**
- * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site.
+ * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
+ * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
+ * avisado.
  *
- * Quem cuida da pauta conta como o primeiro apoio, na mesma transação (SCRUM-344). Na aprovação
- * esse é só quem a criou: virar co-owner exige ter apoiado, e apoio só existe depois de aprovada.
- * Sem isto a pauta nascia com 0 apoios, o texto do Fala.BR falava em "0 estudantes" quando o owner
- * protocolava cedo, e quem criou ficava fora do aviso da promessa e da conferência, que vão para
- * quem apoiou.
+ * Quem cuida da pauta conta como o primeiro apoio, também na mesma transação (SCRUM-344). Na
+ * aprovação esse é só quem a criou: virar co-owner exige ter apoiado, e apoio só existe depois de
+ * aprovada. Sem isto a pauta nascia com 0 apoios, o texto do Fala.BR falava em "0 estudantes"
+ * quando o owner protocolava cedo, e quem criou ficava fora do aviso da promessa e da
+ * conferência, que vão para quem apoiou.
  */
 export async function aprovarPauta(
   tx: Tx,
@@ -169,6 +182,7 @@ export async function aprovarPauta(
     // Quem saiu do Lumens enquanto a pauta esperava a curadoria volta recusado, sem erro.
     await registrarApoio(tx, { pautaId, estudanteId, origem: 'bot', agora });
   }
+  await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   return resultado;
 }
 
