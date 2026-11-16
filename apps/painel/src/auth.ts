@@ -11,6 +11,7 @@ import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
+import { opcoesSmtp } from './smtp';
 
 const QUINZE_MINUTOS = 15 * 60;
 
@@ -42,11 +43,12 @@ export function servidor(): { db: Db; chave: Buffer } {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const { db, chave } = servidor();
-  const smtp = {
+  const smtp = opcoesSmtp({
     host: exigir('EMAIL_HOST'),
-    port: Number(exigir('EMAIL_PORT')),
-    auth: { user: exigir('EMAIL_USUARIO'), pass: exigir('EMAIL_SENHA') },
-  };
+    porta: Number(exigir('EMAIL_PORT')),
+    usuario: exigir('EMAIL_USUARIO'),
+    senha: exigir('EMAIL_SENHA'),
+  });
   return {
     ...configBase,
     adapter: adaptador(db, chave),

@@ -81,18 +81,28 @@ export function criarEmailSmtp(opcoes: OpcoesSmtp): ServicoDeEmail {
   };
 }
 
-function criarTransporteSmtp({ host, porta, usuario, senha }: OpcoesSmtp): Transporte {
-  const smtp = createTransport({
+/**
+ * Como conectar no SMTP. 465 é TLS desde o início; nas outras portas (587) a conexão começa sem
+ * TLS e passa a TLS pelo STARTTLS. `requireTLS` (SCRUM-304) torna o STARTTLS obrigatório: sem ele,
+ * um intermediário que apagasse o STARTTLS da resposta do servidor faria o Nodemailer autenticar
+ * e enviar em claro, e vazariam a senha do SMTP e os códigos. Com ele, o envio falha.
+ */
+export function opcoesDoTransporte({ host, porta, usuario, senha }: OpcoesSmtp) {
+  return {
     host,
     port: porta,
-    // 465 é SMTP com TLS desde o início; 587 começa sem e passa a TLS (STARTTLS).
     secure: porta === 465,
+    requireTLS: porta !== 465,
     auth: { user: usuario, pass: senha },
     // Sem resposta do servidor, desiste: a mensagem do WhatsApp não fica presa esperando.
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 20_000,
-  });
+  };
+}
+
+function criarTransporteSmtp(opcoes: OpcoesSmtp): Transporte {
+  const smtp = createTransport(opcoesDoTransporte(opcoes));
   return { sendMail: (mensagem) => smtp.sendMail(mensagem) };
 }
 

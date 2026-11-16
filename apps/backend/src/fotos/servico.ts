@@ -9,7 +9,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
-import { ErroImagemGrande, removerMetadados } from './imagem';
+import { ENTRADA_DA_FOTO, ErroImagemGrande, removerMetadados } from './imagem';
 import { ErroDeMidia, type MidiaBaixada } from './meta-midia';
 import type { Storage } from './storage';
 
@@ -68,7 +68,7 @@ export function criarServicoDeFotos({
       let limpa: Buffer;
       try {
         // O conteúdo precisa ser mesmo do tipo informado: um WebP chamado de JPEG é recusado.
-        const { format } = await sharp(baixada.bytes).metadata();
+        const { format } = await sharp(baixada.bytes, ENTRADA_DA_FOTO).metadata();
         if (format !== tipo.formato) return { ok: false, motivo: 'formato' };
         limpa = await removerMetadados(baixada.bytes);
       } catch (erro) {
