@@ -257,6 +257,64 @@ describe('câmera ligada ao mapa', () => {
     }
   });
 
+  it('no celular, dois dedos andando juntos arrastam o mapa sem mudar zoom nem giro', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const tocar = (
+      handler: keyof typeof mapa.camera.eventos,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ) => {
+      const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+      fn({ pointerId, pointerType: 'touch', clientX, clientY, button: 0, preventDefault() {} });
+    };
+    // Aproxima antes: com o campus inteiro na tela, não há para onde arrastar.
+    for (let i = 0; i < 8; i++) {
+      mapa.ouvintes.get('wheel')?.({
+        deltaX: 0,
+        deltaY: -40,
+        deltaMode: 0,
+        clientX: 500,
+        clientY: 250,
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault() {},
+      } as unknown as Event);
+    }
+    tocar('onPointerDown', 1, 400, 200);
+    tocar('onPointerDown', 2, 600, 200);
+    const antes = { ...mapa.camera.estado().vista };
+    // Os dois descem 100 px, intercalados em passos de 10 px, como o navegador entrega o gesto.
+    for (let y = 210; y <= 300; y += 10) {
+      tocar('onPointerMove', 1, 400, y);
+      tocar('onPointerMove', 2, 600, y);
+    }
+    const depois = mapa.camera.estado().vista;
+    expect(depois.w).toBeCloseTo(antes.w, 0);
+    expect(mapa.camera.estado().giro).toBe(0);
+    // 100 px de tela, numa tela de 500 px de altura, são um quinto da altura da visão.
+    expect(antes.y - depois.y).toBeCloseTo((100 / 500) * antes.h, 0);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('no celular, um dedo rola a página na hora, sem a rolagem suave', () => {
+    const scrollBy = vi.fn();
+    vi.stubGlobal('window', { scrollBy });
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const fn = (handler: keyof typeof mapa.camera.eventos) =>
+      mapa.camera.eventos[handler] as (evento: unknown) => void;
+    const toque = { pointerId: 1, pointerType: 'touch', button: 0, preventDefault() {} };
+    fn('onPointerDown')({ ...toque, clientX: 300, clientY: 300 });
+    fn('onPointerMove')({ ...toque, clientX: 300, clientY: 260 });
+    expect(scrollBy).toHaveBeenCalledWith({ top: 40, behavior: 'instant' });
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
   it('Shift+roda gira, trackpad desloca e roda com Ctrl aproxima', () => {
     const mapa = montar();
     mapa.tela(1000, 500);

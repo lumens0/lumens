@@ -272,7 +272,9 @@ export function criarCamera(
       ) {
         arrastou = true;
         aoGesto?.(1);
-        window.scrollBy(0, -deslocamento);
+        // Instantânea: o `scroll-behavior: smooth` da página faria cada movimento recomeçar uma
+        // animação curta, e a página andaria menos que o dedo.
+        window.scrollBy({ top: -deslocamento, behavior: 'instant' });
       }
       dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
       return;
@@ -304,7 +306,14 @@ export function criarCamera(
           v = girar(v, giro, delta, px, py);
           giro += delta;
         }
-        mover(limitar(v));
+        // Os dois dedos andando juntos arrastam o mapa: o ponto médio entre eles anda metade do
+        // que o dedo que se moveu andou.
+        const [mx, my] = desgirar(
+          ((e.clientX - antes.x) / 2 / largura) * v.w,
+          ((e.clientY - antes.y) / 2 / altura) * v.h,
+          giro,
+        );
+        mover(limitar({ ...v, x: v.x - mx, y: v.y - my }));
       }
     } else {
       const dx = e.clientX - antes.x;
