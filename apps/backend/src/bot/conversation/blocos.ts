@@ -75,6 +75,13 @@ export function blocoEscolhido(
       palavrasDe(b.slug).join(' ') === digitado,
   );
   if (exato) return { blocoId: exato.id };
+  // Rótulo cortado no limite da Meta ("Bloco da Saúde (fictíci…"), digitado como a pessoa o vê:
+  // vale o começo do nome, se só um bloco começa assim.
+  if (bruta.endsWith('…')) {
+    const comecam = blocos.filter((b) => palavrasDe(b.nome).join(' ').startsWith(digitado));
+    const [unicoCortado] = comecam;
+    if (comecam.length === 1 && unicoCortado) return { blocoId: unicoCortado.id };
+  }
   const contem = blocos.filter((b) => ` ${nomeComparavel(b.nome)} `.includes(` ${digitado} `));
   const [unico] = contem;
   return contem.length === 1 && unico ? { blocoId: unico.id } : undefined;
