@@ -25,6 +25,11 @@ const CAMINHO: Caminho = {
 describe('página da pauta: seções', () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it('cabeçalho mostra selo urgente junto do status', () => {
+    const html = renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, urgente: true }} />);
+    expect(html).toContain('Urgente');
+  });
+
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');

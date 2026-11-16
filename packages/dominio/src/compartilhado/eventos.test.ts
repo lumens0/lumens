@@ -124,7 +124,8 @@ describe('registrarEvento (RN11)', () => {
     expect(criacao.publico).toBe(false);
   });
 
-  it('o catálogo tem os 16 tipos da T7', () => {
-    expect(TIPOS_EVENTO).toHaveLength(16);
+  it('o catálogo tem os 16 tipos da T7 e a urgência da curadoria (SCRUM-316)', () => {
+    expect(TIPOS_EVENTO).toHaveLength(17);
+    expect(TIPOS_EVENTO).toContain('pauta_urgente');
   });
 });

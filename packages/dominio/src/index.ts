@@ -117,6 +117,7 @@ export {
   MODELO_PAUTA_RECUSADA,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
+  marcarUrgencia,
   definirCategoria,
   buscarPautaDaCuradoria,
   listarFilaDeCuradoria,
@@ -128,6 +129,7 @@ export type {
   PautaDaCuradoria,
   PautaNaFila,
   ResultadoDecisao,
+  ResultadoUrgencia,
   ResumoDaCuradoria,
 } from './pauta/curadoria';
 
