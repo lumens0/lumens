@@ -7,11 +7,14 @@ import Home from './page';
 
 // O filtro usa o router do Next, que não existe fora do app.
 vi.mock('../componentes/FiltroBloco', () => ({ FiltroBloco: () => null }));
+vi.mock('../componentes/FiltroStatus', () => ({ FiltroStatus: () => null }));
 vi.mock('../dados/api', () => ({ buscarBlocos: vi.fn(), buscarPautas: vi.fn() }));
 
-const render = async (bloco?: string) =>
+const render = async (bloco?: string, status?: string) =>
   renderToStaticMarkup(
-    await Home({ searchParams: Promise.resolve(bloco === undefined ? {} : { bloco }) }),
+    await Home({
+      searchParams: Promise.resolve({ ...(bloco ? { bloco } : {}), ...(status ? { status } : {}) }),
+    }),
   );
 
 describe('home', () => {
@@ -35,7 +38,7 @@ describe('home', () => {
     const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
     vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
     const html = await render('bloco-a');
-    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
+    expect(buscarPautas).toHaveBeenCalledWith('bloco-a', undefined);
     expect(html).toContain('Bloco A</h2>');
     for (const p of doBlocoA) expect(html).toContain(p.titulo);
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
@@ -56,7 +59,23 @@ describe('home', () => {
 
   it('bloco que não existe busca todas as pautas', async () => {
     await render('nao-existe');
-    expect(buscarPautas).toHaveBeenCalledWith(undefined);
+    expect(buscarPautas).toHaveBeenCalledWith(undefined, undefined);
+  });
+
+  it('status combinado ao bloco filtra a lista e os totais', async () => {
+    const pautas = PAUTAS_TESTE.filter(
+      (p) => p.status === 'prometido' && p.bloco_slug === 'bloco-a',
+    );
+    vi.mocked(buscarPautas).mockResolvedValue(pautas as never);
+    const html = await render('bloco-a', 'prometido');
+    expect(buscarPautas).toHaveBeenCalledWith('bloco-a', 'prometido');
+    expect(html).toContain('<dt>Apoios</dt><dd>0</dd>');
+    expect(html).toContain('Nenhuma pauta prometida neste bloco');
+  });
+
+  it('status não público não segue para a busca', async () => {
+    await Home({ searchParams: Promise.resolve({ status: 'em_curadoria' }) });
+    expect(buscarPautas).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it('erro da API sobe para o error.tsx em vez de renderizar a página vazia', async () => {
