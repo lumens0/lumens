@@ -227,6 +227,7 @@ export {
   conferirCodigo,
   cursoValido,
   emailInstitucional,
+  apagarCodigosVencidos,
   esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
