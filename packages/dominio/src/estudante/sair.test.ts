@@ -303,7 +303,11 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       'fotos/2026/11/pendente.jpg',
       'fotos/2026/11/recusado.jpg',
     ]);
-    const restantes = await db.select({ id: relatos.id }).from(relatos);
+    // O banco é o mesmo do arquivo todo: olha só os relatos da pauta deste teste.
+    const restantes = await db
+      .select({ id: relatos.id })
+      .from(relatos)
+      .where(eq(relatos.pautaId, pauta.id));
     expect(restantes.map((r) => r.id).sort()).toEqual([aprovado?.id, daOutra?.id].sort());
   });
 
