@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { CURSOS } from '../src/cursos';
+import type { Curso } from '../src/cursos';
 import type {
   NovoApoio,
   NovoBloco,
@@ -16,6 +16,21 @@ import type {
   NovoVoluntario,
   StatusPauta,
 } from '../src/types';
+
+/**
+ * Os cursos dos estudantes do seed: 8 da lista oficial (`CURSOS`), sempre os mesmos, para os dados
+ * e os testes do seed não mudarem quando a lista crescer (SCRUM-296).
+ */
+const CURSOS_DO_SEED = [
+  'Administração',
+  'Arquitetura e Urbanismo',
+  'Ciência da Computação',
+  'Direito',
+  'Enfermagem',
+  'Engenharia Civil',
+  'Jornalismo',
+  'Pedagogia',
+] as const satisfies readonly Curso[];
 
 const CHAVE_HMAC_SEED = 'lumens-seed-desenvolvimento-v1';
 const QUANTIDADE_ESTUDANTES = 300;
@@ -98,7 +113,7 @@ export const estudantesSeed = Array.from({ length: QUANTIDADE_ESTUDANTES }, (_, 
     telefoneCifrado: placeholderCifrado('telefone', telefoneFicticio),
     emailHmac: hmac(`email:${emailFicticio}`),
     emailCifrado: placeholderCifrado('email', emailFicticio),
-    curso: CURSOS[indice % CURSOS.length],
+    curso: CURSOS_DO_SEED[indice % CURSOS_DO_SEED.length],
     verificadoEm: data(1, 9),
   };
 }) satisfies Array<NovoEstudante & { id: string }>;

@@ -87,6 +87,6 @@
 
 ## Fora de escopo
 
-- Os cursos reais da UFAL: trocar a lista em `packages/db/src/cursos.ts`.
+- ~~Os cursos reais da UFAL~~: resolvido na SCRUM-296 (43 cursos do campus, fonte SIGAA).
 - Retomar o apoio (2.7).
 - Testar o e-mail num SMTP de verdade e em contas reais da UFAL.

@@ -244,3 +244,6 @@ export type {
 
 export { documentosDeResposta, registrarDocumentoDeResposta } from './caminhos/documento-resposta';
 export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-resposta';
+
+export { APELIDOS, MAX_CANDIDATOS, buscarCurso, chave as chaveDoCurso } from './cursos';
+export type { BuscaDeCurso } from './cursos';
