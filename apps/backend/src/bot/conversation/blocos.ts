@@ -10,9 +10,21 @@ export const BLOCK_NOT_FOUND_TEXT = 'Não achei esse bloco. Escolha um na lista.
 
 /** Linha da lista de blocos para quem não sabe ou fala do campus inteiro. */
 export const CAMPUS_ROW_ID = 'bloco:campus';
+export const CAMPUS_ROW_TITLE = 'Todo o campus / não sei';
 const BLOCK_ROW_PREFIX = 'bloco:';
 
-const CAMPUS = new Set(['campus', 'todo o campus', 'nao sei', 'nenhum', 'outro']);
+/**
+ * O que digitado vale como o campus inteiro. Inclui o próprio rótulo da linha (SCRUM-325): quem
+ * digita o que está vendo, em vez de tocar no botão, não pode ficar preso no passo do bloco.
+ */
+const CAMPUS = new Set([
+  'campus',
+  'todo o campus',
+  'nao sei',
+  'nenhum',
+  'outro',
+  palavrasDe(CAMPUS_ROW_TITLE).join(' '),
+]);
 
 /** "Bloco 18 (fictício)" → "bloco 18": o nome como alguém escreveria. */
 function nomeComparavel(nome: string): string {
@@ -55,8 +67,12 @@ export function blocoEscolhido(
   const digitado = palavrasDe(bruta).join(' ');
   if (digitado === '') return undefined;
   if (CAMPUS.has(digitado)) return { blocoId: null };
+  // O rótulo exato da linha também vale (SCRUM-325): "Bloco 18 (fictício)" com os parênteses.
   const exato = blocos.find(
-    (b) => nomeComparavel(b.nome) === digitado || palavrasDe(b.slug).join(' ') === digitado,
+    (b) =>
+      nomeComparavel(b.nome) === digitado ||
+      palavrasDe(b.nome).join(' ') === digitado ||
+      palavrasDe(b.slug).join(' ') === digitado,
   );
   if (exato) return { blocoId: exato.id };
   const contem = blocos.filter((b) => ` ${nomeComparavel(b.nome)} `.includes(` ${digitado} `));
@@ -76,7 +92,7 @@ export function listaDeBlocos(blocos: readonly BlocoParaRelato[]): MensagemDeLis
     botao: 'Escolher bloco',
     linhas: [
       ...cabem.map((b) => ({ id: `${BLOCK_ROW_PREFIX}${b.id}`, titulo: b.nome })),
-      { id: CAMPUS_ROW_ID, titulo: 'Todo o campus / não sei' },
+      { id: CAMPUS_ROW_ID, titulo: CAMPUS_ROW_TITLE },
     ],
   });
 }
