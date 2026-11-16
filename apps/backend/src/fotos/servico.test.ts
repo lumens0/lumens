@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { pngGigante } from '../teste/png-gigante';
 import { TAMANHO_MAXIMO_FOTO } from './imagem';
 import { ErroDeMidia, type MidiaBaixada } from './meta-midia';
 import { criarServicoDeFotos, type DependenciasDasFotos } from './servico';
@@ -171,5 +172,16 @@ describe('guardarFoto', () => {
     const { servico } = montar({ bytes: jpeg, mimeType: 'IMAGE/JPEG; charset=binary' });
     const r = await servico.guardarFoto({ id: 'm', mimeType: 'image/jpeg; x=1' });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe('limite de pixels (SCRUM-304)', () => {
+  it('foto com pixels demais é recusada como inválida e nada é guardado', async () => {
+    const { servico, guardadas } = montar({ bytes: pngGigante(8000), mimeType: 'image/png' });
+    expect(await servico.guardarFoto({ id: 'midia-bomba', mimeType: 'image/png' })).toEqual({
+      ok: false,
+      motivo: 'invalida',
+    });
+    expect(guardadas).toEqual([]);
   });
 });
