@@ -201,6 +201,25 @@ describe('desativarCurador e reativarCurador', () => {
   });
 });
 
+describe('adicionarCurador ao mesmo tempo', () => {
+  it('dois cadastros do mesmo e-mail juntos: um adiciona, o outro responde já ativo', async () => {
+    const autor = await administrador();
+    const pedido = () =>
+      adicionarCurador(db, chaves, { autorId: autor, email: 'duas.vezes@ufal.br', nome: 'Dupla' });
+
+    const resultados = await Promise.all([pedido(), pedido()]);
+
+    expect(resultados.filter((r) => r.feito)).toHaveLength(1);
+    expect(resultados.filter((r) => !r.feito)).toEqual([{ feito: false, motivo: 'ja_ativo' }]);
+    const linhas = await db
+      .select({ id: curadores.id })
+      .from(curadores)
+      .where(eq(curadores.emailHmac, hmacDoEmailDeCurador('duas.vezes@ufal.br', chaves.hmac)));
+    expect(linhas).toHaveLength(1);
+    expect(await auditoriaDe(linhas[0]?.id ?? '')).toHaveLength(1);
+  });
+});
+
 describe('listarCuradores', () => {
   it('traz o e-mail decifrado, ativos primeiro', async () => {
     const autor = await administrador();
@@ -220,5 +239,20 @@ describe('listarCuradores', () => {
     });
     const primeiroInativo = lista.findIndex((c) => !c.ativo);
     expect(lista.slice(primeiroInativo).every((c) => !c.ativo)).toBe(true);
+  });
+  it('e-mail que não abre com a chave atual (o do seed) não derruba a lista', async () => {
+    // Como o seed grava os curadores fictícios (`placeholderCifrado` em packages/db/seed/data.ts).
+    const [doSeed] = await db
+      .insert(curadores)
+      .values({
+        emailHmac: 'hmac-do-seed',
+        emailCifrado: `seed:v1:email:${Buffer.from('ana.curadoria@seed.invalid').toString('base64url')}`,
+        nome: 'Ana Curadoria',
+      })
+      .returning({ id: curadores.id });
+
+    const lista = await listarCuradores(db, chaves);
+
+    expect(lista.find((c) => c.id === doSeed?.id)?.email).toBe('E-mail indisponível');
   });
 });
