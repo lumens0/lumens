@@ -408,13 +408,16 @@ export const UNBLOCK_CRON = '* * * * *';
  * @returns quantos jobs foram removidos.
  */
 export async function desbloquearConversas(
-  boss: Pick<PgBoss, 'getBlockedKeys' | 'findJobs' | 'deleteJob'>,
+  boss: Pick<PgBoss, 'getQueue' | 'getBlockedKeys' | 'findJobs' | 'deleteJob'>,
   logger: Logger,
 ): Promise<number> {
   let removidos = 0;
   // SCRUM-307: a fila de respostas também é ordenada: uma resposta que falhou de vez (a pessoa
   // bloqueou o número, por exemplo) seguraria as próximas daquela conversa para sempre.
   for (const fila of FILAS_POR_CONVERSA) {
+    // O pg-boss só tem chave travada em fila `key_strict_fifo` (e lança nas outras). A de respostas
+    // pode ainda não existir, ou ser de antes da ordem, até o worker de respostas subir.
+    if ((await boss.getQueue(fila))?.policy !== INCOMING_QUEUE_POLICY) continue;
     for (const chave of await boss.getBlockedKeys(fila)) {
       const falhados = (await boss.findJobs(fila, { key: chave })).filter(
         (job) => job.state === 'failed',

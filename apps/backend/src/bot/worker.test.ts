@@ -697,6 +697,12 @@ describe('desbloquearConversas (SCRUM-307)', () => {
   it('tira da frente o job falhado de vez também na fila de respostas', async () => {
     const apagados: [string, string[]][] = [];
     const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage || fila === JOBS.outgoingReplies
+            ? { policy: 'key_strict_fifo' }
+            : null,
+        ),
       getBlockedKeys: (fila: string) =>
         Promise.resolve(fila === JOBS.outgoingReplies ? [PHONE_HMAC] : []),
       findJobs: () =>
@@ -712,6 +718,25 @@ describe('desbloquearConversas (SCRUM-307)', () => {
 
     expect(await desbloquearConversas(boss, deps.logger)).toBe(1);
     expect(apagados).toEqual([[JOBS.outgoingReplies, ['falhou']]]);
+  });
+
+  it('pula a fila que ainda não é ordenada (o pg-boss lançaria no getBlockedKeys)', async () => {
+    const consultadas: string[] = [];
+    const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage ? { policy: 'key_strict_fifo' } : { policy: 'standard' },
+        ),
+      getBlockedKeys: (fila: string) => {
+        consultadas.push(fila);
+        return Promise.resolve([]);
+      },
+      findJobs: () => Promise.resolve([]),
+      deleteJob: () => Promise.resolve(),
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(0);
+    expect(consultadas).toEqual([JOBS.incomingMessage]);
   });
 });
 

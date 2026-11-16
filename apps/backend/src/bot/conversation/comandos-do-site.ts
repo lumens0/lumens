@@ -60,7 +60,8 @@ const SEM_PERGUNTA_ABERTA: readonly Step[] = ['GREETING', 'MENU'];
  */
 const FORMA_DE_ENDERECO = /^[a-z0-9]+(?:-[a-z0-9]+)+$/;
 
-export const PAUTA_NOT_FOUND_IN_FLOW_TEXT = `${PAUTA_NOT_FOUND_TEXT} Enquanto isso, a conversa continua de onde parou: responda à última pergunta, ou mande *menu* para voltar ao início.`;
+export const PAUTA_NOT_FOUND_IN_FLOW_TEXT =
+  'Não encontrei essa pauta. Ela pode ter mudado de endereço: abra a página dela no site e toque no botão de novo. Enquanto isso, a conversa continua de onde parou: responda à última pergunta, ou mande *menu* para voltar ao início.';
 
 /** O comando não muda nada na conversa: só avisa, e a pessoa segue no passo em que estava. */
 export interface AvisoNoPasso {
@@ -87,9 +88,8 @@ export async function executarComandoDoSite(
     }
     // SCRUM-307: no meio de um fluxo, o endereço velho do botão do site não pode sumir em silêncio
     // (no passo da foto, só repetia o pedido da foto). Avisa e deixa a conversa como está.
-    return FORMA_DE_ENDERECO.test(comando.alvo)
-      ? { avisoNoPasso: PAUTA_NOT_FOUND_IN_FLOW_TEXT }
-      : null;
+    const aviso: AvisoNoPasso = { avisoNoPasso: PAUTA_NOT_FOUND_IN_FLOW_TEXT };
+    return FORMA_DE_ENDERECO.test(comando.alvo) ? aviso : null;
   }
   if (comando.kind === 'cuidar') return cuidarDaPauta(limpo, pauta.id);
   // Fechada para apoio: avisa já, sem mandar a pessoa verificar o e-mail para nada.
