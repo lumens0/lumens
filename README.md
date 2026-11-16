@@ -152,11 +152,10 @@ aparecem no uso da organização. Para não gastar à toa:
 - **Editar título ou descrição da PR não roda o CI.** Só o workflow `jira`, que confere a chave
   `[SCRUM-n]` no título e leva segundos.
 - **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` e do `e2e` na `main`).
-  O `apps/site/vercel.json` desliga o deploy automático da `main` pela integração Git da Vercel,
-  que publicava duas vezes por merge, e antes dos testes. Os previews das PRs continuam.
+  O `apps/site/vercel.json` desliga o deploy automático da integração Git da Vercel em todas as
+  branches. As PRs não têm deploy de preview: cada push gastava um dos 100 deploys por dia do
+  plano grátis, e o `deploy-site` falhava sem cota (SCRUM-254).
 - **O painel não usa a Vercel**: roda na VM de homologação, publicado pelo `deploy-backend`.
-- Junte correções num push só quando puder: cada push numa PR com o site ou `packages/`
-  alterado gasta um deploy de preview.
 
 ## Banco local
 
