@@ -27,8 +27,7 @@ export const PAUTA_NOT_FOUND_TEXT =
   'Não encontrei essa pauta. Ela pode ter mudado de endereço: abra a página dela no site e toque no botão de novo.';
 
 export type ComandoDoSite =
-  | { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string }
-  | { kind: 'nova-pauta' };
+  { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string } | { kind: 'nova-pauta' };
 
 const COM_ALVO = /^(apoiar|ajudar|cuidar)\s+(\S+)$/i;
 
