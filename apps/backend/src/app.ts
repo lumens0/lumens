@@ -86,9 +86,21 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       });
     }
   });
+  await registrarApiDeLeitura(app, leitura, limiteDaApi);
+  return app;
+}
+
+/**
+ * A API de leitura com o limite de requisições, num escopo próprio. É também o que o
+ * `scripts/api-leitura.ts` sobe para o e2e do site: o site é testado com o limite ligado.
+ */
+export async function registrarApiDeLeitura(
+  app: FastifyInstance,
+  leitura: ApiPluginOptions,
+  limite: Limite = LIMITE_DA_API,
+): Promise<void> {
   await app.register(async (api) => {
-    await api.register(rateLimit, opcoesDoLimite(limiteDaApi));
+    await api.register(rateLimit, opcoesDoLimite(limite));
     await api.register(apiPlugin, leitura);
   });
-  return app;
 }
