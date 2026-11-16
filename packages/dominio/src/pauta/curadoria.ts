@@ -23,6 +23,7 @@ import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { transicionarStatus } from './status';
+import { CATEGORIAS } from './pauta';
 
 /** Mensagem modelo (SCRUM-170): título da pauta e motivo da recusa. */
 export const MODELO_PAUTA_RECUSADA = 'lumens_pauta_recusada';
@@ -104,7 +105,10 @@ export async function buscarPautaDaCuradoria(
 
 export type ResultadoDecisao =
   | { decidida: true }
-  | { decidida: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' };
+  | {
+      decidida: false;
+      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'categoria_invalida';
+    };
 
 async function decidir(
   tx: Tx,
@@ -146,11 +150,34 @@ async function decidir(
  */
 export async function aprovarPauta(
   tx: Tx,
-  { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
+  {
+    pautaId,
+    curadorId,
+    categoria,
+    agora = new Date(),
+  }: { pautaId: string; curadorId: string; categoria: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
+  if (!categoria || !Object.hasOwn(CATEGORIAS, categoria))
+    return { decidida: false, motivo: 'categoria_invalida' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
-  if (resultado.decidida) await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  if (resultado.decidida) {
+    await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+    await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  }
   return resultado;
+}
+
+export async function definirCategoria(
+  tx: Tx,
+  { pautaId, categoria }: { pautaId: string; categoria: string },
+): Promise<boolean> {
+  if (!Object.hasOwn(CATEGORIAS, categoria)) return false;
+  const resultado = await tx
+    .update(pautas)
+    .set({ categoria })
+    .where(and(eq(pautas.id, pautaId), sql`${pautas.status} not in ('em_curadoria', 'recusada')`))
+    .returning({ id: pautas.id });
+  return resultado.length > 0;
 }
 
 /**

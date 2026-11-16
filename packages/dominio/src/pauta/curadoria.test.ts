@@ -13,6 +13,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   aprovarPauta,
   buscarPautaDaCuradoria,
+  definirCategoria,
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
@@ -145,12 +146,13 @@ describe('aprovarPauta', () => {
     const agora = new Date('2030-01-02T12:00:00.000Z');
 
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, agora }),
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', agora }),
     );
 
     expect(r).toEqual({ decidida: true });
     expect(await pautaDa(pauta.id)).toMatchObject({
       status: 'juntando_apoios',
+      categoria: 'infraestrutura',
       aprovadaEm: agora,
       decididaPor: curadorId,
     });
@@ -169,7 +171,9 @@ describe('aprovarPauta', () => {
     );
     const antes = await eventosDa(pauta.id);
 
-    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+    const r = await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+    );
 
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
     expect((await pautaDa(pauta.id))?.status).toBe('recusada');
@@ -194,7 +198,9 @@ describe('aprovarPauta', () => {
       { pautaId: pauta.id, estudanteId: saiuDoPapel.id, papel: 'co_owner', ate: new Date() },
     ]);
 
-    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+    await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+    );
 
     const fila = await filaDa(pauta.id);
     expect(fila.map((d) => d.estudanteId).sort()).toEqual([owner.id, coOwner.id].sort());
@@ -215,7 +221,9 @@ describe('aprovarPauta', () => {
       .insert(papeisPauta)
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
 
-    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+    const r = await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+    );
 
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
     expect(await filaDa(pauta.id)).toEqual([]);
@@ -223,9 +231,62 @@ describe('aprovarPauta', () => {
 
   it('pauta que não existe', async () => {
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: '00000000-0000-0000-0000-000000000000', curadorId }),
+      aprovarPauta(tx, {
+        pautaId: '00000000-0000-0000-0000-000000000000',
+        curadorId,
+        categoria: 'infraestrutura',
+      }),
     );
     expect(r).toEqual({ decidida: false, motivo: 'pauta_inexistente' });
+  });
+
+  it.each([undefined, 'inventada'])(
+    'categoria inválida (%s) recusa sem alterar pauta, evento ou aviso',
+    async (categoria) => {
+      const pauta = await novaEmCuradoria();
+      const antes = await pautaDa(pauta.id);
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          categoria: categoria as string,
+        }),
+      );
+      expect(r).toEqual({ decidida: false, motivo: 'categoria_invalida' });
+      expect(await pautaDa(pauta.id)).toEqual(antes);
+      expect(await eventosDa(pauta.id)).toEqual([]);
+      expect(await filaDa(pauta.id)).toEqual([]);
+    },
+  );
+});
+
+describe('definirCategoria', () => {
+  it('troca a categoria de pauta aprovada e recusa categoria desconhecida ou pauta não aprovada', async () => {
+    const aprovada = await criarPauta(db, { status: 'juntando_apoios' });
+    const emCuradoria = await novaEmCuradoria();
+    const recusada = await criarPauta(db, { status: 'recusada' });
+    expect(
+      await db.transaction((tx) =>
+        definirCategoria(tx, { pautaId: aprovada.id, categoria: 'ensino' }),
+      ),
+    ).toBe(true);
+    expect((await pautaDa(aprovada.id))?.categoria).toBe('ensino');
+    expect(
+      await db.transaction((tx) =>
+        definirCategoria(tx, { pautaId: aprovada.id, categoria: 'outra' }),
+      ),
+    ).toBe(false);
+    expect(
+      await db.transaction((tx) =>
+        definirCategoria(tx, { pautaId: emCuradoria.id, categoria: 'ensino' }),
+      ),
+    ).toBe(false);
+    expect(
+      await db.transaction((tx) =>
+        definirCategoria(tx, { pautaId: recusada.id, categoria: 'ensino' }),
+      ),
+    ).toBe(false);
+    expect((await pautaDa(aprovada.id))?.categoria).toBe('ensino');
   });
 });
 
