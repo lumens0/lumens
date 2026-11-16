@@ -353,7 +353,8 @@ export function criarCamera(
           animacao = Math.abs(velocidadeGiro) > 0.00002 ? requestAnimationFrame(passo) : 0;
         };
         deslizarGiro(passo);
-      } else if (Math.hypot(vx, vy) > 0.15) deslizar();
+        // Só o arrasto de mover desliza ao soltar: no giro, `vx`/`vy` também andam com o ponteiro.
+      } else if (modoPonteiro === 'mover' && Math.hypot(vx, vy) > 0.15) deslizar();
     }
   };
 

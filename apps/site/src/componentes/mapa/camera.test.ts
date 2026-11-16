@@ -315,6 +315,37 @@ describe('câmera ligada ao mapa', () => {
     vi.restoreAllMocks();
   });
 
+  it('soltar um giro com o botão direito não faz o mapa deslizar', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const enviar = (handler: keyof typeof mapa.camera.eventos, clientY: number) => {
+      const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+      fn({
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX: 100,
+        clientY,
+        button: 2,
+        ctrlKey: false,
+        metaKey: false,
+        preventDefault() {},
+      });
+    };
+    enviar('onPointerDown', 100);
+    // Dois movimentos verticais rápidos: no modo de giro, só o horizontal gira.
+    mapa.avancar(16);
+    enviar('onPointerMove', 120);
+    mapa.avancar(16);
+    enviar('onPointerMove', 140);
+    const parado = { ...mapa.camera.estado().vista };
+    enviar('onPointerUp', 140);
+    mapa.avancar(16);
+    mapa.avancar(16);
+    expect(mapa.camera.estado().vista).toEqual(parado);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
   it('Shift+roda gira, trackpad desloca e roda com Ctrl aproxima', () => {
     const mapa = montar();
     mapa.tela(1000, 500);
