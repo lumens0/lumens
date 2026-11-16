@@ -15,9 +15,7 @@
 import { CURSOS, type Curso } from '@lumens/db';
 
 export type BuscaDeCurso =
-  | { tipo: 'um'; curso: Curso }
-  | { tipo: 'varios'; cursos: Curso[] }
-  | { tipo: 'nenhum' };
+  { tipo: 'um'; curso: Curso } | { tipo: 'varios'; cursos: Curso[] } | { tipo: 'nenhum' };
 
 /** Quantos cursos o bot mostra quando o texto serve para mais de um (cabe numa lista). */
 export const MAX_CANDIDATOS = 9;
