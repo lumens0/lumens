@@ -15,7 +15,7 @@
  *    (RN01). Só vale curso da lista `CURSOS`, porque o curso de quem cuida da pauta vai para o site.
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import { CURSOS, codigosVerificacao, eq, estudantes, lt, type Db } from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -112,6 +112,24 @@ export async function guardarCodigo(
     .values({ telefoneHmac, ...valores })
     .onConflictDoUpdate({ target: codigosVerificacao.telefoneHmac, set: valores });
   return { expiraEm: valores.expiraEm };
+}
+
+/** Quanto tempo um código vencido ainda fica guardado antes da limpeza (SCRUM-332). */
+export const CODIGO_GUARDADO_APOS_VENCER_MS = 24 * 3_600_000;
+
+/**
+ * Apaga os códigos vencidos há mais de um dia. Sem isto, o código de quem pediu e não terminou a
+ * verificação ficava para sempre, com o HMAC do telefone. O dia de folga não muda nada para quem
+ * está verificando: depois de vencer, o código já não serve para nada. Retorna quantos apagou.
+ */
+export async function apagarCodigosVencidos(db: Db, agora: Date = new Date()): Promise<number> {
+  const linhas = await db
+    .delete(codigosVerificacao)
+    .where(
+      lt(codigosVerificacao.expiraEm, new Date(agora.getTime() - CODIGO_GUARDADO_APOS_VENCER_MS)),
+    )
+    .returning({ telefoneHmac: codigosVerificacao.telefoneHmac });
+  return linhas.length;
 }
 
 /** Tentativas por código. Esgotadas, só um código novo (reenvio) libera de novo. */
