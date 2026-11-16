@@ -64,6 +64,8 @@ describe('mensagemDoUpdate', () => {
   it.each([
     ['/start apoiar_bebedouro-quebrado-bloco-b', 'apoiar bebedouro-quebrado-bloco-b'],
     ['/start ajudar_luz-do-corredor', 'ajudar luz-do-corredor'],
+    // SCRUM-293: slug longo demais chega como o id curto.
+    ['/start apoiar_1a2b3c4d', 'apoiar 1a2b3c4d'],
     ['/start nova', 'nova pauta'],
     ['/start@LumensBot nova', 'nova pauta'],
   ])('%s vira o comando do link do WhatsApp (%s)', (texto, esperado) => {
