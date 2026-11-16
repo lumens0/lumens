@@ -19,6 +19,7 @@ import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import {
   ASK_ATTACH_REPORT_TEXT,
   ASK_WRITE_REPORT_TEXT,
+  PHOTO_NOT_ATTACHED_TEXT,
   REPORT_SENT_TEXT,
   REPORT_SENT_WITH_PHOTO_TEXT,
   SUPPORT_CLOSED_TEXT,
@@ -203,7 +204,7 @@ describe('relato e foto do apoio (2.7)', () => {
   });
 
   it('"sim" e foto gravam o relato pendente com a foto', async () => {
-    expect(await send('sim')).toEqual([SUPPORT_PHOTO_ASK_TEXT]);
+    expect(await send('sim')).toEqual([REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
     expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
     const [relato, ...resto] = await relatosDaPauta();
@@ -217,9 +218,9 @@ describe('relato e foto do apoio (2.7)', () => {
     expect(await dados()).toEqual({});
   });
 
-  it("'pular' a foto grava só o relato, pendente", async () => {
+  it("'pular' a foto deixa só o relato, pendente", async () => {
     await send('sim');
-    expect(await send('pular')).toEqual([REPORT_SENT_TEXT, convite(), MENU_TEXT]);
+    expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_TEXT]);
     const [relato] = await relatosDaPauta();
     expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
   });
@@ -241,7 +242,8 @@ describe('relato e foto do apoio (2.7)', () => {
     resultadoDaFoto = { ok: false, motivo: 'tamanho' };
     expect(await sendFoto()).toEqual([photoRefusedText('tamanho')]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
-    expect(await relatosDaPauta()).toEqual([]);
+    // O relato já está gravado; só a foto não entrou.
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
   });
 
   it('texto que não é pular, no passo da foto, pede a foto de novo', async () => {
@@ -277,7 +279,7 @@ describe('apoio sem relato da 2.5 (pedido guardado)', () => {
   });
 
   it('escrever o relato pede a foto e grava o texto escrito', async () => {
-    expect(await send('  o filtro tá sujo  ')).toEqual([SUPPORT_PHOTO_ASK_TEXT]);
+    expect(await send('  o filtro tá sujo  ')).toEqual([REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT]);
     await send('pular');
     const [relato] = await relatosDaPauta();
     expect(relato?.texto).toBe('o filtro tá sujo');
@@ -296,5 +298,77 @@ describe('apoio sem relato da 2.5 (pedido guardado)', () => {
 
   it('a pergunta sem relato convida a escrever', () => {
     expect(ASK_WRITE_REPORT_TEXT).toContain("'pular'");
+  });
+});
+
+describe('relato não se perde no passo da foto (SCRUM-301)', () => {
+  beforeEach(async () => {
+    await verificar();
+    await escolherAPauta();
+    await send('sim');
+  });
+
+  it('o relato já está gravado quando a foto é pedida, e o texto sai da conversa', async () => {
+    const [relato, ...resto] = await relatosDaPauta();
+    expect(resto).toEqual([]);
+    expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
+    expect(await dados()).toMatchObject({ apoioPautaId: pautaId, relatoId: relato?.id });
+    expect(await dados()).not.toHaveProperty('relatoCifrado');
+  });
+
+  it.each(['menu', 'cancelar', 'sair'])(
+    '"%s" no passo da foto deixa o relato gravado, sem foto',
+    async (comando) => {
+      await send(comando);
+      expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+    },
+  );
+
+  it('"apoiar <outra pauta>" no passo da foto deixa o relato gravado, sem foto', async () => {
+    const [b] = await db.select({ id: blocos.id }).from(blocos);
+    await db.insert(pautas).values({
+      slug: 'outra-pauta',
+      titulo: 'Outra pauta',
+      descricao: 'Outra descrição.',
+      blocoId: b?.id ?? '',
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      meta: 30,
+    });
+    await send('apoiar outra-pauta');
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+  });
+
+  it('conversa expirada no passo da foto deixa o relato gravado, sem foto', async () => {
+    await db.delete(conversas);
+    await send('oi');
+    expect(await passo()).toBe('MENU');
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+  });
+
+  it('a foto enviada depois é juntada ao mesmo relato', async () => {
+    const [antes] = await relatosDaPauta();
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
+    const [depois, ...resto] = await relatosDaPauta();
+    expect(resto).toEqual([]);
+    expect(depois).toMatchObject({ id: antes?.id, fotoChave: 'fotos/2026/11/abc.jpg' });
+  });
+
+  it('relato moderado antes da foto chegar: a foto não entra e a pessoa é avisada', async () => {
+    await db.update(relatos).set({ moderacao: 'aprovado', moderadoEm: new Date() });
+    expect(await sendFoto()).toEqual([PHOTO_NOT_ATTACHED_TEXT, convite(), MENU_TEXT]);
+    expect(await relatosDaPauta()).toMatchObject([{ moderacao: 'aprovado', fotoChave: null }]);
+  });
+
+  it('conversa de antes da mudança (relato ainda nos dados) grava o relato com a foto', async () => {
+    await db.delete(relatos);
+    await store.save(H, 'SUPPORT_ASK_PHOTO', {
+      apoioPautaId: pautaId,
+      relatoCifrado: segredo.cifrar(RELATO),
+    });
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
+    expect(await relatosDaPauta()).toMatchObject([
+      { texto: RELATO, fotoChave: 'fotos/2026/11/abc.jpg', moderacao: 'pendente' },
+    ]);
   });
 });
