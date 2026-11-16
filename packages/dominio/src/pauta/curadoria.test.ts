@@ -17,6 +17,7 @@ import {
   listarPautasDaCuradoria,
   recusarPauta,
 } from './curadoria';
+import { reservarLote } from '../avisos/fila';
 import { criarBloco, criarCurador, criarEstudanteVerificado, criarPauta } from '../teste/fabricas';
 
 let db: Db;
@@ -206,6 +207,39 @@ describe('aprovarPauta', () => {
         parametros: ['Bebedouro do bloco 12', pauta.slug],
       });
     }
+  });
+
+  it('na Evolution, o aviso de quem não escreveu nas últimas 24 h espera na fila até ele escrever', async () => {
+    const agora = new Date('2026-11-16T12:00:00Z');
+    const pauta = await criarPauta(db, { status: 'em_curadoria' });
+    const recente = await criarEstudanteVerificado(db);
+    const ausente = await criarEstudanteVerificado(db);
+    await db.insert(papeisPauta).values([
+      { pautaId: pauta.id, estudanteId: recente.id, papel: 'owner' },
+      { pautaId: pauta.id, estudanteId: ausente.id, papel: 'co_owner' },
+    ]);
+    await db
+      .update(estudantes)
+      .set({ ultimaMensagemEm: new Date(agora.getTime() - 60 * 60_000) })
+      .where(eq(estudantes.id, recente.id));
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId, agora }));
+    const desde = new Date(agora.getTime() - 24 * 60 * 60_000);
+
+    const lote = await db.transaction((tx) =>
+      reservarLote(tx, { limite: 10, agora, somenteQuemEscreveuDesde: desde }),
+    );
+    expect(lote.map((d) => d.estudanteId)).toEqual([recente.id]);
+
+    // O aviso de quem estava ausente continua pendente; quando ele escreve, sai no lote seguinte.
+    const depois = new Date(agora.getTime() + 60_000);
+    await db
+      .update(estudantes)
+      .set({ ultimaMensagemEm: depois })
+      .where(eq(estudantes.id, ausente.id));
+    const seguinte = await db.transaction((tx) =>
+      reservarLote(tx, { limite: 10, agora: depois, somenteQuemEscreveuDesde: desde }),
+    );
+    expect(seguinte.map((d) => d.estudanteId)).toEqual([ausente.id]);
   });
 
   it('pauta que não está em curadoria não avisa ninguém', async () => {
