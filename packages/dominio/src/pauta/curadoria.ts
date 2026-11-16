@@ -20,6 +20,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { transicionarStatus } from './status';
 
@@ -148,12 +149,18 @@ async function decidir(
   return { decidida: true };
 }
 
-/** Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. */
-export function aprovarPauta(
+/**
+ * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
+ * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
+ * avisado.
+ */
+export async function aprovarPauta(
   tx: Tx,
   { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  return decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  if (resultado.decidida) await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  return resultado;
 }
 
 /**
