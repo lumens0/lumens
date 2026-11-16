@@ -138,6 +138,9 @@ describe('câmera ligada ao mapa', () => {
     let quadros = new Map<number, (agora: number) => void>();
     let proximo = 0;
     let relogio = 0;
+    const ouvintes = new Map<string, (e: Event) => void>();
+    let ponteiroCapturado = false;
+    const limites = { left: 0, top: 0, width: 1000, height: 500 };
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -162,8 +165,12 @@ describe('câmera ligada ao mapa', () => {
     const elemento = {
       setAttribute: () => undefined,
       removeAttribute: () => undefined,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
+      addEventListener: (nome: string, fn: (e: Event) => void) => ouvintes.set(nome, fn),
+      removeEventListener: (nome: string) => ouvintes.delete(nome),
+      getBoundingClientRect: () => limites,
+      setPointerCapture: () => {
+        ponteiroCapturado = true;
+      },
       parentElement: null,
       style: { setProperty: () => undefined },
     };
@@ -179,6 +186,9 @@ describe('câmera ligada ao mapa', () => {
       camera,
       desligar,
       vista: () => vista,
+      ouvintes,
+      limites,
+      capturado: () => ponteiroCapturado,
       tela: (width: number, height: number) => {
         redimensionar([{ contentRect: { width, height } }]);
       },
@@ -208,6 +218,99 @@ describe('câmera ligada ao mapa', () => {
     const v = mapa.vista();
     expect(v.w / v.h).toBeCloseTo(0.5);
     expect(v).toEqual(cobrir(alvo, 0.5));
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('gira ao arrastar com o botão direito ou Ctrl/⌘ esquerdo, só depois do limiar', () => {
+    for (const [button, ctrlKey] of [
+      [2, false],
+      [0, true],
+    ] as const) {
+      const mapa = montar();
+      mapa.tela(1000, 500);
+      const enviar = (
+        handler: keyof typeof mapa.camera.eventos,
+        valores: Record<string, unknown>,
+      ) => {
+        const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+        fn({
+          pointerId: 1,
+          pointerType: 'mouse',
+          clientX: 100,
+          clientY: 100,
+          button,
+          ctrlKey,
+          metaKey: false,
+          preventDefault() {},
+          ...valores,
+        });
+      };
+      enviar('onPointerDown', {});
+      enviar('onPointerMove', { clientX: 102, clientY: 100 });
+      expect(mapa.camera.estado().giro).toBe(0);
+      enviar('onPointerMove', { clientX: 140, clientY: 100 });
+      expect(mapa.camera.estado().giro).toBeCloseTo((40 / 1000) * Math.PI * 2);
+      expect(mapa.capturado()).toBe(true);
+      mapa.desligar();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('Shift+roda gira, trackpad desloca e roda com Ctrl aproxima', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const emitir = (dados: Partial<WheelEvent>) =>
+      mapa.ouvintes.get('wheel')?.({
+        deltaX: 0,
+        deltaY: 0,
+        deltaMode: 0,
+        clientX: 500,
+        clientY: 250,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault() {},
+        ...dados,
+      } as WheelEvent);
+    emitir({ shiftKey: true, deltaY: 12 });
+    expect(mapa.camera.estado().giro).toBeCloseTo(0.024);
+    emitir({ deltaX: 4.5, deltaY: 2.5 });
+    expect(mapa.vista().x).not.toBe(base.x);
+    const w = mapa.camera.estado().vista.w;
+    emitir({ ctrlKey: true, deltaY: -10 });
+    expect(mapa.camera.estado().vista.w).toBeLessThan(w);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('bloqueia o menu de contexto no SVG do mapa', () => {
+    const mapa = montar();
+    let bloqueado = false;
+    mapa.ouvintes.get('contextmenu')?.({
+      preventDefault: () => {
+        bloqueado = true;
+      },
+    } as MouseEvent);
+    expect(bloqueado).toBe(true);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('setas movem, Shift+setas giram e N volta ao norte', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const tecla = mapa.ouvintes.get('keydown');
+    const enviar = (key: string, shiftKey = false) =>
+      tecla?.({ key, shiftKey, preventDefault() {} } as KeyboardEvent);
+    enviar('ArrowRight');
+    expect(mapa.camera.estado().vista.x).not.toBe(base.x);
+    enviar('ArrowLeft', true);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).not.toBe(0);
+    enviar('n');
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).toBe(0);
     mapa.desligar();
     vi.restoreAllMocks();
   });
