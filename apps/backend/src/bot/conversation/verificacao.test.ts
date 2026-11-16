@@ -31,6 +31,7 @@ import {
   CODE_RESENT_TEXT,
   CODE_SENT_TEXT,
   ALREADY_VERIFIED_TEXT,
+  COURSE_MANY_TEXT,
   COURSE_NOT_FOUND_TEXT,
   LINK_LOST_TEXT,
   VERIFIED_TEXT,
@@ -468,7 +469,10 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     await pedirCodigo();
     const [, listaEnviada] = await send(ultimoCodigo());
     expect(listaEnviada).toEqual(listaDeCursos());
-    expect(listaDeCursos().linhas.map((l) => l.titulo)).toEqual([...CURSOS]);
+    // SCRUM-296: 43 cursos; a lista mostra os 9 primeiros e pede para digitar os outros.
+    expect(listaDeCursos().linhas.map((l) => l.id)).toEqual(
+      CURSOS.slice(0, 9).map((c) => `curso:${c}`),
+    );
     expect(await passo()).toBe('VERIFY_ASK_COURSE');
   });
 
@@ -477,7 +481,7 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     const mensagem = listaDeCursos(muitos);
     expect(mensagem.linhas).toHaveLength(9);
     expect(mensagem.corpo).toContain('escreva o nome dele');
-    expect(listaDeCursos().corpo).not.toContain('escreva o nome dele');
+    expect(listaDeCursos(CURSOS.slice(0, 8)).corpo).not.toContain('escreva o nome dele');
   });
 
   it('escolher pela lista marca verificado com o curso e volta ao menu', async () => {
@@ -575,5 +579,56 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     await store.save(H, 'VERIFY_ASK_COURSE', {});
     expect(await send('curso:Direito')).toEqual([LINK_LOST_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+  });
+});
+
+describe('os cursos do campus (SCRUM-296)', () => {
+  const estudante = async () =>
+    (await db.select().from(estudantes).where(eq(estudantes.telefoneHmac, H)))[0];
+
+  async function ateOCurso() {
+    await pedirCodigo();
+    await send(ultimoCodigo());
+  }
+
+  it.each([
+    ['Psicologia', 'Psicologia'],
+    ['psicologia', 'Psicologia'],
+    ['Química Tecnológica e Industrial', 'Química Tecnológica e Industrial'],
+    ['quimica tecnologica e industrial', 'Química Tecnológica e Industrial'],
+  ])('curso fora dos 9 da lista é aceito digitado: %j', async (texto, curso) => {
+    await ateOCurso();
+    expect((await send(texto))[0]).toBe(VERIFIED_TEXT);
+    expect((await estudante())?.curso).toBe(curso);
+  });
+
+  it('Medicina, o caso do bug, verifica pelo nome e pela abreviação', async () => {
+    await ateOCurso();
+    expect((await send('med'))[0]).toBe(VERIFIED_TEXT);
+    expect((await estudante())?.curso).toBe('Medicina');
+  });
+
+  it('texto que serve para mais de um curso mostra só esses e aceita a escolha', async () => {
+    await ateOCurso();
+    const [lista] = await send('computação');
+    expect(lista).toEqual(
+      listaDeCursos(['Ciência da Computação', 'Engenharia de Computação'], COURSE_MANY_TEXT),
+    );
+    expect(await passo()).toBe('VERIFY_ASK_COURSE');
+
+    expect((await send('curso:Engenharia de Computação'))[0]).toBe(VERIFIED_TEXT);
+    expect((await estudante())?.curso).toBe('Engenharia de Computação');
+  });
+
+  it('nome maior que o título da linha vai inteiro na descrição', () => {
+    const [linha] = listaDeCursos(['Engenharia Ambiental e Sanitária', 'Medicina']).linhas;
+    expect(linha?.id).toBe('curso:Engenharia Ambiental e Sanitária');
+    expect(linha?.descricao).toBe('Engenharia Ambiental e Sanitária');
+  });
+
+  it('o que a pessoa digitou nunca vai para o cadastro: grava o nome da lista', async () => {
+    await ateOCurso();
+    await send('  ODONTO ');
+    expect((await estudante())?.curso).toBe('Odontologia');
   });
 });
