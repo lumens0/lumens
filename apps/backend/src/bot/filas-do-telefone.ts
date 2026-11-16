@@ -46,10 +46,14 @@ export async function apagarFilasDoTelefone(
           sql`, `,
         )})`;
 
+  // A mensagem descartada (`descartar`, em worker.ts) vai para a fila de mortas embrulhada:
+  // `{ job: <a mensagem>, erro }`. Ali o telefone fica em `data.job.phoneHmac` (SCRUM-342).
+  const doTelefone = sql`(data->>'phoneHmac' = ${phoneHmac} OR data->'job'->>'phoneHmac' = ${phoneHmac})`;
+
   await tx.execute(sql`
     DELETE FROM pgboss.job
     WHERE name IN (${filas})
-      AND data->>'phoneHmac' = ${phoneHmac}
+      AND ${doTelefone}
       AND state <> 'active'
       ${foraOsMantidos}
   `);
@@ -57,6 +61,6 @@ export async function apagarFilasDoTelefone(
     UPDATE pgboss.job
     SET deletion_seconds = ${REMOVER_LOGO_APOS_CONCLUIR}
     WHERE name IN (${filas})
-      AND data->>'phoneHmac' = ${phoneHmac}
+      AND ${doTelefone}
   `);
 }

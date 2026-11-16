@@ -87,7 +87,9 @@ const jobsDe = async (pool: ReturnType<typeof criarPool>, phoneHmac: string) =>
   (
     await pool.query<Job>(
       `SELECT name, state, deletion_seconds FROM pgboss.job
-       WHERE name = ANY($1) AND data->>'phoneHmac' = $2 ORDER BY created_on`,
+       WHERE name = ANY($1)
+         AND (data->>'phoneHmac' = $2 OR data->'job'->>'phoneHmac' = $2)
+       ORDER BY created_on`,
       [[...FILAS_COM_TELEFONE], phoneHmac],
     )
   ).rows;
@@ -141,6 +143,36 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)('sair apaga o telefone das filas (
     const daOutra = await jobsDe(ambiente.pool, OUTRA_PESSOA);
     expect(daOutra).toHaveLength(2);
     expect(daOutra.every((j) => j.deletion_seconds > 1)).toBe(true);
+  }, 60_000);
+
+  it('apaga também a mensagem descartada antes, que vai embrulhada para a fila de mortas', async () => {
+    const { db, boss } = await montar();
+    // O formato do `descartar` (worker.ts): o telefone fica em data.job.phoneHmac.
+    await db.transaction((tx) =>
+      filaPgBoss(boss).send(
+        JOBS.incomingMessageDead,
+        { job: mensagem(QUEM_SAI, 'mensagem que falhou'), erro: 'erro permanente' },
+        tx,
+      ),
+    );
+    const daOutra = await db.transaction((tx) =>
+      filaPgBoss(boss).send(
+        JOBS.incomingMessageDead,
+        { job: mensagem(OUTRA_PESSOA, 'falhou também'), erro: 'erro permanente' },
+        tx,
+      ),
+    );
+    expect(await jobsDe(ambiente.pool, QUEM_SAI)).toHaveLength(1);
+
+    await mandar(db, boss, QUEM_SAI, 'sair');
+
+    const mortas = (await jobsDe(ambiente.pool, QUEM_SAI)).filter(
+      (j) => j.name === JOBS.incomingMessageDead,
+    );
+    expect(mortas).toEqual([]);
+    // A descartada de outra pessoa continua lá.
+    const outra = await ambiente.pool.query('SELECT 1 FROM pgboss.job WHERE id = $1', [daOutra]);
+    expect(outra.rows).toHaveLength(1);
   }, 60_000);
 
   it('sem cadastro, o sair também apaga o que ficou nas filas', async () => {
