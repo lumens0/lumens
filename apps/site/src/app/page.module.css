@@ -362,31 +362,31 @@
  */
 .evento[data-tom='azul'] {
   --tom: var(--status-apoios);
-  --tom-tinta: var(--status-apoios);
+  --tom-tinta: color-mix(in srgb, var(--status-apoios) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-apoios) 12%, white);
 }
 
 .evento[data-tom='turquesa'] {
   --tom: var(--status-meta);
-  --tom-tinta: var(--status-meta);
+  --tom-tinta: color-mix(in srgb, var(--status-meta) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-meta) 12%, white);
 }
 
 .evento[data-tom='ambar'] {
   --tom: var(--status-cobrando);
-  --tom-tinta: var(--status-cobrando);
+  --tom-tinta: color-mix(in srgb, var(--status-cobrando) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-cobrando) 12%, white);
 }
 
 .evento[data-tom='vermelho'] {
   --tom: var(--status-descumprida);
-  --tom-tinta: var(--status-descumprida);
+  --tom-tinta: color-mix(in srgb, var(--status-descumprida) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-descumprida) 12%, white);
 }
 
 .evento[data-tom='verde'] {
   --tom: var(--status-conquistada);
-  --tom-tinta: var(--status-conquistada);
+  --tom-tinta: color-mix(in srgb, var(--status-conquistada) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-conquistada) 12%, white);
 }
 
