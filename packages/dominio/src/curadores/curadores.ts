@@ -82,6 +82,8 @@ export async function adicionarCurador(
       await tx.update(curadores).set({ ativo: true }).where(eq(curadores.id, existente.id));
       alvoId = existente.id;
     } else {
+      // O FOR UPDATE não trava uma linha que ainda não existe: dois cadastros do mesmo e-mail ao
+      // mesmo tempo (ou dois cliques) chegam os dois aqui. O segundo não insere nem audita.
       const [novo] = await tx
         .insert(curadores)
         .values({
@@ -90,8 +92,9 @@ export async function adicionarCurador(
           nome: nomeLimpo,
           papel,
         })
+        .onConflictDoNothing({ target: curadores.emailHmac })
         .returning({ id: curadores.id });
-      if (!novo) throw new Error('O banco não devolveu o curador criado.');
+      if (!novo) return { feito: false, motivo: 'ja_ativo' };
       alvoId = novo.id;
     }
     await tx.insert(curadorAuditoria).values({
@@ -152,6 +155,19 @@ export async function reativarCurador(
 }
 
 /** Todos, ativos primeiro e por nome, com o e-mail decifrado: só para mostrar a administrador. */
+/**
+ * O e-mail para o administrador ler. Um registro que não abre com a CHAVE_CIFRA atual (os
+ * curadores fictícios do seed, `seed:v1:email:…`, ou um que sobrou de outra chave) não derruba a
+ * lista inteira: aparece como indisponível.
+ */
+function emailLegivel(emailCifrado: string, chave: Buffer): string {
+  try {
+    return decifrar(emailCifrado, chave);
+  } catch {
+    return 'E-mail indisponível';
+  }
+}
+
 export async function listarCuradores(db: Db, chaves: ChavesDeCurador): Promise<CuradorListado[]> {
   const linhas = await db
     .select({
@@ -166,7 +182,7 @@ export async function listarCuradores(db: Db, chaves: ChavesDeCurador): Promise<
   return linhas
     .map(({ emailCifrado, ...resto }) => ({
       ...resto,
-      email: decifrar(emailCifrado, chaves.cifra),
+      email: emailLegivel(emailCifrado, chaves.cifra),
     }))
     .sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome, 'pt-BR'));
 }
