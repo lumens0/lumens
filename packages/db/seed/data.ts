@@ -156,7 +156,8 @@ const configuracoesPauta = [
     criadaEm: data(3),
     motivoRecusa:
       'A solução proposta apresenta risco elétrico; a pauta pode ser reenviada com instalação técnica.',
-    quantidadeApoios: 4,
+    // Recusada na curadoria: nunca apareceu no site, então nunca recebeu apoio (registrarApoio).
+    quantidadeApoios: 0,
     quantidadePapeis: 1,
     percurso: ['em_curadoria', 'recusada'],
   },
@@ -308,12 +309,19 @@ export const pautasSeed = configuracoesPauta.map(
   }) => pauta,
 ) satisfies NovaPauta[];
 
-export const apoiosSeed = configuracoesPauta.flatMap((pauta, indicePauta) =>
+/**
+ * Apoios de 1 a 10 horas depois da aprovação: apoio só conta em pauta aprovada (RN12), e todos
+ * chegam antes da meta batida, que é no dia seguinte (SCRUM-257).
+ */
+export const apoiosSeed = configuracoesPauta.flatMap((pauta) =>
   estudantesSeed.slice(0, pauta.quantidadeApoios).map((estudante, indice) => ({
     pautaId: pauta.id,
     estudanteId: estudante.id,
     origem: indice % 3 === 0 ? ('site' as const) : ('bot' as const),
-    criadoEm: data(Math.min(27, 3 + indicePauta), 8 + (indice % 10)),
+    criadoEm: new Date(
+      ('aprovadaEm' in pauta ? pauta.aprovadaEm : pauta.criadaEm).getTime() +
+        (1 + (indice % 10)) * 3_600_000,
+    ),
   })),
 ) satisfies NovoApoio[];
 
@@ -472,7 +480,7 @@ export const promessasSeed = [
     registradaPor: uuid(3, 2),
     conferenciaAbreEm: new Date('2026-03-16T12:00:00.000Z'),
     conferenciaFechaEm: new Date('2026-03-23T12:00:00.000Z'),
-    resultado: 'em_parte',
+    resultado: 'entregue_em_parte',
   },
   {
     id: uuid(8, 3),
@@ -483,7 +491,7 @@ export const promessasSeed = [
     registradaPor: uuid(3, 1),
     conferenciaAbreEm: new Date('2026-03-02T12:00:00.000Z'),
     conferenciaFechaEm: new Date('2026-03-09T12:00:00.000Z'),
-    resultado: 'nao',
+    resultado: 'descumprida',
   },
   {
     id: uuid(8, 4),
@@ -494,53 +502,69 @@ export const promessasSeed = [
     registradaPor: uuid(3, 2),
     conferenciaAbreEm: new Date('2026-03-11T12:00:00.000Z'),
     conferenciaFechaEm: new Date('2026-03-18T12:00:00.000Z'),
-    resultado: 'sim',
+    resultado: 'conquistada',
   },
 ] satisfies Array<NovaPromessa & { id: string }>;
 
+/**
+ * Respostas que levam a apuração ao resultado de cada promessa (RN10): pelo menos 10% dos
+ * apoiadores respondem, e a maioria absoluta decide (SCRUM-257). Uma por hora a partir da abertura,
+ * de apoiadores em sequência a partir do estudante `primeiro`.
+ */
+function respostasDa(
+  promessaId: string,
+  abreEm: string,
+  primeiro: number,
+  votos: readonly (readonly [NovaRespostaConferencia['resposta'], number])[],
+): NovaRespostaConferencia[] {
+  const respostas = votos.flatMap(([resposta, quantos]) =>
+    Array.from({ length: quantos }, () => resposta),
+  );
+  return respostas.map((resposta, indice) => ({
+    promessaId,
+    estudanteId: uuid(2, primeiro + indice),
+    resposta,
+    criadoEm: new Date(new Date(abreEm).getTime() + (indice + 1) * 3_600_000),
+  }));
+}
+
 export const respostasConferenciaSeed = [
-  {
-    promessaId: uuid(8, 2),
-    estudanteId: uuid(2, 51),
-    resposta: 'em_parte',
-    criadoEm: new Date('2026-03-18T12:00:00.000Z'),
-  },
-  {
-    promessaId: uuid(8, 2),
-    estudanteId: uuid(2, 52),
-    resposta: 'sim',
-    criadoEm: new Date('2026-03-19T12:00:00.000Z'),
-  },
-  {
-    promessaId: uuid(8, 3),
-    estudanteId: uuid(2, 53),
-    resposta: 'nao',
-    criadoEm: new Date('2026-03-04T12:00:00.000Z'),
-  },
-  {
-    promessaId: uuid(8, 3),
-    estudanteId: uuid(2, 54),
-    resposta: 'nao',
-    criadoEm: new Date('2026-03-05T12:00:00.000Z'),
-  },
-  {
-    promessaId: uuid(8, 4),
-    estudanteId: uuid(2, 55),
-    resposta: 'sim',
-    criadoEm: new Date('2026-03-13T12:00:00.000Z'),
-  },
-  {
-    promessaId: uuid(8, 4),
-    estudanteId: uuid(2, 56),
-    resposta: 'sim',
-    criadoEm: new Date('2026-03-14T12:00:00.000Z'),
-  },
+  // Acessibilidade (124 apoiadores): 14 responderam e ninguém teve maioria → entregue em parte.
+  ...respostasDa(uuid(8, 2), '2026-03-16T12:00:00.000Z', 51, [
+    ['em_parte', 6],
+    ['sim', 5],
+    ['nao', 3],
+  ]),
+  // Internet (300 apoiadores): 32 responderam, maioria "não" → descumprida.
+  ...respostasDa(uuid(8, 3), '2026-03-02T12:00:00.000Z', 51, [
+    ['nao', 24],
+    ['em_parte', 5],
+    ['sim', 3],
+  ]),
+  // Laboratórios (300 apoiadores): 36 responderam, maioria "sim" → conquistada.
+  ...respostasDa(uuid(8, 4), '2026-03-11T12:00:00.000Z', 51, [
+    ['sim', 28],
+    ['em_parte', 5],
+    ['nao', 3],
+  ]),
 ] satisfies NovaRespostaConferencia[];
 
 function dataDaTransicao(pauta: ConfiguracaoPauta, status: StatusPauta, indice: number): Date {
   return (
     pauta.datasTransicoes?.[status] ?? new Date(pauta.criadaEm.getTime() + indice * 86_400_000)
   );
+}
+
+/**
+ * Quem faz cada transição no domínio (SCRUM-257): a curadoria aprova, recusa e registra a promessa;
+ * o bot bate a meta e passa a cobrar (o apoio e o protocolo do owner); só o agendador chega a um
+ * resultado (RN10).
+ */
+function origemDaTransicao(para: StatusPauta): NovoEvento['origem'] {
+  if (para === 'conquistada' || para === 'entregue_em_parte' || para === 'descumprida') {
+    return 'agendador';
+  }
+  return para === 'meta_batida' || para === 'cobrando' ? 'bot' : 'curadoria';
 }
 
 let indiceEvento = 0;
@@ -566,7 +590,7 @@ export const eventosSeed = configuracoesPauta.flatMap((pauta) => {
       pautaId: pauta.id,
       tipo: 'status_alterado',
       dados: { de: anterior, para: atual },
-      origem: 'curadoria',
+      origem: origemDaTransicao(atual),
       publico: atual !== 'recusada',
       criadoEm: dataDaTransicao(pauta, atual, indice),
     });
