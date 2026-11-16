@@ -51,6 +51,7 @@ describe('graphSender', () => {
     [131026, 'número sem WhatsApp'],
     [131030, 'fora da lista do número de teste'],
     [132000, 'parâmetros não batem com o modelo'],
+    [132018, 'parâmetro com quebra de linha'],
   ])('%i (%s) é permanente: o disparo sai da fila', async (codigo) => {
     const erro = await falhaDo(
       graphSender({ token: 't', phoneNumberId: '1', fetch: fetchFalso(400, erroDa(codigo)).fn }),

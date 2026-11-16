@@ -18,6 +18,7 @@ import {
   listarPautasDaCuradoria,
   recusarPauta,
 } from './curadoria';
+import { reservarLote } from '../avisos/fila';
 import { registrarPromessa } from '../caminhos/promessa';
 import { abrirConferencia } from '../conferencia/conferencia-agenda';
 import {
@@ -184,6 +185,84 @@ describe('aprovarPauta', () => {
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
     expect((await pautaDa(pauta.id))?.status).toBe('recusada');
     expect(await eventosDa(pauta.id)).toHaveLength(antes.length);
+  });
+
+  it('avisa cada responsável ativo, com título e slug, e ninguém mais', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria', titulo: 'Bebedouro do bloco 12' });
+    const owner = await criarEstudanteVerificado(db);
+    const coOwner = await criarEstudanteVerificado(db);
+    const saiuDoSistema = await criarEstudanteVerificado(db);
+    const saiuDoPapel = await criarEstudanteVerificado(db);
+    const apoiador = await criarEstudanteVerificado(db);
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date() })
+      .where(eq(estudantes.id, saiuDoSistema.id));
+    await db.insert(papeisPauta).values([
+      { pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' },
+      { pautaId: pauta.id, estudanteId: coOwner.id, papel: 'co_owner' },
+      { pautaId: pauta.id, estudanteId: saiuDoSistema.id, papel: 'co_owner' },
+      { pautaId: pauta.id, estudanteId: saiuDoPapel.id, papel: 'co_owner', ate: new Date() },
+    ]);
+
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+
+    const fila = await filaDa(pauta.id);
+    expect(fila.map((d) => d.estudanteId).sort()).toEqual([owner.id, coOwner.id].sort());
+    expect(fila).not.toContainEqual(expect.objectContaining({ estudanteId: apoiador.id }));
+    for (const d of fila) {
+      expect(d).toMatchObject({
+        tipo: 'aprovacao',
+        modelo: 'lumens_pauta_aprovada',
+        parametros: ['Bebedouro do bloco 12', pauta.slug],
+      });
+    }
+  });
+
+  it('na Evolution, o aviso de quem não escreveu nas últimas 24 h espera na fila até ele escrever', async () => {
+    const agora = new Date('2026-11-16T12:00:00Z');
+    const pauta = await criarPauta(db, { status: 'em_curadoria' });
+    const recente = await criarEstudanteVerificado(db);
+    const ausente = await criarEstudanteVerificado(db);
+    await db.insert(papeisPauta).values([
+      { pautaId: pauta.id, estudanteId: recente.id, papel: 'owner' },
+      { pautaId: pauta.id, estudanteId: ausente.id, papel: 'co_owner' },
+    ]);
+    await db
+      .update(estudantes)
+      .set({ ultimaMensagemEm: new Date(agora.getTime() - 60 * 60_000) })
+      .where(eq(estudantes.id, recente.id));
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId, agora }));
+    const desde = new Date(agora.getTime() - 24 * 60 * 60_000);
+
+    const lote = await db.transaction((tx) =>
+      reservarLote(tx, { limite: 10, agora, somenteQuemEscreveuDesde: desde }),
+    );
+    expect(lote.map((d) => d.estudanteId)).toEqual([recente.id]);
+
+    // O aviso de quem estava ausente continua pendente; quando ele escreve, sai no lote seguinte.
+    const depois = new Date(agora.getTime() + 60_000);
+    await db
+      .update(estudantes)
+      .set({ ultimaMensagemEm: depois })
+      .where(eq(estudantes.id, ausente.id));
+    const seguinte = await db.transaction((tx) =>
+      reservarLote(tx, { limite: 10, agora: depois, somenteQuemEscreveuDesde: desde }),
+    );
+    expect(seguinte.map((d) => d.estudanteId)).toEqual([ausente.id]);
+  });
+
+  it('pauta que não está em curadoria não avisa ninguém', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    const owner = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+
+    const r = await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+
+    expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
+    expect(await filaDa(pauta.id)).toEqual([]);
   });
 
   it('pauta que não existe', async () => {
@@ -364,6 +443,58 @@ describe('recusarPauta', () => {
         { tipo: 'pauta_recusada', origem: 'curadoria', publico: false },
       ]),
     );
+  });
+
+  it('motivo acima de 500 caracteres é recusado pelo servidor, sem mudar nada nem avisar', async () => {
+    const pauta = await novaEmCuradoria();
+
+    const longo = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'a'.repeat(501) }),
+    );
+    expect(longo).toEqual({ decidida: false, motivo: 'motivo_longo' });
+    expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
+    expect(await eventosDa(pauta.id)).toHaveLength(0);
+    expect(await filaDa(pauta.id)).toEqual([]);
+
+    // O teto conta o texto sem os espaços das pontas, como o que fica gravado.
+    const noLimite = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: `  ${'a'.repeat(500)}  ` }),
+    );
+    expect(noLimite).toEqual({ decidida: true });
+  });
+
+  it('o teto conta caracteres, não unidades UTF-16: 500 emojis passam, 501 não', async () => {
+    const pauta = await novaEmCuradoria();
+
+    const longo = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: '😀'.repeat(501) }),
+    );
+    expect(longo).toEqual({ decidida: false, motivo: 'motivo_longo' });
+
+    const noLimite = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: '😀'.repeat(500) }),
+    );
+    expect(noLimite).toEqual({ decidida: true });
+  });
+
+  it('motivo longo em pauta já decidida ou inexistente devolve o motivo do status', async () => {
+    const pauta = await novaEmCuradoria();
+    await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId }));
+    const longo = 'a'.repeat(501);
+
+    const decidida = await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: longo }),
+    );
+    expect(decidida).toEqual({ decidida: false, motivo: 'ja_decidida' });
+
+    const inexistente = await db.transaction((tx) =>
+      recusarPauta(tx, {
+        pautaId: '00000000-0000-4000-8000-000000000000',
+        curadorId,
+        motivo: longo,
+      }),
+    );
+    expect(inexistente).toEqual({ decidida: false, motivo: 'pauta_inexistente' });
   });
 
   it.each(['', '   '])('recusa sem motivo (%j) é bloqueada e nada muda', async (motivo) => {
