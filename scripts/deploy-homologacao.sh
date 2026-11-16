@@ -65,6 +65,7 @@ git fetch --prune origin
 git reset --hard "$REF"
 # O /saude devolve este SHA, e o smoke test do CI confere que é o do run (SCRUM-322). O compose
 # passa para o build da imagem do back-end.
+# O CI também manda VERSAO no ambiente da chamada, para o primeiro deploy depois desta linha existir.
 VERSAO=$(git rev-parse HEAD)
 export VERSAO
 
