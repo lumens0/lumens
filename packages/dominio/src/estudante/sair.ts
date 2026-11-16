@@ -29,7 +29,7 @@ export type ResultadoSaida =
 /**
  * Tira a pessoa do Lumens na transação de quem chama. Recusas voltam como resultado, sem exceção.
  *
- * Apaga telefone e e-mail (cifrado e HMAC), a conversa em andamento e o código de verificação;
+ * Apaga o telefone, o e-mail cifrado, a conversa em andamento e o código de verificação;
  * preenche `saiu_em`; encerra os papéis de owner/co-owner com um `owner_removido` por pauta (o
  * evento leva só o papel, nunca quem saiu). `curso` e `verificado_em` ficam: o curso aparece nos
  * apoios e relatos públicos. `apoio`, `resposta_conferencia`, `voluntario` e `relato` não são
@@ -39,8 +39,10 @@ export type ResultadoSaida =
  * aleatória (`saiu:<uuid>`): não deriva do telefone, não tem volta e nunca coincide com um HMAC de
  * verdade, que é hexadecimal. Buscar pelo HMAC do telefone não acha mais ninguém.
  *
- * Limitação conhecida: quem volta com o mesmo telefone se verifica como estudante novo e pode
- * apoiar de novo as pautas que já apoiou (o apoio antigo segue contando na linha sem identidade).
+ * O HMAC do e-mail fica (SCRUM-331, docs/decisoes/SCRUM-331-sair-e-voltar.md). Ele não revela o
+ * e-mail e serve só para, na volta, `vincularEmail` reativar esta mesma linha em vez de criar
+ * outra: sem isso, sair e voltar com o mesmo e-mail permitia apoiar, se voluntariar e responder à
+ * conferência de novo, e uma pessoa sozinha batia a meta de uma pauta.
  */
 export async function sairDoLumens(
   tx: Tx,
@@ -84,7 +86,7 @@ export async function sairDoLumens(
     .set({
       telefoneHmac: lapide,
       telefoneCifrado: lapide,
-      emailHmac: null,
+      // SCRUM-331: o `email_hmac` fica (veja o comentário da função); o e-mail cifrado sai.
       emailCifrado: null,
       ultimaMensagemEm: null,
       saiuEm: agora,
