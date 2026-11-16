@@ -90,20 +90,9 @@ export async function detalharPautaDaCuradoria(
         fotoChave: relatos.fotoChave,
         moderacao: relatos.moderacao,
         moderadoEm: relatos.moderadoEm,
-        owner: papeisPauta.papel,
-        criadaEm: pautas.criadaEm,
       })
       .from(relatos)
       .innerJoin(estudantes, eq(estudantes.id, relatos.estudanteId))
-      .innerJoin(pautas, eq(pautas.id, relatos.pautaId))
-      .leftJoin(
-        papeisPauta,
-        and(
-          eq(papeisPauta.pautaId, relatos.pautaId),
-          eq(papeisPauta.estudanteId, relatos.estudanteId),
-          eq(papeisPauta.papel, 'owner'),
-        ),
-      )
       .where(eq(relatos.pautaId, pautaId))
       .orderBy(relatos.id),
     listarCaminhosDaPauta(db, pautaId),
@@ -131,10 +120,19 @@ export async function detalharPautaDaCuradoria(
   const promessa = promessasAtivas[0];
   let votos = { sim: 0, em_parte: 0, nao: 0 };
   if (promessa) {
+    // Os mesmos votos que a apuração conta (conferencia-apuracao.ts): só de quem já apoiava
+    // quando a conferência abriu. Quem apoiou depois pode responder, mas não entra no resultado.
     const respostas = await db
       .select({ resposta: respostasConferencia.resposta })
       .from(respostasConferencia)
-      .where(eq(respostasConferencia.promessaId, promessa.id));
+      .innerJoin(apoios, eq(apoios.estudanteId, respostasConferencia.estudanteId))
+      .where(
+        and(
+          eq(respostasConferencia.promessaId, promessa.id),
+          eq(apoios.pautaId, pautaId),
+          sql`${apoios.criadoEm} <= ${promessa.conferenciaAbreEm.toISOString()}::timestamptz`,
+        ),
+      );
     votos = { sim: 0, em_parte: 0, nao: 0 };
     for (const resposta of respostas) votos[resposta.resposta] += 1;
   }
@@ -146,15 +144,15 @@ export async function detalharPautaDaCuradoria(
     apoios: apoiosContados[0]?.total ?? 0,
     metaBatidaEm: metaBatida[0]?.criadoEm ?? registro[0]?.metaBatidaEm ?? null,
     responsaveis: responsaveis.map(({ curso }) => ({ curso })),
-    relatos: relatosDaPauta.map(
-      ({ texto, curso, fotoChave, moderacao, moderadoEm, owner, criadaEm }) => ({
-        texto,
-        curso,
-        fotoChave,
-        moderacao,
-        data: moderadoEm ?? (owner === 'owner' ? criadaEm : null),
-      }),
-    ),
+    relatos: relatosDaPauta.map(({ texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+      texto,
+      curso,
+      fotoChave,
+      moderacao,
+      // O banco não guarda quando o relato chegou: sem moderação, não há data confiável. A do
+      // owner não serve, porque ele pode mandar outros relatos depois de criar a pauta.
+      data: moderadoEm,
+    })),
     caminhos: caminhosDaPauta.map(({ tipo, protocolo, prazo }) => ({ tipo, protocolo, prazo })),
     promessa: promessa ? { ...promessa, votos } : null,
   };
