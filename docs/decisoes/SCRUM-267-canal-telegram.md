@@ -83,6 +83,31 @@ mescla pelo e-mail, abaixo. Com isso saíram o pedido de contato, a tabela `chat
   (`estudante.canal`). Vale esta decisão: um canal por implantação, e o cadastro passa de um canal
   para o outro pelo e-mail.
 
+## Adendo de 2026-11-16: sem escolha de canal no site (SCRUM-319)
+
+Pedido: que "Relatar um problema", "Apoiar" e "Ajudar" levassem ao Telegram e que o estudante
+escolhesse entre Telegram e WhatsApp.
+
+**Decisão: canal único, o WhatsApp.** O site não oferece escolha; os botões levam sempre ao
+WhatsApp, o canal principal da demonstração (Evolution, [SCRUM-275](SCRUM-275-canal-evolution.md)).
+O Telegram continua como reserva, ligado só trocando `CANAL_BOT`.
+
+Motivo:
+
+- Mantém o canal único por implantação decidido acima. A escolha exigiria os dois bots no ar ao
+  mesmo tempo: jobs com o canal de origem, um endereço por canal em vez de um só
+  `telefone_cifrado`, a fila de avisos escolhendo o canal de cada pessoa e a cota da Meta valendo
+  só para parte dos estudantes. Nada disso cabe antes da demonstração.
+- Sem código novo: com `NEXT_PUBLIC_CANAL_BOT` vazio, o site já leva ao WhatsApp.
+
+Consequências:
+
+- O site e o back-end precisam apontar para o mesmo canal: `CANAL_BOT=whatsapp` (com
+  `CANAL_WHATSAPP=evolution`) na homologação e `NEXT_PUBLIC_CANAL_BOT` vazio ou `whatsapp` na
+  Vercel.
+- A SCRUM-289 (Vercel levando ao Telegram) perde o objetivo.
+- Sem tickets de implementação: a opção de dois canais foi descartada.
+
 ## Lacunas conhecidas
 
 - **Nada foi exercitado contra a Bot API real.** Os testes usam um `fetch` falso e o simulador
