@@ -220,7 +220,9 @@ export async function processIncomingJob(
       wamidHmac: data.wamidHmac,
       repliesCifradas: cifrar(JSON.stringify(replies), deps.chaves.cifra),
     };
-    await deps.queue.send(JOBS.outgoingReplies, outgoing, tx);
+    // SCRUM-307: a chave da conversa ordena as respostas como a entrada. Sem ela, uma resposta que
+    // falhasse de forma passageira saía depois da seguinte ("lista de blocos" antes do "Qual o título?").
+    await deps.queue.send(JOBS.outgoingReplies, outgoing, tx, { chave: data.phoneHmac });
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
@@ -281,6 +283,12 @@ type Boss = Pick<
  * instância só (o que havia antes) não impedia outra instância de pegar as mais novas.
  */
 export const INCOMING_QUEUE_POLICY = 'key_strict_fifo' as const;
+
+/** A fila de respostas segue a mesma ordem por conversa da entrada (SCRUM-307). */
+export const OUTGOING_QUEUE_POLICY = INCOMING_QUEUE_POLICY;
+
+/** As filas ordenadas por conversa, que um job falhado de vez trava (veja `desbloquearConversas`). */
+const FILAS_POR_CONVERSA = [JOBS.incomingMessage, JOBS.outgoingReplies] as const;
 
 /**
  * Cria a fila com as opções do bot, ou atualiza uma criada antes com outras opções. A política
@@ -404,19 +412,23 @@ export async function desbloquearConversas(
   logger: Logger,
 ): Promise<number> {
   let removidos = 0;
-  for (const chave of await boss.getBlockedKeys(JOBS.incomingMessage)) {
-    const falhados = (await boss.findJobs(JOBS.incomingMessage, { key: chave })).filter(
-      (job) => job.state === 'failed',
-    );
-    if (falhados.length === 0) continue;
-    await boss.deleteJob(
-      JOBS.incomingMessage,
-      falhados.map((job) => job.id),
-    );
-    removidos += falhados.length;
-    logger
-      .child({ conversa: chave.slice(0, 12) })
-      .warn({ jobs: falhados.length }, 'conversa destravada: job falhado tirado da frente');
+  // SCRUM-307: a fila de respostas também é ordenada: uma resposta que falhou de vez (a pessoa
+  // bloqueou o número, por exemplo) seguraria as próximas daquela conversa para sempre.
+  for (const fila of FILAS_POR_CONVERSA) {
+    for (const chave of await boss.getBlockedKeys(fila)) {
+      const falhados = (await boss.findJobs(fila, { key: chave })).filter(
+        (job) => job.state === 'failed',
+      );
+      if (falhados.length === 0) continue;
+      await boss.deleteJob(
+        fila,
+        falhados.map((job) => job.id),
+      );
+      removidos += falhados.length;
+      logger
+        .child({ conversa: chave.slice(0, 12), fila })
+        .warn({ jobs: falhados.length }, 'conversa destravada: job falhado tirado da frente');
+    }
   }
   return removidos;
 }
@@ -449,26 +461,37 @@ export async function registerReplyWorker(
   sender: ReplySender,
   logger: Logger,
 ): Promise<void> {
-  await prepareQueue(boss, JOBS.outgoingReplies, JOBS.outgoingRepliesDead);
+  // SCRUM-307: ordenada por conversa, como a entrada. Um envio que falha segura os seguintes da
+  // mesma conversa até o retry, em vez de deixá-los passar na frente.
+  await prepareQueue(boss, JOBS.outgoingReplies, JOBS.outgoingRepliesDead, OUTGOING_QUEUE_POLICY);
+  const entregar = async (jobs: { id: string; createdOn: Date; data: OutgoingReplies }[]) => {
+    const results: JobResult[] = [];
+    for (const job of emOrdemDeChegada(jobs)) {
+      try {
+        await sender.send(job.data);
+        results.push({ id: job.id, status: 'completed' });
+      } catch (erro) {
+        logger
+          .child({ conversa: conversaDoLog(job.data) })
+          .warn({ erro: resumoDoErro(erro) }, 'envio das respostas falhou');
+        results.push({ id: job.id, status: 'failed', output: resumoDoErro(erro) });
+      }
+    }
+    return results;
+  };
   await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
     JOBS.outgoingReplies,
     BOT_WORK_OPTIONS,
-    async (jobs) => {
-      const results: JobResult[] = [];
-      for (const job of emOrdemDeChegada(jobs)) {
-        try {
-          await sender.send(job.data);
-          results.push({ id: job.id, status: 'completed' });
-        } catch (erro) {
-          logger
-            .child({ conversa: conversaDoLog(job.data) })
-            .warn({ erro: resumoDoErro(erro) }, 'envio das respostas falhou');
-          results.push({ id: job.id, status: 'failed', output: resumoDoErro(erro) });
-        }
-      }
-      return results;
-    },
+    entregar,
   );
+  // O que sobrou na fila antiga (sem ordem) no deploy ainda é entregue. Nada novo entra nela.
+  if (await boss.getQueue(JOBS.outgoingRepliesLegacy)) {
+    await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
+      JOBS.outgoingRepliesLegacy,
+      BOT_WORK_OPTIONS,
+      entregar,
+    );
+  }
 }
 
 /**
