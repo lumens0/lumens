@@ -151,7 +151,7 @@ aparecem no uso da organização. Para não gastar à toa:
   Abra como rascunho enquanto ainda vai empurrar vários commits.
 - **Editar título ou descrição da PR não roda o CI.** Só o workflow `jira`, que confere a chave
   `[SCRUM-n]` no título e leva segundos.
-- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` na `main`).
+- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` e do `e2e` na `main`).
   O `apps/site/vercel.json` desliga o deploy automático da `main` pela integração Git da Vercel,
   que publicava duas vezes por merge, e antes dos testes. Os previews das PRs continuam.
 - **O painel não usa a Vercel**: roda na VM de homologação, publicado pelo `deploy-backend`.
