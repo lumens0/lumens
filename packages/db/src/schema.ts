@@ -351,7 +351,7 @@ export const eventos = pgTable(
   ],
 );
 
-/** Passo da conversa do bot por telefone. A limpeza diária apaga as linhas com `expiraEm` vencido. */
+/** Passo da conversa do bot por telefone. A limpeza de hora em hora apaga as linhas com `expiraEm` vencido. */
 export const conversas = pgTable(
   'conversa',
   {
@@ -367,7 +367,7 @@ export const conversas = pgTable(
 /**
  * Dedup de mensagens da Meta: a Meta reenvia o mesmo wamid, e ele só pode ser processado uma vez.
  * Guarda o HMAC do wamid, não o wamid: o wamid da Meta é base64 de uma estrutura que contém o
- * telefone do remetente. A limpeza diária apaga as linhas mais velhas que a janela de reenvio.
+ * telefone do remetente. A limpeza de hora em hora apaga as linhas mais velhas que a janela de reenvio.
  */
 export const mensagensProcessadas = pgTable('mensagem_processada', {
   wamidHmac: text('wamid_hmac').primaryKey(),

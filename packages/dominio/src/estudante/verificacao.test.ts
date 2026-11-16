@@ -9,6 +9,7 @@ import {
   MAX_TENTATIVAS,
   REENVIO_APOS_MS,
   apagarCodigo,
+  apagarCodigosVencidos,
   concluirVerificacao,
   conferirCodigo,
   cursoValido,
@@ -149,6 +150,33 @@ describe('guardarCodigo', () => {
     expect(
       (await db.select().from(codigosVerificacao)).filter((l) => l.telefoneHmac === 'tel-2'),
     ).toHaveLength(1);
+  });
+});
+
+describe('apagarCodigosVencidos (SCRUM-332)', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+  }, 60_000);
+
+  const AGORA = new Date('2026-11-16T12:00:00Z');
+  const HORA = 3_600_000;
+  /** Código enviado `ms` antes de AGORA: vence 10 minutos depois do envio. */
+  const enviadoHa = (telefoneHmac: string, ms: number) =>
+    guardarCodigo(db, { telefoneHmac, codigo: '123456', agora: new Date(AGORA.getTime() - ms) });
+
+  it('apaga só os vencidos há mais de um dia; o válido e o recém-vencido ficam', async () => {
+    await enviadoHa('valido', 5 * 60_000);
+    await enviadoHa('venceu-agora', 2 * HORA);
+    await enviadoHa('venceu-ontem', 25 * HORA);
+    await enviadoHa('venceu-semana', 7 * 24 * HORA);
+
+    expect(await apagarCodigosVencidos(db, AGORA)).toBe(2);
+
+    const restantes = (await db.select().from(codigosVerificacao)).map((l) => l.telefoneHmac);
+    expect(restantes.sort()).toEqual(['valido', 'venceu-agora']);
+    // Idempotente: a próxima rodada não acha mais nada.
+    expect(await apagarCodigosVencidos(db, AGORA)).toBe(0);
   });
 });
 
