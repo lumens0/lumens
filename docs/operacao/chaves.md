@@ -66,12 +66,27 @@ reserva das chaves. Definir isso (quem guarda, onde fica o cofre) é decisão da
 O script `apps/backend/scripts/rotacionar-cifra.ts` (função em `src/cripto/rotacao.ts`) decifra
 tudo com a chave antiga e recifra com a nova, **em uma transação só**.
 
-O que ele recifra: `curador.email_cifrado`, `estudante.telefone_cifrado` e
-`estudante.email_cifrado` (quando não nulo). Pula as lápides `saiu:`, de quem saiu do bot.
+O que ele recifra:
 
-O que ele **não** recifra: o que está na fila do pg-boss e o e-mail guardado numa conversa em
-andamento. Isso é transitório e, depois da troca, não decifra mais; esses jobs falham e a conversa
-precisa recomeçar. Por isso o passo 1 abaixo.
+- `curador.email_cifrado`, `estudante.telefone_cifrado` e `estudante.email_cifrado` (quando não
+  nulo). Pula as lápides `saiu:`, de quem saiu do bot.
+- **As conversas em andamento** (`conversa.dados`, SCRUM-311). Elas guardam, cifrado com a mesma
+  chave, o que a pessoa já escreveu e ainda não virou registro: o título e a descrição da pauta
+  nova (`tituloCifrado`, `descricaoCifrada`), o relato antes de ser confirmado (`relatoCifrado`), a
+  proposta da comunidade antes da quantidade de pessoas (`propostaCifrada`), o e-mail da
+  verificação (`emailCifrado`) e o último menu numerado dos canais só de texto (`menuEmTexto`). O
+  script não depende dessa lista: recifra todo valor que decifra com a chave antiga (o AES-GCM
+  garante que um texto comum nunca passa), então um campo novo também entra. Quem estava no meio de
+  um fluxo continua de onde parou.
+
+O que ele **apaga**: os jobs do bot nas filas do pg-boss (`incoming-message*` e
+`outgoing-replies*`) já encerrados (concluídos, falhados) e tudo nas filas de mortas. Eles levam o
+conteúdo das mensagens, o telefone e as respostas cifrados, e ninguém mais os lê. Se precisar
+investigar alguma mensagem das filas de mortas, faça antes de rodar o script, com a chave antiga.
+
+O que ele **recusa**: rodar com job do bot ainda pendente (`created`, `retry` ou `active`, fora das
+filas de mortas). Esse job ainda vai ser lido e, depois da troca, não decifraria. O script avisa
+quantos são e não muda nada. Por isso o passo 1 abaixo.
 
 Variáveis: `DATABASE_URL`, `CHAVE_CIFRA_ANTIGA` e `CHAVE_CIFRA_NOVA` (ou `--antiga=` e `--nova=`,
 mas argumento fica no histórico do shell; prefira as variáveis). Recusa chaves que não sejam
