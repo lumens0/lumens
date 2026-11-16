@@ -1,5 +1,5 @@
 import type { Db } from '@lumens/db';
-import { apagarCodigosVencidos } from '@lumens/dominio';
+import { apagarCodigosVencidos, apagarRegistrosVencidos } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
 import type { ConversationStore } from '../bot/conversation/store';
 import { deleteOldDedup } from '../bot/webhook/process';
@@ -22,12 +22,14 @@ export interface CleanupResult {
   dedupDeleted: number;
   /** Códigos de verificação vencidos há mais de um dia (codigo_verificacao). */
   codigosDeleted: number;
+  /** Registros dos limites da verificação fora da janela de 24 h (registro_verificacao, SCRUM-298). */
+  registrosDeleted: number;
 }
 
 /**
- * Agenda a limpeza do bot, de hora em hora: conversas expiradas, o dedup antigo do webhook e os
- * códigos de verificação vencidos, que de outro modo ficariam para sempre (minimização prometida
- * no aviso de privacidade).
+ * Agenda a limpeza do bot, de hora em hora: conversas expiradas, o dedup antigo do webhook, os
+ * códigos de verificação vencidos e os registros dos limites da verificação (SCRUM-298), que de
+ * outro modo ficariam para sempre (minimização prometida no aviso de privacidade).
  *
  * Também roda uma vez na subida, no espírito da janela perdida (SCRUM-239): a VM liga depois de
  * horas desligada e não espera a próxima hora cheia.
@@ -45,6 +47,7 @@ export async function registerCleanupJob(
       deleted: await deps.store.deleteExpired(),
       dedupDeleted: await deleteOldDedup(deps.db),
       codigosDeleted: await apagarCodigosVencidos(deps.db),
+      registrosDeleted: await apagarRegistrosVencidos(deps.db),
     };
     onDone?.(result);
     return result;

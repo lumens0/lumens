@@ -77,6 +77,29 @@ export const codigosVerificacao = pgTable(
   (t) => [check('codigo_verificacao_tentativas_nao_negativas', sql`${t.tentativas} >= 0`)],
 );
 
+/**
+ * SCRUM-298: o que já aconteceu na verificação de e-mail nas últimas 24 h, para os limites
+ * acumulados (códigos enviados e códigos errados, por e-mail e por identidade). Cada linha guarda
+ * os dois HMACs, nunca o e-mail, o telefone ou o código em claro. Linhas com mais de 24 h não servem
+ * mais e são apagadas a cada gravação (`registrarNaVerificacao`).
+ */
+export const registrosVerificacao = pgTable(
+  'registro_verificacao',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    telefoneHmac: text('telefone_hmac').notNull(),
+    emailHmac: text('email_hmac').notNull(),
+    tipo: text('tipo').notNull(),
+    em: instante('em').notNull().defaultNow(),
+  },
+  (t) => [
+    check('registro_verificacao_tipo', sql`${t.tipo} IN ('envio', 'erro')`),
+    index('registro_verificacao_email_idx').on(t.emailHmac, t.em),
+    index('registro_verificacao_telefone_idx').on(t.telefoneHmac, t.em),
+    index('registro_verificacao_em_idx').on(t.em),
+  ],
+);
+
 export const blocos = pgTable(
   'bloco',
   {
