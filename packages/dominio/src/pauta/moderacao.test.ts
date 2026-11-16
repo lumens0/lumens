@@ -35,7 +35,7 @@ describe('listarRelatosPendentes', () => {
       criadaEm: new Date('2030-01-02T10:00:00.000Z'),
     });
     const antiga = await criarPauta(db, {
-      status: 'em_curadoria',
+      status: 'juntando_apoios',
       criadaEm: new Date('2030-01-01T10:00:00.000Z'),
     });
     const daNova = await criarRelato(db, {
@@ -79,8 +79,10 @@ describe('listarRelatosPendentes', () => {
 
   it('deixa de fora relato já moderado e relato de pauta recusada', async () => {
     const pauta = await criarPauta(db);
+    const emCuradoria = await criarPauta(db, { status: 'em_curadoria' });
     const recusada = await criarPauta(db, { status: 'recusada' });
     const pendente = await criarRelato(db, { pautaId: pauta.id });
+    await criarRelato(db, { pautaId: emCuradoria.id });
     await criarRelato(db, { pautaId: pauta.id, moderacao: 'aprovado' });
     await criarRelato(db, { pautaId: pauta.id, moderacao: 'recusado' });
     await criarRelato(db, { pautaId: recusada.id });
@@ -89,6 +91,7 @@ describe('listarRelatosPendentes', () => {
 
     expect(fila.find((p) => p.id === pauta.id)?.relatos.map((r) => r.id)).toEqual([pendente.id]);
     expect(fila.map((p) => p.id)).not.toContain(recusada.id);
+    expect(fila.map((p) => p.id)).not.toContain(emCuradoria.id);
   });
 
   it('pauta sem relato pendente não entra na fila', async () => {

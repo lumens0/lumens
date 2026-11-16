@@ -16,9 +16,11 @@ import {
 } from '@lumens/db';
 import { buscarPautaDaCuradoria, type PautaDaCuradoria } from './curadoria';
 import { caminhosDaPauta as listarCaminhosDaPauta } from '../caminhos/caminhos';
+import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 
 export interface RelatoDaCuradoria {
   texto: string;
+  achados: Achado[];
   curso: string | null;
   fotoChave: string | null;
   moderacao: 'pendente' | 'aprovado' | 'recusado';
@@ -146,6 +148,7 @@ export async function detalharPautaDaCuradoria(
     responsaveis: responsaveis.map(({ curso }) => ({ curso })),
     relatos: relatosDaPauta.map(({ texto, curso, fotoChave, moderacao, moderadoEm }) => ({
       texto,
+      achados: conferirAnonimato(texto).achados,
       curso,
       fotoChave,
       moderacao,

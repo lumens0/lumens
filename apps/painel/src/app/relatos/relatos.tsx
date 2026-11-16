@@ -39,7 +39,11 @@ export function Relatos({
   const falha = erro === undefined ? undefined : ERRO[erro];
   return (
     <>
-      <h1>Relatos novos</h1>
+      <h1>Relatos em pautas publicadas</h1>
+      <p className={estilos.apoio}>
+        O relato de quem criou uma pauta é conferido junto com a pauta; esta lista mostra relatos
+        novos de pautas já públicas.
+      </p>
       <p className={estilos.apoio}>
         Antes de aprovar, barre o que identifica alguém: nome de pessoa, ofensa e dado pessoal.
         Confira também a foto, se houver. Aprovar e recusar valem para o texto e a foto juntos.

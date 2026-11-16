@@ -6,12 +6,15 @@
  */
 import {
   and,
+  apoios,
   blocos,
+  documentosResposta,
   eq,
   estudantes,
   isNull,
   papeisPauta,
   pautas,
+  promessas,
   relatos,
   sql,
   type Db,
@@ -22,6 +25,7 @@ import {
 import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
+import { aprovarRelato, recusarRelato } from './moderacao';
 import { transicionarStatus } from './status';
 import { CATEGORIAS } from './pauta';
 
@@ -43,6 +47,8 @@ export interface PautaNaFila {
   prazo: Date;
   /** Negativo quando o prazo já passou. */
   restanteMs: number;
+  apoios: number;
+  meta: number;
 }
 
 /** A pauta como a curadoria vê na tela dela (SCRUM-168), em qualquer status. */
@@ -67,6 +73,8 @@ function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]
           and ${papeisPauta.estudanteId} = ${relatos.estudanteId} and ${papeisPauta.papel} = 'owner'
         where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
         limit 1)`,
+      apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
+      meta: pautas.meta,
       criadaEm: pautas.criadaEm,
       status: pautas.status,
       motivoRecusa: pautas.motivoRecusa,
@@ -89,8 +97,90 @@ export function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise<Pauta
 }
 
 /** Todas as pautas, da mais antiga para a mais nova: a lista geral do painel. */
-export function listarPautasDaCuradoria(db: Db, agora = new Date()): Promise<PautaDaCuradoria[]> {
-  return lerPautas(db, sql`true`, agora);
+export function listarPautasDaCuradoria(
+  db: Db,
+  agora = new Date(),
+  filtro: { status?: StatusPauta; q?: string } = {},
+): Promise<PautaDaCuradoria[]> {
+  const condicoes: SQL[] = [];
+  if (filtro.status !== undefined) condicoes.push(eq(pautas.status, filtro.status));
+  if (filtro.q !== undefined && filtro.q.trim() !== '') {
+    condicoes.push(sql`${pautas.titulo} ilike ${`%${filtro.q.trim()}%`}`);
+  }
+  const filtroSQL = condicoes.length === 0 ? sql`true` : (and(...condicoes) ?? sql`true`);
+  return lerPautas(db, filtroSQL, agora);
+}
+
+export interface ResumoDaCuradoria {
+  pautasADecidir: number;
+  pautasAtrasadas: number;
+  relatosAModerar: number;
+  pautasSemRespostaOficial: number;
+  conferenciasAbertas: number;
+}
+
+/** Contagens do trabalho pendente da curadoria, calculadas no instante informado. */
+export async function resumoDaCuradoria(db: Db, agora = new Date()): Promise<ResumoDaCuradoria> {
+  const [
+    pautasADecidir,
+    pautasAtrasadas,
+    relatosAModerar,
+    pautasSemRespostaOficial,
+    conferenciasAbertas,
+  ] = await Promise.all([
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(pautas)
+      .where(eq(pautas.status, 'em_curadoria')),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(pautas)
+      .where(
+        and(
+          eq(pautas.status, 'em_curadoria'),
+          sql`${pautas.criadaEm} + interval '24 hours' < ${agora.toISOString()}::timestamptz`,
+        ),
+      ),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(relatos)
+      .innerJoin(pautas, eq(pautas.id, relatos.pautaId))
+      .where(
+        and(
+          eq(relatos.moderacao, 'pendente'),
+          sql`${pautas.status} not in ('em_curadoria', 'recusada')`,
+        ),
+      ),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(pautas)
+      .where(
+        and(
+          eq(pautas.status, 'cobrando'),
+          sql`not exists (
+            select 1 from ${documentosResposta}
+            where ${documentosResposta.pautaId} = ${pautas.id}
+          )`,
+        ),
+      ),
+    db
+      .select({ total: sql<number>`count(distinct ${promessas.pautaId})::int` })
+      .from(promessas)
+      .where(
+        and(
+          sql`${promessas.conferenciaAbreEm} <= ${agora.toISOString()}::timestamptz`,
+          sql`${promessas.conferenciaFechaEm} > ${agora.toISOString()}::timestamptz`,
+          sql`${promessas.resultado} is null`,
+        ),
+      ),
+  ]);
+  return {
+    pautasADecidir: pautasADecidir[0]?.total ?? 0,
+    pautasAtrasadas: pautasAtrasadas[0]?.total ?? 0,
+    relatosAModerar: relatosAModerar[0]?.total ?? 0,
+    pautasSemRespostaOficial: pautasSemRespostaOficial[0]?.total ?? 0,
+    conferenciasAbertas: conferenciasAbertas[0]?.total ?? 0,
+  };
 }
 
 /** Uma pauta pelo id, em qualquer status; `undefined` se não existe. */
@@ -162,6 +252,21 @@ export async function aprovarPauta(
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (resultado.decidida) {
     await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+    const relatosDeOrigem = await tx
+      .select({ id: relatos.id })
+      .from(relatos)
+      .innerJoin(
+        papeisPauta,
+        and(
+          eq(papeisPauta.pautaId, relatos.pautaId),
+          eq(papeisPauta.estudanteId, relatos.estudanteId),
+          eq(papeisPauta.papel, 'owner'),
+        ),
+      )
+      .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
+    for (const relato of relatosDeOrigem) {
+      await aprovarRelato(tx, { relatoId: relato.id, curadorId, agora });
+    }
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   }
   return resultado;
@@ -196,6 +301,22 @@ export async function recusarPauta(
 ): Promise<ResultadoDecisao> {
   const resultado = await decidir(tx, pautaId, curadorId, 'recusada', motivo, agora);
   if (!resultado.decidida) return resultado;
+
+  const relatosDeOrigem = await tx
+    .select({ id: relatos.id })
+    .from(relatos)
+    .innerJoin(
+      papeisPauta,
+      and(
+        eq(papeisPauta.pautaId, relatos.pautaId),
+        eq(papeisPauta.estudanteId, relatos.estudanteId),
+        eq(papeisPauta.papel, 'owner'),
+      ),
+    )
+    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
+  for (const relato of relatosDeOrigem) {
+    await recusarRelato(tx, { relatoId: relato.id, curadorId, agora });
+  }
 
   const [pauta] = await tx
     .select({ titulo: pautas.titulo })

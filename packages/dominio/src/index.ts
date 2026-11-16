@@ -122,8 +122,14 @@ export {
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
+  resumoDaCuradoria,
 } from './pauta/curadoria';
-export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './pauta/curadoria';
+export type {
+  PautaDaCuradoria,
+  PautaNaFila,
+  ResultadoDecisao,
+  ResumoDaCuradoria,
+} from './pauta/curadoria';
 
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {

@@ -53,7 +53,12 @@ describe('detalharPautaDaCuradoria', () => {
       { pautaId: pauta.id, estudanteId: apoiador2.id, origem: 'bot' },
     ]);
     await db.insert(relatos).values([
-      { pautaId: pauta.id, estudanteId: owner.id, texto: 'Relato inicial.', moderacao: 'pendente' },
+      {
+        pautaId: pauta.id,
+        estudanteId: owner.id,
+        texto: 'Relato inicial: contato@ufal.br.',
+        moderacao: 'pendente',
+      },
       // O owner manda outro relato depois: sem moderação, nenhum dos dois tem data confiável.
       {
         pautaId: pauta.id,
@@ -141,10 +146,17 @@ describe('detalharPautaDaCuradoria', () => {
       [...(detalhe?.relatos ?? [])].sort((a, b) => a.texto.localeCompare(b.texto)),
     ).toMatchObject([
       {
-        texto: 'Relato inicial.',
+        texto: 'Relato inicial: contato@ufal.br.',
         curso: 'Arquitetura e Urbanismo',
         moderacao: 'pendente',
         data: null,
+        achados: [
+          {
+            severidade: 'bloqueio',
+            motivo: 'email',
+            trecho: 'contato@ufal.br',
+          },
+        ],
       },
       {
         texto: 'Relato moderado.',

@@ -1,4 +1,4 @@
-import { detalharPautaDaCuradoria } from '@lumens/dominio';
+import { detalharPautaDaCuradoria, listarLinhaDoTempo } from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { sair } from '../../acoes';
@@ -29,6 +29,8 @@ export default async function PaginaDaPauta({
       <Pauta
         pauta={pauta}
         erro={erro}
+        feito={feito}
+        eventos={await listarLinhaDoTempo(servidor().db, id)}
         avisados={avisadosValido ? numero : undefined}
         categoriaSalva={feito === 'categoria'}
         aprovar={aprovar}

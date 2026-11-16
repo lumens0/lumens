@@ -1,10 +1,13 @@
 import {
+  documentosResposta,
   disparos,
   eq,
   estudantes,
   eventos,
+  caminhos,
   papeisPauta,
   pautas,
+  promessas,
   relatos,
   type Db,
 } from '@lumens/db';
@@ -17,8 +20,15 @@ import {
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
+  resumoDaCuradoria,
 } from './curadoria';
-import { criarBloco, criarCurador, criarEstudanteVerificado, criarPauta } from '../teste/fabricas';
+import {
+  criarBloco,
+  criarCurador,
+  criarEstudanteVerificado,
+  criarPauta,
+  criarRelato,
+} from '../teste/fabricas';
 
 let db: Db;
 let curadorId: string;
@@ -131,12 +141,83 @@ describe('buscarPautaDaCuradoria', () => {
   });
 
   it('a lista geral traz pautas de todos os status', async () => {
-    const nova = await criarPauta(db, { status: 'em_curadoria' });
-    const cobrando = await criarPauta(db, { status: 'cobrando' });
+    const nova = await criarPauta(db, {
+      status: 'em_curadoria',
+      titulo: 'Iluminação do bloco norte',
+    });
+    const cobrando = await criarPauta(db, { status: 'cobrando', titulo: 'Resposta da ouvidoria' });
 
     const ids = (await listarPautasDaCuradoria(db)).map((p) => p.id);
+    const filtradas = await listarPautasDaCuradoria(db, new Date(), {
+      status: 'em_curadoria',
+      q: 'ILUMINAÇÃO',
+    });
 
     expect(ids).toEqual(expect.arrayContaining([nova.id, cobrando.id]));
+    expect(filtradas.map((p) => p.id)).toEqual([nova.id]);
+    expect(filtradas[0]).toMatchObject({ apoios: 0, meta: 300 });
+  });
+});
+
+describe('resumoDaCuradoria', () => {
+  it('conta pautas atrasadas, relatos públicos pendentes, cobranças sem resposta e conferências abertas', async () => {
+    const agora = new Date('2030-01-02T12:00:00.000Z');
+    const antes = await resumoDaCuradoria(db, agora);
+    const atrasada = await criarPauta(db, {
+      status: 'em_curadoria',
+      criadaEm: new Date('2030-01-01T10:00:00.000Z'),
+    });
+    await criarPauta(db, {
+      status: 'em_curadoria',
+      criadaEm: new Date('2030-01-02T10:00:00.000Z'),
+    });
+    const pautaPublica = await criarPauta(db, { status: 'juntando_apoios' });
+    // Dentro do prazo de 24 h: com a data de hoje, ficaria anos antes do `agora` do teste.
+    const pautaEmRevisao = await criarPauta(db, {
+      status: 'em_curadoria',
+      criadaEm: new Date('2030-01-02T11:00:00.000Z'),
+    });
+    // Em cobrança e sem resposta oficial: entra na contagem.
+    await criarPauta(db, { status: 'cobrando' });
+    const cobrandoRespondida = await criarPauta(db, { status: 'cobrando' });
+    const comConferencia = await criarPauta(db, { status: 'prometido' });
+    await criarRelato(db, { pautaId: pautaPublica.id });
+    await criarRelato(db, { pautaId: pautaEmRevisao.id });
+    const estudanteComResposta = await criarEstudanteVerificado(db);
+    const [caminho] = await db
+      .insert(caminhos)
+      .values({
+        pautaId: cobrandoRespondida.id,
+        tipo: 'falabr',
+        status: 'aberto',
+        protocolo: '12345.678901/2030-01',
+      })
+      .returning({ id: caminhos.id });
+    if (caminho === undefined) throw new Error('caminho de teste não criado');
+    await db.insert(documentosResposta).values({
+      pautaId: cobrandoRespondida.id,
+      caminhoId: caminho.id,
+      enviadoPor: estudanteComResposta.id,
+      arquivoChave: 'respostas/2030/documento-resposta.pdf',
+    });
+    await db.insert(promessas).values({
+      pautaId: comConferencia.id,
+      resumo: 'Reparo concluído.',
+      dataEntrega: '2030-01-10',
+      fonte: 'Ouvidoria',
+      registradaPor: curadorId,
+      conferenciaAbreEm: new Date('2030-01-02T11:00:00.000Z'),
+      conferenciaFechaEm: new Date('2030-01-03T12:00:00.000Z'),
+    });
+
+    const depois = await resumoDaCuradoria(db, agora);
+
+    expect(depois.pautasADecidir - antes.pautasADecidir).toBe(3);
+    expect(depois.pautasAtrasadas - antes.pautasAtrasadas).toBe(1);
+    expect(depois.relatosAModerar - antes.relatosAModerar).toBe(1);
+    expect(depois.pautasSemRespostaOficial - antes.pautasSemRespostaOficial).toBe(1);
+    expect(depois.conferenciasAbertas - antes.conferenciasAbertas).toBe(1);
+    expect(atrasada.status).toBe('em_curadoria');
   });
 });
 
@@ -161,6 +242,37 @@ describe('aprovarPauta', () => {
         { tipo: 'status_alterado', origem: 'curadoria', publico: true },
         { tipo: 'pauta_aprovada', origem: 'curadoria', publico: true },
       ]),
+    );
+  });
+
+  it('aprova o relato pendente de quem criou a pauta, sem decidir relatos de outras pessoas', async () => {
+    const pauta = await novaEmCuradoria();
+    const owner = await criarEstudanteVerificado(db);
+    const outraPessoa = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+    const origem = await criarRelato(db, {
+      pautaId: pauta.id,
+      estudanteId: owner.id,
+      texto: 'Relato que criou a pauta.',
+    });
+    const relatoPosterior = await criarRelato(db, {
+      pautaId: pauta.id,
+      estudanteId: outraPessoa.id,
+      texto: 'Relato de outra pessoa.',
+    });
+    const agora = new Date('2030-01-02T12:00:00.000Z');
+
+    await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', agora }),
+    );
+
+    expect(await db.select().from(relatos).where(eq(relatos.id, origem.id))).toMatchObject([
+      { moderacao: 'aprovado', moderadoEm: agora, moderadoPor: curadorId },
+    ]);
+    expect(await db.select().from(relatos).where(eq(relatos.id, relatoPosterior.id))).toMatchObject(
+      [{ moderacao: 'pendente', moderadoEm: null, moderadoPor: null }],
     );
   });
 
@@ -302,6 +414,36 @@ const filaDa = (pautaId: string) =>
     .where(eq(disparos.aviso, pautaId));
 
 describe('recusarPauta', () => {
+  it('recusa o relato pendente de quem criou a pauta e mantém relatos posteriores pendentes', async () => {
+    const pauta = await criarPauta(db, { status: 'em_curadoria' });
+    const owner = await criarEstudanteVerificado(db);
+    const outraPessoa = await criarEstudanteVerificado(db);
+    await db
+      .insert(papeisPauta)
+      .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+    const origem = await criarRelato(db, {
+      pautaId: pauta.id,
+      estudanteId: owner.id,
+      texto: 'Relato que criou a pauta.',
+    });
+    const relatoPosterior = await criarRelato(db, {
+      pautaId: pauta.id,
+      estudanteId: outraPessoa.id,
+      texto: 'Relato de outra pessoa.',
+    });
+    const agora = new Date('2030-01-02T12:00:00.000Z');
+
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Fora do escopo.', agora }),
+    );
+
+    expect(await db.select().from(relatos).where(eq(relatos.id, origem.id))).toMatchObject([
+      { moderacao: 'recusado', moderadoEm: agora, moderadoPor: curadorId },
+    ]);
+    expect(await db.select().from(relatos).where(eq(relatos.id, relatoPosterior.id))).toMatchObject(
+      [{ moderacao: 'pendente', moderadoEm: null, moderadoPor: null }],
+    );
+  });
   it('manda o motivo para quem criou a pauta pela fila, em uma linha só', async () => {
     const pauta = await criarPauta(db, { status: 'em_curadoria', titulo: 'Bebedouro do bloco 12' });
     const owner = await criarEstudanteVerificado(db);
