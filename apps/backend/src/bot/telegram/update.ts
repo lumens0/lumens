@@ -30,6 +30,7 @@ import {
   type ProcessDeps,
 } from '../webhook/process';
 import type { ApiDoTelegram } from './api';
+import { LIMITE_DO_TEXTO } from './sender';
 
 /** Mesmo saneamento do webhook da Meta: o jsonb do Postgres recusa \u0000 e surrogate solto. */
 const texto = z.string().transform(paraJsonb);
@@ -62,7 +63,25 @@ const callbackSchema = z.object({
   from: deSchema.optional(),
   data: texto.optional(),
   // Sem `message` (botão de mensagem inline em outro chat): não é conversa com o bot.
-  message: z.object({ chat: chatSchema, date: z.number().int().optional() }).optional(),
+  // `message_id`, `text`, `entities` e o teclado servem para mostrar a escolha (SCRUM-324).
+  message: z
+    .object({
+      chat: chatSchema,
+      date: z.number().int().optional(),
+      message_id: z.number().int().optional(),
+      text: z.string().optional(),
+      entities: z
+        .array(z.object({ type: z.string(), offset: z.number().int(), length: z.number().int() }))
+        .optional(),
+      reply_markup: z
+        .object({
+          inline_keyboard: z.array(
+            z.array(z.object({ text: z.string(), callback_data: z.string().optional() })),
+          ),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 /** O subconjunto do `Update` que o bot usa. O resto (edição, canal, enquete) é ignorado. */
@@ -85,6 +104,37 @@ export interface MensagemDoTelegram {
   conteudo: ConteudoMensagem;
   /** Botão tocado: o spinner do botão só para com o `answerCallbackQuery`. */
   callbackQueryId?: string;
+  /** A mensagem do botão tocado, para mostrar a escolha e tirar o teclado (SCRUM-324). */
+  escolha?: EscolhaNoBotao;
+}
+
+/** A mensagem com o teclado e o que a pessoa escolheu nela. Só o que o bot mesmo mandou. */
+export interface EscolhaNoBotao {
+  messageId: number;
+  /** Texto original da mensagem, ou `undefined` se ela não for de texto. */
+  texto?: string;
+  entities?: { type: string; offset: number; length: number }[];
+  /** O título do botão tocado. */
+  rotulo: string;
+}
+
+/** Como a escolha aparece no fim da mensagem. */
+export const ESCOLHA_TEXT = (rotulo: string) => `Você escolheu: ${rotulo}`;
+
+/** A escolha do toque, se a mensagem trouxe o teclado com o botão. Pura. */
+export function escolhaDoBotao(
+  mensagem: z.infer<typeof callbackSchema>['message'],
+  data: string,
+): EscolhaNoBotao | undefined {
+  if (mensagem?.message_id === undefined) return undefined;
+  const botao = mensagem.reply_markup?.inline_keyboard.flat().find((b) => b.callback_data === data);
+  if (botao === undefined) return undefined;
+  return {
+    messageId: mensagem.message_id,
+    ...(mensagem.text === undefined ? {} : { texto: mensagem.text }),
+    ...(mensagem.entities === undefined ? {} : { entities: mensagem.entities }),
+    rotulo: botao.text,
+  };
 }
 
 export type ResultadoDoUpdate =
@@ -159,6 +209,7 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
         timestamp: String(Math.floor(Date.now() / 1000)),
         conteudo: { text: { body: callback.data } },
         callbackQueryId: callback.id,
+        ...withEscolha(escolhaDoBotao(callback.message, callback.data)),
       },
     };
   }
@@ -289,6 +340,8 @@ export async function processarUpdate(
     .info({ type: job.type }, nova ? 'mensagem enfileirada' : 'mensagem duplicada, ignorando');
   // Depois do enfileiramento: se ele falhar, o reenvio do Telegram ainda tem o botão para responder.
   responderBotao(resultado.mensagem.callbackQueryId, deps);
+  // Só no primeiro: o reenvio do mesmo update já encontra a mensagem editada.
+  if (nova) mostrarEscolha(resultado.mensagem, deps);
   return nova ? 'enfileirada' : 'duplicada';
 }
 
@@ -303,4 +356,32 @@ function responderBotao(id: string | undefined, deps: DepsDoTelegram, texto?: st
     .catch((erro: unknown) => {
       deps.logger.warn({ erro: resumoDoErro(erro) }, 'answerCallbackQuery falhou');
     });
+}
+
+const withEscolha = (escolha: EscolhaNoBotao | undefined) => (escolha ? { escolha } : {});
+
+/**
+ * Mostra a escolha na própria mensagem e tira o teclado dela (SCRUM-324): quem relê a conversa vê
+ * o que tocou, e o botão antigo não dispara de novo. Um `editMessageText` faz os dois, porque o
+ * teclado some quando a edição não manda `reply_markup`. O negrito original continua: o sufixo vai
+ * no fim, e os offsets não mudam. Texto que passaria do limite, ou mensagem sem texto, só perde o
+ * teclado. Melhor esforço, como o `answerCallbackQuery`: a resposta de verdade vem pela fila.
+ */
+function mostrarEscolha(mensagem: MensagemDoTelegram, deps: DepsDoTelegram): void {
+  const { escolha } = mensagem;
+  if (escolha === undefined || deps.api === undefined) return;
+  const alvo = { chat_id: mensagem.chatId, message_id: escolha.messageId };
+  const texto =
+    escolha.texto === undefined ? undefined : `${escolha.texto}\n\n${ESCOLHA_TEXT(escolha.rotulo)}`;
+  const chamada =
+    texto !== undefined && texto.length <= LIMITE_DO_TEXTO
+      ? deps.api.chamar('editMessageText', {
+          ...alvo,
+          text: texto,
+          ...(escolha.entities === undefined ? {} : { entities: escolha.entities }),
+        })
+      : deps.api.chamar('editMessageReplyMarkup', alvo);
+  chamada.catch((erro: unknown) => {
+    deps.logger.warn({ erro: resumoDoErro(erro) }, 'não deu para mostrar a escolha no Telegram');
+  });
 }
