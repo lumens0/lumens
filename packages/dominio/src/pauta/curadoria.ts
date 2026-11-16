@@ -21,6 +21,7 @@ import {
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarDisparos } from '../avisos/fila';
+import { registrarApoio } from './apoio';
 import { transicionarStatus } from './status';
 
 /** Mensagem modelo (SCRUM-170): título da pauta e motivo da recusa. */
@@ -138,12 +139,37 @@ async function decidir(
   return { decidida: true };
 }
 
-/** Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. */
-export function aprovarPauta(
+/**
+ * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site.
+ *
+ * Quem cuida da pauta conta como o primeiro apoio, na mesma transação (SCRUM-344). Na aprovação
+ * esse é só quem a criou: virar co-owner exige ter apoiado, e apoio só existe depois de aprovada.
+ * Sem isto a pauta nascia com 0 apoios, o texto do Fala.BR falava em "0 estudantes" quando o owner
+ * protocolava cedo, e quem criou ficava fora do aviso da promessa e da conferência, que vão para
+ * quem apoiou.
+ */
+export async function aprovarPauta(
   tx: Tx,
   { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  return decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  if (!resultado.decidida) return resultado;
+
+  const responsaveis = await tx
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .where(
+      and(
+        eq(papeisPauta.pautaId, pautaId),
+        eq(papeisPauta.papel, 'owner'),
+        isNull(papeisPauta.ate),
+      ),
+    );
+  for (const { estudanteId } of responsaveis) {
+    // Quem saiu do Lumens enquanto a pauta esperava a curadoria volta recusado, sem erro.
+    await registrarApoio(tx, { pautaId, estudanteId, origem: 'bot', agora });
+  }
+  return resultado;
 }
 
 /**
