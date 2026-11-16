@@ -1,4 +1,11 @@
-import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import {
+  CURSOS,
+  codigosVerificacao,
+  eq,
+  estudantes,
+  registrosVerificacao,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarApoio } from '../pauta/apoio';
@@ -8,8 +15,13 @@ import {
   EMAIL_MAXIMO,
   MAX_TENTATIVAS,
   REENVIO_APOS_MS,
+  JANELA_DOS_LIMITES_MS,
+  MAX_ENVIOS_POR_DIA,
+  MAX_ERROS_POR_DIA,
   apagarCodigo,
   apagarCodigosVencidos,
+  apagarRegistrosVencidos,
+  bloqueioDaVerificacao,
   concluirVerificacao,
   conferirCodigo,
   cursoValido,
@@ -19,6 +31,7 @@ import {
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
+  registrarNaVerificacao,
   vincularEmail,
   type NovoVinculo,
 } from './verificacao';
@@ -194,11 +207,21 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
   it('código certo: confere e apaga, porque vale uma vez só', async () => {
     await guardarCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: ENVIO });
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: depois(1000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-1',
+        emailHmac: 'mail-c-1',
+        codigo: '123456',
+        agora: depois(1000),
+      }),
     ).toEqual({ certo: true });
     expect(await linhaDe('c-1')).toBeUndefined();
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-1', codigo: '123456', agora: depois(2000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-1',
+        emailHmac: 'mail-c-1',
+        codigo: '123456',
+        agora: depois(2000),
+      }),
     ).toEqual({ certo: false, motivo: 'sem_codigo' });
   });
 
@@ -206,12 +229,22 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
     await guardarCodigo(db, { telefoneHmac: 'c-2', codigo: '123456', agora: ENVIO });
     for (let erro = 1; erro <= MAX_TENTATIVAS; erro++) {
       expect(
-        await conferirCodigo(db, { telefoneHmac: 'c-2', codigo: '000000', agora: depois(1000) }),
+        await conferirCodigo(db, {
+          telefoneHmac: 'c-2',
+          emailHmac: 'mail-c-2',
+          codigo: '000000',
+          agora: depois(1000),
+        }),
       ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - erro });
     }
     expect((await linhaDe('c-2'))?.tentativas).toBe(MAX_TENTATIVAS);
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-2', codigo: '123456', agora: depois(1000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-2',
+        emailHmac: 'mail-c-2',
+        codigo: '123456',
+        agora: depois(1000),
+      }),
     ).toEqual({ certo: false, motivo: 'sem_tentativas' });
     expect((await linhaDe('c-2'))?.tentativas).toBe(MAX_TENTATIVAS);
   });
@@ -221,6 +254,7 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
     expect(
       await conferirCodigo(db, {
         telefoneHmac: 'c-3',
+        emailHmac: 'mail-c-3',
         codigo: '123456',
         agora: depois(CODIGO_EXPIRA_MS),
       }),
@@ -229,6 +263,7 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
     expect(
       await conferirCodigo(db, {
         telefoneHmac: 'c-3',
+        emailHmac: 'mail-c-3',
         codigo: '123456',
         agora: depois(CODIGO_EXPIRA_MS - 1),
       }),
@@ -239,7 +274,12 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
     await guardarCodigo(db, { telefoneHmac: 'c-4', codigo: '123456', agora: ENVIO });
     await guardarCodigo(db, { telefoneHmac: 'c-5', codigo: '654321', agora: ENVIO });
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-4', codigo: '654321', agora: depois(1000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-4',
+        emailHmac: 'mail-c-4',
+        codigo: '654321',
+        agora: depois(1000),
+      }),
     ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - 1 });
   });
 
@@ -260,14 +300,29 @@ describe('conferirCodigo e reenvio (SCRUM-136)', () => {
   it('código novo zera as tentativas e o antigo deixa de valer', async () => {
     await guardarCodigo(db, { telefoneHmac: 'c-7', codigo: '111111', agora: ENVIO });
     for (let i = 0; i < MAX_TENTATIVAS; i++) {
-      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '000000', agora: depois(1000) });
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-7',
+        emailHmac: 'mail-c-7',
+        codigo: '000000',
+        agora: depois(1000),
+      });
     }
     await guardarCodigo(db, { telefoneHmac: 'c-7', codigo: '222222', agora: depois(60_000) });
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '111111', agora: depois(61_000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-7',
+        emailHmac: 'mail-c-7',
+        codigo: '111111',
+        agora: depois(61_000),
+      }),
     ).toEqual({ certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - 1 });
     expect(
-      await conferirCodigo(db, { telefoneHmac: 'c-7', codigo: '222222', agora: depois(62_000) }),
+      await conferirCodigo(db, {
+        telefoneHmac: 'c-7',
+        emailHmac: 'mail-c-7',
+        codigo: '222222',
+        agora: depois(62_000),
+      }),
     ).toEqual({ certo: true });
   });
 
@@ -354,6 +409,8 @@ describe('vincularEmail (SCRUM-137, RN01)', () => {
     expect(await vincularEmail(db, vinculo('B', 'troca@ufal.br'))).toEqual({
       vinculado: true,
       estudanteId,
+      // SCRUM-298: quem chama avisa o dono do e-mail da transferência.
+      transferido: true,
     });
     expect(await estudanteDe('A')).toBeUndefined();
     expect(await estudanteDe('B')).toMatchObject({
@@ -492,5 +549,150 @@ describe('concluirVerificacao (SCRUM-138)', () => {
 
     await concluirVerificacao(db, { telefoneHmac: 'tel-6', curso: CURSO, agora: AGORA });
     expect(await estudanteDe('6')).toMatchObject({ verificadoEm: AGORA, saiuEm: null });
+  });
+});
+
+describe('limites acumulados em 24 h (SCRUM-298)', () => {
+  let db: Db;
+  beforeAll(async () => {
+    db = await criarBancoEmMemoria();
+  }, 60_000);
+
+  const INICIO = new Date('2026-11-16T12:00:00Z');
+  const depois = (ms: number) => new Date(INICIO.getTime() + ms);
+  const MINUTO = 60_000;
+
+  /** Como o bot faz a cada "reenviar": código novo (zera as 5 tentativas) e o envio registrado. */
+  async function enviar(telefoneHmac: string, emailHmac: string, agora: Date, codigo = '123456') {
+    await guardarCodigo(db, { telefoneHmac, codigo, agora });
+    await registrarNaVerificacao(db, 'envio', { telefoneHmac, emailHmac, agora });
+  }
+
+  it(`por e-mail: no máximo ${String(MAX_ENVIOS_POR_DIA)} códigos em 24 h, somando todas as identidades`, async () => {
+    for (let i = 0; i < MAX_ENVIOS_POR_DIA; i++) {
+      expect(
+        await bloqueioDaVerificacao(db, {
+          telefoneHmac: `atacante-${String(i)}`,
+          emailHmac: 'vitima-1',
+          agora: depois(i * MINUTO),
+        }),
+      ).toBeUndefined();
+      await enviar(`atacante-${String(i)}`, 'vitima-1', depois(i * MINUTO));
+    }
+    // Uma identidade nova não escapa: o limite é do e-mail.
+    expect(
+      await bloqueioDaVerificacao(db, {
+        telefoneHmac: 'atacante-novo',
+        emailHmac: 'vitima-1',
+        agora: depois(10 * MINUTO),
+      }),
+    ).toEqual({ motivo: 'envios', liberaEm: depois(JANELA_DOS_LIMITES_MS) });
+  });
+
+  it('por identidade: no máximo 5 códigos em 24 h, mesmo trocando de e-mail', async () => {
+    for (let i = 0; i < MAX_ENVIOS_POR_DIA; i++) {
+      await enviar('spammer', `alvo-${String(i)}`, depois(i * MINUTO));
+    }
+    expect(
+      await bloqueioDaVerificacao(db, {
+        telefoneHmac: 'spammer',
+        emailHmac: 'alvo-novo',
+        agora: depois(10 * MINUTO),
+      }),
+    ).toMatchObject({ motivo: 'envios' });
+  });
+
+  it('libera quando o registro mais antigo que contava sai da janela de 24 h', async () => {
+    for (let i = 0; i < MAX_ENVIOS_POR_DIA; i++) {
+      await enviar(`tel-j${String(i)}`, 'janela', depois(i * MINUTO));
+    }
+    const chaves = { telefoneHmac: 'outro', emailHmac: 'janela' };
+    expect(
+      await bloqueioDaVerificacao(db, { ...chaves, agora: depois(JANELA_DOS_LIMITES_MS - 1) }),
+    ).toBeDefined();
+    expect(
+      await bloqueioDaVerificacao(db, { ...chaves, agora: depois(JANELA_DOS_LIMITES_MS + 1) }),
+    ).toBeUndefined();
+  });
+
+  it(`o "reenviar" zera as 5 tentativas do código, mas não os ${String(MAX_ERROS_POR_DIA)} erros do dia`, async () => {
+    const chaves = { telefoneHmac: 'forca-bruta', emailHmac: 'vitima-2' };
+    let erros = 0;
+    // 4 rodadas de 5 palpites errados, cada uma com um código novo (o "reenviar").
+    for (let rodada = 0; rodada < MAX_ERROS_POR_DIA / 5; rodada++) {
+      const agora = depois(rodada * MINUTO);
+      await guardarCodigo(db, { telefoneHmac: chaves.telefoneHmac, codigo: '123456', agora });
+      for (let palpite = 0; palpite < 5; palpite++) {
+        const resultado = await conferirCodigo(db, { ...chaves, codigo: '000000', agora });
+        expect(resultado).toMatchObject({ certo: false, motivo: 'errado' });
+        erros++;
+      }
+    }
+    expect(erros).toBe(MAX_ERROS_POR_DIA);
+
+    // Código novo, com as 5 tentativas zeradas: nem o certo é conferido.
+    const agora = depois(10 * MINUTO);
+    await guardarCodigo(db, { telefoneHmac: chaves.telefoneHmac, codigo: '123456', agora });
+    expect(await conferirCodigo(db, { ...chaves, codigo: '123456', agora })).toEqual({
+      certo: false,
+      motivo: 'bloqueado',
+      liberaEm: depois(JANELA_DOS_LIMITES_MS),
+    });
+    // E nenhum código novo sai para esse e-mail.
+    expect(await bloqueioDaVerificacao(db, { ...chaves, agora })).toMatchObject({
+      motivo: 'erros',
+    });
+  });
+
+  it('os erros contam por e-mail: outra identidade não ganha palpites novos', async () => {
+    for (let i = 0; i < MAX_ERROS_POR_DIA; i++) {
+      const telefoneHmac = `paralelo-${String(i % 4)}`;
+      await guardarCodigo(db, { telefoneHmac, codigo: '123456', agora: INICIO });
+      await conferirCodigo(db, {
+        telefoneHmac,
+        emailHmac: 'vitima-3',
+        codigo: '000000',
+        agora: INICIO,
+      });
+    }
+    await guardarCodigo(db, { telefoneHmac: 'paralelo-novo', codigo: '123456', agora: INICIO });
+    expect(
+      await conferirCodigo(db, {
+        telefoneHmac: 'paralelo-novo',
+        emailHmac: 'vitima-3',
+        codigo: '123456',
+        agora: INICIO,
+      }),
+    ).toMatchObject({ certo: false, motivo: 'bloqueado' });
+  });
+
+  it('o registro guarda só os HMACs e apaga o que saiu da janela', async () => {
+    await registrarNaVerificacao(db, 'envio', {
+      telefoneHmac: 'velho',
+      emailHmac: 'velho@hmac',
+      agora: new Date('2026-11-01T12:00:00Z'),
+    });
+    await registrarNaVerificacao(db, 'erro', {
+      telefoneHmac: 'novo',
+      emailHmac: 'novo@hmac',
+      agora: new Date('2026-11-03T12:00:00Z'),
+    });
+    const linhas = await db.select().from(registrosVerificacao);
+    expect(linhas.some((l) => l.telefoneHmac === 'velho')).toBe(false);
+    expect(Object.keys(linhas[0] ?? {}).sort()).toEqual(
+      ['em', 'emailHmac', 'id', 'telefoneHmac', 'tipo'].sort(),
+    );
+  });
+  it('a limpeza de hora em hora apaga só o que saiu da janela, sem precisar de registro novo', async () => {
+    const agora = new Date('2026-12-10T12:00:00Z');
+    const horasAtras = (h: number) => new Date(agora.getTime() - h * 3_600_000);
+    await db.insert(registrosVerificacao).values([
+      { telefoneHmac: 'limpa-1', emailHmac: 'limpa@hmac', tipo: 'envio', em: horasAtras(25) },
+      { telefoneHmac: 'limpa-2', emailHmac: 'limpa@hmac', tipo: 'erro', em: horasAtras(23) },
+    ]);
+    expect(await apagarRegistrosVencidos(db, agora)).toBeGreaterThanOrEqual(1);
+    const restantes = await db.select().from(registrosVerificacao);
+    expect(restantes.some((l) => l.telefoneHmac === 'limpa-1')).toBe(false);
+    expect(restantes.some((l) => l.telefoneHmac === 'limpa-2')).toBe(true);
   });
 });
