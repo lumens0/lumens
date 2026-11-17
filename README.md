@@ -347,7 +347,7 @@ telefone): vão como HMAC da `CHAVE_HMAC`, para achar a conversa, e cifrados com
 para o worker responder.
 
 Um worker consome a fila `incoming-message` e anda a conversa. O novo estado, as respostas (na
-fila `outgoing-replies`) e a conclusão do job entram na mesma transação: se o processo cair no
+fila `outgoing-replies-ordered`, em ordem por conversa) e a conclusão do job entram na mesma transação: se o processo cair no
 meio, a mensagem é reentregue em até 1 minuto e aplicada uma vez só. Enquanto o envio pela Meta
 não existe, as respostas aparecem no log do `pnpm dev` como `respostas do bot`, com o texto no
 campo `texto`. Só o `pnpm dev` (flag `--dev`) mostra o texto; o `start` de produção registra
