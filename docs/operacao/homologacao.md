@@ -111,6 +111,30 @@ Saia e entre de novo no SSH para o grupo `docker` valer. Confira:
 docker compose version
 ```
 
+Limite o tamanho dos logs dos contêineres. Sem isto o Docker usa o driver `json-file` sem
+limite, e o log do back-end cresce até encher o disco, onde também está o Postgres.
+
+O comando só grava o arquivo se ele ainda não existir. Se já existir, junte as duas chaves
+(`log-driver` e `log-opts`) ao que está lá, à mão, para não apagar outra configuração:
+
+```bash
+[ -e /etc/docker/daemon.json ] && echo "daemon.json já existe: edite à mão" || { echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' | sudo tee /etc/docker/daemon.json && sudo systemctl restart docker; }
+```
+
+O limite vale só para contêiner criado depois dele. Numa VM que já tem os contêineres no ar,
+recrie todos uma vez (cai por alguns segundos):
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate
+```
+
+Se o perfil da Evolution estiver ligado, acrescente `--profile evolution` antes do `up`. Para
+conferir, `docker inspect --format '{{.HostConfig.LogConfig}}' <contêiner>` mostra o `max-size`.
+
+O cache de build e as imagens antigas o próprio deploy limpa (`scripts/deploy-homologacao.sh`):
+imagem sem tag sai na hora; cache e imagem sem uso, depois de 72 h; o cache fica em no máximo
+3 GB. O deploy também avisa no log do CI quando o disco passa de 85%.
+
 Clone em `/opt/lumens` — é o caminho que o `scripts/deploy-homologacao.sh` espera:
 
 ```bash
@@ -253,5 +277,7 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
   liberada no NSG — a validação do Let's Encrypt passa por ela. Se o erro falar em _rate
   limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
 - **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
+  Se for disco, `docker system df` mostra quanto é cache de build e imagem; o
+  `docker builder prune --force` e o `docker image prune --all --force` liberam na hora.
 - **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
   cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
