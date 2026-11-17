@@ -132,10 +132,24 @@ describe('mensagemDoUpdate', () => {
     });
   });
 
-  it('figurinha chega sem conteúdo (o worker responde que só entende texto)', () => {
+  it('figurinha chega sem conteúdo (o worker responde que não entende e o que fazer)', () => {
     const r = mapear(mensagem({ sticker: { file_id: 's' } }));
     if (r.tipo !== 'mensagem') throw new Error('ignorado');
     expect(inputOf(r.mensagem.conteudo)).toBeNull();
+    expect(r.mensagem.type).toBe('sticker');
+  });
+
+  it.each([
+    [{ voice: { file_id: 'v' } }, 'audio'],
+    [{ audio: { file_id: 'a' } }, 'audio'],
+    [{ video: { file_id: 'v' } }, 'video'],
+    [{ video_note: { file_id: 'v' } }, 'video'],
+    [{ location: { latitude: 0, longitude: 0 } }, 'unsupported'],
+  ])('sem texto, %o chega com o tipo da Meta %s (SCRUM-334)', (campos, tipo) => {
+    const r = mapear(mensagem(campos));
+    if (r.tipo !== 'mensagem') throw new Error('ignorado');
+    expect(inputOf(r.mensagem.conteudo)).toBeNull();
+    expect(r.mensagem.type).toBe(tipo);
   });
 
   it('ignora grupo, supergrupo e canal', () => {

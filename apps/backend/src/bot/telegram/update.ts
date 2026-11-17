@@ -55,7 +55,21 @@ const mensagemSchema = z.object({
     )
     .optional(),
   document: z.object({ file_id: z.string().min(1), mime_type: texto.optional() }).optional(),
+  // SCRUM-334: só para saber o tipo e responder o que fazer; o conteúdo não é lido.
+  voice: z.unknown().optional(),
+  audio: z.unknown().optional(),
+  video: z.unknown().optional(),
+  video_note: z.unknown().optional(),
+  sticker: z.unknown().optional(),
 });
+
+/** O `type` da Meta para o que o bot não entende, como o worker espera (`textoSemSuporte`). */
+function tipoSemSuporte(message: z.infer<typeof mensagemSchema>): string {
+  if (message.voice !== undefined || message.audio !== undefined) return 'audio';
+  if (message.video !== undefined || message.video_note !== undefined) return 'video';
+  if (message.sticker !== undefined) return 'sticker';
+  return 'unsupported';
+}
 
 const callbackSchema = z.object({
   id: z.string().min(1),
@@ -221,9 +235,9 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
       },
     };
   }
-  // Figurinha, áudio, vídeo, localização: vai sem conteúdo, e o worker responde que só entende
-  // texto (o mesmo que acontece com esses tipos no WhatsApp).
-  return { tipo: 'mensagem', mensagem: { ...base, type: 'unsupported', conteudo: {} } };
+  // Figurinha, áudio, vídeo, localização: vai sem conteúdo, e o worker responde que não entende e
+  // o que fazer (o mesmo que acontece com esses tipos no WhatsApp).
+  return { tipo: 'mensagem', mensagem: { ...base, type: tipoSemSuporte(message), conteudo: {} } };
 }
 
 export const PHONE_NUMBER_ID_TELEGRAM = 'telegram';

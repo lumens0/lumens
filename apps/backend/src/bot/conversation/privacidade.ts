@@ -38,7 +38,9 @@ export const NOTHING_TO_DELETE_TEXT =
 
 export const STAYED_TEXT = 'Ok, você continua no Lumens.';
 
-const CONFIRMA = new Set(['sim', 's', 'sim, sair', 'quero sair', 'confirmar']);
+// SCRUM-334: sair apaga o vínculo e não tem volta, então um "s" solto (tecla escapada) não confirma.
+// O "sair" de novo também confirma: o router o entrega a este passo em vez de pedir a saída outra vez.
+const CONFIRMA = new Set(['sim', 'sair', 'sim, sair', 'quero sair', 'confirmar']);
 
 /** Estudante ativo (verificado ou não) ligado a este telefone. Quem já saiu não conta. */
 async function estudanteDoTelefone(ctx: StepContext): Promise<string | undefined> {
