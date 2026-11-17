@@ -171,6 +171,7 @@ pede gente, com `tipo = 'proposta'`. Colunas que não se aplicam ao tipo da linh
 | `status`              | text              | texto livre do caminho                    | `aberta` ou `executada`     |
 | `protocolo`           | text, nulo        | protocolo do Fala.BR                      | nulo                        |
 | `prazo`               | date, nulo        | prazo de resposta                         | nulo                        |
+| `prorrogado`          | boolean           | se o prazo do Fala.BR foi prorrogado      | `false`                     |
 | `aberto_em`           | timestamptz, nulo | sim                                       | nulo                        |
 | `descricao`           | text, nulo        | nulo                                      | o que a proposta pede       |
 | `pessoas_necessarias` | int, nulo         | nulo                                      | sim                         |

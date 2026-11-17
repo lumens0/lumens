@@ -23,7 +23,7 @@ export function ConteudoPauta({ pauta }: { pauta: PautaDetalhe }) {
         <ProximaEtapa pauta={pauta} />
       </div>
       <RespostaOficial pauta={pauta} />
-      <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} eventos={pauta.linha_do_tempo} />
+      <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} />
       <Relatos relatos={pauta.relatos} />
       <LinhaDoTempo eventos={pauta.linha_do_tempo} />
       <p className={estilos.rodape}>

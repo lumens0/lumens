@@ -111,6 +111,7 @@ export const caminho = z.object({
   status: z.string(),
   protocolo: z.string().nullable(),
   prazo: data.nullable(),
+  prorrogado: z.boolean(),
   aberto_em: instante.nullable(),
   descricao: z.string().nullable(),
   pessoas_necessarias: z.number().int().nullable(),
