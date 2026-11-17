@@ -77,6 +77,29 @@ export const codigosVerificacao = pgTable(
   (t) => [check('codigo_verificacao_tentativas_nao_negativas', sql`${t.tentativas} >= 0`)],
 );
 
+/**
+ * SCRUM-298: o que já aconteceu na verificação de e-mail nas últimas 24 h, para os limites
+ * acumulados (códigos enviados e códigos errados, por e-mail e por identidade). Cada linha guarda
+ * os dois HMACs, nunca o e-mail, o telefone ou o código em claro. Linhas com mais de 24 h não servem
+ * mais e são apagadas a cada gravação (`registrarNaVerificacao`).
+ */
+export const registrosVerificacao = pgTable(
+  'registro_verificacao',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    telefoneHmac: text('telefone_hmac').notNull(),
+    emailHmac: text('email_hmac').notNull(),
+    tipo: text('tipo').notNull(),
+    em: instante('em').notNull().defaultNow(),
+  },
+  (t) => [
+    check('registro_verificacao_tipo', sql`${t.tipo} IN ('envio', 'erro')`),
+    index('registro_verificacao_email_idx').on(t.emailHmac, t.em),
+    index('registro_verificacao_telefone_idx').on(t.telefoneHmac, t.em),
+    index('registro_verificacao_em_idx').on(t.em),
+  ],
+);
+
 export const blocos = pgTable(
   'bloco',
   {
@@ -236,12 +259,31 @@ export const voluntarios = pgTable(
   ],
 );
 
+export const papelCurador = pgEnum('papel_curador', ['curador', 'administrador']);
+export const acaoCurador = pgEnum('acao_curador', ['adicionou', 'desativou', 'reativou']);
+
+/** `papel` administrador gerencia quem entra no painel (SCRUM-295); curador só faz a curadoria. */
 export const curadores = pgTable('curador', {
   id: uuid('id').defaultRandom().primaryKey(),
   emailHmac: text('email_hmac').notNull().unique(),
   emailCifrado: text('email_cifrado').notNull(),
   nome: text('nome').notNull(),
   ativo: boolean('ativo').notNull().default(true),
+  papel: papelCurador('papel').notNull().default('curador'),
+  criadoEm: instante('criado_em').notNull().defaultNow(),
+});
+
+/** Quem adicionou, desativou ou reativou quem, e quando. Só inserção; sem e-mail em claro. */
+export const curadorAuditoria = pgTable('curador_auditoria', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  acao: acaoCurador('acao').notNull(),
+  autorId: uuid('autor_id')
+    .notNull()
+    .references(() => curadores.id, { onDelete: 'restrict' }),
+  alvoId: uuid('alvo_id')
+    .notNull()
+    .references(() => curadores.id, { onDelete: 'restrict' }),
+  criadoEm: instante('criado_em').notNull().defaultNow(),
 });
 
 /**
@@ -332,7 +374,7 @@ export const eventos = pgTable(
   ],
 );
 
-/** Passo da conversa do bot por telefone. A limpeza diária apaga as linhas com `expiraEm` vencido. */
+/** Passo da conversa do bot por telefone. A limpeza de hora em hora apaga as linhas com `expiraEm` vencido. */
 export const conversas = pgTable(
   'conversa',
   {
@@ -348,7 +390,7 @@ export const conversas = pgTable(
 /**
  * Dedup de mensagens da Meta: a Meta reenvia o mesmo wamid, e ele só pode ser processado uma vez.
  * Guarda o HMAC do wamid, não o wamid: o wamid da Meta é base64 de uma estrutura que contém o
- * telefone do remetente. A limpeza diária apaga as linhas mais velhas que a janela de reenvio.
+ * telefone do remetente. A limpeza de hora em hora apaga as linhas mais velhas que a janela de reenvio.
  */
 export const mensagensProcessadas = pgTable('mensagem_processada', {
   wamidHmac: text('wamid_hmac').primaryKey(),
