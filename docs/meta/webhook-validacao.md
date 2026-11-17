@@ -2,6 +2,10 @@
 
 SCRUM-97 · Parte 2.
 
+> **Histórico.** A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution
+> ([decisão](../decisoes/SCRUM-275-canal-evolution.md)). Esta página fica como registro do que foi
+> feito com a Meta e vale se o canal voltar a ser ela.
+
 O código do webhook está coberto por testes (`apps/backend/src/bot/webhook/webhook.test.ts`). O que
 os testes não provam é o critério externo da história: **a Meta verificar o endereço no painel e
 receber o 200 em menos de 5 segundos**. Este roteiro é como provar isso e onde guardar a prova.
