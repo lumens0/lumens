@@ -24,6 +24,7 @@ beforeAll(async () => {
 describe('quem entra no painel', () => {
   it('curador ativo entra, com o e-mail em qualquer caixa e com espaços', async () => {
     expect(await curadorAtivo(db, '  Ana@UFAL.br ', CHAVE)).toEqual({ id: ana, nome: 'Ana' });
+    // O login não precisa do papel: ele é lido a cada pedido, em `curadorAtivoPorId`.
   });
 
   it('e-mail fora da lista e curador desativado não entram', async () => {
@@ -37,8 +38,16 @@ describe('quem entra no painel', () => {
       .from(curadores)
       .where(eq(curadores.nome, 'Caio'));
 
-    expect(await curadorAtivoPorId(db, ana)).toEqual({ id: ana, nome: 'Ana' });
+    expect(await curadorAtivoPorId(db, ana)).toEqual({ id: ana, nome: 'Ana', papel: 'curador' });
     expect(await curadorAtivoPorId(db, caio?.id ?? '')).toBeUndefined();
+  });
+
+  it('a sessão traz o papel de agora, lido do banco a cada pedido', async () => {
+    await db.update(curadores).set({ papel: 'administrador' }).where(eq(curadores.id, ana));
+    expect(await curadorAtivoPorId(db, ana)).toMatchObject({ papel: 'administrador' });
+
+    await db.update(curadores).set({ papel: 'curador' }).where(eq(curadores.id, ana));
+    expect(await curadorAtivoPorId(db, ana)).toMatchObject({ papel: 'curador' });
   });
 
   it('o adapter não conhece quem está fora da lista nem cria ninguém', async () => {
