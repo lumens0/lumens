@@ -85,8 +85,8 @@ export const FONTE_MAXIMA = 120;
  */
 export const ANOS_ATE_A_ENTREGA_MAXIMO = 2;
 
-/** Hoje em Maceió (UTC−3, sem horário de verão), `YYYY-MM-DD`. */
-const hojeEmMaceio = (agora: Date) =>
+/** Hoje em Maceió (UTC−3, sem horário de verão), `YYYY-MM-DD`. O painel usa no `min` da data. */
+export const hojeEmMaceio = (agora = new Date()) =>
   new Date(agora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 
 /**
@@ -98,7 +98,7 @@ export function dataDeEntregaMaxima(agora = new Date()): string {
   return `${String(Number(hoje.slice(0, 4)) + ANOS_ATE_A_ENTREGA_MAXIMO)}${hoje.slice(4)}`;
 }
 
-const tamanho = (texto: string) => Array.from(texto.trim()).length;
+const tamanho = (texto: string) => Array.from(texto).length;
 
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
@@ -135,8 +135,9 @@ function inicioDoDiaEmMaceio(dia: string): Date {
 /**
  * Registra a promessa e leva a pauta a `prometido`, na transação de quem chama.
  *
- * Resumo acima de `RESUMO_MAXIMO`, fonte acima de `FONTE_MAXIMA` (contados por code point, sem os
- * espaços das pontas) ou data depois de `dataDeEntregaMaxima` lançam `ErroDeRegra` antes de tudo.
+ * Resumo e fonte são gravados sem os espaços das pontas. Acima de `RESUMO_MAXIMO` ou `FONTE_MAXIMA`
+ * (contados por code point) ou com data depois de `dataDeEntregaMaxima`, lança `ErroDeRegra` antes
+ * de tudo.
  *
  * Só aceita a partir de `cobrando`, `entregue_em_parte` ou `descumprida` (via `transicionarStatus`);
  * fora disso lança `ErroDeRegra` e nada é gravado. Se ainda houver promessa ativa, ela é encerrada
@@ -148,7 +149,14 @@ function inicioDoDiaEmMaceio(dia: string): Date {
  */
 export async function registrarPromessa(
   tx: Tx,
-  { pautaId, resumo, dataEntrega, fonte, registradaPor, agora = new Date() }: NovaPromessa,
+  {
+    pautaId,
+    resumo: resumoInformado,
+    dataEntrega,
+    fonte: fonteInformada,
+    registradaPor,
+    agora = new Date(),
+  }: NovaPromessa,
 ): Promise<{
   promessaId: string;
   conferenciaAbreEm: Date;
@@ -157,6 +165,9 @@ export async function registrarPromessa(
   /** PDFs do owner que a curadoria leu para esta resposta e que agora apontam para ela. */
   documentosLigados: number;
 }> {
+  // Mede o que é gravado: 500 caracteres mais espaços nas pontas não passam do teto.
+  const resumo = resumoInformado.trim();
+  const fonte = fonteInformada.trim();
   if (tamanho(resumo) > RESUMO_MAXIMO) {
     throw new ErroDeRegra('resumo_longo', `Resumo passa de ${String(RESUMO_MAXIMO)} caracteres`);
   }

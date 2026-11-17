@@ -25,6 +25,7 @@ import {
   RESUMO_MAXIMO,
   RESUMO_NO_AVISO_MAXIMO,
   dataDeEntregaMaxima,
+  hojeEmMaceio,
   registrarPromessa,
 } from './promessa';
 import { registrarExecucaoProposta } from './proposta';
@@ -536,6 +537,7 @@ describe('limites da promessa no servidor (SCRUM-313)', () => {
     const curador = await criarCurador(db);
     await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id, campos)));
     expect((await lerPauta(pauta.id))?.status).toBe('prometido');
+    return pauta;
   }
 
   it('resumo acima do teto é recusado e nada é gravado', async () => {
@@ -546,11 +548,26 @@ describe('limites da promessa no servidor (SCRUM-313)', () => {
     await recusada({ fonte: 'a'.repeat(FONTE_MAXIMA + 1) }, 'fonte_longa');
   });
 
-  it('no teto, contando emoji como um caractere e sem os espaços das pontas, passa', async () => {
-    await aceita({
-      resumo: `  ${'😀'.repeat(RESUMO_MAXIMO)}  `,
-      fonte: `  ${'😀'.repeat(FONTE_MAXIMA)}  `,
+  it('no teto, contando emoji como um caractere, passa e grava sem os espaços das pontas', async () => {
+    const resumo = '😀'.repeat(RESUMO_MAXIMO);
+    const fonte = '😀'.repeat(FONTE_MAXIMA);
+    const pauta = await aceita({
+      resumo: `  ${resumo}  `,
+      fonte: `
+${fonte}   `,
     });
+
+    const [gravada] = await db
+      .select({ resumo: promessas.resumo, fonte: promessas.fonte })
+      .from(promessas)
+      .where(eq(promessas.pautaId, pauta.id));
+    expect(gravada).toEqual({ resumo, fonte });
+    const evento = (await eventosDa(pauta.id)).find((e) => e.tipo === 'promessa_registrada');
+    expect(evento?.dados).toMatchObject({ resumo, fonte });
+  });
+
+  it('o teto vale para o texto sem as pontas: 1 caractere a mais com espaços é recusado', async () => {
+    await recusada({ fonte: `  ${'a'.repeat(FONTE_MAXIMA + 1)}  ` }, 'fonte_longa');
   });
 
   it.each(['2028-11-18', '2062-12-10', '9999-12-31'])(
@@ -562,6 +579,11 @@ describe('limites da promessa no servidor (SCRUM-313)', () => {
 
   it('data no teto é aceita', async () => {
     await aceita({ dataEntrega: '2028-11-17' });
+  });
+
+  it('hoje vira às 03:00 UTC, que é meia-noite em Maceió', () => {
+    expect(hojeEmMaceio(new Date('2026-11-10T02:59:00.000Z'))).toBe('2026-11-09');
+    expect(hojeEmMaceio(new Date('2026-11-10T03:00:00.000Z'))).toBe('2026-11-10');
   });
 
   it('o teto conta o dia em Maceió, não em UTC', () => {

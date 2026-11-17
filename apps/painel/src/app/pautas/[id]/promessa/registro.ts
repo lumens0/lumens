@@ -16,13 +16,9 @@ export interface DependenciasDoRegistro {
     curadorId: string,
     campos: CamposDaPromessa,
   ) => Promise<{ avisados: number }>;
-  /** Hoje em Maceió, `YYYY-MM-DD`. Injetável para o teste. */
+  /** Hoje em Maceió, `YYYY-MM-DD` (`hojeEmMaceio` do domínio). Injetável para o teste. */
   hoje: () => string;
 }
-
-/** Hoje no fuso da curadoria (UTC−3, sem horário de verão). */
-export const hojeEmMaceio = (agora = new Date()) =>
-  new Date(agora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 
 /**
  * Registrar a resposta oficial e a promessa pela tela (5.4, SCRUM-179). Devolve para onde o

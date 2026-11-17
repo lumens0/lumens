@@ -1,9 +1,9 @@
 'use server';
 
-import { registrarPromessa } from '@lumens/dominio';
+import { hojeEmMaceio, registrarPromessa } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../../auth';
-import { criarRegistroDePromessa, hojeEmMaceio } from './registro';
+import { criarRegistroDePromessa } from './registro';
 
 const registrarPelaTela = criarRegistroDePromessa({
   curador: curadorDaSessao,
