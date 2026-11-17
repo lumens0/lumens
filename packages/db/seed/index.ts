@@ -17,8 +17,10 @@ import {
 import { dadosSeed } from './data';
 
 /**
- * TODO(T9): substituir as inserções diretas pelas funções do domínio quando os casos de
- * uso de criação existirem. Até lá, a transação e as constraints preservam a consistência.
+ * Inserções diretas, de propósito (SCRUM-257, docs/decisoes/SCRUM-257-seed-pelo-dominio.md): o
+ * seed precisa de ids, slugs e datas fixos e de reaplicar sem duplicar, e este pacote não pode
+ * importar o `dominio`. Quem garante que o resultado é um estado que o domínio produziria é o
+ * `packages/dominio/src/seed-coerente.test.ts`: dado novo aqui tem de passar nele.
  */
 export async function executarSeed(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
