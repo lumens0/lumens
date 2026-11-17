@@ -397,7 +397,11 @@ export async function marcarUrgencia(
     return { atualizada: false, motivo: 'motivo_invalido' };
   }
   const [pauta] = await tx
-    .select({ status: pautas.status, urgente: pautas.urgente })
+    .select({
+      status: pautas.status,
+      urgente: pautas.urgente,
+      urgenteMotivo: pautas.urgenteMotivo,
+    })
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
@@ -405,8 +409,14 @@ export async function marcarUrgencia(
   if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
     return { atualizada: false, motivo: 'pauta_nao_publica' };
   }
-  if (pauta.urgente === urgente) return { atualizada: true };
   const motivoLimpo = motivo?.trim();
+  const novoMotivo = urgente && motivoLimpo ? motivoLimpo : null;
+  if (pauta.urgente === urgente) {
+    if (urgente && motivo !== undefined && pauta.urgenteMotivo !== novoMotivo) {
+      await tx.update(pautas).set({ urgenteMotivo: novoMotivo }).where(eq(pautas.id, pautaId));
+    }
+    return { atualizada: true };
+  }
 
   await tx
     .update(pautas)
@@ -415,7 +425,7 @@ export async function marcarUrgencia(
       urgenteDesde: urgente ? agora : null,
       urgentePor: urgente ? curadorId : null,
       // O motivo fica na pauta, só para o painel: o evento é público e vai à linha do tempo do site.
-      urgenteMotivo: urgente && motivoLimpo ? motivoLimpo : null,
+      urgenteMotivo: novoMotivo,
     })
     .where(eq(pautas.id, pautaId));
   await registrarEvento(tx, {
