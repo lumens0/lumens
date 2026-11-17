@@ -5,8 +5,20 @@
  * (5.3). No site ele não leva quem relatou: as views públicas mostram só o texto, a foto e o
  * curso. A linha guarda o `estudante_id` porque a coluna é obrigatória e porque o `sair` (5.7)
  * precisa achar o que é de quem saiu; o vínculo nunca sai do banco.
+ *
+ * SCRUM-301: no bot, o relato é gravado assim que o texto chega, e a foto vem depois
+ * (`anexarFotoAoRelato`). Assim o relato não se perde se a pessoa não termina o passo da foto.
  */
-import { eq, estudantes, pautas, relatos, type StatusPauta, type Tx } from '@lumens/db';
+import {
+  and,
+  eq,
+  estudantes,
+  isNull,
+  pautas,
+  relatos,
+  type StatusPauta,
+  type Tx,
+} from '@lumens/db';
 import { DESCRICAO_MAXIMA } from './pauta';
 
 /** O relato cabe no mesmo limite da descrição da pauta: muitas vezes ele vira uma. */
@@ -68,4 +80,41 @@ export async function adicionarRelato(
     .returning({ id: relatos.id });
   if (inserido === undefined) throw new Error('relato não inserido');
   return { registrado: true, relatoId: inserido.id };
+}
+
+export interface FotoDoRelato {
+  relatoId: string;
+  /** Só quem escreveu o relato junta a foto. */
+  estudanteId: string;
+  fotoChave: string;
+}
+
+export type ResultadoFotoDoRelato =
+  | { anexada: true }
+  | { anexada: false; motivo: 'relato_inexistente' | 'ja_moderado' | 'ja_tem_foto' };
+
+/**
+ * Junta a foto a um relato já gravado (SCRUM-301). Só enquanto o relato está `pendente`: a
+ * curadoria aprova o relato com o que ele tem, e uma foto que chegasse depois da aprovação iria
+ * para o site sem ninguém ver. A condição vai no próprio UPDATE, então não corre com a moderação.
+ */
+export async function anexarFotoAoRelato(
+  tx: Tx,
+  { relatoId, estudanteId, fotoChave }: FotoDoRelato,
+): Promise<ResultadoFotoDoRelato> {
+  const doEstudante = and(eq(relatos.id, relatoId), eq(relatos.estudanteId, estudanteId));
+  const [anexada] = await tx
+    .update(relatos)
+    .set({ fotoChave })
+    .where(and(doEstudante, eq(relatos.moderacao, 'pendente'), isNull(relatos.fotoChave)))
+    .returning({ id: relatos.id });
+  if (anexada !== undefined) return { anexada: true };
+
+  const [atual] = await tx
+    .select({ moderacao: relatos.moderacao })
+    .from(relatos)
+    .where(doEstudante);
+  if (atual === undefined) return { anexada: false, motivo: 'relato_inexistente' };
+  if (atual.moderacao !== 'pendente') return { anexada: false, motivo: 'ja_moderado' };
+  return { anexada: false, motivo: 'ja_tem_foto' };
 }
