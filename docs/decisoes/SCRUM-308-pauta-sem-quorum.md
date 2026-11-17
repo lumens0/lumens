@@ -55,3 +55,12 @@ comprometer de novo. É também a saída que `descumprida` já tem (`descumprida
 ## O que depende de alguém
 
 - **Aprovação da equipe:** registrar na SCRUM-308 do Jira, com menção à Sthefany, como pede a task.
+
+## Limites aceitos
+
+- **Pauta com 0 apoiadores** gasta as duas rodadas (15 dias) antes de voltar a `cobrando`, sem aviso
+  na primeira. Foi aceito: sem apoiador não há quem avisar, e a rodada vazia só atrasa a volta.
+- **Erro de transição na apuração:** `sem_quorum` agora chama `transicionarStatus`, e um erro de
+  regra lançado ali desfaz o savepoint da promessa. Como a pauta só chega à apuração em `prometido`
+  e `prometido → cobrando` está na tabela, o erro só aparece se a tabela mudar; o teste de
+  `conferencia-apuracao` cobre a volta e quebraria antes.

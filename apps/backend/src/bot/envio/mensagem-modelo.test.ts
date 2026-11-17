@@ -76,6 +76,29 @@ describe('montarMensagemModelo', () => {
     ]);
   });
 
+  it('aprovação: o título no corpo e o slug no botão "Ver a pauta"', () => {
+    const mensagem = montarMensagemModelo(
+      {
+        tipo: 'aprovacao',
+        aviso: 'pauta-1',
+        modelo: 'lumens_pauta_aprovada',
+        parametros: ['Bebedouro do bloco 12', 'bebedouro-bloco-12'],
+      },
+      TELEFONE,
+    );
+
+    expect(mensagem.template.name).toBe('lumens_pauta_aprovada');
+    expect(mensagem.template.components).toEqual([
+      { type: 'body', parameters: [{ type: 'text', text: 'Bebedouro do bloco 12' }] },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: 'bebedouro-bloco-12' }],
+      },
+    ]);
+  });
+
   it('sem imagem no modelo, nenhum cabeçalho', () => {
     const mensagem = montarMensagemModelo(
       {

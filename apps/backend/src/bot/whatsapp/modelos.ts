@@ -25,7 +25,8 @@ export type NomeModelo =
   | 'lumens_lembrete_prazo'
   | 'lumens_owner_inativo'
   | 'lumens_pauta_recusada'
-  | 'lumens_conquista';
+  | 'lumens_conquista'
+  | 'lumens_pauta_aprovada';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -169,6 +170,21 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     exemplos: ['Bebedouro quebrado no bloco 12', 'já existe uma pauta sobre o mesmo bebedouro'],
     rodape: RODAPE,
     botoes: [],
+  },
+
+  // Aprovação na curadoria (SCRUM-300): a pauta já está no site e recebe apoios. O texto só relata
+  // o fato, sem convite (o teste de catálogo barra apelo de campanha).
+  lumens_pauta_aprovada: {
+    nome: 'lumens_pauta_aprovada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'responsaveis',
+    corpo:
+      'A pauta "{{1}}", pela qual você é responsável, foi aprovada pela curadoria e já está no site, ' +
+      'recebendo apoios.',
+    exemplos: ['Bebedouro quebrado no bloco 12'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
   },
 
   // Card de vitória (3.7c, SCRUM-241). Vai para quem apoiou quando a conferência fecha com a pauta

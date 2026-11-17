@@ -12,6 +12,7 @@ import {
   type StepContext,
 } from './handlers';
 import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
+import { entradaDeConferencia, responderConferencia } from './conferencia';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
 import { assertTransition, type Step } from './steps';
@@ -31,6 +32,8 @@ export interface RouterDeps {
 }
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
+/** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
+export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
 /** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
@@ -86,7 +89,8 @@ async function responder(
   if (cmd === 'cancelar') {
     // 'cancelar' limpa tudo, inclusive pendingCommand.
     await store.save(phoneHmac, 'MENU', {});
-    return [CANCEL_TEXT, MENU_TEXT];
+    const relatoJaEnviado = current?.step === 'SUPPORT_ASK_PHOTO';
+    return [relatoJaEnviado ? CANCEL_PHOTO_TEXT : CANCEL_TEXT, MENU_TEXT];
   }
   if (cmd === 'menu') {
     // 'menu' recomeça mas preserva o comando pendente.
@@ -106,6 +110,19 @@ async function responder(
   const state: { step: Step; data: ConversationData } = current
     ? { step: current.step, data: current.data }
     : { step: 'GREETING', data: {} };
+
+  // SCRUM-293: a resposta à conferência vale em qualquer passo e não mexe na conversa. O payload de
+  // um botão de aviso nunca segue para o passo atual.
+  const conferencia = msg.image || msg.document ? null : entradaDeConferencia(msg.text, state.step);
+  if (conferencia !== null) {
+    const resposta = await responderConferencia(db, phoneHmac, conferencia);
+    if (resposta !== null) {
+      // Sem conversa guardada, o aviso de privacidade vai junto (5.7). Guardar a saudação faz ele
+      // sair uma vez só, e não a cada toque. Quem não tem cadastro não deixa conversa guardada.
+      if (current === null && resposta.cadastrado) await store.save(phoneHmac, 'GREETING', {});
+      return resposta.respostas;
+    }
+  }
 
   if (msg.image && !STEPS_WITH_PHOTO.includes(state.step)) return [NEED_TEXT];
 

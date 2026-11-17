@@ -3,6 +3,7 @@ import {
   MODELO_LEMBRETE_PRAZO,
   MODELO_META_BATIDA,
   MODELO_OWNER_INATIVO,
+  MODELO_PAUTA_APROVADA,
   MODELO_PAUTA_RECUSADA,
   MODELO_RESPOSTA_OFICIAL,
   MODELO_VITORIA,
@@ -19,13 +20,14 @@ function variaveis(texto: string): number[] {
 }
 
 describe('MODELOS (RNF04)', () => {
-  it('tem os cinco avisos da SCRUM-193, o de recusa da SCRUM-170 e o de vitória da SCRUM-241', () => {
+  it('tem os cinco avisos da SCRUM-193 e os de recusa, vitória e aprovação (SCRUM-170, 241, 300)', () => {
     expect(Object.keys(MODELOS).sort()).toEqual([
       'lumens_conferencia',
       'lumens_conquista',
       'lumens_lembrete_prazo',
       'lumens_meta_batida',
       'lumens_owner_inativo',
+      'lumens_pauta_aprovada',
       'lumens_pauta_recusada',
       'lumens_resposta_oficial',
     ]);
@@ -40,6 +42,7 @@ describe('MODELOS (RNF04)', () => {
         MODELO_LEMBRETE_PRAZO,
         MODELO_META_BATIDA,
         MODELO_OWNER_INATIVO,
+        MODELO_PAUTA_APROVADA,
         MODELO_PAUTA_RECUSADA,
         MODELO_RESPOSTA_OFICIAL,
         MODELO_VITORIA,
