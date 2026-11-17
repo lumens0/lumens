@@ -15,6 +15,7 @@ import { LOST_OWNER_TEXT } from './minhas-pautas';
 import { hashPhone } from './phone';
 import {
   ASK_PDF_TEXT,
+  NEED_PDF_NOT_PHOTO_TEXT,
   NEED_PDF_TEXT,
   NO_PROTOCOL_TEXT,
   PDF_RECEIVED_TEXT,
@@ -108,6 +109,20 @@ describe('owner encaminha o PDF da resposta oficial (3.6)', () => {
 
     expect(await send('já mandei')).toEqual([NEED_PDF_TEXT]);
     expect(await passo()).toBe('OWNER_SEND_RESPONSE');
+  });
+
+  it('foto no lugar do PDF: pede o arquivo, não "uma resposta em texto" (SCRUM-307)', async () => {
+    await send('resposta:falabr');
+
+    const r = await handleIncoming(
+      { phoneHmac: H, text: '', image: { id: 'midia-foto', mimeType: 'image/jpeg' } },
+      { store, db, segredo, respostas },
+    );
+
+    expect(r).toEqual([NEED_PDF_NOT_PHOTO_TEXT]);
+    expect(await passo()).toBe('OWNER_SEND_RESPONSE');
+    expect(guardados).toEqual([]);
+    expect(await documentos()).toHaveLength(0);
   });
 
   it.each([
