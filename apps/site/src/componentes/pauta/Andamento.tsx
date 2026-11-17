@@ -43,15 +43,20 @@ function Fonte({ fonte }: { fonte: string }) {
   );
 }
 
+/** Fala.BR aberto mais recentemente, como na `proxima_etapa` da view. */
+function ultimoFalabr(pauta: PautaDetalhe) {
+  // A API ordena por `aberto_em`: o último Fala.BR é o mais recente, mesmo ainda sem prazo.
+  return pauta.caminhos.findLast((c) => c.tipo === 'falabr');
+}
+
 /** Prazo do Fala.BR aberto mais recentemente, como na `proxima_etapa` da view. */
 function prazoFalabr(pauta: PautaDetalhe): string | undefined {
-  // A API ordena por `aberto_em`: o último Fala.BR é o mais recente, mesmo ainda sem prazo.
-  return pauta.caminhos.findLast((c) => c.tipo === 'falabr')?.prazo ?? undefined;
+  return ultimoFalabr(pauta)?.prazo ?? undefined;
 }
 
 /** Resposta oficial chegou depois que o Fala.BR mais recente foi aberto: o prazo já não importa. */
 function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
-  const abertoEm = pauta.caminhos.findLast((c) => c.tipo === 'falabr')?.aberto_em;
+  const abertoEm = ultimoFalabr(pauta)?.aberto_em;
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
   return (
     resposta !== undefined && (!abertoEm || Date.parse(resposta.criado_em) >= Date.parse(abertoEm))
@@ -60,7 +65,8 @@ function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
 
 /** O que acontece agora com a pauta e quando. */
 export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
-  const prazo = respondidoDepoisDoFalabr(pauta) ? undefined : prazoFalabr(pauta);
+  const falabr = respondidoDepoisDoFalabr(pauta) ? undefined : ultimoFalabr(pauta);
+  const prazo = falabr?.prazo ?? undefined;
   const aberta = ultimo(pauta.linha_do_tempo, 'conferencia_aberta');
   const apurada = ultimo(pauta.linha_do_tempo, 'conferencia_apurada');
   const conferenciaAte =
@@ -77,11 +83,7 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
           (pauta.status === 'conquistada' ? 'Pauta conquistada.' : 'A definir.')}
       </p>
       {prazo && <p className={estilos.vazio}>Prazo de resposta do Fala.BR: {formatarDia(prazo)}</p>}
-      {pauta.linha_do_tempo.some(
-        (evento) =>
-          evento.tipo === 'prazo_prorrogado' ||
-          (evento.tipo === 'protocolo_registrado' && evento.dados.prorrogado === true),
-      ) && <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>}
+      {prazo && falabr?.prorrogado && <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>}
       {conferenciaAte && (
         <p className={estilos.vazio}>
           Conferência aberta até{' '}
@@ -95,8 +97,15 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
 /** Resposta oficial e promessa com a data prometida; sem resposta, "aguardando" com o prazo. */
 export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
-  const promessa = ultimo(pauta.linha_do_tempo, 'promessa_registrada');
-  const remarcacao = ultimo(pauta.linha_do_tempo, 'promessa_remarcada');
+  const indicePromessa = pauta.linha_do_tempo.findLastIndex(
+    (e) => e.tipo === 'promessa_registrada',
+  );
+  const promessa = indicePromessa >= 0 ? pauta.linha_do_tempo[indicePromessa] : undefined;
+  // Só conta a remarcação da promessa vigente (posterior ao último `promessa_registrada`).
+  const remarcacao =
+    indicePromessa >= 0
+      ? ultimo(pauta.linha_do_tempo.slice(indicePromessa + 1), 'promessa_remarcada')
+      : undefined;
   // Promessa registrada sem evento de resposta ainda conta como resposta recebida.
   const recebida = resposta ?? promessa;
   const prazo = prazoFalabr(pauta);

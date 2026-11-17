@@ -1,6 +1,6 @@
 import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
 import { ListaDePautas } from './pautas/lista';
@@ -222,6 +222,40 @@ describe('tela da pauta', () => {
     expect(html).not.toContain('Remarcar data prometida');
     expect(html).toContain('name="motivo"');
     expect(html).toContain('name="fonte"');
+  });
+
+  it('entre 21h e meia-noite em Maceió, calcula o dia mínimo da remarcação no fuso local', () => {
+    // 22h de 17/11 em Maceió (UTC−3) já é 18/11 em UTC, mas amanhã em Maceió ainda é 18/11.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T01:00:00Z'));
+    try {
+      const html = renderToStaticMarkup(
+        <Pauta
+          pauta={pauta({
+            status: 'prometido',
+            caminhos: [{ id: 'c-1', tipo: 'falabr', protocolo: 'NUP-1', prazo: '2026-12-01' }],
+            promessa: {
+              id: 'p-1',
+              resumo: 'Trocar o equipamento.',
+              fonte: 'Ofício 1',
+              dataEntrega: '2026-12-01',
+              conferenciaAbreEm: new Date('2026-12-01T03:00:00Z'),
+              conferenciaFechaEm: new Date('2026-12-08T03:00:00Z'),
+              votos: { sim: 0, em_parte: 0, nao: 0 },
+            },
+          })}
+          aprovar={acao}
+          recusar={acao}
+          prorrogarPrazo={acao}
+          corrigirProtocolo={acao}
+          remarcarPromessa={acao}
+        />,
+      );
+      expect(html).toContain('max="2026-11-17"');
+      expect(html).toContain('min="2026-11-18"');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('pauta aprovada permite trocar categoria; recusada não oferece esse formulário', () => {

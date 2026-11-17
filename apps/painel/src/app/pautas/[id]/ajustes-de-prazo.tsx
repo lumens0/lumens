@@ -16,6 +16,15 @@ const ERROS: Record<string, string> = {
   data_no_passado: 'A nova data prometida precisa ser futura.',
 };
 
+// Maceió é UTC−3 o ano inteiro (sem horário de verão): deslocar o instante alinha o `min`/`max` do
+// navegador ao dia civil que o domínio valida em `America/Maceio`.
+const DESLOCAMENTO_MACEIO_MS = 3 * 3_600_000;
+const MS_POR_DIA = 86_400_000;
+
+function diaEmMaceio(instante: number): string {
+  return new Date(instante - DESLOCAMENTO_MACEIO_MS).toISOString().slice(0, 10);
+}
+
 function CamposDeAuditoria() {
   return (
     <>
@@ -91,12 +100,7 @@ export function AjustesDePrazo({
               <input type="hidden" name="caminhoId" value={caminho.id} />
               <label>
                 Data correta do protocolo
-                <input
-                  type="date"
-                  name="data"
-                  required
-                  max={new Date().toISOString().slice(0, 10)}
-                />
+                <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
               </label>
               <CamposDeAuditoria />
               <button className={estilos.botao} type="submit">
@@ -122,7 +126,7 @@ export function AjustesDePrazo({
               type="date"
               name="dataEntrega"
               required
-              min={new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)}
+              min={diaEmMaceio(Date.now() + MS_POR_DIA)}
             />
           </label>
           <CamposDeAuditoria />
