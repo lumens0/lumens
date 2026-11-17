@@ -72,6 +72,34 @@ async function caminhosRespondidos(
   return protocolados.length === 1 ? protocolados.map((c) => c.id) : [];
 }
 
+/**
+ * Tetos do resumo e da fonte, conferidos aqui: o `maxLength` do painel não protege a chamada direta,
+ * e a fonte vai inteira como parâmetro do aviso (SCRUM-313).
+ */
+export const RESUMO_MAXIMO = 500;
+export const FONTE_MAXIMA = 120;
+
+/**
+ * Teto da data de entrega: hoje + 2 anos (SCRUM-313). Um `2062` digitado no lugar de `2026` tiraria
+ * a pauta da cobrança por décadas, e o painel não edita promessa registrada.
+ */
+export const ANOS_ATE_A_ENTREGA_MAXIMO = 2;
+
+/** Hoje em Maceió (UTC−3, sem horário de verão), `YYYY-MM-DD`. */
+const hojeEmMaceio = (agora: Date) =>
+  new Date(agora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * Último dia aceito como data de entrega, `YYYY-MM-DD`. Em 29/02 o teto vira 29/02 de um ano não
+ * bissexto, que só serve de comparação: 28/02 passa, 01/03 não.
+ */
+export function dataDeEntregaMaxima(agora = new Date()): string {
+  const hoje = hojeEmMaceio(agora);
+  return `${String(Number(hoje.slice(0, 4)) + ANOS_ATE_A_ENTREGA_MAXIMO)}${hoje.slice(4)}`;
+}
+
+const tamanho = (texto: string) => Array.from(texto.trim()).length;
+
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
 
@@ -85,6 +113,8 @@ export interface NovaPromessa {
   fonte: string;
   /** Curador que registrou. */
   registradaPor: string;
+  /** Para o teto da data de entrega. Injetável para o teste. */
+  agora?: Date;
 }
 
 /**
@@ -105,6 +135,9 @@ function inicioDoDiaEmMaceio(dia: string): Date {
 /**
  * Registra a promessa e leva a pauta a `prometido`, na transação de quem chama.
  *
+ * Resumo acima de `RESUMO_MAXIMO`, fonte acima de `FONTE_MAXIMA` (contados por code point, sem os
+ * espaços das pontas) ou data depois de `dataDeEntregaMaxima` lançam `ErroDeRegra` antes de tudo.
+ *
  * Só aceita a partir de `cobrando`, `entregue_em_parte` ou `descumprida` (via `transicionarStatus`);
  * fora disso lança `ErroDeRegra` e nada é gravado. Se ainda houver promessa ativa, ela é encerrada
  * como `substituida` antes: o banco só aceita uma ativa por pauta.
@@ -115,7 +148,7 @@ function inicioDoDiaEmMaceio(dia: string): Date {
  */
 export async function registrarPromessa(
   tx: Tx,
-  { pautaId, resumo, dataEntrega, fonte, registradaPor }: NovaPromessa,
+  { pautaId, resumo, dataEntrega, fonte, registradaPor, agora = new Date() }: NovaPromessa,
 ): Promise<{
   promessaId: string;
   conferenciaAbreEm: Date;
@@ -124,7 +157,17 @@ export async function registrarPromessa(
   /** PDFs do owner que a curadoria leu para esta resposta e que agora apontam para ela. */
   documentosLigados: number;
 }> {
+  if (tamanho(resumo) > RESUMO_MAXIMO) {
+    throw new ErroDeRegra('resumo_longo', `Resumo passa de ${String(RESUMO_MAXIMO)} caracteres`);
+  }
+  if (tamanho(fonte) > FONTE_MAXIMA) {
+    throw new ErroDeRegra('fonte_longa', `Fonte passa de ${String(FONTE_MAXIMA)} caracteres`);
+  }
   const abre = inicioDoDiaEmMaceio(dataEntrega);
+  const teto = dataDeEntregaMaxima(agora);
+  if (dataEntrega > teto) {
+    throw new ErroDeRegra('data_distante', `Data de entrega ${dataEntrega} passa de ${teto}`);
+  }
   const fecha = new Date(abre.getTime() + DIAS_DE_CONFERENCIA * MS_POR_DIA);
 
   // Primeiro a transição: se a pauta não pode ir para `prometido`, nada abaixo acontece.

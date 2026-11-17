@@ -1,4 +1,4 @@
-import { buscarPautaDaCuradoria, documentosDeResposta } from '@lumens/dominio';
+import { buscarPautaDaCuradoria, dataDeEntregaMaxima, documentosDeResposta } from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../../auth';
 import { sair } from '../../../acoes';
@@ -28,6 +28,7 @@ export default async function PaginaDaPromessa({
         pauta={pauta}
         documentos={await documentosDeResposta(servidor().db, pauta.id)}
         hoje={hojeEmMaceio()}
+        ate={dataDeEntregaMaxima()}
         erro={(await searchParams).erro}
         registrar={registrar}
       />

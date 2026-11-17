@@ -1,4 +1,10 @@
-import type { DocumentoDaPauta, PautaDaCuradoria } from '@lumens/dominio';
+import {
+  ANOS_ATE_A_ENTREGA_MAXIMO,
+  FONTE_MAXIMA,
+  RESUMO_MAXIMO,
+  type DocumentoDaPauta,
+  type PautaDaCuradoria,
+} from '@lumens/dominio';
 import Link from 'next/link';
 import { caminhoDoArquivo } from '../../../curadoria/arquivos/[...chave]/arquivo';
 import estilos from '../../../painel.module.css';
@@ -15,6 +21,9 @@ const ERRO: Record<string, string> = {
   campos_obrigatorios: 'Preencha o resumo, a fonte e a data prometida.',
   data_no_passado: 'A data prometida não pode estar no passado.',
   data_invalida: 'A data prometida não existe. Confira o dia e o mês.',
+  data_distante: `A data prometida passa de ${String(ANOS_ATE_A_ENTREGA_MAXIMO)} anos a partir de hoje. Confira o ano.`,
+  resumo_longo: `O resumo passou de ${String(RESUMO_MAXIMO)} caracteres. Resuma e registre de novo.`,
+  fonte_longa: `Quem respondeu passou de ${String(FONTE_MAXIMA)} caracteres. Resuma e registre de novo.`,
   transicao_invalida:
     'Esta pauta não pode receber promessa agora. Só pautas em cobrança, entregues em parte ou com promessa descumprida.',
 };
@@ -24,6 +33,7 @@ export function FormularioDaPromessa({
   pauta,
   documentos = [],
   hoje,
+  ate,
   erro,
   registrar,
 }: {
@@ -32,6 +42,8 @@ export function FormularioDaPromessa({
   documentos?: Pick<DocumentoDaPauta, 'id' | 'arquivoChave' | 'recebidoEm'>[];
   /** `YYYY-MM-DD`: a menor data que o campo aceita. */
   hoje: string;
+  /** `YYYY-MM-DD`: a maior data que o campo aceita (`dataDeEntregaMaxima`). */
+  ate: string;
   erro?: string | undefined;
   registrar: (formulario: FormData) => Promise<void>;
 }) {
@@ -54,17 +66,17 @@ export function FormularioDaPromessa({
           <form action={registrar} className={estilos.formulario}>
             <input type="hidden" name="pautaId" value={pauta.id} />
             <label htmlFor="resumo">O que foi respondido e prometido</label>
-            <textarea id="resumo" name="resumo" required maxLength={500} />
+            <textarea id="resumo" name="resumo" required maxLength={RESUMO_MAXIMO} />
             <p className={estilos.detalhes}>
               Esse texto aparece na página da pauta. Não cite nome de pessoa.
             </p>
             <label htmlFor="fonte">Quem respondeu</label>
-            <input id="fonte" name="fonte" required maxLength={120} />
+            <input id="fonte" name="fonte" required maxLength={FONTE_MAXIMA} />
             <p className={estilos.detalhes}>
               Por exemplo: Pró-Reitoria de Gestão Institucional, pelo Fala.BR.
             </p>
             <label htmlFor="dataEntrega">Data prometida</label>
-            <input id="dataEntrega" name="dataEntrega" type="date" required min={hoje} />
+            <input id="dataEntrega" name="dataEntrega" type="date" required min={hoje} max={ate} />
             <p className={estilos.detalhes}>
               Nesse dia quem apoia a pauta recebe a pergunta &quot;Foi feito?&quot; e tem 7 dias
               para responder. Ao salvar, os apoiadores são avisados da resposta pelo WhatsApp.
