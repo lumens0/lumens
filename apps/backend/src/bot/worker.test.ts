@@ -220,6 +220,8 @@ describe('última mensagem do estudante (SCRUM-275)', () => {
 
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     const entrada = texto('oi');
     expect(await processIncomingJob(entrada, deps)).toEqual([
       GREETING_TEXT,
