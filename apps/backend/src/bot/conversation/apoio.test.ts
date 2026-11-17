@@ -36,7 +36,7 @@ import { COOWNER_INVITE_TEXT } from './co-owner';
 import { MENU_TEXT } from './handlers';
 import { photoRefusedText } from './nova-pauta';
 import { hashPhone } from './phone';
-import { handleIncoming } from './router';
+import { CANCEL_PHOTO_TEXT, handleIncoming } from './router';
 import { ConversationStore } from './store';
 
 const CHAVE = Buffer.alloc(32, 7);
@@ -323,6 +323,11 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
       expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
     },
   );
+
+  it('"cancelar" no passo da foto não diz que cancelou o relato, que já foi enviado', async () => {
+    expect(await send('cancelar')).toEqual([CANCEL_PHOTO_TEXT, MENU_TEXT]);
+    expect(await passo()).toBe('MENU');
+  });
 
   it('"apoiar <outra pauta>" no passo da foto deixa o relato gravado, sem foto', async () => {
     const [b] = await db.select({ id: blocos.id }).from(blocos);

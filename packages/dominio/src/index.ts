@@ -111,6 +111,7 @@ export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './pauta/cu
 
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {
+  AprovacaoDeRelato,
   DecisaoDeModeracao,
   PautaComRelatosPendentes,
   RelatoPendente,
