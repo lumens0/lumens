@@ -8,6 +8,12 @@ Ele responde em `https://painel.<DOMINIO>`: com DuckDNS o nome já resolve para 
 outro DNS, crie o registro antes do deploy. Precisa do `AUTH_SECRET` no `.env.producao`
 (`openssl rand -base64 32`); o deploy recusa publicar sem ele.
 
+Quem entra no painel: o script `curador` só cria o **primeiro administrador**, pelo contêiner do
+back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
+"<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
+para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
+`CHAVE_CIFRA` do `.env.producao`, para mostrar o e-mail de quem já foi cadastrado.
+
 ## Onde roda, e por que não é a AWS
 
 A decisão original era AWS. Ela não se sustentou, e o motivo fica aqui para ninguém repetir
