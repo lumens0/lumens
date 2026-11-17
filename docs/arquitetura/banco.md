@@ -34,6 +34,13 @@ erDiagram
     timestamptz expira_em
     integer tentativas
   }
+  registro_verificacao {
+    uuid id PK
+    text telefone_hmac
+    text email_hmac
+    text tipo
+    timestamptz em
+  }
   conversa {
     text telefone_hmac PK
     text passo
@@ -62,6 +69,7 @@ da cifra. Os campos sem tipo indicado são `text`, exceto FKs UUID e enums lista
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | estudante            | id, telefone_hmac, telefone_cifrado, email_hmac, email_cifrado, curso, verificado_em, saiu_em                                                     | email_hmac, email_cifrado, curso, verificado_em, saiu_em            | PK id; telefone_hmac e email_hmac únicos                                                            |
 | codigo_verificacao   | telefone_hmac, codigo_hash, expira_em, tentativas (integer)                                                                                       | nenhum                                                              | PK telefone_hmac; tentativas = 0 e >= 0                                                             |
+| registro_verificacao | id, telefone_hmac, email_hmac, tipo (envio, erro), em                                                                                             | nenhum                                                              | PK id; em = now(); só as últimas 24 h (SCRUM-298)                                                   |
 | bloco                | id, slug, nome, base_estudantes (integer)                                                                                                         | nenhum                                                              | PK id; slug único; base_estudantes >= 0                                                             |
 | pauta                | id, slug, titulo, descricao, bloco_id, categoria, status, meta (integer), criada_em, aprovada_em, meta_batida_em, motivo_recusa, busca (tsvector) | bloco_id, aprovada_em, meta_batida_em, motivo_recusa                | PK id; slug único; status = em_curadoria; criada_em = now(); meta > 0; busca gerada                 |
 | papel_pauta          | pauta_id, estudante_id, papel, desde, ate, ultima_atividade_em                                                                                    | ate                                                                 | PK (pauta_id, estudante_id, desde); desde e ultima_atividade_em = now()                             |

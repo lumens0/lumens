@@ -63,6 +63,11 @@ git fetch --prune origin
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
 # pendurado aqui deixaria o deploy travado esperando resolução que ninguém vai fazer.
 git reset --hard "$REF"
+# O /saude devolve este SHA, e o smoke test do CI confere que é o do run (SCRUM-322). O compose
+# passa para o build da imagem do back-end.
+# O CI também manda VERSAO no ambiente da chamada, para o primeiro deploy depois desta linha existir.
+VERSAO=$(git rev-parse HEAD)
+export VERSAO
 
 echo "--> Migrando o banco"
 # Comando separado e antes do up: código de saída diferente de zero encerra o script
