@@ -114,6 +114,8 @@ async function conferenciaAbertaDe(db: Db, estudanteId: string, agora: Date) {
     .where(
       and(
         isNull(promessas.resultado),
+        // Só vale para quem apoiou até a abertura (mesmo corte de `encerrarConferencia`).
+        sql`${apoios.criadoEm} <= ${promessas.conferenciaAbreEm}`,
         sql`${promessas.conferenciaAbreEm} <= ${instante}::timestamptz`,
         sql`${promessas.conferenciaFechaEm} >= ${instante}::timestamptz`,
       ),
