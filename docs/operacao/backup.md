@@ -26,8 +26,10 @@ gerenciado. Então o backup é próprio:
 depois de gravadas, e um arquivo apagado no bucket (a saída de um estudante, por exemplo) some do
 espelho no backup seguinte. Por isso, um arquivo apagado por engano só se recupera até a próxima
 rodada. Se o MinIO estiver fora do ar, o dump do banco já foi salvo, e o serviço termina com erro.
-Bucket vazio com o espelho cheio também é erro, e o espelho fica intacto: é o sinal de volume
-perdido (ou recriado vazio por um deploy), não de fotos apagadas.
+Volume perdido ou recriado por um deploy também é erro, e o espelho fica intacto: o bucket guarda
+um marcador (`.lumens-volume-id`) com a identidade do volume, que o espelho recebe junto. Se o
+marcador do bucket faltar ou não bater com o do espelho, o backup não apaga nada, mesmo que o bucket
+novo já tenha recebido fotos (`scripts/minio/espelhar-fotos.sh`).
 
 > **Fora do backup, de propósito:** os volumes da Evolution (`evolution-pgdata` e
 > `evolution-instances`, SCRUM-275). Eles guardam só a sessão do chip do WhatsApp, nenhum dado do
@@ -160,7 +162,11 @@ e devolva o espelho ao bucket. O comando usa o root do MinIO, que só o `minio-p
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao --profile minio run --rm --no-deps -T -v /var/backups/lumens/arquivos:/backup:ro --entrypoint bash minio-preparar -c 'export MC_CONFIG_DIR=/tmp/mc MC_HOST_lumens="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" && mc mirror --overwrite /backup "lumens/$S3_BUCKET_FOTOS"'
 ```
 
-Confira abrindo no painel a foto de uma pauta e o PDF de uma resposta.
+O espelho leva o marcador do volume antigo de volta ao bucket, e é isso que libera os backups
+seguintes. Confira abrindo no painel a foto de uma pauta e o PDF de uma resposta.
+
+Se o bucket de agora é o certo e o espelho deve ser aproveitado (ou o marcador foi apagado de
+propósito), rode o backup uma vez com `ADOTAR_BUCKET=1 /opt/lumens/scripts/backup-banco.sh`.
 
 ## Chaves
 
