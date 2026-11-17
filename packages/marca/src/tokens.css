@@ -1,0 +1,42 @@
+/*
+ * Tokens da identidade do Lumens, os mesmos no site e no painel (SCRUM-285).
+ * Direção: o campus ao anoitecer, com as luzes acendendo onde tem pauta (Lumens = luz). O topo é
+ * noite (azul profundo) e o conteúdo é papel claro. A luz é âmbar.
+ */
+:root {
+  --fundo: #faf7f0;
+  --superficie: #ffffff;
+  --superficie-2: #f1ece1;
+  --tinta: #161a2e;
+  --tinta-2: #44485e;
+  --tinta-3: #5f6378;
+  --borda: rgb(22 26 46 / 10%);
+  --borda-forte: rgb(22 26 46 / 20%);
+
+  --noite: #141936;
+  --noite-2: #1d2450;
+
+  /* A luz: o âmbar do botão principal e do destaque, e a versão escura para texto e links. */
+  --luz: #ffc23d;
+  --luz-forte: #ffa41b;
+  --luz-tinta: #8f4c00;
+  --luz-fundo: #fff1cc;
+  --urgente: #a61b1b;
+
+  /* Compatibilidade com nomes antigos ainda usados por alguns componentes. */
+  --primaria: var(--tinta);
+  --primaria-forte: var(--luz-tinta);
+  --trilho: var(--superficie-2);
+  --lilas: var(--superficie-2);
+
+  --raio: 16px;
+  --raio-controle: 12px;
+  --espaco: 16px;
+
+  --curva: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --rapido: 160ms;
+  --entrada: 560ms;
+
+  /* Sem a variável da fonte de rótulo: datas e números usam a do texto, com algarismos tabulares. */
+  --fonte-rotulo: var(--fonte-corpo);
+}
