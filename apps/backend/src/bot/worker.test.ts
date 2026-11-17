@@ -1,7 +1,7 @@
 import { eq, estudantes, papeisPauta, pautas, sql, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cifrar, type Chaves } from '../cripto/cifra';
 import { JOBS, StaleJobError } from '../infra/queue';
 import {
@@ -17,6 +17,7 @@ import {
   MENU_TEXT,
   type HandlerRegistry,
 } from './conversation/handlers';
+import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { lista, type Resposta } from './conversation/resposta';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
@@ -24,6 +25,7 @@ import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
   BOT_QUEUE_OPTIONS,
   BOT_WORK_OPTIONS,
+  ESPERA_DA_FILA_ANTIGA_MS,
   INCOMING_QUEUE_POLICY,
   OUTGOING_QUEUE_POLICY,
   inputOf,
@@ -385,6 +387,24 @@ describe('menu em texto (SCRUM-275)', () => {
     expect(peloBotao).toEqual(peloNumero);
   });
 
+  it('aviso de endereço velho no passo não apaga o menu: o número ainda escolhe (SCRUM-307)', async () => {
+    // Num passo com pergunta aberta, o endereço velho vira aviso e a conversa não anda.
+    const noPasso: HandlerRegistry = {
+      ...handlers,
+      NEW_ASK_PLACE: (ctx) => ({ next: 'NEW_ASK_PLACE', replies: [`escolheu:${ctx.input.text}`] }),
+    };
+    const noPassoProcessar = (j: JobDeTeste) =>
+      processIncomingJob(j, { ...deps, handlers: noPasso, menusEmTexto: true });
+    await noPassoProcessar(texto('oi'));
+    const guardado = await deps.store.get(PHONE_HMAC);
+    await deps.store.save(PHONE_HMAC, 'NEW_ASK_PLACE', guardado?.data ?? {});
+
+    const aviso = await noPassoProcessar(texto('apoiar pauta-que-nao-existe'));
+    expect(aviso).toEqual([PAUTA_NOT_FOUND_IN_FLOW_TEXT]);
+
+    expect(await noPassoProcessar(texto('2'))).toEqual(['escolheu:pauta:2']);
+  });
+
   it('o título digitado também escolhe', async () => {
     await processar(texto('oi'));
     expect(await processar(texto('iluminacao'))).toEqual(['escolheu:pauta:2']);
@@ -662,12 +682,37 @@ describe('registerReplyWorker', () => {
       deps.logger,
     );
 
+    // Antiga vazia: as duas são consumidas, a antiga primeiro.
     expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
-      JOBS.outgoingReplies,
       JOBS.outgoingRepliesLegacy,
+      JOBS.outgoingReplies,
     ]);
     await handler(JOBS.outgoingRepliesLegacy)([saida(['sobrou do deploy'])]);
     expect(entregues).toEqual([['sobrou do deploy']]);
+  });
+
+  it('com respostas na fila antiga, a nova só é consumida depois que ela esvaziar (SCRUM-307)', async () => {
+    vi.useFakeTimers();
+    try {
+      const existentes = { [JOBS.outgoingRepliesLegacy]: { queuedCount: 2, activeCount: 0 } };
+      const { boss, chamadas } = bossFalso(existentes);
+      const consumidas = () => chamadas.filter((c) => c[0] === 'work').map((c) => c[1]);
+      await registerReplyWorker(boss, { send: () => Promise.resolve() }, deps.logger);
+
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 1 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 0 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy, JOBS.outgoingReplies]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('um envio que falha não derruba os outros do lote', async () => {

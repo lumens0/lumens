@@ -20,6 +20,7 @@ import {
   type Segredo,
 } from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
+import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
@@ -206,7 +207,10 @@ export async function processIncomingJob(
     const replies = deps.menusEmTexto
       ? semMenuPrincipalDepoisDoMenu(respondidas, MENU_TEXT)
       : respondidas;
-    if (deps.menusEmTexto) {
+    // Aviso sem mexer na conversa (endereço velho do site no meio de um fluxo): o menu que valia
+    // continua valendo, e é a ele que a pessoa vai responder, como o aviso manda.
+    const semMudanca = replies.length === 1 && replies[0] === PAUTA_NOT_FOUND_IN_FLOW_TEXT;
+    if (deps.menusEmTexto && !semMudanca) {
       const menu = menuDoTurno(replies);
       await store.guardarMenu(
         data.phoneHmac,
@@ -436,6 +440,9 @@ export async function desbloquearConversas(
   return removidos;
 }
 
+/** De quanto em quanto tempo se confere se a fila antiga de respostas esvaziou. */
+export const ESPERA_DA_FILA_ANTIGA_MS = 2_000;
+
 export async function registerIncomingWorker(boss: Boss, deps: WorkerDeps): Promise<void> {
   await prepararFilaDeEntrada(boss);
   if (!(await boss.getQueue(JOBS.unblockConversations))) {
@@ -482,19 +489,52 @@ export async function registerReplyWorker(
     }
     return results;
   };
-  await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
-    JOBS.outgoingReplies,
-    BOT_WORK_OPTIONS,
-    entregar,
-  );
-  // O que sobrou na fila antiga (sem ordem) no deploy ainda é entregue. Nada novo entra nela.
-  if (await boss.getQueue(JOBS.outgoingRepliesLegacy)) {
-    await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
-      JOBS.outgoingRepliesLegacy,
+  const consumirNova = () =>
+    boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
+      JOBS.outgoingReplies,
       BOT_WORK_OPTIONS,
       entregar,
     );
+  // O que sobrou na fila antiga (sem ordem) no deploy ainda é entregue. Nada novo entra nela.
+  const antiga = await boss.getQueue(JOBS.outgoingRepliesLegacy);
+  if (antiga === null) {
+    await consumirNova();
+    return;
   }
+  await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
+    JOBS.outgoingRepliesLegacy,
+    BOT_WORK_OPTIONS,
+    entregar,
+  );
+  // Barreira de drenagem: com respostas ainda na fila antiga, a nova só é consumida depois de a
+  // antiga esvaziar. Senão uma resposta nova da mesma conversa poderia sair antes de uma antiga
+  // (as duas filas não se coordenam pela chave).
+  const pendentes = (fila: { queuedCount: number; activeCount: number }) =>
+    fila.queuedCount + fila.activeCount;
+  if (pendentes(antiga) === 0) {
+    await consumirNova();
+    return;
+  }
+  logger.warn(
+    { pendentes: pendentes(antiga) },
+    'respostas na fila antiga: a fila nova só é consumida depois que ela esvaziar',
+  );
+  const esperar = async (): Promise<void> => {
+    try {
+      const fila = await boss.getQueue(JOBS.outgoingRepliesLegacy);
+      if (fila === null || pendentes(fila) === 0) {
+        await consumirNova();
+        return;
+      }
+    } catch (erro) {
+      logger.error(
+        { erro: resumoDoErro(erro) },
+        'não deu para conferir a fila antiga de respostas',
+      );
+    }
+    setTimeout(() => void esperar(), ESPERA_DA_FILA_ANTIGA_MS).unref();
+  };
+  setTimeout(() => void esperar(), ESPERA_DA_FILA_ANTIGA_MS).unref();
 }
 
 /**
