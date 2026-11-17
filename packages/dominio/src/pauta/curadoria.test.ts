@@ -557,6 +557,35 @@ describe('marcarUrgencia', () => {
       marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: true }),
     );
     expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
+    // Editar só o motivo (ou apagar) numa pauta já urgente grava o texto novo, preserva quem e
+    // quando marcou e não repete o evento público na linha do tempo.
+    const outroCurador = await criarCurador(db);
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, {
+        pautaId: pauta.id,
+        curadorId: outroCurador.id,
+        urgente: true,
+        motivo: '  Fio desencapado no corredor  ',
+        agora: new Date('2030-01-03T12:00:00.000Z'),
+      }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+      urgenteMotivo: 'Fio desencapado no corredor',
+    });
+    expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: true, motivo: '   ' }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+      urgenteMotivo: null,
+    });
+    expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
     await db.transaction((tx) =>
       marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: false }),
     );
