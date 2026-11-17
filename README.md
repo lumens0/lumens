@@ -361,7 +361,7 @@ Pendências da parte 2:
   `interactive.type = "list"` (uma seção só) e `interactive.type = "button"` (os caminhos da 3.3).
 - **E-mail do código numa segunda conta:** o envio foi testado numa conta real da UFAL
   (SCRUM-139) e sai pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo
-  (`docs/sdd/SCRUM-99-verificacao-email/TESTS.md`).
+  ([decisão](docs/decisoes/SCRUM-139-email-pelo-google.md)).
 - **Bucket das fotos:** o código baixa a foto da Meta, tira os metadados e grava no
   `S3_BUCKET_FOTOS`, mas a homologação ainda não tem bucket, então a foto é recusada com aviso e o
   "pular" continua funcionando ([SCRUM-251](docs/decisoes/SCRUM-251-fotos-sem-storage.md)).

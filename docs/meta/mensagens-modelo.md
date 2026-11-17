@@ -2,6 +2,10 @@
 
 SCRUM-193 · RNF04 · Parte 3.
 
+> **Histórico.** A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution
+> ([decisão](../decisoes/SCRUM-275-canal-evolution.md)). Esta página fica como registro do que foi
+> feito com a Meta e vale se o canal voltar a ser ela.
+
 Fora da janela de atendimento de 24h, o bot só escreve primeiro com uma mensagem modelo aprovada pela
 Meta. São sete, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
 [`apps/backend/src/bot/whatsapp/modelos.ts`](../../apps/backend/src/bot/whatsapp/modelos.ts); este

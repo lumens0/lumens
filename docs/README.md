@@ -7,9 +7,8 @@ Cada pasta responde a uma pergunta. Comece pelo [README da raiz](../README.md) p
 | [`desenvolvimento/`](desenvolvimento) | Como trabalho no código na minha máquina?       |
 | [`arquitetura/`](arquitetura)         | Quais são os contratos entre as partes?         |
 | [`operacao/`](operacao)               | Como a homologação roda, e o que fazer se cair? |
-| [`meta/`](meta)                       | Como o Lumens se liga ao WhatsApp da Meta?      |
+| [`meta/`](meta)                       | Histórico: o WhatsApp pela Meta                 |
 | [`decisoes/`](decisoes)               | Por que escolhemos assim?                       |
-| [`sdd/`](sdd)                         | Especificação, plano e testes de cada história  |
 
 ## Desenvolvimento
 
@@ -32,7 +31,11 @@ Cada pasta responde a uma pergunta. Comece pelo [README da raiz](../README.md) p
 - [Chaves de criptografia](operacao/chaves.md): gerar, rotacionar e o que fazer se vazar.
 - [Canal da Evolution](operacao/evolution.md): WhatsApp não oficial, pareamento e troca de chip.
 
-## Meta (WhatsApp)
+## Meta (WhatsApp), histórico
+
+A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution
+([decisão](decisoes/SCRUM-275-canal-evolution.md)), com o Telegram de reserva. O código da Cloud API
+continua no repositório; estas páginas registram como ficou a ligação com a Meta até aqui.
 
 - [Mensagens modelo](meta/mensagens-modelo.md): os modelos submetidos e a situação de cada um.
 - [Validação do webhook](meta/webhook-validacao.md): o roteiro e as evidências da SCRUM-97.
@@ -40,9 +43,3 @@ Cada pasta responde a uma pergunta. Comece pelo [README da raiz](../README.md) p
 ## Decisões
 
 Registro das decisões, uma por arquivo com a chave do Jira: veja o [índice](decisoes/README.md).
-
-## SDD
-
-Uma pasta por história, `SCRUM-<n>-descricao`, com `SPEC.md`, `PLAN.md`, `TESTS.md` e um
-`README.md` de entrada. São o registro do que foi combinado na época: o código e as páginas acima
-mandam quando os dois divergem.
