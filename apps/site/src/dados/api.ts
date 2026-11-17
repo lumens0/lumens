@@ -19,19 +19,57 @@ function urlDaApi(): string {
   return url.replace(/\/+$/, '');
 }
 
+// A VM da API fica desligada quase sempre e o IP fixo não responde: sem limite, a página espera o
+// timeout de conexão do fetch antes de cair no `error.tsx`.
+const TEMPO_LIMITE_MS = 5000;
+
+// Depois de um tempo esgotado, o mesmo pedido falha na hora por 10 s. Quando a página falha, o
+// Next renderiza a de erro chamando o `generateMetadata` de novo, numa render nova (o `cache` do
+// React não vale entre as duas): sem a pausa, a pauta esperaria os 5 s duas vezes. A pausa vale só
+// para aquele caminho e modo de cache: os outros pedidos ainda podem vir do cache do Next.
+const PAUSA_MS = 10_000;
+const pausados = new Map<string, number>();
+
+const chaveDaPausa = (caminho: string, fresca: boolean) => `${fresca ? 'fresca ' : ''}${caminho}`;
+
+const pausarSeEsgotou =
+  (chave: string) =>
+  (erro: unknown): never => {
+    if (erro instanceof Error && erro.name === 'TimeoutError') {
+      const agora = Date.now();
+      for (const [outra, ate] of pausados) if (ate <= agora) pausados.delete(outra);
+      pausados.set(chave, agora + PAUSA_MS);
+    }
+    throw erro;
+  };
+
 /**
  * O cache de 30 s acompanha o `Cache-Control` da API. `fresca` lê sem ele: o card da pauta, que o
  * bot pede logo depois de um apoio, precisa do total de agora.
  */
-const buscar = (caminho: string, fresca = false) =>
-  fetch(`${urlDaApi()}${caminho}`, fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } });
+async function buscar(caminho: string, fresca = false): Promise<Response> {
+  const chave = chaveDaPausa(caminho, fresca);
+  if (Date.now() < (pausados.get(chave) ?? 0))
+    throw new Error(
+      'API de leitura não respondeu há pouco: sem nova tentativa por alguns segundos.',
+    );
+  return fetch(`${urlDaApi()}${caminho}`, {
+    ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } }),
+    signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+  }).catch(pausarSeEsgotou(chave));
+}
+
+/** Corpo JSON da resposta. O tempo limite segue valendo aqui: a API pode travar no meio do corpo. */
+async function lerJson<T>(resposta: Response, caminho: string, fresca = false): Promise<T> {
+  return (await resposta.json().catch(pausarSeEsgotou(chaveDaPausa(caminho, fresca)))) as T;
+}
 
 /** GET que só aceita 200. Qualquer erro sobe e cai no `error.tsx`. */
 async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {
   const resposta = await buscar(caminho);
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para ${oQue}.`);
-  return (await resposta.json()) as T;
+  return lerJson<T>(resposta, caminho);
 }
 
 /**
@@ -42,11 +80,12 @@ export async function buscarPauta(
   slug: string,
   { fresca = false }: { fresca?: boolean } = {},
 ): Promise<PautaDetalhe | null> {
-  const resposta = await buscar(`/pautas/${encodeURIComponent(slug)}`, fresca);
+  const caminho = `/pautas/${encodeURIComponent(slug)}`;
+  const resposta = await buscar(caminho, fresca);
   if (resposta.status === 404 || resposta.status === 400) return null;
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para a pauta.`);
-  return (await resposta.json()) as PautaDetalhe;
+  return lerJson<PautaDetalhe>(resposta, caminho, fresca);
 }
 
 export async function buscarBlocos(): Promise<Bloco[]> {

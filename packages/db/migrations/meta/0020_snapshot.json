@@ -1,6 +1,6 @@
 {
-  "id": "157c0a21-b84e-4371-8dd3-95bdcfcaf446",
-  "prevId": "00dfe436-d4f5-454e-b518-f01a427f3cf7",
+  "id": "df7bb67d-07a2-468f-bea7-ec396c08530e",
+  "prevId": "f22162a4-181b-4ff1-b427-bf7cbecbb59d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -173,19 +173,6 @@
           "type": "date",
           "primaryKey": false,
           "notNull": false
-        },
-        "protocolo_em": {
-          "name": "protocolo_em",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "prorrogado": {
-          "name": "prorrogado",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "aberto_em": {
           "name": "aberto_em",
@@ -1106,6 +1093,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "papel_pauta_ativo_unico": {
+          "name": "papel_pauta_ativo_unico",
+          "columns": [
+            {
+              "expression": "pauta_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estudante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"papel_pauta\".\"ate\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2068,8 +2077,7 @@
         "lembrete",
         "recusa",
         "vitoria",
-        "aprovacao",
-        "remarcacao"
+        "aprovacao"
       ]
     }
   },
