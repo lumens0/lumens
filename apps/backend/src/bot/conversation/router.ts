@@ -32,6 +32,8 @@ export interface RouterDeps {
 }
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
+/** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
+export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
 /** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
@@ -87,7 +89,8 @@ async function responder(
   if (cmd === 'cancelar') {
     // 'cancelar' limpa tudo, inclusive pendingCommand.
     await store.save(phoneHmac, 'MENU', {});
-    return [CANCEL_TEXT, MENU_TEXT];
+    const relatoJaEnviado = current?.step === 'SUPPORT_ASK_PHOTO';
+    return [relatoJaEnviado ? CANCEL_PHOTO_TEXT : CANCEL_TEXT, MENU_TEXT];
   }
   if (cmd === 'menu') {
     // 'menu' recomeça mas preserva o comando pendente.

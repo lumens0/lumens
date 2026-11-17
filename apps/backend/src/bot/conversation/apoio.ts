@@ -8,22 +8,27 @@
  *                         registrarApoio ──▶ placar (apoios / meta) e, se bateu, o aviso (3.2)
  *                                │
  *                                ▼
- *   SUPPORT_ASK_REPORT ──(sim / relato escrito)──▶ SUPPORT_ASK_PHOTO ──▶ adicionarRelato (pendente)
- *        └──(não / pular)──▶ menu                     └──(foto ou 'pular')
+ *   SUPPORT_ASK_REPORT ──(sim / relato escrito)──▶ adicionarRelato (pendente) ──▶ SUPPORT_ASK_PHOTO
+ *        └──(não / pular)──▶ menu                                    foto ──▶ anexarFotoAoRelato
+ *                                                                    'pular' ──▶ fica sem foto
  *
  * O apoio conta na hora (RN12); o relato e a foto ficam `pendente` até a moderação (5.3) e nunca
- * aparecem no site antes disso. Enquanto a conversa dura, o relato fica cifrado nos dados, como
- * na 2.5. Bater a meta grava `meta_batida` na linha do tempo (dentro de `registrarApoio`) e já
- * põe o aviso coletivo na fila, na mesma transação.
+ * aparecem no site antes disso. Até a pessoa confirmar, o relato fica cifrado nos dados, como na
+ * 2.5. Bater a meta grava `meta_batida` na linha do tempo (dentro de `registrarApoio`) e já põe o
+ * aviso coletivo na fila, na mesma transação.
+ *
+ * SCRUM-301: o relato é gravado assim que a pessoa o confirma (ou escreve), antes da foto. Antes
+ * ele só era gravado no fim do passo da foto, e se perdia quando a pessoa mandava outro comando,
+ * "cancelar" ou parava de responder. A foto, se vier, é juntada ao mesmo relato.
  */
 import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { eq, pautas, type Db } from '@lumens/db';
 import {
   RELATO_MAXIMO,
   adicionarRelato,
+  anexarFotoAoRelato,
   enfileirarAvisoMetaBatida,
   registrarApoio,
-  type ResultadoRelato,
 } from '@lumens/dominio';
 import { z } from 'zod';
 import { conviteCoOwner } from './co-owner';
@@ -47,6 +52,8 @@ export const ASK_WRITE_REPORT_TEXT =
   "Quer contar o que você viu? Escreva um relato curto, ou responda 'pular'. Ele só aparece no site depois da moderação, sem o seu nome.";
 export const SUPPORT_PHOTO_ASK_TEXT =
   "Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
+export const PHOTO_NOT_ATTACHED_TEXT =
+  'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado.';
 export const REPORT_SENT_TEXT =
   'Relato enviado para a moderação. Ele aparece no site depois de aprovado, sem o seu nome.';
@@ -99,6 +106,8 @@ const SKIP = new Set(['pular', 'nao', 'n', 'sem foto', 'sem relato']);
 const dadosSchema = z.object({
   apoioPautaId: z.string().optional(),
   relatoCifrado: z.string().optional(),
+  /** SCRUM-301: o relato já gravado, à espera da foto. */
+  relatoId: z.string().optional(),
 });
 
 function dadosDoApoio(data: unknown): z.infer<typeof dadosSchema> {
@@ -110,6 +119,7 @@ function dadosDoApoio(data: unknown): z.infer<typeof dadosSchema> {
 const LIMPAR: DataPatch = {
   apoioPautaId: undefined,
   relatoCifrado: undefined,
+  relatoId: undefined,
   blocoId: undefined,
   parecidas: undefined,
   pendingCommand: undefined,
@@ -237,7 +247,7 @@ export const supportAskReport: StepHandler = async (ctx) => {
         replies: [reportTooLongText(tamanho(relato.trim()))],
       };
     }
-    return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
+    return gravarRelato(ctx, apoioPautaId, relato);
   }
 
   if (SKIP.has(texto)) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
@@ -246,14 +256,35 @@ export const supportAskReport: StepHandler = async (ctx) => {
   if (tamanho(relato) > RELATO_MAXIMO) {
     return { next: 'SUPPORT_ASK_REPORT', replies: [reportTooLongText(tamanho(relato))] };
   }
-  return {
-    next: 'SUPPORT_ASK_PHOTO',
-    data: { relatoCifrado: segredo.cifrar(relato) },
-    replies: [SUPPORT_PHOTO_ASK_TEXT],
-  };
+  return gravarRelato(ctx, apoioPautaId, relato);
 };
 
-/** Foto opcional do relato, pelo mesmo serviço da pauta nova (2.6). */
+/**
+ * Grava o relato (pendente, sem foto) e pede a foto (SCRUM-301). O texto sai da conversa: daqui
+ * em diante ela só guarda o id do relato.
+ */
+async function gravarRelato(ctx: StepContext, pautaId: string, texto: string): Promise<StepResult> {
+  const { db, phoneHmac } = ctx;
+  // Confere de novo: a pessoa pode ter saído no meio da conversa.
+  const estudanteId = await estudanteVerificado(db, phoneHmac);
+  if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+
+  const resultado = await db.transaction((tx) =>
+    adicionarRelato(tx, { pautaId, estudanteId, texto }),
+  );
+  if (!resultado.registrado) return fimDoApoio(ctx, pautaId, [REPORT_REFUSED_TEXT]);
+  return {
+    next: 'SUPPORT_ASK_PHOTO',
+    data: { relatoId: resultado.relatoId, relatoCifrado: undefined },
+    // A pessoa fica sabendo que o relato já foi: sair agora não o perde.
+    replies: [REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT],
+  };
+}
+
+/**
+ * Foto opcional do relato já gravado, pelo mesmo serviço da pauta nova (2.6). Sair deste passo
+ * de qualquer jeito (pular, outro comando, cancelar, conversa expirada) deixa o relato sem foto.
+ */
 export const supportAskPhoto: StepHandler = async (ctx) => {
   const { image } = ctx.input;
   if (image) {
@@ -261,27 +292,41 @@ export const supportAskPhoto: StepHandler = async (ctx) => {
       ? await ctx.fotos.guardarFoto(image)
       : ({ ok: false, motivo: 'indisponivel' } as const);
     if (!foto.ok) return { next: 'SUPPORT_ASK_PHOTO', replies: [photoRefusedText(foto.motivo)] };
-    return salvarRelato(ctx, foto.chave);
+    return juntarFoto(ctx, foto.chave);
   }
-  if (SKIP.has(normalize(ctx.input.text))) return salvarRelato(ctx, null);
+  if (SKIP.has(normalize(ctx.input.text))) return juntarFoto(ctx, null);
   return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
 };
 
-async function salvarRelato(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
+async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
-  const { apoioPautaId, relatoCifrado } = dadosDoApoio(state.data);
-  const texto = decifrado(segredo, relatoCifrado);
-  if (apoioPautaId === undefined || texto === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+  const { apoioPautaId, relatoCifrado, relatoId } = dadosDoApoio(state.data);
+  if (apoioPautaId === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
 
-  // Confere de novo: a pessoa pode ter saído no meio da conversa.
+  if (relatoId === undefined) {
+    // Conversa de antes da SCRUM-301, com o relato ainda nos dados: grava agora, com a foto.
+    const texto = decifrado(segredo, relatoCifrado);
+    if (texto === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+    const estudanteId = await estudanteVerificado(db, phoneHmac);
+    if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+    const r = await db.transaction((tx) =>
+      adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
+    );
+    if (!r.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
+    return fimDoApoio(ctx, apoioPautaId, [
+      fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
+    ]);
+  }
+
+  // 'pular': o relato já está gravado, sem foto.
+  if (fotoChave === null) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
+
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
-
-  const resultado: ResultadoRelato = await db.transaction((tx) =>
-    adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
+  const r = await db.transaction((tx) =>
+    anexarFotoAoRelato(tx, { relatoId, estudanteId, fotoChave }),
   );
-  if (!resultado.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
   return fimDoApoio(ctx, apoioPautaId, [
-    fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
+    r.anexada ? REPORT_SENT_WITH_PHOTO_TEXT : PHOTO_NOT_ATTACHED_TEXT,
   ]);
 }

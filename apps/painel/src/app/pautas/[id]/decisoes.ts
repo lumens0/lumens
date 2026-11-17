@@ -5,7 +5,7 @@ export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export interface DependenciasDeDecisao {
   /** Curador da sessão, conferido no banco. Sem ele nada é gravado. */
   curador: () => Promise<{ id: string } | undefined>;
-  aprovar: (pautaId: string, curadorId: string) => Promise<ResultadoDecisao>;
+  aprovar: (pautaId: string, curadorId: string, categoria: string) => Promise<ResultadoDecisao>;
   recusar: (pautaId: string, curadorId: string, motivo: string) => Promise<ResultadoDecisao>;
 }
 
@@ -25,14 +25,15 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
     if (!UUID.test(pautaId)) return '/fila';
 
     const resultado = await agir(quem.id);
-    if (resultado.decidida) return `/fila?feito=${feito}`;
+    if (resultado.decidida) return `/pautas/${pautaId}?feito=${feito}`;
     return resultado.motivo === 'pauta_inexistente'
       ? '/fila'
       : `/pautas/${pautaId}?erro=${resultado.motivo}`;
   }
 
   return {
-    aprovar: (pautaId: string) => decidir(pautaId, (c) => aprovar(pautaId, c), 'aprovada'),
+    aprovar: (pautaId: string, categoria: string) =>
+      decidir(pautaId, (c) => aprovar(pautaId, c, categoria), 'aprovada'),
     recusar: (pautaId: string, motivo: string) =>
       decidir(pautaId, (c) => recusar(pautaId, c, motivo), 'recusada'),
   };
