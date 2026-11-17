@@ -49,10 +49,13 @@ async function comCadastro() {
   });
 }
 
-beforeEach(async () => {
-  db = await criarBancoEmMemoria();
-  store = new ConversationStore(db);
-}, 60_000);
+/** Só as conversas usam banco: os testes de texto rodam sem subir o PGlite para cada um. */
+function comBanco() {
+  beforeEach(async () => {
+    db = await criarBancoEmMemoria();
+    store = new ConversationStore(db);
+  }, 60_000);
+}
 
 describe('textos para estudante (SCRUM-334)', () => {
   const modulos = {
@@ -96,6 +99,8 @@ describe('textos para estudante (SCRUM-334)', () => {
 });
 
 describe('confirmação de saída (SCRUM-334)', () => {
+  comBanco();
+
   it('"s" sozinho não confirma: a pessoa continua no Lumens', async () => {
     await comCadastro();
     await noMenu();
@@ -119,6 +124,8 @@ describe('confirmação de saída (SCRUM-334)', () => {
 });
 
 describe('menu (SCRUM-334)', () => {
+  comBanco();
+
   it.each(['oi', 'Olá!', 'ola', 'voltar', 'Início', 'começar'])(
     '"%s" no menu mostra o menu, sem "Não entendi"',
     async (texto) => {
