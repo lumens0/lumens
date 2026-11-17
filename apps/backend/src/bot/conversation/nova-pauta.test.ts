@@ -13,6 +13,7 @@ import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
+import { SUPPORT_VERIFY_FIRST_TEXT } from './apoio';
 import { MENU_TEXT } from './handlers';
 import {
   BLOCK_GONE_TEXT,
@@ -319,9 +320,10 @@ async function abrirPautaDeBebedouros(): Promise<string> {
 describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () => {
   const TITULO = 'Bebedouro quebrado no corredor';
   let aberta: string;
+  let estudanteId: string;
 
   beforeEach(async () => {
-    await verificar();
+    estudanteId = await verificar();
     aberta = await abrirPautaDeBebedouros();
     await send('2');
     await send(TITULO);
@@ -371,6 +373,30 @@ describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () =>
     await send(DESCRICAO);
     expect(resumoEm(await send('pular'))).toContain(`*Título:* ${TITULO}`);
     expect(await db.select().from(apoios)).toEqual([]);
+  });
+
+  it('no canal só de texto, aceita o número da pauta e "É outro problema" escrito', async () => {
+    await send(`bloco:${bloco18}`);
+    expect(await send('É outro problema')).toEqual([DESCRIPTION_QUESTION_TEXT]);
+
+    await send('cancelar');
+    await send('2');
+    await send(TITULO);
+    await send(`bloco:${bloco18}`);
+    expect((await send('1'))[0]).toContain('Apoio registrado');
+    expect(await db.select().from(apoios).where(eq(apoios.pautaId, aberta))).toHaveLength(1);
+  });
+
+  it('cadastro que perdeu a verificação no meio vai verificar, guardando o apoio, sem pauta nova', async () => {
+    await send(`bloco:${bloco18}`);
+    await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, estudanteId));
+
+    expect(await send(`pauta:${aberta}`)).toEqual([SUPPORT_VERIFY_FIRST_TEXT]);
+    expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+    const restantes = await dados();
+    expect(restantes).toMatchObject({ pendingCommand: { kind: 'apoiar', id: aberta } });
+    expect(restantes).not.toHaveProperty('tituloCifrado');
+    expect(await todasAsPautas()).toHaveLength(1);
   });
 
   it('resposta fora da lista pergunta de novo, com a mesma lista', async () => {
