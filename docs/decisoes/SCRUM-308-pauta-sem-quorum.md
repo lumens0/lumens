@@ -1,7 +1,7 @@
 # SCRUM-308 · Para onde vai a pauta depois de duas conferências sem quórum
 
 Bug · Parte 3 · 2026-11-16 · @JGSEIXAS
-**Situação:** proposta, aguardando a aprovação da equipe na PR. Completa a decisão 4 da
+**Situação:** decidida. Aprovada por Sthefany Lima em 16/11/2026. Completa a decisão 4 da
 [SCRUM-80](SCRUM-80-decisoes-da-equipe.md), que não dizia o que acontece depois da segunda rodada.
 
 ## O problema
