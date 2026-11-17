@@ -82,9 +82,13 @@ remoção de metadados não existem — as duas já estão no ar.
 A aprovação não foi registrada quando a SCRUM-174 fechou. A SCRUM-342 retoma: quem aprovar marca o
 item na PR da SCRUM-342, com o nome e a data; quem discordar abre a mudança ali mesmo.
 
-- [ ] Consentimento como base legal, manifestado na verificação.
-- [ ] O texto do aviso, como está acima.
-- [ ] Se há encarregado de dados indicado pela disciplina; se houver, o contato entra na página.
+- [x] Consentimento como base legal, manifestado na verificação.
+- [x] O texto do aviso, como está acima (com os ajustes de hora da limpeza e prazo do hash do código
+      da SCRUM-332).
+- [x] Encarregado de dados: Sthefany Lima, sbl2@ic.ufal.br; o contato entra na página `/privacidade`.
+
+Aprovado em 17/11/2026 pela responsável pelo repositório, Sthefany Lima (nome e data, como esta
+seção pede), que também autorizou aprovar a decisão do `sair` apagar as filas, abaixo.
 
 ### Decidido na SCRUM-342
 
