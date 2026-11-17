@@ -204,6 +204,7 @@ describe('migração inicial em Postgres real', () => {
       'pauta',
       'promessa',
       'proposta',
+      'registro_verificacao',
       'relato',
       'resposta_conferencia',
       'verificacao_login',
@@ -601,7 +602,8 @@ describe('migração inicial em Postgres real', () => {
       `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'
        AND (column_name LIKE '%telefone%' OR column_name LIKE '%email%')`,
     );
-    expect(rows).toHaveLength(8);
+    // +2 da SCRUM-298 (registro_verificacao.telefone_hmac e .email_hmac), também só HMAC.
+    expect(rows).toHaveLength(10);
     expect(rows.every((r) => /_(hmac|cifrado)$/.test(r.column_name))).toBe(true);
   });
 });

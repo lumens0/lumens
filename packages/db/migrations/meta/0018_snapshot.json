@@ -1,5 +1,5 @@
 {
-  "id": "ea3922bc-0465-4edc-b101-44c650eaf290",
+  "id": "d4eb9630-ce03-4909-bb0d-ead71d5b64bc",
   "prevId": "5759a88a-2278-4651-8ab0-f5eabf0c055e",
   "version": "7",
   "dialect": "postgresql",
@@ -1215,31 +1215,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "urgente": {
-          "name": "urgente",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "urgente_desde": {
-          "name": "urgente_desde",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "urgente_por": {
-          "name": "urgente_por",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "urgente_motivo": {
-          "name": "urgente_motivo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "busca": {
           "name": "busca",
           "type": "tsvector",
@@ -1316,15 +1291,6 @@
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
-        },
-        "pauta_urgente_por_curador_id_fk": {
-          "name": "pauta_urgente_por_curador_id_fk",
-          "tableFrom": "pauta",
-          "tableTo": "curador",
-          "columnsFrom": ["urgente_por"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1340,10 +1306,6 @@
         "pauta_meta_positiva": {
           "name": "pauta_meta_positiva",
           "value": "\"pauta\".\"meta\" > 0"
-        },
-        "pauta_urgencia_consistente": {
-          "name": "pauta_urgencia_consistente",
-          "value": "(\"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NOT NULL AND \"pauta\".\"urgente_por\" IS NOT NULL)\n        OR (NOT \"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NULL AND \"pauta\".\"urgente_por\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -1561,6 +1523,114 @@
         "proposta_pessoas_necessarias_positivas": {
           "name": "proposta_pessoas_necessarias_positivas",
           "value": "\"proposta\".\"pessoas_necessarias\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.registro_verificacao": {
+      "name": "registro_verificacao",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "telefone_hmac": {
+          "name": "telefone_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_hmac": {
+          "name": "email_hmac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "em": {
+          "name": "em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "registro_verificacao_email_idx": {
+          "name": "registro_verificacao_email_idx",
+          "columns": [
+            {
+              "expression": "email_hmac",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "registro_verificacao_telefone_idx": {
+          "name": "registro_verificacao_telefone_idx",
+          "columns": [
+            {
+              "expression": "telefone_hmac",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "registro_verificacao_em_idx": {
+          "name": "registro_verificacao_em_idx",
+          "columns": [
+            {
+              "expression": "em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "registro_verificacao_tipo": {
+          "name": "registro_verificacao_tipo",
+          "value": "\"registro_verificacao\".\"tipo\" IN ('envio', 'erro')"
         }
       },
       "isRLSEnabled": false
