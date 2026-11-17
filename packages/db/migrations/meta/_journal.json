@@ -120,6 +120,13 @@
       "when": 1794779646016,
       "tag": "0016_tipo_disparo_aprovacao",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794779746016,
+      "tag": "0017_proxima_etapa_com_ano",
+      "breakpoints": true
     }
   ]
 }
