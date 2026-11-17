@@ -178,6 +178,7 @@ export {
   RESUMO_MAXIMO,
   RESUMO_NO_AVISO_MAXIMO,
   dataDeEntregaMaxima,
+  hojeEmMaceio,
   registrarPromessa,
 } from './caminhos/promessa';
 export type { NovaPromessa } from './caminhos/promessa';

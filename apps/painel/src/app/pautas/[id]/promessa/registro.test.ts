@@ -1,6 +1,6 @@
 import { ErroDeRegra } from '@lumens/dominio';
 import { describe, expect, it, vi } from 'vitest';
-import { criarRegistroDePromessa, hojeEmMaceio } from './registro';
+import { criarRegistroDePromessa } from './registro';
 
 const ID = '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab';
 const campos = {
@@ -75,12 +75,5 @@ describe('registrar promessa pela tela', () => {
 
     expect(await registrarPelaTela('1; drop table promessa', campos)).toBe('/pautas');
     expect(registrar).not.toHaveBeenCalled();
-  });
-});
-
-describe('hojeEmMaceio', () => {
-  it('vira o dia às 03:00 UTC, que é meia-noite em Maceió', () => {
-    expect(hojeEmMaceio(new Date('2026-11-10T02:59:00.000Z'))).toBe('2026-11-09');
-    expect(hojeEmMaceio(new Date('2026-11-10T03:00:00.000Z'))).toBe('2026-11-10');
   });
 });
