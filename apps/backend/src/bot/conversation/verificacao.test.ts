@@ -8,7 +8,14 @@ import {
   pautas,
   type Db,
 } from '@lumens/db';
-import { CODIGO_EXPIRA_MS, MAX_TENTATIVAS, REENVIO_APOS_MS, hashDoCodigo } from '@lumens/dominio';
+import {
+  CODIGO_EXPIRA_MS,
+  MAX_ENVIOS_POR_DIA,
+  MAX_ERROS_POR_DIA,
+  MAX_TENTATIVAS,
+  REENVIO_APOS_MS,
+  hashDoCodigo,
+} from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
@@ -58,12 +65,18 @@ let store: ConversationStore;
 
 /** E-mail falso: guarda o que seria enviado e pode falhar de propósito. */
 const enviados: { para: string; codigo: string }[] = [];
+/** SCRUM-298: avisos de transferência do cadastro. */
+const avisos: { para: string; quando: Date }[] = [];
 let envioFunciona = true;
 let email: ServicoDeEmail | undefined;
 const emailFalso: ServicoDeEmail = {
   enviarCodigo(para, codigo) {
     if (envioFunciona) enviados.push({ para, codigo });
     return Promise.resolve(envioFunciona);
+  },
+  avisarTransferencia(para, quando) {
+    avisos.push({ para, quando });
+    return Promise.resolve(true);
   },
 };
 
@@ -101,6 +114,7 @@ beforeEach(async () => {
   db = await criarBancoEmMemoria();
   store = new ConversationStore(db);
   enviados.length = 0;
+  avisos.length = 0;
   envioFunciona = true;
   comIdentidade = true;
   email = emailFalso;
@@ -391,6 +405,8 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
       id: doOutro?.id,
       emailHmac: hmac('aluno@ufal.br'),
     });
+    // SCRUM-298: o dono é avisado no e-mail do cadastro.
+    expect(avisos.map((a) => a.para)).toEqual(['aluno@ufal.br']);
   });
 
   it('e-mail de outra identidade, e esta já tem cadastro: explica, pede outro e-mail e não mexe em nada', async () => {
@@ -452,6 +468,60 @@ describe('vincular telefone e e-mail (SCRUM-137, RN01)', () => {
     expect(await send(codigo)).toEqual([EMAIL_LOST_TEXT]);
     expect(await passo()).toBe('VERIFY_ASK_EMAIL');
     expect(await codigoGuardado()).toBeDefined();
+  });
+});
+
+describe('limites acumulados em 24 h (SCRUM-298)', () => {
+  /** Mais um código pelo "reenviar", depois dos 60 s. */
+  async function reenviar() {
+    await voltarNoTempo(REENVIO_APOS_MS);
+    return send('reenviar');
+  }
+
+  it('o 6º código em 24 h é recusado com mensagem clara, e nenhum e-mail sai', async () => {
+    await pedirCodigo();
+    for (let i = 1; i < MAX_ENVIOS_POR_DIA; i++) {
+      expect(await reenviar()).toEqual([CODE_RESENT_TEXT]);
+    }
+    expect(enviados).toHaveLength(MAX_ENVIOS_POR_DIA);
+
+    const [resposta] = await reenviar();
+    expect(resposta).toMatch(
+      /^Por segurança, já saíram códigos demais .* a partir das \d{2}:\d{2} de \d{2}\/\d{2}\.$/,
+    );
+    expect(enviados).toHaveLength(MAX_ENVIOS_POR_DIA);
+    expect(await passo()).toBe('VERIFY_ASK_CODE');
+  });
+
+  it('voltar e mandar o e-mail de novo não escapa do limite', async () => {
+    await pedirCodigo();
+    for (let i = 1; i < MAX_ENVIOS_POR_DIA; i++) await reenviar();
+    await voltarNoTempo(REENVIO_APOS_MS);
+    await send('menu');
+    await send('3');
+    const [resposta] = await send('aluno@ufal.br');
+    expect(resposta).toMatch(/^Por segurança, já saíram códigos demais/);
+    expect(await passo()).toBe('VERIFY_ASK_EMAIL');
+    expect(enviados).toHaveLength(MAX_ENVIOS_POR_DIA);
+  });
+
+  it(`com ${String(MAX_ERROS_POR_DIA)} erros no dia, nem o código certo vale e nenhum código novo sai`, async () => {
+    await pedirCodigo();
+    const errado = () => (ultimoCodigo() === '000000' ? '111111' : '000000');
+    // 4 códigos (o primeiro e 3 "reenviar") com 5 erros cada: o "reenviar" zera as 5 tentativas,
+    // mas os erros do dia continuam somando.
+    for (let rodada = 0; rodada < MAX_ERROS_POR_DIA / MAX_TENTATIVAS; rodada++) {
+      if (rodada > 0) expect(await reenviar()).toEqual([CODE_RESENT_TEXT]);
+      for (let i = 0; i < MAX_TENTATIVAS; i++) await send(errado());
+    }
+    const enviadosAntes = enviados.length;
+
+    const [reenvio] = await reenviar();
+    expect(reenvio).toMatch(/^Por segurança, a verificação .* muitos códigos errados/);
+    expect(enviados).toHaveLength(enviadosAntes);
+    const [conferencia] = await send(ultimoCodigo());
+    expect(conferencia).toMatch(/muitos códigos errados/);
+    expect(await passo()).toBe('VERIFY_ASK_CODE');
   });
 });
 
