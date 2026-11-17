@@ -25,7 +25,7 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
     if (!UUID.test(pautaId)) return '/fila';
 
     const resultado = await agir(quem.id);
-    if (resultado.decidida) return `/fila?feito=${feito}`;
+    if (resultado.decidida) return `/pautas/${pautaId}?feito=${feito}`;
     return resultado.motivo === 'pauta_inexistente'
       ? '/fila'
       : `/pautas/${pautaId}?erro=${resultado.motivo}`;

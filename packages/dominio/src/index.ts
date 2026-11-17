@@ -124,8 +124,17 @@ export {
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
+  recusarRelatoDeOrigem,
+  resumoDaCuradoria,
+  LIMITE_DA_LISTA,
 } from './pauta/curadoria';
-export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './pauta/curadoria';
+export type {
+  PendenciaDaCuradoria,
+  PautaDaCuradoria,
+  PautaNaFila,
+  ResultadoDecisao,
+  ResumoDaCuradoria,
+} from './pauta/curadoria';
 
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {

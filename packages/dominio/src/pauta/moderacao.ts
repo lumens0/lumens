@@ -29,7 +29,8 @@ export interface PautaComRelatosPendentes {
 
 /**
  * Relatos pendentes agrupados por pauta, da pauta mais antiga para a mais nova. Pauta recusada
- * fica de fora: nada dela vai ao site.
+ * fica de fora, assim como as pautas ainda em curadoria, cujo relato de origem é decidido junto
+ * com a pauta.
  */
 export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPendentes[]> {
   const linhas = await db
@@ -44,7 +45,12 @@ export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPen
     .from(relatos)
     .innerJoin(pautas, eq(pautas.id, relatos.pautaId))
     .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
-    .where(and(eq(relatos.moderacao, 'pendente'), sql`${pautas.status} <> 'recusada'`))
+    .where(
+      and(
+        eq(relatos.moderacao, 'pendente'),
+        sql`${pautas.status} not in ('em_curadoria', 'recusada')`,
+      ),
+    )
     // `relato` não guarda data: dentro da pauta a ordem é pelo id, só para não mudar entre leituras.
     .orderBy(pautas.criadaEm, pautas.id, relatos.id);
 

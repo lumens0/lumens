@@ -3,6 +3,18 @@
   font-weight: 600;
 }
 
+.detalhesRecolhiveis {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borda);
+}
+
+.detalhesRecolhiveis summary {
+  color: var(--primaria);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .titulo {
   margin: 20px 0 4px;
   font-size: clamp(1.5rem, 4vw, 2rem);

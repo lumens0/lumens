@@ -1,6 +1,11 @@
 'use server';
 
-import { aprovarPauta, definirCategoria as gravarCategoria, recusarPauta } from '@lumens/dominio';
+import {
+  aprovarPauta,
+  definirCategoria as gravarCategoria,
+  recusarPauta,
+  recusarRelatoDeOrigem as recusarRelatoNoDominio,
+} from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { criarDecisoes, UUID } from './decisoes';
@@ -24,6 +29,22 @@ export async function aprovar(formulario: FormData) {
 
 export async function recusar(formulario: FormData) {
   redirect(await decisoes.recusar(texto(formulario, 'pautaId'), texto(formulario, 'motivo')));
+}
+
+/** Recusa só o relato de quem criou a pauta, que tem dado pessoal; a pauta segue em curadoria. */
+export async function recusarRelatoDeOrigem(formulario: FormData) {
+  const pautaId = texto(formulario, 'pautaId');
+  const quem = await curadorDaSessao();
+  if (!quem) redirect('/login');
+  if (!UUID.test(pautaId)) redirect('/fila');
+  const resultado = await servidor().db.transaction((tx) =>
+    recusarRelatoNoDominio(tx, { pautaId, curadorId: quem.id }),
+  );
+  redirect(
+    resultado.feito
+      ? `/pautas/${pautaId}?feito=relato_recusado`
+      : `/pautas/${pautaId}?erro=${resultado.motivo}`,
+  );
 }
 
 export async function definirCategoria(formulario: FormData) {
