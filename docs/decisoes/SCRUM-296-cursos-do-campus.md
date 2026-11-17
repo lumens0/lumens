@@ -30,3 +30,29 @@ Públicas", que aqui ficam "Jornalismo" e "Relações Públicas"). Os dois que n
 
 Se a UFAL abrir ou fechar curso, a lista muda em `packages/db/src/cursos.ts` e o teste de contagem
 em `packages/dominio/src/cursos.test.ts` acompanha.
+
+## Como a lista e a busca foram montadas
+
+Vieram da SDD da task, que saiu do repositório com a SCRUM-339.
+
+- **Um nome por curso.** O SIGAA repete o curso por turno e por grau (bacharelado, licenciatura).
+  O site mostra só o nome do curso de quem cuida da pauta, então "Física" vale para todos.
+- **Nomes antigos juntados ao atual:** "Comunicação Social (Jornalismo)" → "Jornalismo",
+  "Comunicação Social (Relações Públicas)" → "Relações Públicas", "Música (Canto)" → "Música".
+- **"Letras" por habilitação** (Espanhol, Francês, Inglês, Libras, Português), como o SIGAA separa.
+  Quem digita só "letras" recebe a lista das 5.
+- **De fora:** cursos EAD (são de polos, não do campus) e os de Rio Largo (CECA, outro campus).
+  Se o Lumens for aberto a eles, basta acrescentar à lista.
+- **Busca do nome digitado** (`buscarCurso`, em `packages/dominio/src/cursos.ts`): nome completo
+  sem acento/maiúscula/pontuação; siglas e apelidos (`APELIDOS`: "CC", "IA", "RP", "QTI"...);
+  começo de palavra com 3 letras ou mais ("odonto", "eng civil"). Texto que serve para mais de um
+  curso ("computação", "engenharia") mostra só esses numa lista. O cadastro guarda sempre o nome
+  da lista, nunca o texto digitado (o curso aparece no site).
+- **A lista do bot mostra os 9 primeiros em ordem alfabética** (Administração a Dança) e pede para
+  digitar os outros. É a regra que já existia; outra ordem (por número de estudantes, por exemplo)
+  pode ser decidida depois.
+- **Seed inalterado:** os estudantes do seed continuam com os mesmos 8 cursos (`CURSOS_DO_SEED`,
+  que o TypeScript confere contra `CURSOS`). Assim os dados e os testes do seed e das views não
+  mudam.
+- **Site:** não há filtro nem texto com a lista de cursos; ele só mostra o curso gravado
+  (`cursos_responsaveis` e o curso do relato). Nada a mudar.
