@@ -266,6 +266,36 @@ describe('privilégios do login real da aplicação', () => {
     });
   });
 
+  it('curador: a aplicação só atualiza `ativo` e `email_cifrado`; a auditoria é só inserção (SCRUM-295)', async () => {
+    const { rows } = await poolAplicacao.query<Record<string, boolean>>(
+      `SELECT has_column_privilege(current_user, 'public.curador', 'ativo', 'UPDATE') AS ativo,
+              has_column_privilege(current_user, 'public.curador', 'email_cifrado', 'UPDATE') AS cifrado,
+              has_column_privilege(current_user, 'public.curador', 'papel', 'UPDATE') AS papel,
+              has_column_privilege(current_user, 'public.curador', 'nome', 'UPDATE') AS nome,
+              has_table_privilege(current_user, 'public.curador', 'INSERT') AS inserir,
+              has_table_privilege(current_user, 'public.curador', 'DELETE') AS excluir,
+              has_table_privilege(current_user, 'public.curador_auditoria', 'SELECT') AS le_auditoria,
+              has_table_privilege(current_user, 'public.curador_auditoria', 'INSERT') AS grava_auditoria,
+              has_table_privilege(current_user, 'public.curador_auditoria', 'UPDATE') AS muda_auditoria,
+              has_table_privilege(current_user, 'public.curador_auditoria', 'DELETE') AS apaga_auditoria,
+              has_table_privilege(current_user, 'public.curador_auditoria', 'TRUNCATE') AS trunca_auditoria`,
+    );
+
+    expect(rows[0]).toEqual({
+      ativo: true,
+      cifrado: true,
+      papel: false,
+      nome: false,
+      inserir: true,
+      excluir: false,
+      le_auditoria: true,
+      grava_auditoria: true,
+      muda_auditoria: false,
+      apaga_auditoria: false,
+      trunca_auditoria: false,
+    });
+  });
+
   it.each([
     ['UPDATE', 'UPDATE evento SET publico = true WHERE id = $1', true],
     ['DELETE', 'DELETE FROM evento WHERE id = $1', true],
