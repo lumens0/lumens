@@ -25,7 +25,9 @@ export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
         </li>
         <li className={estilos.cartao}>
           <h2>
-            <Link href="/pautas?status=cobrando">Pautas em cobrança sem resposta oficial</Link>
+            <Link href="/pautas?status=cobrando&pendencia=sem_resposta_oficial">
+              Pautas em cobrança sem resposta oficial
+            </Link>
           </h2>
           <p className={estilos.detalhes}>
             {resumo.pautasSemRespostaOficial}{' '}
@@ -34,7 +36,9 @@ export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
         </li>
         <li className={estilos.cartao}>
           <h2>
-            <Link href="/pautas?status=prometido">Conferências abertas</Link>
+            <Link href="/pautas?status=todas&pendencia=conferencia_aberta">
+              Conferências abertas
+            </Link>
           </h2>
           <p className={estilos.detalhes}>
             {resumo.conferenciasAbertas}{' '}

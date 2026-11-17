@@ -1,5 +1,5 @@
 {
-  "id": "e6af07da-113b-47a4-89a8-bb94f08b5988",
+  "id": "ea3922bc-0465-4edc-b101-44c650eaf290",
   "prevId": "5759a88a-2278-4651-8ab0-f5eabf0c055e",
   "version": "7",
   "dialect": "postgresql",
@@ -1231,6 +1231,12 @@
         "urgente_por": {
           "name": "urgente_por",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "urgente_motivo": {
+          "name": "urgente_motivo",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
