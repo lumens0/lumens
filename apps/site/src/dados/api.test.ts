@@ -34,7 +34,7 @@ describe('buscarPauta', () => {
     });
   });
 
-  it('API que não responde em 5 s lança erro e os pedidos dos 10 s seguintes falham na hora', async () => {
+  it('API que não responde em 5 s lança erro e o mesmo pedido falha na hora nos 10 s seguintes', async () => {
     // Relógio no passado: a pausa termina antes do horário real e não vaza para os outros testes.
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2020-01-01T12:00:00Z') });
     const fetch = vi.fn(
@@ -59,6 +59,11 @@ describe('buscarPauta', () => {
       await expect(buscarPauta('x')).rejects.toThrow('não respondeu há pouco');
       expect(fetch).toHaveBeenCalledTimes(1);
 
+      // Outros pedidos seguem para o `fetch`, que pode responder do cache do Next.
+      vi.stubGlobal('fetch', responder(200, { itens: [] }));
+      expect(await buscarBlocos()).toEqual([]);
+      await expect(buscarPauta('x', { fresca: true })).resolves.toEqual({ itens: [] });
+
       vi.setSystemTime(new Date('2020-01-01T12:00:10Z'));
       vi.stubGlobal('fetch', responder(200, { slug: 'x' }));
       expect(await buscarPauta('x')).toEqual({ slug: 'x' });
@@ -68,7 +73,7 @@ describe('buscarPauta', () => {
     }
   });
 
-  it('tempo esgotado no meio do corpo JSON também pausa os pedidos seguintes', async () => {
+  it('tempo esgotado no meio do corpo JSON também pausa o pedido', async () => {
     // Outro dia: a pausa deixada pelo teste anterior (01/01) não vale aqui.
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2020-01-02T12:00:00Z') });
     const resposta = new Response('{}', { status: 200 });
@@ -79,7 +84,7 @@ describe('buscarPauta', () => {
     vi.stubGlobal('fetch', fetch);
     try {
       await expect(buscarPauta('x')).rejects.toThrow('tempo esgotado');
-      await expect(buscarBlocos()).rejects.toThrow('não respondeu há pouco');
+      await expect(buscarPauta('x')).rejects.toThrow('não respondeu há pouco');
       expect(fetch).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
