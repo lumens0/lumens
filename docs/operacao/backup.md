@@ -1,6 +1,7 @@
 # Backup do banco
 
-Rotina de backup do Postgres da homologação (SCRUM-95) e como restaurar em caso de incidente.
+Rotina de backup do Postgres da homologação (SCRUM-95), e das fotos e PDFs guardados no MinIO,
+e como restaurar em caso de incidente.
 A linha do tempo é permanente (RN11) e os apoios são a base de tudo: perder o banco apaga o
 histórico das pautas. **Backup que nunca foi restaurado não conta**, por isso o teste de
 restauração faz parte da rotina.
@@ -19,12 +20,21 @@ gerenciado. Então o backup é próprio:
 | Onde fica    | `/var/backups/lumens/{diario,semanal}` na própria VM, legível só pelo `azureuser`   |
 | Acesso       | Só quem tem SSH na VM. O banco continua sem porta publicada: o dump sai pelo `exec` |
 
+**Fotos e PDFs (volume `lumens-arquivos`, SCRUM-330).** Quando o storage é o MinIO do compose
+(`S3_ENDPOINT=http://minio:9000`), o mesmo `backup-banco.sh`, depois do dump, espelha o bucket em
+`/var/backups/lumens/arquivos` com `mc mirror`. É espelho, não cópia datada: as fotos não mudam
+depois de gravadas, e um arquivo apagado no bucket (a saída de um estudante, por exemplo) some do
+espelho no backup seguinte. Por isso, um arquivo apagado por engano só se recupera até a próxima
+rodada. Se o MinIO estiver fora do ar, o dump do banco já foi salvo, e o serviço termina com erro.
+Bucket vazio com o espelho cheio também é erro, e o espelho fica intacto: é o sinal de volume
+perdido (ou recriado vazio por um deploy), não de fotos apagadas.
+
 > **Fora do backup, de propósito:** os volumes da Evolution (`evolution-pgdata` e
 > `evolution-instances`, SCRUM-275). Eles guardam só a sessão do chip do WhatsApp, nenhum dado do
 > Lumens, e essa sessão não deve sair da VM. Perdê-los só obriga a parear o chip de novo
 > ([canal da Evolution](evolution.md)).
 
-> **Limitação conhecida:** os backups ficam no mesmo disco da VM. Eles cobrem erro humano,
+> **Limitação conhecida:** os backups, inclusive o espelho das fotos, ficam no mesmo disco da VM. Eles cobrem erro humano,
 > migração ruim e banco corrompido, mas não a perda do disco ou da VM. Até a equipe decidir um
 > destino fora dela (Azure Blob Storage privado, por exemplo), copie um backup para fora antes de
 > qualquer mudança grande — veja [Cópia para fora da VM](#cópia-para-fora-da-vm).
@@ -140,6 +150,17 @@ Use só quando o banco de produção estiver perdido ou corrompido. **Isto subst
    ```
 
 7. Confira `https://<DOMINIO>/saude` e `https://<DOMINIO>/resumo`.
+
+### Fotos e PDFs
+
+Se o volume `lumens-arquivos` se perdeu, rode o deploy primeiro (ele recria o bucket e o usuário)
+e devolva o espelho ao bucket. O comando usa o root do MinIO, que só o `minio-preparar` recebe:
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao --profile minio run --rm --no-deps -T -v /var/backups/lumens/arquivos:/backup:ro --entrypoint bash minio-preparar -c 'export MC_CONFIG_DIR=/tmp/mc MC_HOST_lumens="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" && mc mirror --overwrite /backup "lumens/$S3_BUCKET_FOTOS"'
+```
+
+Confira abrindo no painel a foto de uma pauta e o PDF de uma resposta.
 
 ## Chaves
 

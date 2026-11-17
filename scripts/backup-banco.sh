@@ -52,3 +52,33 @@ reter "$BACKUP_DIR/diario" "$DIARIOS"
 reter "$BACKUP_DIR/semanal" "$SEMANAIS"
 
 echo "--> Backup pronto: $(du -h "$destino" | cut -f1)"
+
+# Fotos e PDFs da resposta oficial (SCRUM-330), quando o storage é o MinIO do compose: espelha o
+# bucket em $BACKUP_DIR/arquivos. Espelho, não cópia datada: as fotos não mudam depois de gravadas,
+# e o `--remove` leva para o backup a remoção de quem saiu (SCRUM-314) no backup seguinte. O
+# preço: um arquivo apagado por engano só é recuperável até a próxima rodada. Bucket vazio com
+# espelho cheio não é remoção, é volume perdido (ou recriado vazio pelo deploy): aí o espelho
+# para com erro em vez de apagar o único backup das fotos.
+#
+# Depois do dump de propósito: se o MinIO estiver fora, o banco já está salvo, e o script ainda
+# termina com erro para o systemd marcar a falha.
+if grep -qsE '^[[:space:]]*S3_ENDPOINT=["'\'']?http://minio:9000/?["'\'']?[[:space:]]*$' .env.producao; then
+  mkdir -p "$BACKUP_DIR/arquivos"
+  echo "--> Espelhando o bucket das fotos em $BACKUP_DIR/arquivos"
+  # Roda como o dono do $BACKUP_DIR, para os arquivos não ficarem de root. --no-deps: o MinIO
+  # parado tem de virar falha do backup, não ser ligado por ele. As aspas simples são de propósito:
+  # as variáveis se expandem DENTRO do contêiner.
+  # shellcheck disable=SC2016
+  "${COMPOSE[@]}" --profile minio run --rm --no-deps -T --user "$(id -u):$(id -g)" \
+    -v "$BACKUP_DIR/arquivos:/backup" --entrypoint bash minio-preparar -c '
+      set -euo pipefail
+      export MC_CONFIG_DIR=/tmp/mc
+      export MC_HOST_lumens="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000"
+      objetos=$(mc ls --recursive "lumens/$S3_BUCKET_FOTOS" | wc -l)
+      if [[ $objetos == 0 && -n $(ls -A /backup) ]]; then
+        echo "O bucket $S3_BUCKET_FOTOS está vazio e o espelho não: não apaguei o espelho. Volume do MinIO perdido? Restaure como em docs/operacao/backup.md (Fotos e PDFs)." >&2
+        exit 1
+      fi
+      mc mirror --overwrite --remove --quiet "lumens/$S3_BUCKET_FOTOS" /backup'
+  echo "--> Arquivos espelhados: $(du -sh "$BACKUP_DIR/arquivos" | cut -f1)"
+fi
