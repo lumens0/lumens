@@ -272,7 +272,7 @@ async function decidir(
  */
 function relatosDeOrigemPendentes(tx: Tx, pautaId: string) {
   return tx
-    .select({ id: relatos.id, texto: relatos.texto })
+    .select({ id: relatos.id, texto: relatos.texto, fotoChave: relatos.fotoChave })
     .from(relatos)
     .innerJoin(
       papeisPauta,
@@ -337,7 +337,12 @@ export async function aprovarPauta(
   if (resultado.decidida) {
     await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
     for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
-      await aprovarRelato(tx, { relatoId: relato.id, curadorId, agora });
+      await aprovarRelato(tx, {
+        relatoId: relato.id,
+        curadorId,
+        fotoVista: relato.fotoChave,
+        agora,
+      });
     }
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   }
