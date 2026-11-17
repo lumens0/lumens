@@ -168,4 +168,24 @@ describe("comando 'sair' (SCRUM-176)", () => {
     expect(await send('sim')).toEqual([LEFT_TEXT]);
     expect(await estudanteVerificado(db, H)).toBeUndefined();
   });
+
+  it('quem voltou e sai antes de escolher o curso tem o vínculo restaurado apagado', async () => {
+    const { estudanteId } = await estudanteComApoio();
+    // Já saiu e voltou: telefone e e-mail restaurados, `saiu_em` ainda preenchido.
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date(), emailHmac: 'hmac-email', emailCifrado: 'cifrado-email' })
+      .where(eq(estudantes.id, estudanteId));
+    await send('oi');
+
+    expect(await send('sair')).toEqual([LEAVE_CONFIRM_TEXT]);
+    expect(await send('sim')).toEqual([LEFT_TEXT]);
+
+    const [linha] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteId));
+    expect(linha?.telefoneHmac).not.toBe(H);
+    expect(linha?.telefoneCifrado).not.toBe('x');
+    expect(linha?.emailCifrado).toBeNull();
+    expect(linha?.emailHmac).toBe('hmac-email');
+    expect(await conversa()).toBeUndefined();
+  });
 });

@@ -40,13 +40,18 @@ export const STAYED_TEXT = 'Ok, você continua no Lumens.';
 
 const CONFIRMA = new Set(['sim', 's', 'sim, sair', 'quero sair', 'confirmar']);
 
-/** Estudante ativo (verificado ou não) ligado a este telefone. Quem já saiu não conta. */
+/**
+ * Estudante ligado a este telefone. Quem já saiu não aparece: o telefone dele virou lápide e não
+ * coincide com o HMAC. Quem voltou e ainda não escolheu o curso tem o telefone restaurado com
+ * `saiu_em` preenchido (SCRUM-331); conta, porque os dados pessoais voltaram e o `sair` precisa
+ * apagá-los.
+ */
 async function estudanteDoTelefone(ctx: StepContext): Promise<string | undefined> {
   const [estudante] = await ctx.db
-    .select({ id: estudantes.id, saiuEm: estudantes.saiuEm })
+    .select({ id: estudantes.id })
     .from(estudantes)
     .where(eq(estudantes.telefoneHmac, ctx.phoneHmac));
-  return estudante !== undefined && estudante.saiuEm === null ? estudante.id : undefined;
+  return estudante?.id;
 }
 
 /**

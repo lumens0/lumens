@@ -17,6 +17,9 @@ import {
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
 
+/** Começa a lápide do telefone; um HMAC de verdade é hexadecimal e nunca começa assim. */
+const PREFIXO_LAPIDE = 'saiu:';
+
 export type ResultadoSaida =
   | {
       saiu: true;
@@ -57,7 +60,12 @@ export async function sairDoLumens(
     .for('update');
 
   if (estudante === undefined) return { saiu: false, motivo: 'estudante_inexistente' };
-  if (estudante.saiuEm !== null) return { saiu: false, motivo: 'ja_saiu' };
+  // Quem saiu tem a lápide no lugar do telefone. `saiu_em` preenchido com o telefone de verdade é
+  // quem voltou (`vincularEmail`) e ainda não escolheu o curso (`concluirVerificacao`): o vínculo
+  // está restaurado, então o `sair` vale e apaga de novo (SCRUM-331).
+  if (estudante.saiuEm !== null && estudante.telefoneHmac.startsWith(PREFIXO_LAPIDE)) {
+    return { saiu: false, motivo: 'ja_saiu' };
+  }
 
   // Conversa e código são chaveados pelo HMAC do telefone: saem antes de ele ser trocado.
   await tx.delete(conversas).where(eq(conversas.telefoneHmac, estudante.telefoneHmac));
@@ -80,7 +88,7 @@ export async function sairDoLumens(
 
   // ponytail: lápide no lugar de NULL porque as colunas do telefone são NOT NULL; gravar NULL
   // depende de uma migração que as torne anuláveis.
-  const lapide = `saiu:${randomUUID()}`;
+  const lapide = `${PREFIXO_LAPIDE}${randomUUID()}`;
   await tx
     .update(estudantes)
     .set({

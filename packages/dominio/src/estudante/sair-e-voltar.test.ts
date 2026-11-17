@@ -178,4 +178,29 @@ describe('sair e voltar com o mesmo e-mail (SCRUM-331)', () => {
       .where(eq(respostasConferencia.promessaId, promessa.id));
     expect(respostas).toHaveLength(1);
   });
+
+  it('voltar e sair antes de escolher o curso apaga o vínculo restaurado e guarda o HMAC', async () => {
+    const p = pessoa();
+    const primeira = await verificar(p.telefone, p.email);
+    await sair(primeira);
+    // Código certo, ainda sem curso: o telefone e o e-mail cifrado voltam e `saiu_em` continua.
+    await vincularEmail(db, {
+      telefoneHmac: `tel-${p.telefone}`,
+      telefoneCifrado: `cifrado-${p.telefone}`,
+      emailHmac: `email-${p.email}`,
+      emailCifrado: `cifrado-${p.email}`,
+    });
+
+    expect(await sair(primeira)).toMatchObject({ saiu: true });
+
+    const [linha] = await db.select().from(estudantes).where(eq(estudantes.id, primeira));
+    expect(linha?.telefoneHmac).toMatch(/^saiu:/);
+    expect(linha?.telefoneCifrado).toMatch(/^saiu:/);
+    expect(linha?.emailCifrado).toBeNull();
+    expect(linha?.emailHmac).toBe(`email-${p.email}`);
+    // Sair de novo, já com a lápide, continua sendo `ja_saiu`.
+    expect(await sair(primeira)).toEqual({ saiu: false, motivo: 'ja_saiu' });
+    // E ainda dá para voltar pela mesma linha.
+    expect(await verificar(p.telefone, p.email)).toBe(primeira);
+  });
 });
