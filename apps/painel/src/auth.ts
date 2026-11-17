@@ -4,6 +4,7 @@
  * para qualquer endereço: quem tenta não descobre quem é da curadoria.
  */
 import { criarDb, criarPool, type Db } from '@lumens/db';
+import type { ChavesDeCurador } from '@lumens/dominio';
 import NextAuth from 'next-auth';
 import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
@@ -39,6 +40,11 @@ export function servidor(): { db: Db; chave: Buffer } {
     chave: Buffer.from(exigir('CHAVE_HMAC'), 'base64'),
   };
   return conexao;
+}
+
+/** As duas chaves, para a tela /curadores cifrar e mostrar o e-mail. Só ela lê a CHAVE_CIFRA. */
+export function chavesDeCurador(): ChavesDeCurador {
+  return { cifra: Buffer.from(exigir('CHAVE_CIFRA'), 'base64'), hmac: servidor().chave };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
@@ -96,7 +102,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
  * Quem está pedindo, conferido no banco. O JWT da sessão vale 7 dias; sem esta checagem, um
  * curador desativado continuaria entrando até ele vencer. Toda rota e página do painel usa isto.
  */
-export async function curadorDaSessao(): Promise<{ id: string; nome: string } | undefined> {
+export async function curadorDaSessao(): Promise<
+  { id: string; nome: string; papel: 'curador' | 'administrador' } | undefined
+> {
   const id = (await auth())?.user?.id;
   return id ? curadorAtivoPorId(servidor().db, id) : undefined;
 }

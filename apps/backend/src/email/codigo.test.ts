@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  ASSUNTO_DA_TRANSFERENCIA,
   ASSUNTO_DO_CODIGO,
   criarEmailSmtp,
   logEmail,
@@ -158,5 +159,44 @@ describe('logEmail (pnpm dev)', () => {
     expect(info).toHaveBeenCalledOnce();
     expect(JSON.stringify(info.mock.calls)).toContain('555123');
     expect(JSON.stringify(info.mock.calls)).not.toContain('aluno@ufal.br');
+  });
+});
+
+describe('aviso de transferência do cadastro (SCRUM-298)', () => {
+  it('vai para o e-mail do cadastro, com a data em Maceió e o que fazer se não foi a pessoa', async () => {
+    const mensagens: MensagemDeEmail[] = [];
+    const email = criarEmailSmtp({
+      ...SMTP,
+      transporte: {
+        sendMail: (mensagem) => {
+          mensagens.push(mensagem);
+          return Promise.resolve({});
+        },
+      },
+    });
+
+    const quando = new Date('2026-11-16T15:30:00Z');
+    expect(await email.avisarTransferencia?.('aluno@ufal.br', quando)).toBe(true);
+    expect(mensagens).toHaveLength(1);
+    expect(mensagens[0]).toMatchObject({
+      from: SMTP.remetente,
+      to: 'aluno@ufal.br',
+      subject: ASSUNTO_DA_TRANSFERENCIA,
+    });
+    expect(mensagens[0]?.text).toContain('16/11/2026');
+    expect(mensagens[0]?.text).toContain('12:30');
+    expect(mensagens[0]?.text).toContain('Se não foi você, responda este e-mail');
+    expect(mensagens[0]?.text).not.toMatch(/https?:\/\//);
+  });
+
+  it('falha do servidor vira false, sem o endereço no aviso', async () => {
+    const avisos: string[] = [];
+    const email = criarEmailSmtp({
+      ...SMTP,
+      transporte: { sendMail: () => Promise.reject(new Error('ECONNREFUSED aluno@ufal.br')) },
+      avisar: (mensagem) => avisos.push(mensagem),
+    });
+    expect(await email.avisarTransferencia?.('aluno@ufal.br', new Date())).toBe(false);
+    expect(avisos[0]).not.toContain('aluno@ufal.br');
   });
 });
