@@ -56,4 +56,3 @@ autorizou decidir o ponto que a revisão deixou para a equipe: **o HMAC do e-mai
   descrevem a marca, e não dizem que tudo é apagado.
 - Se a UFAL ou a disciplina exigir apagar também o HMAC, a saída é trocar a prevenção por outra
   (por exemplo, um bloqueio por pauta com prazo), e essa mudança volta a ser decidida aqui.
-
