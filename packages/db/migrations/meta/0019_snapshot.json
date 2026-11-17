@@ -1,5 +1,5 @@
 {
-  "id": "00dfe436-d4f5-454e-b518-f01a427f3cf7",
+  "id": "f22162a4-181b-4ff1-b427-bf7cbecbb59d",
   "prevId": "d4eb9630-ce03-4909-bb0d-ead71d5b64bc",
   "version": "7",
   "dialect": "postgresql",
@@ -1096,6 +1096,28 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "papel_pauta_ativo_unico": {
+          "name": "papel_pauta_ativo_unico",
+          "columns": [
+            {
+              "expression": "pauta_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estudante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"papel_pauta\".\"ate\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1215,31 +1237,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "urgente": {
-          "name": "urgente",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "urgente_desde": {
-          "name": "urgente_desde",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "urgente_por": {
-          "name": "urgente_por",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "urgente_motivo": {
-          "name": "urgente_motivo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "busca": {
           "name": "busca",
           "type": "tsvector",
@@ -1316,15 +1313,6 @@
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
-        },
-        "pauta_urgente_por_curador_id_fk": {
-          "name": "pauta_urgente_por_curador_id_fk",
-          "tableFrom": "pauta",
-          "tableTo": "curador",
-          "columnsFrom": ["urgente_por"],
-          "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1340,10 +1328,6 @@
         "pauta_meta_positiva": {
           "name": "pauta_meta_positiva",
           "value": "\"pauta\".\"meta\" > 0"
-        },
-        "pauta_urgencia_consistente": {
-          "name": "pauta_urgencia_consistente",
-          "value": "(\"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NOT NULL AND \"pauta\".\"urgente_por\" IS NOT NULL)\n        OR (NOT \"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NULL AND \"pauta\".\"urgente_por\" IS NULL)"
         }
       },
       "isRLSEnabled": false

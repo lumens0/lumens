@@ -88,7 +88,14 @@ da cifra. Os campos sem tipo indicado são `text`, exceto FKs UUID e enums lista
 | documento_resposta   | id, pauta_id, caminho_id, enviado_por, arquivo_chave, recebido_em, promessa_id                                                                    | promessa_id                                                         | PK id; arquivo_chave único; recebido_em = now()                                                     |
 
 A chave de `papel_pauta` inclui `desde` para preservar mandatos históricos. O limite de três
-responsáveis ativos pertence ao domínio; a migração não o implementa.
+responsáveis ativos pertence ao domínio; a migração não o implementa. O banco garante só que uma
+pessoa tem no máximo um papel ativo por pauta: índice único parcial `papel_pauta_ativo_unico`
+em `(pauta_id, estudante_id) WHERE ate IS NULL` (SCRUM-315).
+
+`papel` é histórico (SCRUM-315): `owner` é quem criou a pauta, `co_owner` quem entrou depois.
+Quem cuida da pauta hoje é qualquer papel ativo; quando o owner sai, ninguém é promovido. A
+curadoria usa `papel = 'owner'` para achar o relato de origem (de quem criou), e é por isso que a
+consulta não filtra `ate`.
 
 `papel_pauta.desde` é exportado como string pelo Drizzle para preservar os microssegundos do
 PostgreSQL. Reutilize esse valor sem convertê-lo para `Date` ao consultar ou atualizar pela PK:
