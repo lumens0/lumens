@@ -19,12 +19,21 @@ function urlDaApi(): string {
   return url.replace(/\/+$/, '');
 }
 
+// A VM da API fica desligada quase sempre e o IP fixo não responde: sem limite, a página espera o
+// timeout de conexão do fetch antes de cair no `error.tsx`.
+const TEMPO_LIMITE_MS = 5000;
+
 /**
  * O cache de 30 s acompanha o `Cache-Control` da API. `fresca` lê sem ele: o card da pauta, que o
  * bot pede logo depois de um apoio, precisa do total de agora.
  */
 const buscar = (caminho: string, fresca = false) =>
-  fetch(`${urlDaApi()}${caminho}`, fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } });
+  fetch(
+    `${urlDaApi()}${caminho}`,
+    fresca
+      ? { cache: 'no-store', signal: AbortSignal.timeout(TEMPO_LIMITE_MS) }
+      : { next: { revalidate: 30 }, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) },
+  );
 
 /** GET que só aceita 200. Qualquer erro sobe e cai no `error.tsx`. */
 async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {
