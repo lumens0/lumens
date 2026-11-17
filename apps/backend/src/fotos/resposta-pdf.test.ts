@@ -14,6 +14,7 @@ function storageFalso(falhar = false) {
       guardados.push({ chave, contentType, bytes });
       return Promise.resolve();
     },
+    remover: () => Promise.resolve(),
   };
   return { storage, guardados };
 }
