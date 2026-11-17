@@ -20,7 +20,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarProtocolo } from './caminho-registro';
 import { abrirCaminho } from './caminhos';
 import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
-import { RESUMO_NO_AVISO_MAXIMO, registrarPromessa } from './promessa';
+import {
+  FONTE_MAXIMA,
+  RESUMO_MAXIMO,
+  RESUMO_NO_AVISO_MAXIMO,
+  dataDeEntregaMaxima,
+  registrarPromessa,
+} from './promessa';
 import { registrarExecucaoProposta } from './proposta';
 import { transicionarStatus } from '../pauta/status';
 
@@ -325,7 +331,8 @@ describe('registrarPromessa (RN13)', () => {
     const curador = await criarCurador(db);
     const apoiador = await criarEstudanteVerificado(db);
     await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: apoiador.id, origem: 'bot' });
-    const longo = `A reitoria respondeu ${'com detalhes '.repeat(60)}.`;
+    // Abaixo do teto do registro (500) e acima do teto do aviso (400).
+    const longo = `A reitoria respondeu ${'com detalhes '.repeat(35)}.`;
 
     const r = await db.transaction((tx) =>
       registrarPromessa(tx, { ...nova(pauta.id, curador.id), resumo: longo }),
@@ -492,6 +499,91 @@ describe('registrarPromessa (RN13)', () => {
       expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
     },
   );
+});
+
+describe('limites da promessa no servidor (SCRUM-313)', () => {
+  // 17/11/2026, 12:00 em Maceió: o teto é 17/11/2028.
+  const agora = new Date('2026-11-17T15:00:00.000Z');
+  const nova = (pautaId: string, registradaPor: string, campos: Record<string, string> = {}) => ({
+    pautaId,
+    resumo: 'A reitoria vai trocar as lâmpadas.',
+    dataEntrega: '2026-12-10',
+    fonte: 'Resposta no Fala.BR',
+    registradaPor,
+    agora,
+    ...campos,
+  });
+
+  async function recusada(campos: Record<string, string>, codigo: string) {
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+    const apoiador = await criarEstudanteVerificado(db);
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: apoiador.id, origem: 'bot' });
+
+    await expect(
+      db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id, campos))),
+    ).rejects.toMatchObject({ codigo });
+
+    expect((await lerPauta(pauta.id))?.status).toBe('cobrando');
+    expect(await db.select().from(promessas).where(eq(promessas.pautaId, pauta.id))).toEqual([]);
+    expect(await db.select().from(disparos).where(eq(disparos.estudanteId, apoiador.id))).toEqual(
+      [],
+    );
+  }
+
+  async function aceita(campos: Record<string, string>) {
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+    await db.transaction((tx) => registrarPromessa(tx, nova(pauta.id, curador.id, campos)));
+    expect((await lerPauta(pauta.id))?.status).toBe('prometido');
+  }
+
+  it('resumo acima do teto é recusado e nada é gravado', async () => {
+    await recusada({ resumo: 'a'.repeat(RESUMO_MAXIMO + 1) }, 'resumo_longo');
+  });
+
+  it('fonte acima do teto é recusada e nada é gravado', async () => {
+    await recusada({ fonte: 'a'.repeat(FONTE_MAXIMA + 1) }, 'fonte_longa');
+  });
+
+  it('no teto, contando emoji como um caractere e sem os espaços das pontas, passa', async () => {
+    await aceita({
+      resumo: `  ${'😀'.repeat(RESUMO_MAXIMO)}  `,
+      fonte: `  ${'😀'.repeat(FONTE_MAXIMA)}  `,
+    });
+  });
+
+  it.each(['2028-11-18', '2062-12-10', '9999-12-31'])(
+    'data depois de hoje + 2 anos (%s) é recusada e nada é gravado',
+    async (dia) => {
+      await recusada({ dataEntrega: dia }, 'data_distante');
+    },
+  );
+
+  it('data no teto é aceita', async () => {
+    await aceita({ dataEntrega: '2028-11-17' });
+  });
+
+  it('o teto conta o dia em Maceió, não em UTC', () => {
+    // 01/01/2027, 01:00 UTC ainda é 31/12/2026 em Maceió.
+    expect(dataDeEntregaMaxima(new Date('2027-01-01T01:00:00.000Z'))).toBe('2028-12-31');
+    expect(dataDeEntregaMaxima(new Date('2027-01-01T03:00:00.000Z'))).toBe('2029-01-01');
+  });
+
+  it('em 29/02 o teto não aceita 01/03 dois anos depois', async () => {
+    const bissexto = new Date('2028-02-29T15:00:00.000Z');
+    expect(dataDeEntregaMaxima(bissexto)).toBe('2030-02-29');
+    const pauta = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+    await expect(
+      db.transaction((tx) =>
+        registrarPromessa(tx, {
+          ...nova(pauta.id, curador.id, { dataEntrega: '2030-03-01' }),
+          agora: bissexto,
+        }),
+      ),
+    ).rejects.toMatchObject({ codigo: 'data_distante' });
+  });
 });
 
 // Concorrência precisa de várias conexões ao mesmo tempo, o que o PGlite não tem.
