@@ -15,7 +15,7 @@ export default async function PaginaDaFila({
 
   const pautas = await listarFilaDeCuradoria(servidor().db);
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <Fila pautas={pautas} feito={(await searchParams).feito} />
     </Moldura>
   );
