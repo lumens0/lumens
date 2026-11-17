@@ -34,6 +34,8 @@ export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
   };
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
   leitura: ApiPluginOptions;
+  /** SHA publicado, devolvido pelo /saude (SCRUM-322). Sem ele, o /saude não diz a versão. */
+  versao?: string;
 };
 
 /**
@@ -64,11 +66,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // banco fora do ar continua respondendo 200 num check que só olha o próprio processo, e o
   // deploy quebrado passa despercebido. Substituiu o /health, que devolvia ok sem checar nada.
   //
-  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou.
+  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou. A versão
+  // (o SHA do commit, que o repositório já mostra) é o que deixa o deploy conferir o que subiu.
   app.get('/saude', async (_req, reply) => {
     try {
       await deps.db.execute(sql`select 1`);
-      return { ok: true };
+      return deps.versao === undefined ? { ok: true } : { ok: true, versao: deps.versao };
     } catch (erro) {
       deps.logger.error({ erro: resumoDoErro(erro) }, 'healthcheck: banco indisponível');
       return reply.code(503).send({ ok: false });
@@ -107,7 +110,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(503).send({ ok: false });
     });
   }
-  const { leitura, config, telegram, evolution, ...bot } = deps;
+  const { leitura, config, telegram, evolution, versao: _versao, ...bot } = deps;
   if (config) await app.register(webhookPlugin, { ...bot, config });
   if (evolution) await app.register(webhookDaEvolution(evolution.segredo), bot);
   if (telegram) {
