@@ -922,9 +922,7 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
     await processIncomingJob({ ...job({ text: { body: '' } }), data: dados }, deps);
 
     expect(await votos()).toEqual(['sim']);
-    // Primeiro contato pelo Telegram: o aviso de privacidade vai junto (5.7).
-    expect(await respostas()).toEqual([
-      [PRIVACY_NOTICE_TEXT, CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')],
-    ]);
+    // Sem conversa guardada, mas com cadastro: o aviso de privacidade não vai de novo (SCRUM-333).
+    expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
   });
 });
