@@ -127,6 +127,13 @@
       "when": 1794781142908,
       "tag": "0017_papel_do_curador",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794848983333,
+      "tag": "0018_registro_verificacao",
+      "breakpoints": true
     }
   ]
 }
