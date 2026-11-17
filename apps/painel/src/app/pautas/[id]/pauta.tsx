@@ -7,11 +7,11 @@ import {
 } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
-import { dataHora, textoDoPrazo } from '../../prazo';
+import { dataHora } from '../../prazo';
+import { SeloDePrazo, SeloDeStatus, SeloUrgente } from '../selos';
 import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
-import { STATUS } from '../status';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
 
@@ -102,6 +102,13 @@ export function Pauta({
   return (
     <>
       <h1>{pauta.titulo}</h1>
+      <p className={estilos.selos}>
+        <SeloDeStatus status={pauta.status} />
+        {pauta.status === 'em_curadoria' && (
+          <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
+        )}
+        {pauta.urgente && <SeloUrgente />}
+      </p>
       {feito === 'aprovada' && (
         <p className={estilos.aviso} role="status">
           Pauta aprovada. Ela já aparece no site e pode receber apoios; o relato de quem a criou
@@ -137,8 +144,6 @@ export function Pauta({
         </p>
       )}
       <dl className={estilos.ficha}>
-        <dt>Situação</dt>
-        <dd>{STATUS[pauta.status]}</dd>
         <dt>Categoria</dt>
         <dd>{categoria}</dd>
         <dt>Onde</dt>
@@ -147,10 +152,8 @@ export function Pauta({
         <dd>{dataHora(pauta.criadaEm)}</dd>
         {pauta.status === 'em_curadoria' && (
           <>
-            <dt>Prazo</dt>
-            <dd className={pauta.restanteMs < 0 ? estilos.atrasada : undefined}>
-              {dataHora(pauta.prazo)} ({textoDoPrazo(pauta.restanteMs)})
-            </dd>
+            <dt>Prazo da curadoria</dt>
+            <dd>{dataHora(pauta.prazo)}</dd>
           </>
         )}
         <dt>Foto</dt>
@@ -307,46 +310,50 @@ export function Pauta({
       )}
 
       {pauta.status === 'em_curadoria' && (
-        <div className={estilos.decisoes}>
-          <form action={aprovar} className={estilos.cartao}>
-            <h2>Aprovar</h2>
-            <p className={estilos.detalhes}>
-              A pauta passa a aparecer no site e a juntar apoios. Confira antes se o texto não tem
-              nome de pessoa, ofensa nem dado pessoal.
-            </p>
-            <p className={estilos.detalhes}>
-              Aprovar a pauta também publica o relato de quem a criou. Confira o texto, a foto e os
-              achados de dado pessoal.
-            </p>
+        <section aria-labelledby="decisao-pauta" className={estilos.decisoes}>
+          <h2 id="decisao-pauta">Decisão</h2>
+          <p className={estilos.detalhes}>
+            Aprovar publica a pauta no site, junto com o relato de quem a criou, e ela passa a
+            juntar apoios. Confira antes o texto, a foto e os achados: nada de nome de pessoa,
+            ofensa ou dado pessoal.
+          </p>
+          <form action={aprovar} className={estilos.barraDeAcoes}>
             <input type="hidden" name="pautaId" value={pauta.id} />
-            <label htmlFor="categoria">Categoria</label>
-            <select id="categoria" name="categoria" required defaultValue="">
-              <option value="" disabled>
-                Escolha uma categoria
-              </option>
-              {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
-                <option key={valor} value={valor}>
-                  {rotulo}
+            <label className={estilos.campo}>
+              Categoria
+              <select id="categoria" name="categoria" required defaultValue="">
+                <option value="" disabled>
+                  Escolha uma categoria
                 </option>
-              ))}
-            </select>
-            <label>
+                {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
+                  <option key={valor} value={valor}>
+                    {rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={estilos.marcar}>
               <input type="checkbox" name="urgente" /> Marcar como urgente
             </label>
-            <button className={estilos.botao} type="submit" style={{ marginTop: 10 }}>
+            <button className={estilos.botao} type="submit">
               Aprovar pauta
             </button>
           </form>
-          <form action={recusar} className={estilos.cartao}>
-            <h2>Recusar</h2>
-            <input type="hidden" name="pautaId" value={pauta.id} />
-            <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
-            <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
-            <button className={estilos.botaoPerigo} type="submit">
-              Recusar pauta
-            </button>
-          </form>
-        </div>
+          <details
+            className={estilos.recusa}
+            open={erro === 'motivo_obrigatorio' || erro === 'motivo_longo'}
+          >
+            <summary className={estilos.botaoSecundario}>Recusar pauta</summary>
+            <form action={recusar} className={estilos.formulario}>
+              <input type="hidden" name="pautaId" value={pauta.id} />
+              <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
+              <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
+              <button className={estilos.botaoPerigo} type="submit">
+                Confirmar recusa
+              </button>
+            </form>
+          </details>
+        </section>
       )}
       {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
         <form action={atualizarUrgencia} className={estilos.cartao}>

@@ -49,7 +49,7 @@ export function AjustesDeMeta({
           Meta ajustada.
         </p>
       )}
-      <div className={estilos.decisoes}>
+      <div className={estilos.grade}>
         <form action={corrigirBloco} className={estilos.cartao}>
           <h3>Corrigir bloco</h3>
           <input type="hidden" name="pautaId" value={pautaId} />

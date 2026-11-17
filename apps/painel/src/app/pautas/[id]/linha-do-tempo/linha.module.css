@@ -1,5 +1,5 @@
 .voltar {
-  color: var(--primaria);
+  color: var(--luz-tinta);
   font-weight: 600;
 }
 
@@ -10,7 +10,7 @@
 }
 
 .detalhesRecolhiveis summary {
-  color: var(--primaria);
+  color: var(--luz-tinta);
   font-weight: 600;
   cursor: pointer;
 }
@@ -29,14 +29,14 @@
 
 .apoio {
   margin: 0 0 24px;
-  color: var(--tinta-secundaria);
+  color: var(--tinta-2);
   line-height: 1.5;
 }
 
 .vazio {
   padding: 20px;
   border: 1px solid var(--borda);
-  border-radius: 14px;
+  border-radius: var(--raio);
   background: var(--superficie);
 }
 
@@ -54,7 +54,7 @@
   gap: 4px 16px;
   padding: 16px 20px;
   border: 1px solid var(--borda);
-  border-radius: 14px;
+  border-radius: var(--raio);
   background: var(--superficie);
 }
 
@@ -65,13 +65,14 @@
 }
 
 .data {
-  color: var(--tinta-secundaria);
+  color: var(--tinta-2);
   font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
 }
 
 .rotulo {
   margin: 0;
+  font-family: var(--fonte-titulo), system-ui, sans-serif;
   font-size: 1.0625rem;
 }
 
@@ -92,9 +93,10 @@
 .marcaInterna {
   padding: 2px 10px;
   border-radius: 999px;
-  background: var(--destaque-suave);
-  color: var(--tinta-secundaria);
+  background: var(--superficie-2);
+  color: var(--tinta-2);
   font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .marcaInterna {

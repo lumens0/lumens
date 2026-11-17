@@ -16,6 +16,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  // O próprio Auth.js (/api/auth) e os arquivos do Next ficam de fora.
-  matcher: ['/((?!api/auth|_next/|favicon.ico).*)'],
+  // O próprio Auth.js (/api/auth), os arquivos do Next e o logo (usado na tela de login) ficam de fora.
+  matcher: ['/((?!api/auth|_next/|favicon.ico|lumens-marca.svg).*)'],
 };
