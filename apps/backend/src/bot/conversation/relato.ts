@@ -12,8 +12,8 @@
  * continuam nos dados, e a pauta nova (2.6, `nova-pauta.ts`) usa os dois como descrição e lugar.
  * Quando escolhe "É essa", o `relatoCifrado` segue para o apoio, que oferece juntá-lo à pauta.
  */
-import { buscarPautasParecidas, listarBlocos, termosDaBusca } from '@lumens/dominio';
-import type { Db } from '@lumens/db';
+import { SEM_APOIO, buscarPautasParecidas, listarBlocos, termosDaBusca } from '@lumens/dominio';
+import { eq, pautas, type Db } from '@lumens/db';
 import { z } from 'zod';
 import { entrarNoApoio } from './apoio';
 import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
@@ -50,7 +50,7 @@ export const NEW_FROM_REPORT_TEXT = 'Certo, vamos criar uma pauta nova com o seu
 export const NO_SIMILAR_TEXT = `Não encontrei pauta aberta parecida com o seu relato. Quer criar uma pauta nova com ele?\n${YES_NO_TEXT}`;
 export const NOTHING_CREATED_TEXT = 'Tudo bem, não criei nada.';
 export const NEW_SUPPORT_FAILED_TEXT =
-  'Não consegui registrar o apoio nessa pauta. Vamos seguir com a sua pauta nova.';
+  'Essa pauta não está recebendo apoios agora. Vamos seguir com a sua pauta nova.';
 export const REPORT_LOST_TEXT =
   'Não consegui recuperar o seu relato. Escolha 1 no menu para relatar de novo.';
 
@@ -180,16 +180,23 @@ export const newPickSimilar: StepHandler = async (ctx) => {
       replies: [PICK_AGAIN_TEXT, listaDeParecidas(parecidas, NEW_SIMILAR_LIST_TEXT)],
     };
   }
-  const resultado = await entrarNoApoio(ctx, escolhida.id);
-  if (resultado.next === 'MENU') {
-    // O apoio não deu (a pauta fechou entre a lista e a escolha): segue a pauta nova, que era o
-    // que a pessoa veio fazer, sem perder o título e o bloco.
+  // A pauta pode ter fechado entre a lista e a escolha (curadoria recusou, meta conquistada):
+  // aí segue a pauta nova, que era o que a pessoa veio fazer, sem perder o título e o bloco.
+  // Decide pela pauta, não pelo passo que o apoio devolve: outras recusas (cadastro que perdeu a
+  // verificação) também voltam ao menu e não devem virar pauta nova recusada no fim.
+  const [pauta] = await ctx.db
+    .select({ status: pautas.status })
+    .from(pautas)
+    .where(eq(pautas.id, escolhida.id));
+  if (pauta === undefined || SEM_APOIO.has(pauta.status)) {
     return {
       next: 'NEW_ASK_DESCRIPTION',
       data: { parecidas: undefined },
       replies: [NEW_SUPPORT_FAILED_TEXT, DESCRIPTION_QUESTION_TEXT],
     };
   }
+
+  const resultado = await entrarNoApoio(ctx, escolhida.id);
   // A pauta nova não vai ser criada: o título e o bloco saem da conversa junto com a lista.
   return {
     ...resultado,
