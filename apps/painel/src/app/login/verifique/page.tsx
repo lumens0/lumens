@@ -11,6 +11,10 @@ export default function Verifique() {
           Se o e-mail estiver autorizado, você vai receber um link para entrar. Ele vale por 15
           minutos e uma vez só.
         </p>
+        <p className={estilos.descricao}>
+          Abra o link no mesmo navegador em que pediu. Se o e-mail não chegar em alguns minutos,
+          olhe a caixa de spam.
+        </p>
       </section>
     </main>
   );

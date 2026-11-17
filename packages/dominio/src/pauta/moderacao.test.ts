@@ -35,7 +35,7 @@ describe('listarRelatosPendentes', () => {
       criadaEm: new Date('2030-01-02T10:00:00.000Z'),
     });
     const antiga = await criarPauta(db, {
-      status: 'em_curadoria',
+      status: 'juntando_apoios',
       criadaEm: new Date('2030-01-01T10:00:00.000Z'),
     });
     const daNova = await criarRelato(db, {
@@ -79,8 +79,10 @@ describe('listarRelatosPendentes', () => {
 
   it('deixa de fora relato já moderado e relato de pauta recusada', async () => {
     const pauta = await criarPauta(db);
+    const emCuradoria = await criarPauta(db, { status: 'em_curadoria' });
     const recusada = await criarPauta(db, { status: 'recusada' });
     const pendente = await criarRelato(db, { pautaId: pauta.id });
+    await criarRelato(db, { pautaId: emCuradoria.id });
     await criarRelato(db, { pautaId: pauta.id, moderacao: 'aprovado' });
     await criarRelato(db, { pautaId: pauta.id, moderacao: 'recusado' });
     await criarRelato(db, { pautaId: recusada.id });
@@ -89,6 +91,7 @@ describe('listarRelatosPendentes', () => {
 
     expect(fila.find((p) => p.id === pauta.id)?.relatos.map((r) => r.id)).toEqual([pendente.id]);
     expect(fila.map((p) => p.id)).not.toContain(recusada.id);
+    expect(fila.map((p) => p.id)).not.toContain(emCuradoria.id);
   });
 
   it('pauta sem relato pendente não entra na fila', async () => {
@@ -121,7 +124,7 @@ describe('aprovarRelato', () => {
     const agora = new Date('2030-01-02T12:00:00.000Z');
 
     const r = await db.transaction((tx) =>
-      aprovarRelato(tx, { relatoId: relato.id, curadorId, agora }),
+      aprovarRelato(tx, { relatoId: relato.id, curadorId, agora, fotoVista: null }),
     );
 
     expect(r).toEqual({ moderado: true });
@@ -148,16 +151,42 @@ describe('aprovarRelato', () => {
       recusarRelato(tx, { relatoId: relato.id, curadorId, agora: antes }),
     );
 
-    const r = await db.transaction((tx) => aprovarRelato(tx, { relatoId: relato.id, curadorId }));
+    const r = await db.transaction((tx) =>
+      aprovarRelato(tx, { relatoId: relato.id, curadorId, fotoVista: null }),
+    );
 
     expect(r).toEqual({ moderado: false, motivo: 'ja_moderado' });
     expect(await relatoDo(relato.id)).toMatchObject({ moderacao: 'recusado', moderadoEm: antes });
     expect(await eventosDa(pauta.id)).toEqual([]);
   });
 
+  it('foto juntada depois de a fila abrir: aprovar o relato visto sem foto é recusado', async () => {
+    const pauta = await criarPauta(db);
+    const relato = await criarRelato(db, { pautaId: pauta.id });
+    await db.update(relatos).set({ fotoChave: 'fotos/nova.jpg' }).where(eq(relatos.id, relato.id));
+
+    const r = await db.transaction((tx) =>
+      aprovarRelato(tx, { relatoId: relato.id, curadorId, fotoVista: null }),
+    );
+
+    expect(r).toEqual({ moderado: false, motivo: 'relato_mudou' });
+    expect(await relatoDo(relato.id)).toMatchObject({ moderacao: 'pendente', moderadoEm: null });
+    expect(await eventosDa(pauta.id)).toEqual([]);
+
+    // Vista a foto nova, a aprovação passa.
+    const outra = await db.transaction((tx) =>
+      aprovarRelato(tx, { relatoId: relato.id, curadorId, fotoVista: 'fotos/nova.jpg' }),
+    );
+    expect(outra).toEqual({ moderado: true });
+  });
+
   it('relato que não existe', async () => {
     const r = await db.transaction((tx) =>
-      aprovarRelato(tx, { relatoId: '00000000-0000-0000-0000-000000000000', curadorId }),
+      aprovarRelato(tx, {
+        relatoId: '00000000-0000-0000-0000-000000000000',
+        curadorId,
+        fotoVista: null,
+      }),
     );
     expect(r).toEqual({ moderado: false, motivo: 'relato_inexistente' });
   });
@@ -187,7 +216,7 @@ describe('recusarRelato', () => {
     const relato = await criarRelato(db, { pautaId: pauta.id });
     const antes = new Date('2030-01-02T12:00:00.000Z');
     await db.transaction((tx) =>
-      aprovarRelato(tx, { relatoId: relato.id, curadorId, agora: antes }),
+      aprovarRelato(tx, { relatoId: relato.id, curadorId, agora: antes, fotoVista: null }),
     );
 
     const r = await db.transaction((tx) => recusarRelato(tx, { relatoId: relato.id, curadorId }));
@@ -226,7 +255,9 @@ describe('moderação e views públicas', () => {
     // Antes de qualquer decisão, os três estão pendentes.
     expect(await relatosNoSite()).toEqual([]);
 
-    await db.transaction((tx) => aprovarRelato(tx, { relatoId: aprovado.id, curadorId }));
+    await db.transaction((tx) =>
+      aprovarRelato(tx, { relatoId: aprovado.id, curadorId, fotoVista: 'fotos/a.jpg' }),
+    );
     await db.transaction((tx) => recusarRelato(tx, { relatoId: recusado.id, curadorId }));
 
     expect(await relatosNoSite()).toEqual([{ texto: 'aprovado', foto_chave: 'fotos/a.jpg' }]);
@@ -267,7 +298,7 @@ describe.skipIf(!URL_TESTE)('moderação com Postgres de verdade', () => {
         const decisao = { relatoId: relato.id, curadorId: curador.id };
 
         const resultados = await Promise.all([
-          real.transaction((tx) => aprovarRelato(tx, decisao)),
+          real.transaction((tx) => aprovarRelato(tx, { ...decisao, fotoVista: null })),
           real.transaction((tx) => recusarRelato(tx, decisao)),
         ]);
 

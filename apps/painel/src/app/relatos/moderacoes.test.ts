@@ -16,7 +16,7 @@ describe('moderação de relatos pela tela', () => {
   it('sem curador ativo na sessão vai para o login e não grava nada', async () => {
     const { moderacoes, aprovar, recusar } = montar(undefined);
 
-    expect(await moderacoes.aprovar(ID)).toBe('/login');
+    expect(await moderacoes.aprovar(ID, null)).toBe('/login');
     expect(await moderacoes.recusar(ID)).toBe('/login');
     expect(aprovar).not.toHaveBeenCalled();
     expect(recusar).not.toHaveBeenCalled();
@@ -25,17 +25,23 @@ describe('moderação de relatos pela tela', () => {
   it('aprovar e recusar gravam com o id do curador da sessão e voltam para a fila', async () => {
     const { moderacoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await moderacoes.aprovar(ID)).toBe('/relatos?feito=aprovado');
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1');
+    expect(await moderacoes.aprovar(ID, 'fotos/a.jpg')).toBe('/relatos?feito=aprovado');
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'fotos/a.jpg');
 
     expect(await moderacoes.recusar(ID)).toBe('/relatos?feito=recusado');
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1');
   });
 
+  it('relato que ganhou foto depois da fila volta para a fila com o aviso', async () => {
+    const { moderacoes } = montar({ id: 'curador-1' }, { moderado: false, motivo: 'relato_mudou' });
+
+    expect(await moderacoes.aprovar(ID, null)).toBe('/relatos?erro=relato_mudou');
+  });
+
   it('relato já moderado volta para a fila com o aviso', async () => {
     const { moderacoes } = montar({ id: 'curador-1' }, { moderado: false, motivo: 'ja_moderado' });
 
-    expect(await moderacoes.aprovar(ID)).toBe('/relatos?erro=ja_moderado');
+    expect(await moderacoes.aprovar(ID, null)).toBe('/relatos?erro=ja_moderado');
   });
 
   it('relato inexistente ou id que não é UUID volta para a fila sem consultar o banco à toa', async () => {
@@ -46,7 +52,7 @@ describe('moderação de relatos pela tela', () => {
     expect(await moderacoes.recusar(ID)).toBe('/relatos');
 
     const invalido = montar({ id: 'curador-1' });
-    expect(await invalido.moderacoes.aprovar('1; drop table relato')).toBe('/relatos');
+    expect(await invalido.moderacoes.aprovar('1; drop table relato', null)).toBe('/relatos');
     expect(invalido.aprovar).not.toHaveBeenCalled();
   });
 });
