@@ -6,6 +6,8 @@ import { Moldura } from '../moldura';
 import { ListaDePautas } from './lista';
 import { STATUS } from './status';
 
+const PENDENCIAS: readonly PendenciaDaCuradoria[] = ['sem_resposta_oficial', 'conferencia_aberta'];
+
 export default async function PaginaDasPautas({
   searchParams,
 }: {
@@ -20,15 +22,13 @@ export default async function PaginaDasPautas({
     statusSolicitado === 'todas' || Object.hasOwn(STATUS, statusSolicitado)
       ? statusSolicitado
       : 'em_curadoria';
+  const pendencia = PENDENCIAS.find((p) => p === parametros.pendencia);
   const filtro = {
     ...(status !== 'todas' && Object.hasOwn(STATUS, status)
       ? { status: status as keyof typeof STATUS }
       : {}),
     ...(parametros.q === undefined ? {} : { q: parametros.q }),
-    ...(parametros.pendencia === 'sem_resposta_oficial' ||
-    parametros.pendencia === 'conferencia_aberta'
-      ? { pendencia: parametros.pendencia }
-      : {}),
+    ...(pendencia === undefined ? {} : { pendencia }),
   };
   const pautas = await listarPautasDaCuradoria(servidor().db, new Date(), filtro);
   return (
