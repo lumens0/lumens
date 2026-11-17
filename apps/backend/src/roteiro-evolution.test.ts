@@ -15,7 +15,7 @@ import { defaultHandlers } from './bot/conversation/handlers';
 import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
 import { REPORT_PROMPT_TEXT } from './bot/conversation/relato';
 import { PRIVACY_NOTICE_TEXT } from './bot/conversation/privacidade';
-import { DESCRIPTION_QUESTION_TEXT } from './bot/conversation/nova-pauta';
+import { PHOTO_ASK_TEXT } from './bot/conversation/nova-pauta';
 import { NEW_TITLE_TEXT } from './bot/conversation/texto';
 import { ConversationStore } from './bot/conversation/store';
 import {
@@ -142,6 +142,9 @@ describe('roteiro 1 pela entrada da Evolution', () => {
       'Certo, vamos criar uma pauta nova com o seu relato.',
       NEW_TITLE_TEXT,
     ]);
-    expect(await escrever('Bebedouro quebrado no bloco 18')).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    expect(await escrever('Bebedouro quebrado no bloco 18')).toEqual([
+      'Vou usar o seu relato como descrição da pauta.',
+      PHOTO_ASK_TEXT,
+    ]);
   });
 });
