@@ -15,6 +15,7 @@
  */
 import { decifrar, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
+import { MENU_PERGUNTA, MENU_TEXT, OPCOES_DO_MENU } from '../conversation/handlers';
 import type { Resposta } from '../conversation/resposta';
 import { respostasDoJob, type ReplySender } from '../worker';
 import { classificarErro, destinoPerdido, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
@@ -96,7 +97,12 @@ function botao(id: string, titulo: string): BotaoInline[] {
 export function paraTelegram(resposta: Resposta, chatId: number): EnvioDeMensagem[] {
   let texto: string;
   let teclado: BotaoInline[][] | undefined;
-  if (typeof resposta === 'string') {
+  if (resposta === MENU_TEXT) {
+    // SCRUM-324: no Telegram o menu principal tem botões, como as outras listas. O número fica no
+    // botão: quem digita "1" a "4" continua sendo entendido.
+    texto = MENU_PERGUNTA;
+    teclado = OPCOES_DO_MENU.map((o) => botao(o.id, `${o.id} ${o.titulo}`));
+  } else if (typeof resposta === 'string') {
     texto = resposta;
   } else if (resposta.tipo === 'imagem') {
     texto = resposta.legenda;

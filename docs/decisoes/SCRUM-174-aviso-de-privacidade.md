@@ -66,8 +66,8 @@ No bot (`PRIVACY_NOTICE_TEXT`, `apps/backend/src/bot/conversation/privacidade.ts
 > também seu e-mail @ufal.br (cifrado) e seu curso.
 > No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome,
 > telefone ou e-mail. Quem apoia não aparece: só o total.
-> Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair e apagar seu vínculo,
-> envie _sair_ a qualquer momento.
+> Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie _sair_ a
+> qualquer momento. ("e apagar seu vínculo" saiu na SCRUM-314: relatos publicados e PDFs ficam.)
 > Política completa: https://lumens-ufal.vercel.app/privacidade
 
 No site, a página `/privacidade` ganha a seção "Base legal" e deixa de dizer que a verificação e a
