@@ -238,6 +238,8 @@ describe('última mensagem do estudante (SCRUM-275)', () => {
 
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     const entrada = texto('oi');
     expect(await processIncomingJob(entrada, deps)).toEqual([
       GREETING_TEXT,
@@ -920,9 +922,7 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
     await processIncomingJob({ ...job({ text: { body: '' } }), data: dados }, deps);
 
     expect(await votos()).toEqual(['sim']);
-    // Primeiro contato pelo Telegram: o aviso de privacidade vai junto (5.7).
-    expect(await respostas()).toEqual([
-      [PRIVACY_NOTICE_TEXT, CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')],
-    ]);
+    // Sem conversa guardada, mas com cadastro: o aviso de privacidade não vai de novo (SCRUM-333).
+    expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
   });
 });
