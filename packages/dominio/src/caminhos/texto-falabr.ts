@@ -25,6 +25,7 @@
  * equipe quiser os relatos no corpo, cada um terá de passar pela RN08
  * individualmente e isso é outra decisão, não um parâmetro deste módulo.
  */
+import { rotuloDaCategoria } from '@lumens/contratos';
 import {
   type Achado,
   type OpcoesDeConferencia,
@@ -35,7 +36,11 @@ import {
 export interface PautaParaTexto {
   titulo: string;
   descricao: string;
-  /** Categoria da pauta, como a curadoria classificou. */
+  /**
+   * Categoria gravada na pauta (o slug, ex.: `seguranca`). O texto mostra o rótulo da lista oficial
+   * (SCRUM-291); `a_classificar` ou valor fora da lista deixa a linha "Categoria" de fora, nunca o
+   * valor cru.
+   */
   categoria: string;
   /** Nome do bloco; `null` quando a pauta é do campus inteiro. */
   bloco: string | null;
@@ -98,7 +103,7 @@ export function gerarTextoFalaBr(
 ): TextoFalaBr {
   const titulo = exigirTexto(pauta.titulo, 'titulo');
   const descricao = exigirTexto(pauta.descricao, 'descricao');
-  const categoria = exigirTexto(pauta.categoria, 'categoria');
+  const categoria = rotuloDaCategoria(pauta.categoria.trim());
 
   exigirInteiroNaoNegativo(pauta.apoios, 'apoios');
   exigirInteiroNaoNegativo(pauta.meta, 'meta');
@@ -115,7 +120,7 @@ export function gerarTextoFalaBr(
     [
       `Assunto: ${titulo}`,
       '',
-      `Categoria: ${categoria}`,
+      ...(categoria === undefined ? [] : [`Categoria: ${categoria}`]),
       `Local: ${local === '' ? 'Campus inteiro' : local}`,
       '',
       'Descrição',

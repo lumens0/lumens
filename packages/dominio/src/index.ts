@@ -127,12 +127,14 @@ export type { Transicao } from './pauta/status';
 
 export {
   CATEGORIA_A_CLASSIFICAR,
+  CATEGORIAS,
   DESCRICAO_MAXIMA,
   TITULO_MAXIMO,
   criarPauta,
+  ehCategoria,
   gerarSlug,
 } from './pauta/pauta';
-export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
+export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
