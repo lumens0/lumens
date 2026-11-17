@@ -39,14 +39,13 @@ async function buscar(caminho: string, fresca = false): Promise<Response> {
       'API de leitura não respondeu há pouco: sem nova tentativa por alguns segundos.',
     );
   try {
-    return await fetch(
-      `${urlDaApi()}${caminho}`,
-      fresca
-        ? { cache: 'no-store', signal: AbortSignal.timeout(TEMPO_LIMITE_MS) }
-        : { next: { revalidate: 30 }, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) },
-    );
+    return await fetch(`${urlDaApi()}${caminho}`, {
+      ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } }),
+      signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+    });
   } catch (erro) {
-    if ((erro as Error).name === 'TimeoutError') apiSemResponderAte = Date.now() + PAUSA_MS;
+    if (erro instanceof Error && erro.name === 'TimeoutError')
+      apiSemResponderAte = Date.now() + PAUSA_MS;
     throw erro;
   }
 }
