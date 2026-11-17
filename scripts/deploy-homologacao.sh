@@ -61,11 +61,17 @@ fi
 # Backup diário (docs/operacao/backup.md). Na homologação ele nunca foi instalado, e ninguém
 # percebeu (SCRUM-328): o timer é um passo à mão, fora do deploy. Aqui não para o deploy, porque
 # publicar não piora o backup que falta, mas o aviso aparece em todo deploy até alguém instalar.
-# Timer ativo não basta: se o último backup falhou (disco cheio, Postgres parado), avisa também.
+# Timer ativo não basta: se o último backup falhou (disco cheio, Postgres parado), ou se nenhum
+# dump novo existe (timer instalado e nunca disparado, VM sempre desligada às 12:00), avisa também.
+# 72 h e não 24: a VM fica desligada no fim de semana, e o `Persistent=true` só recupera o backup
+# perdido uns minutos depois do boot, então a segunda de manhã não deve soar alarme falso.
+BACKUP_DIARIO=${BACKUP_DIR:-/var/backups/lumens}/diario
 if ! systemctl is-active --quiet lumens-backup.timer 2>/dev/null; then
   echo "::warning::O timer lumens-backup.timer não está ativo nesta VM: o banco está sem backup diário. Instale como em docs/operacao/backup.md (Instalar na VM)." >&2
 elif systemctl is-failed --quiet lumens-backup.service 2>/dev/null; then
   echo "::warning::O último backup do banco falhou. Veja: journalctl -u lumens-backup.service -n 50" >&2
+elif [[ -z $(find "$BACKUP_DIARIO" -maxdepth 1 -name 'lumens-*.dump' -mmin -$((72 * 60)) 2>/dev/null) ]]; then
+  echo "::warning::Nenhum backup do banco nas últimas 72 h em $BACKUP_DIARIO. Rode: sudo systemctl start lumens-backup.service" >&2
 fi
 
 echo "--> Atualizando o código para $REF"

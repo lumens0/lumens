@@ -31,8 +31,9 @@ gerenciado. Então o backup é próprio:
 
 ## Instalar na VM
 
-Uma vez, depois do primeiro deploy. Enquanto o timer não estiver ativo, ou se o último backup
-tiver falhado, o `scripts/deploy-homologacao.sh` deixa um aviso no log do CI a cada deploy:
+Uma vez, depois do primeiro deploy. O `scripts/deploy-homologacao.sh` deixa um aviso no log do CI
+a cada deploy enquanto o timer não estiver ativo, o último backup tiver falhado ou não houver
+dump das últimas 72 h:
 
 ```bash
 sudo mkdir -p /var/backups/lumens && sudo chown azureuser:azureuser /var/backups/lumens && sudo chmod 700 /var/backups/lumens
