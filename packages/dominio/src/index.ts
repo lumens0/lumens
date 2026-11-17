@@ -115,6 +115,7 @@ export type {
 
 export {
   MODELO_PAUTA_RECUSADA,
+  MOTIVO_RECUSA_MAXIMO,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
   buscarPautaDaCuradoria,
