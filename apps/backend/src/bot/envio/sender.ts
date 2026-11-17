@@ -65,6 +65,7 @@ const PERMANENTES = new Set([
   132007, // parâmetro viola a política de formatação do modelo
   132012, // formato de parâmetro não bate com o modelo
   132016, // modelo desativado de vez
+  132018, // parâmetro com quebra de linha, tab ou mais de 4 espaços seguidos
 ]);
 
 /**

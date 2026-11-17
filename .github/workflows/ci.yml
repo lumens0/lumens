@@ -164,7 +164,8 @@ jobs:
         run: rm -f .env
 
   # Ponta a ponta do site (SCRUM-28): a API de leitura real sobre o seed e o site construído.
-  # Para ser obrigatório no merge, `e2e` precisa entrar no ruleset `protecao-main`.
+  # ATENÇÃO: como o `check`, este nome é contexto exigido pelo ruleset `protecao-main`, e os
+  # deploys esperam por ele (SCRUM-312). Renomear aqui exige atualizar o ruleset.
   e2e:
     name: e2e
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
@@ -234,7 +235,9 @@ jobs:
 
   deploy:
     name: deploy-${{ matrix.projeto }}
-    needs: check
+    # SCRUM-312: o e2e também, e não em paralelo. O ruleset barra PR com e2e vermelho, mas o
+    # merge commit da main não é idêntico a nenhum dos pais e pode quebrar só aqui.
+    needs: [check, e2e]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -289,7 +292,8 @@ jobs:
   # deve esconder a do outro — site na Vercel e back-end na VM caem por motivos diferentes.
   deploy-backend:
     name: deploy-backend
-    needs: check
+    # Como o `deploy`: só publica com o check e o e2e verdes deste mesmo commit (SCRUM-312).
+    needs: [check, e2e]
     if: >-
       ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main')
       || github.event_name == 'workflow_dispatch' }}

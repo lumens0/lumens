@@ -31,12 +31,13 @@ export async function definirCategoria(formulario: FormData) {
   const quem = await curadorDaSessao();
   if (!quem) redirect('/login');
   if (!UUID.test(pautaId)) redirect('/fila');
-  const atualizada = await servidor().db.transaction((tx) =>
+  const resultado = await servidor().db.transaction((tx) =>
     gravarCategoria(tx, { pautaId, categoria: texto(formulario, 'categoria') }),
   );
+  if (resultado.feito) redirect(`/pautas/${pautaId}?feito=categoria`);
   redirect(
-    atualizada
-      ? `/pautas/${pautaId}?feito=categoria`
-      : `/pautas/${pautaId}?erro=categoria_invalida`,
+    resultado.motivo === 'pauta_inexistente'
+      ? '/fila'
+      : `/pautas/${pautaId}?erro=${resultado.motivo}`,
   );
 }
