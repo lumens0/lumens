@@ -236,6 +236,10 @@ Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
 
+Dispare o Run workflow **da `main`**. De outra branch o deploy é pulado com o aviso "Deploy
+ignorado" e nada é publicado; e o `scripts/deploy-homologacao.sh` também recusa qualquer SHA que
+não esteja na `main` (SCRUM-336), porque o banco da homologação não tem backup.
+
 ### O que o site mostra quando ela está desligada
 
 O site continua no ar na Vercel, mas as páginas que leem a API (`/`, `/conquistas`, `/atividade`

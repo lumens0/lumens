@@ -156,6 +156,11 @@ export const pautas = pgTable(
   ],
 );
 
+/**
+ * Quem cuida de cada pauta. `papel` é histórico (SCRUM-315): `owner` é quem criou a pauta,
+ * `co_owner` quem entrou depois. Quem cuida hoje é qualquer papel com `ate` nulo; quando o owner
+ * sai, ninguém é promovido. Uma pessoa tem no máximo um papel ativo por pauta (índice único).
+ */
 export const papeisPauta = pgTable(
   'papel_pauta',
   {
@@ -174,6 +179,11 @@ export const papeisPauta = pgTable(
   (t) => [
     primaryKey({ columns: [t.pautaId, t.estudanteId, t.desde] }),
     index('papel_pauta_estudante_id_idx').on(t.estudanteId),
+    // SCRUM-315: defesa no banco, além do FOR UPDATE de `adicionarCoOwner`. Script, seed ou tela
+    // que escreva direto também não cria dois papéis ativos para a mesma pessoa na mesma pauta.
+    uniqueIndex('papel_pauta_ativo_unico')
+      .on(t.pautaId, t.estudanteId)
+      .where(sql`${t.ate} IS NULL`),
   ],
 );
 

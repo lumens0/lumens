@@ -140,6 +140,7 @@ export type {
 
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {
+  AprovacaoDeRelato,
   DecisaoDeModeracao,
   PautaComRelatosPendentes,
   RelatoPendente,
@@ -172,8 +173,13 @@ export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 
-export { RELATO_MAXIMO, adicionarRelato } from './pauta/relato';
-export type { NovoRelatoDoEstudante, ResultadoRelato } from './pauta/relato';
+export { RELATO_MAXIMO, adicionarRelato, anexarFotoAoRelato } from './pauta/relato';
+export type {
+  FotoDoRelato,
+  NovoRelatoDoEstudante,
+  ResultadoFotoDoRelato,
+  ResultadoRelato,
+} from './pauta/relato';
 
 export { processarUmaVez } from './compartilhado/processar-uma-vez';
 export type { ResultadoProcessamento } from './compartilhado/processar-uma-vez';
