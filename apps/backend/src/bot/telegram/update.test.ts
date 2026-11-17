@@ -9,6 +9,7 @@ import { conteudoDoJob } from '../webhook/process';
 import { inputOf } from '../worker';
 import {
   chaveDoChat,
+  ESCOLHA_TEXT,
   comandoDoStart,
   jobDoTelegram,
   mensagemDoUpdate,
@@ -188,13 +189,14 @@ describe('jobDoTelegram', () => {
 describe('processarUpdate', () => {
   let db: Db;
   let queue: FakeQueue;
-  const chamar = vi.fn(() => Promise.resolve(true));
+  const chamar = vi.fn((_metodo: string, _corpo?: unknown) => Promise.resolve(true));
 
   beforeEach(async () => {
     db = await criarBancoEmMemoria();
     await prepararFilaFalsa(db);
     queue = new FakeQueue();
-    chamar.mockClear();
+    chamar.mockReset();
+    chamar.mockImplementation(() => Promise.resolve(true));
   }, 20_000);
 
   const deps = () => ({ db, queue, logger: silencioso, chaves, api: { chamar: chamar as never } });
@@ -223,6 +225,87 @@ describe('processarUpdate', () => {
     expect(await db.select().from(mensagensProcessadas)).toHaveLength(0);
     queue.failSend = false;
     expect(await processarUpdate(mensagem({ text: 'oi' }), deps())).toBe('enfileirada');
+  });
+
+  describe('a escolha aparece na conversa e o teclado some (SCRUM-324)', () => {
+    const teclado = {
+      inline_keyboard: [
+        [{ text: 'Direito', callback_data: 'curso:Direito' }],
+        [{ text: 'Medicina', callback_data: 'curso:Medicina' }],
+      ],
+    };
+    const toque = (updateId: number, text = 'Qual é o seu *curso*?') => ({
+      update_id: updateId,
+      callback_query: {
+        id: `cb-${String(updateId)}`,
+        data: 'curso:Medicina',
+        message: {
+          chat: chatPrivado,
+          message_id: 77,
+          text,
+          entities: [{ type: 'bold', offset: 0, length: 4 }],
+          reply_markup: teclado,
+        },
+      },
+    });
+
+    it('edita a mensagem com a escolha no fim, mantém o negrito e não manda teclado', async () => {
+      await processarUpdate(toque(30), deps());
+
+      expect(chamar).toHaveBeenCalledWith('editMessageText', {
+        chat_id: CHAT,
+        message_id: 77,
+        text: `Qual é o seu *curso*?\n\n${ESCOLHA_TEXT('Medicina')}`,
+        entities: [{ type: 'bold', offset: 0, length: 4 }],
+      });
+    });
+
+    it('o mesmo update de novo (reenvio) não edita outra vez', async () => {
+      await processarUpdate(toque(31), deps());
+      chamar.mockReset();
+      chamar.mockImplementation(() => Promise.resolve(true));
+
+      expect(await processarUpdate(toque(31), deps())).toBe('duplicada');
+      expect(chamar).not.toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
+
+    it('texto que passaria do limite só perde o teclado', async () => {
+      await processarUpdate(toque(32, 'x'.repeat(4090)), deps());
+
+      expect(chamar).toHaveBeenCalledWith('editMessageReplyMarkup', {
+        chat_id: CHAT,
+        message_id: 77,
+      });
+      expect(chamar).not.toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
+
+    it('botão que não está no teclado da mensagem não edita nada', () => {
+      const r = mapear({
+        ...toque(33),
+        callback_query: { ...toque(33).callback_query, data: 'outra-coisa' },
+      });
+
+      expect(r.tipo === 'mensagem' ? r.mensagem.escolha : 'ignorado').toBeUndefined();
+    });
+
+    it('a edição que falha é registrada e não derruba o update', async () => {
+      // `answerCallbackQuery` sai antes: a rejeição tem de ser só da edição da mensagem.
+      chamar.mockImplementation((metodo: string) =>
+        metodo === 'editMessageText'
+          ? Promise.reject(new Error('400 message is not modified'))
+          : Promise.resolve(true),
+      );
+      const avisos: string[] = [];
+      const logger = pino({ level: 'warn' }, { write: (linha: string) => avisos.push(linha) });
+
+      const r = await processarUpdate(toque(34), { ...deps(), logger });
+      await vi.waitFor(() => {
+        expect(avisos.join('')).toContain('mostrar a escolha');
+      });
+
+      expect(r).toBe('enfileirada');
+      expect(chamar).toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
   });
 
   it('responde o botão tocado com answerCallbackQuery', async () => {
