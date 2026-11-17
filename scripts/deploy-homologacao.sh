@@ -113,6 +113,16 @@ echo "--> Limpando imagens antigas e cache de build"
 # - Cache: o de mais de 72 h sai, e o resto fica em no máximo 3 GB, mantendo o usado por último.
 #
 # A limpeza não derruba o deploy: o código novo já está no ar quando ela roda.
+# A imagem base dos builds (`FROM node:24-slim`) não tem contêiner e é antiga, então o prune abaixo
+# a tiraria a cada deploy e o build seguinte a baixaria de novo. Um contêiner parado por base a
+# protege ("imagem usada por contêiner nunca sai"); ele é refeito a cada deploy, para acompanhar a
+# base que o build acabou de usar e deixar a anterior sair no prazo.
+for base in $(awk '/^FROM[[:space:]]/ {print $2}' Dockerfile apps/painel/Dockerfile | sort -u); do
+  guarda="lumens-base-$(echo "$base" | tr -c 'a-zA-Z0-9_.-' '-')"
+  docker rm --force "$guarda" >/dev/null 2>&1 || true
+  docker create --name "$guarda" "$base" true >/dev/null ||
+    echo "::warning::Não consegui proteger a imagem base $base da limpeza." >&2
+done
 docker image prune --force ||
   echo "::warning::Não consegui limpar as imagens sem tag do Docker." >&2
 docker image prune --all --force --filter until=72h ||
