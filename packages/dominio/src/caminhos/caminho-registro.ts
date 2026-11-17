@@ -144,7 +144,7 @@ export async function registrarProtocolo(
   // como duas transações, e a segunda não pode sobrescrever a primeira.
   const [gravado] = await tx
     .update(caminhos)
-    .set({ protocolo: limpo, prazo: prazo.vence })
+    .set({ protocolo: limpo, prazo: prazo.vence, protocoloEm: abertoEm, prorrogado })
     // `is null` escrito à mão porque o `isNull` do Drizzle não está na lista de
     // operadores que o @lumens/db reexporta, e essa lista é do pacote de outra
     // pessoa. Acrescentá-lo lá seria mais limpo, mas é decisão de quem o mantém.
@@ -155,7 +155,7 @@ export async function registrarProtocolo(
     await registrarEvento(tx, {
       pautaId: caminho.pautaId,
       tipo: 'protocolo_registrado',
-      dados: { caminho_id: caminhoId, protocolo: limpo },
+      dados: { caminho_id: caminhoId, protocolo: limpo, prorrogado },
       origem: 'bot',
     });
     // Protocolado, a pauta passa a ser cobrada (T12). Se já estava em `cobrando` ou adiante, fica.

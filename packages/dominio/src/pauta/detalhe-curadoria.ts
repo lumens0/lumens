@@ -29,6 +29,7 @@ export interface RelatoDaCuradoria {
 }
 
 export interface PromessaDaCuradoria {
+  id: string;
   resumo: string;
   fonte: string;
   dataEntrega: string;
@@ -45,6 +46,7 @@ export interface DetalhePautaDaCuradoria extends PautaDaCuradoria {
   responsaveis: { curso: string | null }[];
   relatos: RelatoDaCuradoria[];
   caminhos: {
+    id: string;
     tipo: 'falabr' | 'comunidade' | 'representante';
     protocolo: string | null;
     prazo: string | null;
@@ -108,7 +110,7 @@ export async function detalharPautaDaCuradoria(
         id: promessas.id,
       })
       .from(promessas)
-      .where(eq(promessas.pautaId, pautaId))
+      .where(and(eq(promessas.pautaId, pautaId), isNull(promessas.resultado)))
       .orderBy(sql`${promessas.conferenciaAbreEm} DESC`)
       .limit(1),
     db
@@ -156,7 +158,12 @@ export async function detalharPautaDaCuradoria(
       // owner não serve, porque ele pode mandar outros relatos depois de criar a pauta.
       data: moderadoEm,
     })),
-    caminhos: caminhosDaPauta.map(({ tipo, protocolo, prazo }) => ({ tipo, protocolo, prazo })),
+    caminhos: caminhosDaPauta.map(({ id, tipo, protocolo, prazo }) => ({
+      id,
+      tipo,
+      protocolo,
+      prazo,
+    })),
     promessa: promessa ? { ...promessa, votos } : null,
   };
 }

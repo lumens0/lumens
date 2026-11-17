@@ -1,5 +1,7 @@
 export { META_MAXIMA, META_MINIMA, calcularMeta } from './pauta/meta';
 export type { BlocoParaMeta } from './pauta/meta';
+export { ajustarMeta, corrigirBloco } from './pauta/ajustes-meta';
+export type { ResultadoAjusteMeta } from './pauta/ajustes-meta';
 
 export {
   adicionarCurador,
@@ -42,6 +44,19 @@ export {
 export type { ParametrosDePrazo, Prazo, TipoCaminho } from './caminhos/prazo';
 
 export { registrarProtocolo } from './caminhos/caminho-registro';
+export {
+  corrigirDataDoProtocolo,
+  registrarProrrogacao,
+  remarcarDataPrometida,
+} from './caminhos/ajustes-de-prazo';
+export { MODELO_PROMESSA_REMARCADA } from './caminhos/ajustes-de-prazo';
+export type {
+  CorrigirDataDoProtocolo,
+  MotivoRecusaAjusteDePrazo,
+  RegistrarProrrogacao,
+  RemarcarDataPrometida,
+  ResultadoAjusteDePrazo,
+} from './caminhos/ajustes-de-prazo';
 export type {
   MotivoRecusaProtocolo,
   RegistroDeProtocolo,

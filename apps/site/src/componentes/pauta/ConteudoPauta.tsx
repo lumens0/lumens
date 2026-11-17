@@ -17,10 +17,13 @@ export function ConteudoPauta({ pauta }: { pauta: PautaDetalhe }) {
       </div>
       <div className={estilos.secao}>
         <PlacarDeApoios pauta={pauta} />
+        {pauta.linha_do_tempo.some((evento) => evento.tipo === 'meta_ajustada') && (
+          <p className={estilos.vazio}>Meta ajustada pela curadoria</p>
+        )}
         <ProximaEtapa pauta={pauta} />
       </div>
       <RespostaOficial pauta={pauta} />
-      <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} />
+      <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} eventos={pauta.linha_do_tempo} />
       <Relatos relatos={pauta.relatos} />
       <LinhaDoTempo eventos={pauta.linha_do_tempo} />
       <p className={estilos.rodape}>

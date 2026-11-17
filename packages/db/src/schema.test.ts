@@ -320,6 +320,7 @@ describe('migração inicial em Postgres real', () => {
         'recusa',
         'vitoria',
         'aprovacao',
+        'remarcacao',
       ],
     });
   });

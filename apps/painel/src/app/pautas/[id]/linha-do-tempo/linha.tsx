@@ -15,10 +15,13 @@ const ROTULOS: Record<TipoEvento, string> = {
   meta_batida: 'Meta de apoios batida',
   caminho_aberto: 'Caminho aberto',
   protocolo_registrado: 'Protocolo registrado',
+  prazo_prorrogado: 'Prazo prorrogado',
+  protocolo_corrigido: 'Data do protocolo corrigida',
   proposta_publicada: 'Proposta publicada',
   proposta_executada: 'Proposta executada',
   resposta_oficial_recebida: 'Resposta oficial recebida',
   promessa_registrada: 'Promessa registrada',
+  promessa_remarcada: 'Promessa remarcada',
   conferencia_aberta: 'Conferência aberta',
   conferencia_apurada: 'Conferência apurada',
   status_alterado: 'Status alterado',
@@ -26,6 +29,8 @@ const ROTULOS: Record<TipoEvento, string> = {
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
   pauta_urgente: 'Urgência da pauta alterada',
+  bloco_corrigido: 'Bloco corrigido pela curadoria',
+  meta_ajustada: 'Meta ajustada pela curadoria',
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
@@ -59,6 +64,10 @@ function texto(valor: unknown): string {
   return typeof valor === 'number' ? String(valor) : '?';
 }
 
+function bloco(valor: unknown): string {
+  return valor === null ? 'Todo o campus' : texto(valor);
+}
+
 const nomeado = (nomes: Record<string, string>, valor: unknown) =>
   typeof valor === 'string' ? (nomes[valor] ?? valor) : '?';
 
@@ -84,10 +93,19 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
         : 'Deixou de ser urgente.';
     case 'meta_batida':
       return `${texto(dados.apoios)} apoios, para uma meta de ${texto(dados.meta)}.`;
+    case 'meta_ajustada':
+      return `De ${texto(dados.metaAntes)} para ${texto(dados.metaDepois)} apoios. Motivo: ${texto(dados.motivo)}`;
+    case 'bloco_corrigido':
+      return `${bloco(dados.blocoAntes)} → ${bloco(dados.blocoDepois)}.`;
     case 'caminho_aberto':
       return `Caminho: ${nomeado(CAMINHO, dados.tipo)}.`;
     case 'protocolo_registrado':
       return `Protocolo ${texto(dados.protocolo)}.`;
+    case 'prazo_prorrogado':
+      return `Prazo de ${dataCivil(dados.data_antiga)} para ${dataCivil(dados.data_nova)}. Motivo: ${texto(dados.motivo)} · Fonte: ${texto(dados.fonte)}`;
+    case 'protocolo_corrigido':
+    case 'promessa_remarcada':
+      return `Data de ${dataCivil(dados.data_antiga)} para ${dataCivil(dados.data_nova)}. Motivo: ${texto(dados.motivo)} · Fonte: ${texto(dados.fonte)}`;
     case 'proposta_publicada':
       return `Precisa de ${texto(dados.pessoas_necessarias)} pessoas.`;
     case 'promessa_registrada':

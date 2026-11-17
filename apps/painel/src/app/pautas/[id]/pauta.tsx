@@ -1,4 +1,9 @@
-import { CATEGORIAS, type DetalhePautaDaCuradoria, type EventoDaLinha } from '@lumens/dominio';
+import {
+  CATEGORIAS,
+  type BlocoParaRelato,
+  type DetalhePautaDaCuradoria,
+  type EventoDaLinha,
+} from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
 import { dataHora, textoDoPrazo } from '../../prazo';
@@ -6,6 +11,8 @@ import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { STATUS } from '../status';
+import { AjustesDeMeta } from './ajustes-de-meta';
+import { AjustesDePrazo } from './ajustes-de-prazo';
 
 const ERRO: Record<string, string> = {
   pauta_inexistente: 'A pauta não foi encontrada.',
@@ -17,6 +24,8 @@ const ERRO: Record<string, string> = {
 };
 
 type Acao = (formulario: FormData) => Promise<void>;
+
+async function acaoVazia(): Promise<void> {}
 
 /** Tela da pauta para a curadoria (5.2, SCRUM-168): o que foi relatado e as duas decisões. */
 const TIPO_CAMINHO = {
@@ -44,6 +53,12 @@ export function Pauta({
   definirCategoria = async () => {},
   atualizarUrgencia = async () => {},
   categoriaSalva,
+  blocos = [],
+  corrigirBloco = acaoVazia,
+  ajustarMeta = acaoVazia,
+  prorrogarPrazo,
+  corrigirProtocolo,
+  remarcarPromessa,
 }: {
   pauta: DetalhePautaDaCuradoria;
   erro?: string | undefined;
@@ -56,6 +71,12 @@ export function Pauta({
   definirCategoria?: Acao;
   atualizarUrgencia?: Acao;
   categoriaSalva?: boolean;
+  blocos?: BlocoParaRelato[];
+  corrigirBloco?: Acao;
+  ajustarMeta?: Acao;
+  prorrogarPrazo?: Acao;
+  corrigirProtocolo?: Acao;
+  remarcarPromessa?: Acao;
 }) {
   const aviso = erro === undefined ? undefined : ERRO[erro];
   const categoria =
@@ -84,6 +105,11 @@ export function Pauta({
         </p>
       )}
       {categoriaSalva && <p role="status">Categoria atualizada.</p>}
+      {feito === 'ajuste_prazo' && (
+        <p className={estilos.aviso} role="status">
+          Ajuste de prazo registrado.
+        </p>
+      )}
       {aviso !== undefined && (
         <p className={estilos.erro} role="alert">
           {aviso}
@@ -134,6 +160,19 @@ export function Pauta({
         />
         {pauta.metaBatidaEm && <p>Meta batida em {dataHora(pauta.metaBatidaEm)}</p>}
       </section>
+
+      {['em_curadoria', 'juntando_apoios'].includes(pauta.status) && (
+        <AjustesDeMeta
+          pautaId={pauta.id}
+          meta={pauta.meta}
+          blocoId={pauta.blocoId}
+          blocos={blocos}
+          corrigirBloco={corrigirBloco}
+          ajustarMeta={ajustarMeta}
+          erro={erro}
+          feito={feito}
+        />
+      )}
 
       <section aria-labelledby="relatos-pauta">
         <h2 id="relatos-pauta">Relatos</h2>
@@ -209,6 +248,17 @@ export function Pauta({
       )}
 
       <LinhaDoTempo pautaId={pauta.id} titulo={pauta.titulo} eventos={eventos} recolhivel />
+
+      {prorrogarPrazo && corrigirProtocolo && remarcarPromessa && (
+        <AjustesDePrazo
+          pauta={pauta}
+          eventos={eventos}
+          erro={erro}
+          prorrogar={prorrogarPrazo}
+          corrigir={corrigirProtocolo}
+          remarcar={remarcarPromessa}
+        />
+      )}
 
       {ACEITA_PROMESSA.includes(pauta.status) && (
         <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>

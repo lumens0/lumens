@@ -30,6 +30,30 @@ describe('página da pauta: seções', () => {
     expect(html).toContain('Urgente');
   });
 
+  it('mostra indicação junto ao placar quando a meta foi ajustada e textos dos novos eventos', () => {
+    const meta = {
+      tipo: 'meta_ajustada',
+      dados: { metaAntes: 100, metaDepois: 80, motivo: 'Ajuste excepcional.' },
+      criado_em: '2026-03-19T12:00:00.000Z',
+    };
+    const pauta = { ...fixture, linha_do_tempo: [meta] };
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={pauta} />);
+    expect(html).toContain('Meta ajustada pela curadoria');
+    expect(html).toContain('Meta ajustada pela curadoria de 100 para 80: Ajuste excepcional.');
+    const bloco = renderToStaticMarkup(
+      <LinhaDoTempo
+        eventos={[
+          {
+            tipo: 'bloco_corrigido',
+            dados: { blocoAntes: 'Bloco A', blocoDepois: 'Bloco B' },
+            criado_em: '2026-03-19T12:00:00.000Z',
+          },
+        ]}
+      />,
+    );
+    expect(bloco).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
+  });
+
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');
@@ -264,6 +288,56 @@ describe('página da pauta: seções', () => {
     expect(html).toContain('entrega até 30/05/2026');
     expect(html).toContain('A prefeitura troca as luminárias até maio.');
     expect(html).toContain('href="https://ufal.br/noticia"');
+  });
+
+  it('mostra prazo prorrogado e data prometida remarcada na página', () => {
+    const caminho = { ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-12-20' };
+    const linha_do_tempo = [
+      {
+        tipo: 'caminho_aberto',
+        dados: { tipo: 'falabr', caminho_id: 'c1' },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'prazo_prorrogado',
+        dados: {
+          caminho_id: 'c1',
+          data_antiga: '2026-12-01',
+          data_nova: '2026-12-31',
+          motivo: 'Aguardando material',
+          fonte: 'Ofício 4',
+        },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'promessa_registrada',
+        dados: { data_entrega: '2026-12-10' },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'promessa_remarcada',
+        dados: {
+          data_antiga: '2026-12-10',
+          data_nova: '2026-12-15',
+          motivo: 'Entrega adiada',
+          fonte: 'Comunicado',
+        },
+        criado_em: fixture.criada_em,
+      },
+    ];
+    const pauta = { ...fixture, caminhos: [caminho], linha_do_tempo };
+    expect(
+      renderToStaticMarkup(
+        <Caminhos caminhos={[caminho]} slug={fixture.slug} eventos={linha_do_tempo} />,
+      ),
+    ).toContain('Prazo prorrogado');
+    expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} />)).toContain(
+      'Prazo do Fala.BR prorrogado.',
+    );
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} />)).toContain('Promessa remarcada');
+    const timeline = renderToStaticMarkup(<LinhaDoTempo eventos={linha_do_tempo} />);
+    expect(timeline).toContain('Promessa remarcada: 10/12/2026 → 15/12/2026');
+    expect(timeline).toContain('Motivo: Entrega adiada. Fonte: Comunicado.');
   });
 
   it('fonte sem URL fica como texto, e `javascript:` nunca vira link', () => {
