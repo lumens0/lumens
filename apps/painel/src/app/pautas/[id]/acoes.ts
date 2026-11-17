@@ -12,8 +12,10 @@ import { criarDecisoes, UUID } from './decisoes';
 
 const decisoes = criarDecisoes({
   curador: curadorDaSessao,
-  aprovar: (pautaId, curadorId, categoria) =>
-    servidor().db.transaction((tx) => aprovarPauta(tx, { pautaId, curadorId, categoria })),
+  aprovar: (pautaId, curadorId, categoria, fotoVista) =>
+    servidor().db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId, curadorId, categoria, fotoVista }),
+    ),
   recusar: (pautaId, curadorId, motivo) =>
     servidor().db.transaction((tx) => recusarPauta(tx, { pautaId, curadorId, motivo })),
 });
@@ -24,7 +26,13 @@ const texto = (formulario: FormData, campo: string) => {
 };
 
 export async function aprovar(formulario: FormData) {
-  redirect(await decisoes.aprovar(texto(formulario, 'pautaId'), texto(formulario, 'categoria')));
+  redirect(
+    await decisoes.aprovar(
+      texto(formulario, 'pautaId'),
+      texto(formulario, 'categoria'),
+      texto(formulario, 'fotoVista') || null,
+    ),
+  );
 }
 
 export async function recusar(formulario: FormData) {

@@ -19,6 +19,8 @@ const ERRO: Record<string, string> = {
   categoria_invalida: 'Escolha uma categoria válida para esta pauta.',
   relato_com_dado_pessoal:
     'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
+  relato_mudou:
+    'A foto do relato de quem criou a pauta mudou desde que a tela abriu. Confira a foto nova e aprove de novo.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
@@ -263,6 +265,7 @@ export function Pauta({
               achados de dado pessoal.
             </p>
             <input type="hidden" name="pautaId" value={pauta.id} />
+            <input type="hidden" name="fotoVista" value={pauta.fotoChave ?? ''} />
             <label htmlFor="categoria">Categoria</label>
             <select id="categoria" name="categoria" required defaultValue="">
               <option value="" disabled>

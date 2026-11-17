@@ -275,7 +275,13 @@ describe('aprovarPauta', () => {
     const agora = new Date('2030-01-02T12:00:00.000Z');
 
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', agora }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+        agora,
+      }),
     );
 
     expect(r).toEqual({ decidida: true });
@@ -313,7 +319,13 @@ describe('aprovarPauta', () => {
     const agora = new Date('2030-01-02T12:00:00.000Z');
 
     await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', agora }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+        agora,
+      }),
     );
 
     expect(await db.select().from(relatos).where(eq(relatos.id, origem.id))).toMatchObject([
@@ -322,6 +334,65 @@ describe('aprovarPauta', () => {
     expect(await db.select().from(relatos).where(eq(relatos.id, relatoPosterior.id))).toMatchObject(
       [{ moderacao: 'pendente', moderadoEm: null, moderadoPor: null }],
     );
+  });
+
+  describe('foto do relato de origem que a curadoria viu (SCRUM-301)', () => {
+    async function comRelatoDeOrigem(fotoChave: string | null) {
+      const pauta = await novaEmCuradoria();
+      const owner = await criarEstudanteVerificado(db);
+      await db
+        .insert(papeisPauta)
+        .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
+      const relato = await criarRelato(db, { pautaId: pauta.id, estudanteId: owner.id, fotoChave });
+      return { pauta, relato };
+    }
+    const moderacaoDe = async (id: string) =>
+      (await db.select().from(relatos).where(eq(relatos.id, id)))[0]?.moderacao;
+
+    it('com a foto que a tela mostrou, aprova a pauta e o relato', async () => {
+      const { pauta, relato } = await comRelatoDeOrigem('relatos/foto-vista.jpg');
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          categoria: 'infraestrutura',
+          fotoVista: 'relatos/foto-vista.jpg',
+        }),
+      );
+      expect(r).toEqual({ decidida: true });
+      expect((await pautaDa(pauta.id))?.status).toBe('juntando_apoios');
+      expect(await moderacaoDe(relato.id)).toBe('aprovado');
+    });
+
+    it('foto anexada depois de a tela abrir: nada muda', async () => {
+      const { pauta, relato } = await comRelatoDeOrigem('relatos/foto-nova.jpg');
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          categoria: 'infraestrutura',
+          fotoVista: null,
+        }),
+      );
+      expect(r).toEqual({ decidida: false, motivo: 'relato_mudou' });
+      expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
+      expect(await moderacaoDe(relato.id)).toBe('pendente');
+      expect(await eventosDa(pauta.id)).toEqual([]);
+    });
+
+    it('sem foto e sem foto vista, aprova', async () => {
+      const { pauta, relato } = await comRelatoDeOrigem(null);
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          categoria: 'infraestrutura',
+          fotoVista: null,
+        }),
+      );
+      expect(r).toEqual({ decidida: true });
+      expect(await moderacaoDe(relato.id)).toBe('aprovado');
+    });
   });
 
   it('relato de origem com e-mail trava a aprovação; recusado só ele, a pauta sai sem o relato', async () => {
@@ -337,7 +408,12 @@ describe('aprovarPauta', () => {
     });
 
     const travada = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
     expect(travada).toEqual({ decidida: false, motivo: 'relato_com_dado_pessoal' });
     expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
@@ -346,7 +422,12 @@ describe('aprovarPauta', () => {
       await db.transaction((tx) => recusarRelatoDeOrigem(tx, { pautaId: pauta.id, curadorId })),
     ).toEqual({ feito: true });
     const aprovada = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
 
     expect(aprovada).toEqual({ decidida: true });
@@ -366,7 +447,12 @@ describe('aprovarPauta', () => {
     const antes = await eventosDa(pauta.id);
 
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
 
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
@@ -393,7 +479,12 @@ describe('aprovarPauta', () => {
     ]);
 
     await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
 
     const fila = await filaDa(pauta.id);
@@ -422,7 +513,13 @@ describe('aprovarPauta', () => {
       .set({ ultimaMensagemEm: new Date(agora.getTime() - 60 * 60_000) })
       .where(eq(estudantes.id, recente.id));
     await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', agora }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+        agora,
+      }),
     );
     const desde = new Date(agora.getTime() - 24 * 60 * 60_000);
 
@@ -451,7 +548,12 @@ describe('aprovarPauta', () => {
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
 
     const r = await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
 
     expect(r).toEqual({ decidida: false, motivo: 'ja_decidida' });
@@ -464,6 +566,7 @@ describe('aprovarPauta', () => {
         pautaId: '00000000-0000-0000-0000-000000000000',
         curadorId,
         categoria: 'infraestrutura',
+        fotoVista: null,
       }),
     );
     expect(r).toEqual({ decidida: false, motivo: 'pauta_inexistente' });
@@ -479,6 +582,7 @@ describe('aprovarPauta', () => {
           pautaId: pauta.id,
           curadorId,
           categoria: categoria as string,
+          fotoVista: null,
         }),
       );
       expect(r).toEqual({ decidida: false, motivo: 'categoria_invalida' });
@@ -684,7 +788,12 @@ describe('recusarPauta', () => {
   it('motivo longo em pauta já decidida ou inexistente devolve o motivo do status', async () => {
     const pauta = await novaEmCuradoria();
     await db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura' }),
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotoVista: null,
+      }),
     );
     const longo = 'a'.repeat(501);
 
