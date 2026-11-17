@@ -26,6 +26,7 @@ import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { aprovarRelato, recusarRelato } from './moderacao';
+import { conferirAnonimato } from '../compartilhado/anonimato';
 import { transicionarStatus } from './status';
 import { CATEGORIAS } from './pauta';
 
@@ -58,7 +59,7 @@ export interface PautaDaCuradoria extends PautaNaFila {
   motivoRecusa: string | null;
 }
 
-function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]> {
+function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<PautaDaCuradoria[]> {
   return db
     .select({
       id: pautas.id,
@@ -83,6 +84,7 @@ function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]
     .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
     .where(filtro)
     .orderBy(pautas.criadaEm)
+    .limit(limite ?? 100_000)
     .then((linhas) =>
       linhas.map((p) => {
         const prazo = new Date(p.criadaEm.getTime() + PRAZO_DE_CURADORIA_MS);
@@ -97,18 +99,50 @@ export function listarFilaDeCuradoria(db: Db, agora = new Date()): Promise<Pauta
 }
 
 /** Todas as pautas, da mais antiga para a mais nova: a lista geral do painel. */
+/** Quantas pautas a lista do painel mostra de uma vez; a tela avisa quando chega nisso. */
+export const LIMITE_DA_LISTA = 200;
+
+/** Pendências do início do painel: a contagem e a lista usam o mesmo critério. */
+export type PendenciaDaCuradoria = 'sem_resposta_oficial' | 'conferencia_aberta';
+
+const semRespostaOficial = () =>
+  and(
+    eq(pautas.status, 'cobrando'),
+    sql`not exists (
+      select 1 from ${documentosResposta}
+      where ${documentosResposta.pautaId} = ${pautas.id}
+    )`,
+  ) ?? sql`false`;
+
+/** Promessa com a janela de conferência aberta agora e ainda sem resultado. */
+const promessaEmConferencia = (agora: Date) =>
+  and(
+    sql`${promessas.conferenciaAbreEm} <= ${agora.toISOString()}::timestamptz`,
+    sql`${promessas.conferenciaFechaEm} > ${agora.toISOString()}::timestamptz`,
+    sql`${promessas.resultado} is null`,
+  ) ?? sql`false`;
+
+/** `%` e `_` (e a própria barra) viram texto na busca, não curinga do `ilike`. */
+const textoLiteral = (texto: string) => texto.replace(/[\\%_]/g, (c) => `\\${c}`);
+
 export function listarPautasDaCuradoria(
   db: Db,
   agora = new Date(),
-  filtro: { status?: StatusPauta; q?: string } = {},
+  filtro: { status?: StatusPauta; q?: string; pendencia?: PendenciaDaCuradoria } = {},
 ): Promise<PautaDaCuradoria[]> {
   const condicoes: SQL[] = [];
   if (filtro.status !== undefined) condicoes.push(eq(pautas.status, filtro.status));
   if (filtro.q !== undefined && filtro.q.trim() !== '') {
-    condicoes.push(sql`${pautas.titulo} ilike ${`%${filtro.q.trim()}%`}`);
+    condicoes.push(sql`${pautas.titulo} ilike ${`%${textoLiteral(filtro.q.trim())}%`}`);
+  }
+  if (filtro.pendencia === 'sem_resposta_oficial') condicoes.push(semRespostaOficial());
+  if (filtro.pendencia === 'conferencia_aberta') {
+    condicoes.push(
+      sql`exists (select 1 from ${promessas} where ${promessas.pautaId} = ${pautas.id} and ${promessaEmConferencia(agora)})`,
+    );
   }
   const filtroSQL = condicoes.length === 0 ? sql`true` : (and(...condicoes) ?? sql`true`);
-  return lerPautas(db, filtroSQL, agora);
+  return lerPautas(db, filtroSQL, agora, LIMITE_DA_LISTA);
 }
 
 export interface ResumoDaCuradoria {
@@ -154,25 +188,11 @@ export async function resumoDaCuradoria(db: Db, agora = new Date()): Promise<Res
     db
       .select({ total: sql<number>`count(*)::int` })
       .from(pautas)
-      .where(
-        and(
-          eq(pautas.status, 'cobrando'),
-          sql`not exists (
-            select 1 from ${documentosResposta}
-            where ${documentosResposta.pautaId} = ${pautas.id}
-          )`,
-        ),
-      ),
+      .where(semRespostaOficial()),
     db
       .select({ total: sql<number>`count(distinct ${promessas.pautaId})::int` })
       .from(promessas)
-      .where(
-        and(
-          sql`${promessas.conferenciaAbreEm} <= ${agora.toISOString()}::timestamptz`,
-          sql`${promessas.conferenciaFechaEm} > ${agora.toISOString()}::timestamptz`,
-          sql`${promessas.resultado} is null`,
-        ),
-      ),
+      .where(promessaEmConferencia(agora)),
   ]);
   return {
     pautasADecidir: pautasADecidir[0]?.total ?? 0,
@@ -193,11 +213,20 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
   | {
       decidida: false;
-      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'categoria_invalida';
+      motivo:
+        | 'pauta_inexistente'
+        | 'ja_decidida'
+        | 'motivo_obrigatorio'
+        | 'motivo_longo'
+        | 'categoria_invalida'
+        | 'relato_com_dado_pessoal';
     };
 
 async function decidir(
@@ -220,6 +249,10 @@ async function decidir(
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
   }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
+  }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
   // Quem decidiu fica na pauta, não no evento: evento não leva identidade.
@@ -231,6 +264,51 @@ async function decidir(
     origem: 'curadoria',
   });
   return { decidida: true };
+}
+
+/**
+ * Os relatos pendentes de quem criou a pauta (o owner). `relato` não marca qual é o de origem: em
+ * pauta ainda em curadoria, só o owner relatou, então são esses.
+ */
+function relatosDeOrigemPendentes(tx: Tx, pautaId: string) {
+  return tx
+    .select({ id: relatos.id, texto: relatos.texto })
+    .from(relatos)
+    .innerJoin(
+      papeisPauta,
+      and(
+        eq(papeisPauta.pautaId, relatos.pautaId),
+        eq(papeisPauta.estudanteId, relatos.estudanteId),
+        eq(papeisPauta.papel, 'owner'),
+      ),
+    )
+    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
+}
+
+const temBloqueio = (texto: string) =>
+  conferirAnonimato(texto).achados.some((achado) => achado.severidade === 'bloqueio');
+
+/**
+ * Recusa só o relato de quem criou a pauta, que ainda está em curadoria (SCRUM-286): o texto tem
+ * dado pessoal, mas a pauta pode ser publicada sem ele. A pauta continua esperando a decisão.
+ */
+export async function recusarRelatoDeOrigem(
+  tx: Tx,
+  { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
+): Promise<
+  { feito: true } | { feito: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'sem_relato' }
+> {
+  const [pauta] = await tx
+    .select({ status: pautas.status })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { feito: false, motivo: 'pauta_inexistente' };
+  if (pauta.status !== 'em_curadoria') return { feito: false, motivo: 'ja_decidida' };
+  const origem = await relatosDeOrigemPendentes(tx, pautaId);
+  if (origem.length === 0) return { feito: false, motivo: 'sem_relato' };
+  for (const relato of origem) await recusarRelato(tx, { relatoId: relato.id, curadorId, agora });
+  return { feito: true };
 }
 
 /**
@@ -249,22 +327,16 @@ export async function aprovarPauta(
 ): Promise<ResultadoDecisao> {
   if (!categoria || !Object.hasOwn(CATEGORIAS, categoria))
     return { decidida: false, motivo: 'categoria_invalida' };
+  // Aprovar publica também o relato de quem criou a pauta. Com e-mail ou telefone nele, a pauta não
+  // sai: a curadoria recusa só o relato (`recusarRelatoDeOrigem`) e aprova depois, sem ele.
+  const origem = await relatosDeOrigemPendentes(tx, pautaId);
+  if (origem.some(({ texto }) => temBloqueio(texto))) {
+    return { decidida: false, motivo: 'relato_com_dado_pessoal' };
+  }
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (resultado.decidida) {
     await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
-    const relatosDeOrigem = await tx
-      .select({ id: relatos.id })
-      .from(relatos)
-      .innerJoin(
-        papeisPauta,
-        and(
-          eq(papeisPauta.pautaId, relatos.pautaId),
-          eq(papeisPauta.estudanteId, relatos.estudanteId),
-          eq(papeisPauta.papel, 'owner'),
-        ),
-      )
-      .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
-    for (const relato of relatosDeOrigem) {
+    for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
       await aprovarRelato(tx, { relatoId: relato.id, curadorId, agora });
     }
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
@@ -272,17 +344,37 @@ export async function aprovarPauta(
   return resultado;
 }
 
+export type ResultadoCategoria =
+  | { feito: true }
+  | { feito: false; motivo: 'categoria_invalida' | 'pauta_inexistente' | 'pauta_nao_publicada' };
+
+/**
+ * Troca a categoria de pauta já publicada. A troca fica na linha do tempo (`categoria_alterada`),
+ * como as outras decisões da curadoria; trocar pela mesma categoria não registra nada.
+ */
 export async function definirCategoria(
   tx: Tx,
   { pautaId, categoria }: { pautaId: string; categoria: string },
-): Promise<boolean> {
-  if (!Object.hasOwn(CATEGORIAS, categoria)) return false;
-  const resultado = await tx
-    .update(pautas)
-    .set({ categoria })
-    .where(and(eq(pautas.id, pautaId), sql`${pautas.status} not in ('em_curadoria', 'recusada')`))
-    .returning({ id: pautas.id });
-  return resultado.length > 0;
+): Promise<ResultadoCategoria> {
+  if (!Object.hasOwn(CATEGORIAS, categoria)) return { feito: false, motivo: 'categoria_invalida' };
+  const [pauta] = await tx
+    .select({ status: pautas.status, categoria: pautas.categoria })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { feito: false, motivo: 'pauta_inexistente' };
+  if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
+    return { feito: false, motivo: 'pauta_nao_publicada' };
+  }
+  if (pauta.categoria === categoria) return { feito: true };
+  await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+  await registrarEvento(tx, {
+    pautaId,
+    tipo: 'categoria_alterada',
+    dados: { de: pauta.categoria, para: categoria },
+    origem: 'curadoria',
+  });
+  return { feito: true };
 }
 
 /**
@@ -302,19 +394,7 @@ export async function recusarPauta(
   const resultado = await decidir(tx, pautaId, curadorId, 'recusada', motivo, agora);
   if (!resultado.decidida) return resultado;
 
-  const relatosDeOrigem = await tx
-    .select({ id: relatos.id })
-    .from(relatos)
-    .innerJoin(
-      papeisPauta,
-      and(
-        eq(papeisPauta.pautaId, relatos.pautaId),
-        eq(papeisPauta.estudanteId, relatos.estudanteId),
-        eq(papeisPauta.papel, 'owner'),
-      ),
-    )
-    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
-  for (const relato of relatosDeOrigem) {
+  for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
     await recusarRelato(tx, { relatoId: relato.id, curadorId, agora });
   }
 
