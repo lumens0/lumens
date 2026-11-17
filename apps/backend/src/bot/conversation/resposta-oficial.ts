@@ -37,6 +37,8 @@ export const PDF_REFUSED_TEXT: Record<MotivoPdfRecusado, string> = {
   formato: 'Esse arquivo não é um PDF. Mande o PDF da resposta, como o Fala.BR entrega.',
   tamanho: 'O PDF passa de 10 MB. Mande um arquivo menor ou fale com a curadoria.',
   indisponivel: 'Não consegui receber o arquivo agora. Tente mandar de novo em alguns minutos.',
+  armazenamento:
+    'Não consegui guardar o arquivo: o envio de arquivos está fora do ar agora. Tente de novo mais tarde ou responda *menu*.',
 };
 
 const dadosSchema = z.object({ caminhoId: z.uuid().optional() });

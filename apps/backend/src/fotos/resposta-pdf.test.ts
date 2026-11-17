@@ -79,7 +79,7 @@ describe('guardarPdf (SCRUM-220)', () => {
     expect(r).toEqual({ ok: false, motivo: 'tamanho' });
   });
 
-  it('download ou storage fora do ar viram "indisponivel", sem lançar', async () => {
+  it('download fora do ar vira "indisponivel" e storage fora do ar, "armazenamento", sem lançar', async () => {
     const semRede = await servico(new Error('ECONNRESET')).guardarPdf({
       id: 'midia-5',
       mimeType: 'application/pdf',
@@ -91,7 +91,7 @@ describe('guardarPdf (SCRUM-220)', () => {
 
     expect([semRede, semStorage]).toEqual([
       { ok: false, motivo: 'indisponivel' },
-      { ok: false, motivo: 'indisponivel' },
+      { ok: false, motivo: 'armazenamento' },
     ]);
   });
 });
