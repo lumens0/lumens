@@ -355,23 +355,32 @@ jobs:
         run: |
           # O SHA exato que passou no `check`, não `origin/main`: entre o fim do check e
           # este passo pode entrar outro merge, e subiria código que ninguém testou.
+          #
+          # VERSAO vai no ambiente da chamada (SCRUM-322): no primeiro deploy depois de uma mudança
+          # no script, quem roda é a versão antiga dele, já aberta antes do `git reset`, e ela não
+          # sabe calcular a versão. Pelo ambiente, o compose a recebe de qualquer jeito.
           ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$SSH_USUARIO@$SSH_HOST" \
-            "/opt/lumens/scripts/deploy-homologacao.sh '$SHA'"
+            "VERSAO='$SHA' /opt/lumens/scripts/deploy-homologacao.sh '$SHA'"
 
       - name: Smoke test
         if: ${{ steps.alcance.outputs.ligada == 'sim' }}
         shell: bash
+        env:
+          SHA: ${{ github.sha }}
         run: |
           # O compose devolve o controle quando o contêiner sobe, não quando o Fastify
           # começa a atender. Daí a espera, em vez de um curl único.
+          #
+          # SCRUM-322: além do banco de pé, o /saude tem de dizer o SHA deste run. Sem isso, um
+          # back-end antigo que continuou no ar passaria aqui como se fosse o novo.
           for tentativa in $(seq 1 10); do
-            if curl --fail --silent --show-error --max-time 10 "https://$DOMINIO/saude" \
-              | grep -q '"ok":true'; then
-              echo "/saude respondeu com o banco de pé."
+            saude=$(curl --fail --silent --show-error --max-time 10 "https://$DOMINIO/saude" || true)
+            if grep -q '"ok":true' <<<"$saude" && grep -qF "\"versao\":\"$SHA\"" <<<"$saude"; then
+              echo "/saude respondeu com o banco de pé e a versão $SHA."
               break
             fi
             if [[ "$tentativa" -eq 10 ]]; then
-              echo "::error::/saude não confirmou o banco depois de 10 tentativas."
+              echo "::error::/saude não confirmou o banco e a versão $SHA depois de 10 tentativas. Última resposta: $saude"
               exit 1
             fi
             sleep 6
@@ -397,3 +406,29 @@ jobs:
             fi
             sleep 6
           done
+
+  # SCRUM-322: um merge na main que não chega à homologação tem de pintar a main de vermelho. Run
+  # cancelado não pinta: em 13/11 o `check` de dois merges estourou o timeout de 10 min, os deploys
+  # ficaram "skipped" e ninguém viu. Este job falha quando o check ou um deploy foi cancelado; falha
+  # de verdade já pinta sozinha. O run da fila que um merge mais novo substitui nem começa, e o mais
+  # novo publica tudo: ali não há o que avisar.
+  deploy-perdido:
+    name: deploy-perdido
+    # O e2e entrou nos `needs` dos deploys (SCRUM-312): cancelado, ele também deixa o merge de fora.
+    needs: [check, e2e, deploy, deploy-backend]
+    if: >-
+      ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && (needs.check.result == 'cancelled' || needs.e2e.result == 'cancelled'
+      || needs.deploy.result == 'cancelled' || needs.deploy-backend.result == 'cancelled') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Avisar que o merge não foi publicado
+        env:
+          CHECK: ${{ needs.check.result }}
+          E2E: ${{ needs.e2e.result }}
+          SITE: ${{ needs.deploy.result }}
+          BACKEND: ${{ needs.deploy-backend.result }}
+        run: |
+          echo "::error title=Merge não publicado::check=$CHECK, e2e=$E2E, deploy-site=$SITE, deploy-backend=$BACKEND. O código deste merge NÃO está na homologação. Reexecute o run (Re-run all jobs) ou dispare Actions > CI > Run workflow na main."
+          exit 1
