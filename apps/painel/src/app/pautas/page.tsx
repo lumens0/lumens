@@ -11,7 +11,7 @@ export default async function PaginaDasPautas() {
 
   const pautas = await listarPautasDaCuradoria(servidor().db);
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <ListaDePautas pautas={pautas} />
     </Moldura>
   );
