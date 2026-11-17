@@ -12,6 +12,7 @@ import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
+import { opcoesSmtp } from './smtp';
 
 const QUINZE_MINUTOS = 15 * 60;
 
@@ -41,18 +42,29 @@ export function servidor(): { db: Db; chave: Buffer } {
   return conexao;
 }
 
-/** As duas chaves, para a tela /curadores cifrar e mostrar o e-mail. Só ela lê a CHAVE_CIFRA. */
+/**
+ * O e-mail do curador vai cifrado com a CHAVE_CIFRA_PAINEL, só dele: o painel não recebe a
+ * CHAVE_CIFRA, que abre telefone e e-mail dos estudantes (SCRUM-303).
+ */
 export function chavesDeCurador(): ChavesDeCurador {
-  return { cifra: Buffer.from(exigir('CHAVE_CIFRA'), 'base64'), hmac: servidor().chave };
+  const cifra = Buffer.from(exigir('CHAVE_CIFRA_PAINEL'), 'base64');
+  const { chave: hmac } = servidor();
+  if (cifra.length !== 32 || cifra.equals(hmac)) {
+    throw new Error(
+      'CHAVE_CIFRA_PAINEL precisa ter 32 bytes em base64 (openssl rand -base64 32) e ser diferente da CHAVE_HMAC.',
+    );
+  }
+  return { cifra, hmac };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const { db, chave } = servidor();
-  const smtp = {
+  const smtp = opcoesSmtp({
     host: exigir('EMAIL_HOST'),
-    port: Number(exigir('EMAIL_PORT')),
-    auth: { user: exigir('EMAIL_USUARIO'), pass: exigir('EMAIL_SENHA') },
-  };
+    porta: Number(exigir('EMAIL_PORT')),
+    usuario: exigir('EMAIL_USUARIO'),
+    senha: exigir('EMAIL_SENHA'),
+  });
   return {
     ...configBase,
     adapter: adaptador(db, chave),

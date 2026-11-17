@@ -7,8 +7,8 @@ import { criarModeracoes } from './moderacoes';
 
 const moderacoes = criarModeracoes({
   curador: curadorDaSessao,
-  aprovar: (relatoId, curadorId) =>
-    servidor().db.transaction((tx) => aprovarRelato(tx, { relatoId, curadorId })),
+  aprovar: (relatoId, curadorId, fotoVista) =>
+    servidor().db.transaction((tx) => aprovarRelato(tx, { relatoId, curadorId, fotoVista })),
   recusar: (relatoId, curadorId) =>
     servidor().db.transaction((tx) => recusarRelato(tx, { relatoId, curadorId })),
 });
@@ -19,7 +19,9 @@ const texto = (formulario: FormData, campo: string) => {
 };
 
 export async function aprovar(formulario: FormData) {
-  redirect(await moderacoes.aprovar(texto(formulario, 'relatoId')));
+  redirect(
+    await moderacoes.aprovar(texto(formulario, 'relatoId'), texto(formulario, 'fotoVista') || null),
+  );
 }
 
 export async function recusar(formulario: FormData) {
