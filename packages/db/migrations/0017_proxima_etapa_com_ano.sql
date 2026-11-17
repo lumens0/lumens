@@ -38,7 +38,7 @@ SELECT
 			WHEN promessa.data_entrega IS NULL THEN 'Aguardando a entrega'
 			WHEN promessa.data_entrega >= (now() AT TIME ZONE 'America/Maceio')::date
 				THEN 'Entrega prometida para ' || to_char(promessa.data_entrega, 'DD/MM/YYYY')
-			ELSE 'Entrega prometida venceu em ' || to_char(promessa.data_entrega, 'DD/MM/YYYY')
+			ELSE 'Prazo da entrega venceu em ' || to_char(promessa.data_entrega, 'DD/MM/YYYY')
 		END
 		WHEN 'entregue_em_parte' THEN 'Cobrar o restante'
 		WHEN 'descumprida' THEN 'Retomar a cobrança'
