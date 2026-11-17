@@ -20,6 +20,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { transicionarStatus } from './status';
 
@@ -101,9 +102,15 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
-  | { decidida: false; motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' };
+  | {
+      decidida: false;
+      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'motivo_longo';
+    };
 
 async function decidir(
   tx: Tx,
@@ -125,6 +132,10 @@ async function decidir(
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
   }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
+  }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
   // Quem decidiu fica na pauta, não no evento: evento não leva identidade.
@@ -138,12 +149,18 @@ async function decidir(
   return { decidida: true };
 }
 
-/** Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. */
-export function aprovarPauta(
+/**
+ * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
+ * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
+ * avisado.
+ */
+export async function aprovarPauta(
   tx: Tx,
   { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
-  return decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
+  if (resultado.decidida) await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  return resultado;
 }
 
 /**
