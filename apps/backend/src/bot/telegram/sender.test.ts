@@ -12,6 +12,7 @@ import {
 import { BOTAO_PROPOR, botaoFeita } from '../conversation/proposta';
 import { listaDeParecidas, OTHER_ROW_ID } from '../conversation/relato';
 import { botoes, lista, type Resposta } from '../conversation/resposta';
+import { MENU_TEXT } from '../conversation/handlers';
 import { PRIVACY_NOTICE_TEXT } from '../conversation/privacidade';
 import { idDoCurso, listaDeCursos } from '../conversation/verificacao';
 import type { OutgoingReplies } from '../worker';
@@ -30,6 +31,23 @@ const CHAT = 42;
 describe('paraTelegram', () => {
   it('texto vira um sendMessage simples, sem parse_mode', () => {
     expect(paraTelegram('oi', CHAT)).toEqual([{ chat_id: CHAT, text: 'oi' }]);
+  });
+
+  it('o menu principal vem com 4 botões, que mandam o número da opção (SCRUM-324)', () => {
+    expect(paraTelegram(MENU_TEXT, CHAT)).toEqual([
+      {
+        chat_id: CHAT,
+        text: 'O que você quer fazer?',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '1 Relatar problema', callback_data: '1' }],
+            [{ text: '2 Nova pauta', callback_data: '2' }],
+            [{ text: '3 Verificar e-mail', callback_data: '3' }],
+            [{ text: '4 Minhas pautas', callback_data: '4' }],
+          ],
+        },
+      },
+    ]);
   });
 
   it('o *negrito* do WhatsApp vira entity, sem os asteriscos e sem parse_mode', () => {

@@ -8,22 +8,27 @@
  *                         registrarApoio ──▶ placar (apoios / meta) e, se bateu, o aviso (3.2)
  *                                │
  *                                ▼
- *   SUPPORT_ASK_REPORT ──(sim / relato escrito)──▶ SUPPORT_ASK_PHOTO ──▶ adicionarRelato (pendente)
- *        └──(não / pular)──▶ menu                     └──(foto ou 'pular')
+ *   SUPPORT_ASK_REPORT ──(sim / relato escrito)──▶ adicionarRelato (pendente) ──▶ SUPPORT_ASK_PHOTO
+ *        └──(não / pular)──▶ menu                                    foto ──▶ anexarFotoAoRelato
+ *                                                                    'pular' ──▶ fica sem foto
  *
  * O apoio conta na hora (RN12); o relato e a foto ficam `pendente` até a moderação (5.3) e nunca
- * aparecem no site antes disso. Enquanto a conversa dura, o relato fica cifrado nos dados, como
- * na 2.5. Bater a meta grava `meta_batida` na linha do tempo (dentro de `registrarApoio`) e já
- * põe o aviso coletivo na fila, na mesma transação.
+ * aparecem no site antes disso. Até a pessoa confirmar, o relato fica cifrado nos dados, como na
+ * 2.5. Bater a meta grava `meta_batida` na linha do tempo (dentro de `registrarApoio`) e já põe o
+ * aviso coletivo na fila, na mesma transação.
+ *
+ * SCRUM-301: o relato é gravado assim que a pessoa o confirma (ou escreve), antes da foto. Antes
+ * ele só era gravado no fim do passo da foto, e se perdia quando a pessoa mandava outro comando,
+ * "cancelar" ou parava de responder. A foto, se vier, é juntada ao mesmo relato.
  */
 import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import { eq, pautas, type Db } from '@lumens/db';
 import {
   RELATO_MAXIMO,
   adicionarRelato,
+  anexarFotoAoRelato,
   enfileirarAvisoMetaBatida,
   registrarApoio,
-  type ResultadoRelato,
 } from '@lumens/dominio';
 import { z } from 'zod';
 import { conviteCoOwner } from './co-owner';
@@ -44,9 +49,11 @@ export const SUPPORT_NOT_FOUND_TEXT =
 export const ASK_ATTACH_REPORT_TEXT =
   'Quer juntar o seu relato a esta pauta? Ele ajuda a curadoria e só aparece no site depois da moderação, sem o seu nome.\nResponda *sim* ou *não*.';
 export const ASK_WRITE_REPORT_TEXT =
-  "Quer contar o que você viu? Escreva um relato curto, ou responda 'pular'. Ele só aparece no site depois da moderação, sem o seu nome.";
+  "Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda 'pular'. O relato só aparece no site depois da moderação, sem o seu nome.";
 export const SUPPORT_PHOTO_ASK_TEXT =
   "Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
+export const PHOTO_NOT_ATTACHED_TEXT =
+  'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado.';
 export const REPORT_SENT_TEXT =
   'Relato enviado para a moderação. Ele aparece no site depois de aprovado, sem o seu nome.';
@@ -56,6 +63,13 @@ export const SUPPORT_DATA_LOST_TEXT =
   'Não consegui recuperar o seu relato. O seu apoio continua contado.';
 export const REPORT_REFUSED_TEXT =
   'Não consegui guardar o relato, mas o seu apoio continua contado.';
+
+/** SCRUM-343: resposta ao "sim" da pergunta do relato, que não é o relato. */
+export const WRITE_REPORT_TEXT =
+  "Pode escrever: conte numa mensagem o que você viu e onde. Se mudar de ideia, responda 'pular'.";
+/** SCRUM-343: o relato vai para a curadoria; uma ou duas palavras não dizem o que houve. */
+export const SUPPORT_REPORT_TOO_SHORT_TEXT =
+  'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado". Ou responda \'pular\'.';
 
 export function reportTooLongText(tamanho: number): string {
   return `Seu relato tem ${String(tamanho)} caracteres e o limite é ${String(RELATO_MAXIMO)}. Escreva um relato mais curto, ou responda 'pular'.`;
@@ -94,11 +108,18 @@ export function cardDaPauta(slug: string, totalApoios: number): MensagemDeImagem
 const YES = new Set(['sim', 's', 'quero', 'pode']);
 const NO = new Set(['nao', 'n', 'nao quero']);
 const SKIP = new Set(['pular', 'nao', 'n', 'sem foto', 'sem relato']);
+/** SCRUM-343: "sim" à pergunta "Quer contar o que você viu?" quer dizer "vou escrever". */
+const QUER_ESCREVER = new Set([...YES, 'sim quero', 'quero contar', 'quero escrever', 'claro']);
+/** Menos que isso não diz o que aconteceu nem onde ("sim", "quebrado", "ar quebrado"). */
+const PALAVRAS_DO_RELATO = 3;
+const palavras = (texto: string) => (texto.match(/[\p{L}\p{N}]+/gu) ?? []).length;
 
 /** O que os passos do apoio guardam na conversa. Validado: o dado pode ser de outra versão. */
 const dadosSchema = z.object({
   apoioPautaId: z.string().optional(),
   relatoCifrado: z.string().optional(),
+  /** SCRUM-301: o relato já gravado, à espera da foto. */
+  relatoId: z.string().optional(),
 });
 
 function dadosDoApoio(data: unknown): z.infer<typeof dadosSchema> {
@@ -110,6 +131,7 @@ function dadosDoApoio(data: unknown): z.infer<typeof dadosSchema> {
 const LIMPAR: DataPatch = {
   apoioPautaId: undefined,
   relatoCifrado: undefined,
+  relatoId: undefined,
   blocoId: undefined,
   parecidas: undefined,
   pendingCommand: undefined,
@@ -237,23 +259,50 @@ export const supportAskReport: StepHandler = async (ctx) => {
         replies: [reportTooLongText(tamanho(relato.trim()))],
       };
     }
-    return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
+    return gravarRelato(ctx, apoioPautaId, relato);
   }
 
   if (SKIP.has(texto)) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
+  // SCRUM-343: antes, o "sim" virava o próprio relato, e o texto de verdade caía no passo da foto.
+  if (QUER_ESCREVER.has(texto)) return { next: 'SUPPORT_ASK_REPORT', replies: [WRITE_REPORT_TEXT] };
   const relato = input.text.trim();
   if (relato === '') return { next: 'SUPPORT_ASK_REPORT', replies: [ASK_WRITE_REPORT_TEXT] };
+  // O longo demais tem resposta própria, logo abaixo, mesmo sem espaços.
+  if (palavras(relato) < PALAVRAS_DO_RELATO && tamanho(relato) <= RELATO_MAXIMO) {
+    return { next: 'SUPPORT_ASK_REPORT', replies: [SUPPORT_REPORT_TOO_SHORT_TEXT] };
+  }
   if (tamanho(relato) > RELATO_MAXIMO) {
     return { next: 'SUPPORT_ASK_REPORT', replies: [reportTooLongText(tamanho(relato))] };
   }
-  return {
-    next: 'SUPPORT_ASK_PHOTO',
-    data: { relatoCifrado: segredo.cifrar(relato) },
-    replies: [SUPPORT_PHOTO_ASK_TEXT],
-  };
+  return gravarRelato(ctx, apoioPautaId, relato);
 };
 
-/** Foto opcional do relato, pelo mesmo serviço da pauta nova (2.6). */
+/**
+ * Grava o relato (pendente, sem foto) e pede a foto (SCRUM-301). O texto sai da conversa: daqui
+ * em diante ela só guarda o id do relato.
+ */
+async function gravarRelato(ctx: StepContext, pautaId: string, texto: string): Promise<StepResult> {
+  const { db, phoneHmac } = ctx;
+  // Confere de novo: a pessoa pode ter saído no meio da conversa.
+  const estudanteId = await estudanteVerificado(db, phoneHmac);
+  if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+
+  const resultado = await db.transaction((tx) =>
+    adicionarRelato(tx, { pautaId, estudanteId, texto }),
+  );
+  if (!resultado.registrado) return fimDoApoio(ctx, pautaId, [REPORT_REFUSED_TEXT]);
+  return {
+    next: 'SUPPORT_ASK_PHOTO',
+    data: { relatoId: resultado.relatoId, relatoCifrado: undefined },
+    // A pessoa fica sabendo que o relato já foi: sair agora não o perde.
+    replies: [REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT],
+  };
+}
+
+/**
+ * Foto opcional do relato já gravado, pelo mesmo serviço da pauta nova (2.6). Sair deste passo
+ * de qualquer jeito (pular, outro comando, cancelar, conversa expirada) deixa o relato sem foto.
+ */
 export const supportAskPhoto: StepHandler = async (ctx) => {
   const { image } = ctx.input;
   if (image) {
@@ -261,27 +310,41 @@ export const supportAskPhoto: StepHandler = async (ctx) => {
       ? await ctx.fotos.guardarFoto(image)
       : ({ ok: false, motivo: 'indisponivel' } as const);
     if (!foto.ok) return { next: 'SUPPORT_ASK_PHOTO', replies: [photoRefusedText(foto.motivo)] };
-    return salvarRelato(ctx, foto.chave);
+    return juntarFoto(ctx, foto.chave);
   }
-  if (SKIP.has(normalize(ctx.input.text))) return salvarRelato(ctx, null);
+  if (SKIP.has(normalize(ctx.input.text))) return juntarFoto(ctx, null);
   return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
 };
 
-async function salvarRelato(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
+async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
-  const { apoioPautaId, relatoCifrado } = dadosDoApoio(state.data);
-  const texto = decifrado(segredo, relatoCifrado);
-  if (apoioPautaId === undefined || texto === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+  const { apoioPautaId, relatoCifrado, relatoId } = dadosDoApoio(state.data);
+  if (apoioPautaId === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
 
-  // Confere de novo: a pessoa pode ter saído no meio da conversa.
+  if (relatoId === undefined) {
+    // Conversa de antes da SCRUM-301, com o relato ainda nos dados: grava agora, com a foto.
+    const texto = decifrado(segredo, relatoCifrado);
+    if (texto === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+    const estudanteId = await estudanteVerificado(db, phoneHmac);
+    if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+    const r = await db.transaction((tx) =>
+      adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
+    );
+    if (!r.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
+    return fimDoApoio(ctx, apoioPautaId, [
+      fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
+    ]);
+  }
+
+  // 'pular': o relato já está gravado, sem foto.
+  if (fotoChave === null) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
+
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
-
-  const resultado: ResultadoRelato = await db.transaction((tx) =>
-    adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
+  const r = await db.transaction((tx) =>
+    anexarFotoAoRelato(tx, { relatoId, estudanteId, fotoChave }),
   );
-  if (!resultado.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
   return fimDoApoio(ctx, apoioPautaId, [
-    fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
+    r.anexada ? REPORT_SENT_WITH_PHOTO_TEXT : PHOTO_NOT_ATTACHED_TEXT,
   ]);
 }

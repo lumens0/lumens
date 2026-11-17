@@ -1,22 +1,6 @@
-import { listarFilaDeCuradoria } from '@lumens/dominio';
-import { redirect } from 'next/navigation';
-import { curadorDaSessao, servidor } from '../../auth';
-import { sair } from '../acoes';
-import { Moldura } from '../moldura';
-import { Fila } from './fila';
+import { permanentRedirect } from 'next/navigation';
 
-export default async function PaginaDaFila({
-  searchParams,
-}: {
-  searchParams: Promise<{ feito?: string }>;
-}) {
-  const curador = await curadorDaSessao();
-  if (!curador) redirect('/login');
-
-  const pautas = await listarFilaDeCuradoria(servidor().db);
-  return (
-    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
-      <Fila pautas={pautas} feito={(await searchParams).feito} />
-    </Moldura>
-  );
+/** A fila virou o filtro "a decidir" da lista de pautas (SCRUM-286); links antigos continuam valendo. */
+export default function Fila(): never {
+  permanentRedirect('/pautas?status=em_curadoria');
 }

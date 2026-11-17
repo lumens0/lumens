@@ -9,7 +9,7 @@
  * Quem chama confere se o autor é administrador ativo; aqui ficam as regras que valem sempre.
  */
 import { createHmac } from 'node:crypto';
-import { and, curadorAuditoria, curadores, eq, type Db } from '@lumens/db';
+import { and, curadorAuditoria, curadores, eq, type Db, type Tx } from '@lumens/db';
 import { cifrar, decifrar } from '../compartilhado/cifra';
 
 /** As duas chaves já decodificadas do base64 (32 bytes cada). */
@@ -47,6 +47,20 @@ export function hmacDoEmailDeCurador(email: string, chave: Buffer): string {
 }
 
 /**
+ * Trava os administradores ativos antes de qualquer outra linha de `curador`. Adicionar, desativar
+ * e reativar travam sempre nessa ordem: a auditoria aponta para o administrador autor (a chave
+ * estrangeira pede um lock nessa linha), e uma ordem diferente entre duas transações dava deadlock.
+ */
+function travarAdministradores(tx: Tx): Promise<{ id: string }[]> {
+  return tx
+    .select({ id: curadores.id })
+    .from(curadores)
+    .where(and(eq(curadores.papel, 'administrador'), eq(curadores.ativo, true)))
+    .orderBy(curadores.id)
+    .for('update');
+}
+
+/**
  * Adiciona um curador, ou reativa quem já existe com esse e-mail (sem duplicar e sem mudar o papel
  * que a pessoa já tinha). Só e-mail @ufal.br.
  *
@@ -70,6 +84,7 @@ export async function adicionarCurador(
 
   const emailHmac = hmacDoEmailDeCurador(normalizado, chaves.hmac);
   return db.transaction(async (tx) => {
+    await travarAdministradores(tx);
     const [existente] = await tx
       .select({ id: curadores.id, ativo: curadores.ativo })
       .from(curadores)
@@ -113,12 +128,8 @@ export async function desativarCurador(
 ): Promise<ResultadoCurador> {
   if (autorId === alvoId) return { feito: false, motivo: 'proprio_curador' };
   return db.transaction(async (tx) => {
-    // Trava os administradores ativos: duas desativações ao mesmo tempo não zeram o grupo.
-    const administradores = await tx
-      .select({ id: curadores.id })
-      .from(curadores)
-      .where(and(eq(curadores.papel, 'administrador'), eq(curadores.ativo, true)))
-      .for('update');
+    // Duas desativações ao mesmo tempo não zeram o grupo de administradores.
+    const administradores = await travarAdministradores(tx);
     const [alvo] = await tx
       .select({ ativo: curadores.ativo, papel: curadores.papel })
       .from(curadores)
@@ -141,6 +152,7 @@ export async function reativarCurador(
   { autorId, alvoId }: { autorId: string; alvoId: string },
 ): Promise<ResultadoCurador> {
   return db.transaction(async (tx) => {
+    await travarAdministradores(tx);
     const [alvo] = await tx
       .select({ ativo: curadores.ativo })
       .from(curadores)
@@ -154,7 +166,6 @@ export async function reativarCurador(
   });
 }
 
-/** Todos, ativos primeiro e por nome, com o e-mail decifrado: só para mostrar a administrador. */
 /**
  * O e-mail para o administrador ler. Um registro que não abre com a CHAVE_CIFRA atual (os
  * curadores fictícios do seed, `seed:v1:email:…`, ou um que sobrou de outra chave) não derruba a
@@ -168,6 +179,7 @@ function emailLegivel(emailCifrado: string, chave: Buffer): string {
   }
 }
 
+/** Todos, ativos primeiro e por nome, com o e-mail decifrado: só para mostrar a administrador. */
 export async function listarCuradores(db: Db, chaves: ChavesDeCurador): Promise<CuradorListado[]> {
   const linhas = await db
     .select({
@@ -185,4 +197,50 @@ export async function listarCuradores(db: Db, chaves: ChavesDeCurador): Promise<
       email: emailLegivel(emailCifrado, chaves.cifra),
     }))
     .sort((a, b) => Number(b.ativo) - Number(a.ativo) || a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+/**
+ * Recifra o e-mail dos curadores de `chaveAntiga` para `chaveNova`, numa transação só (SCRUM-295):
+ * os curadores usam a CHAVE_CIFRA_PAINEL, e quem foi cadastrado antes dela ficou com a CHAVE_CIFRA.
+ * Pode rodar de novo sem estragar nada: o e-mail que já abre com a chave nova fica como está, e o
+ * que não abre com nenhuma das duas (os fictícios do seed) também.
+ */
+export async function recifrarEmailsDeCuradores(
+  db: Db,
+  chaveAntiga: Buffer,
+  chaveNova: Buffer,
+): Promise<{ recifrados: number; jaNaChaveNova: number; ilegiveis: number }> {
+  return db.transaction(async (tx) => {
+    const linhas = await tx
+      .select({ id: curadores.id, emailCifrado: curadores.emailCifrado })
+      .from(curadores)
+      .for('update');
+    const contagem = { recifrados: 0, jaNaChaveNova: 0, ilegiveis: 0 };
+    for (const { id, emailCifrado } of linhas) {
+      const nova = tentarDecifrar(emailCifrado, chaveNova);
+      if (nova !== undefined) {
+        contagem.jaNaChaveNova++;
+        continue;
+      }
+      const antiga = tentarDecifrar(emailCifrado, chaveAntiga);
+      if (antiga === undefined) {
+        contagem.ilegiveis++;
+        continue;
+      }
+      await tx
+        .update(curadores)
+        .set({ emailCifrado: cifrar(antiga, chaveNova) })
+        .where(eq(curadores.id, id));
+      contagem.recifrados++;
+    }
+    return contagem;
+  });
+}
+
+function tentarDecifrar(cifrado: string, chave: Buffer): string | undefined {
+  try {
+    return decifrar(cifrado, chave);
+  } catch {
+    return undefined;
+  }
 }
