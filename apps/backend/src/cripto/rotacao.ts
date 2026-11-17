@@ -1,4 +1,4 @@
-import { curadores, eq, estudantes, type Db } from '@lumens/db';
+import { eq, estudantes, type Db } from '@lumens/db';
 import { cifrar, decifrar } from './cifra';
 
 const PREFIXO_LAPIDE = 'saiu:';
@@ -6,8 +6,8 @@ const PREFIXO_LAPIDE = 'saiu:';
 /**
  * Rotaciona a chave de cifra AES-256-GCM dos dados sensíveis armazenados no banco.
  *
- * Atualiza:
- * - `curador.email_cifrado`
+ * Atualiza (o e-mail dos curadores usa a CHAVE_CIFRA_PAINEL e fica de fora; veja
+ * `recifrarEmailsDeCuradores` no domínio):
  * - `estudante.telefone_cifrado` (exceto se for lápide 'saiu:')
  * - `estudante.email_cifrado` (quando não nulo e exceto se for lápide 'saiu:')
  *
@@ -17,7 +17,7 @@ export async function rotacionarCifra(
   db: Db,
   chaveAntiga: Buffer,
   chaveNova: Buffer,
-): Promise<{ curadores: number; estudantes: number }> {
+): Promise<{ estudantes: number }> {
   if (chaveAntiga.length !== 32 || chaveNova.length !== 32) {
     throw new Error('As chaves de cifra precisam ter exatamente 32 bytes.');
   }
@@ -26,22 +26,7 @@ export async function rotacionarCifra(
   }
 
   return await db.transaction(async (tx) => {
-    let curadoresCount = 0;
     let estudantesCount = 0;
-
-    const listaCuradores = await tx
-      .select({ id: curadores.id, emailCifrado: curadores.emailCifrado })
-      .from(curadores);
-
-    for (const curador of listaCuradores) {
-      const emailDecifrado = decifrar(curador.emailCifrado, chaveAntiga);
-      const novoEmailCifrado = cifrar(emailDecifrado, chaveNova);
-      await tx
-        .update(curadores)
-        .set({ emailCifrado: novoEmailCifrado })
-        .where(eq(curadores.id, curador.id));
-      curadoresCount++;
-    }
 
     const listaEstudantes = await tx
       .select({
@@ -73,6 +58,6 @@ export async function rotacionarCifra(
       }
     }
 
-    return { curadores: curadoresCount, estudantes: estudantesCount };
+    return { estudantes: estudantesCount };
   });
 }
