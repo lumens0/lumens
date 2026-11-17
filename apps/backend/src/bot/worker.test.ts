@@ -12,7 +12,7 @@ import {
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cifrar, type Chaves } from '../cripto/cifra';
 import { JOBS, StaleJobError } from '../infra/queue';
 import {
@@ -28,6 +28,7 @@ import {
   MENU_TEXT,
   type HandlerRegistry,
 } from './conversation/handlers';
+import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { lista, type Resposta } from './conversation/resposta';
 import { CONFERENCIA_REGISTRADA_TEXT } from './conversation/conferencia';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
@@ -38,9 +39,12 @@ import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
   BOT_QUEUE_OPTIONS,
   BOT_WORK_OPTIONS,
+  ESPERA_DA_FILA_ANTIGA_MS,
   INCOMING_QUEUE_POLICY,
+  OUTGOING_QUEUE_POLICY,
   inputOf,
   instanteDaMensagem,
+  desbloquearConversas,
   logSender,
   processIncomingJob,
   registerIncomingWorker,
@@ -253,6 +257,13 @@ describe('processIncomingJob', () => {
     expect(await jobsConcluidos(db)).toEqual([{ name: JOBS.incomingMessage, id: entrada.id }]);
   });
 
+  it('as respostas vão para a fila com a chave da conversa, para sair em ordem (SCRUM-307)', async () => {
+    await processIncomingJob(texto('oi'), deps);
+    await processIncomingJob(texto('2'), deps);
+
+    expect(queue.chaves).toEqual([PHONE_HMAC, PHONE_HMAC]);
+  });
+
   it('o texto da pessoa e as respostas não ficam em claro na fila', async () => {
     const email = 'meu.email@ufal.br';
     await processIncomingJob(texto('2'), deps);
@@ -388,6 +399,24 @@ describe('menu em texto (SCRUM-275)', () => {
 
     expect(peloNumero).toEqual(['escolheu:pauta:2']);
     expect(peloBotao).toEqual(peloNumero);
+  });
+
+  it('aviso de endereço velho no passo não apaga o menu: o número ainda escolhe (SCRUM-307)', async () => {
+    // Num passo com pergunta aberta, o endereço velho vira aviso e a conversa não anda.
+    const noPasso: HandlerRegistry = {
+      ...handlers,
+      NEW_ASK_PLACE: (ctx) => ({ next: 'NEW_ASK_PLACE', replies: [`escolheu:${ctx.input.text}`] }),
+    };
+    const noPassoProcessar = (j: JobDeTeste) =>
+      processIncomingJob(j, { ...deps, handlers: noPasso, menusEmTexto: true });
+    await noPassoProcessar(texto('oi'));
+    const guardado = await deps.store.get(PHONE_HMAC);
+    await deps.store.save(PHONE_HMAC, 'NEW_ASK_PLACE', guardado?.data ?? {});
+
+    const aviso = await noPassoProcessar(texto('apoiar pauta-que-nao-existe'));
+    expect(aviso).toEqual([PAUTA_NOT_FOUND_IN_FLOW_TEXT]);
+
+    expect(await noPassoProcessar(texto('2'))).toEqual(['escolheu:pauta:2']);
   });
 
   it('o título digitado também escolhe', async () => {
@@ -634,10 +663,16 @@ describe('registerReplyWorker', () => {
       deps.logger,
     );
     expect(chamadas[0]).toEqual(['createQueue', JOBS.outgoingRepliesDead]);
+    // SCRUM-307: ordenada por conversa, como a entrada.
     expect(chamadas[1]).toEqual([
       'createQueue',
       JOBS.outgoingReplies,
-      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead },
+      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead, policy: OUTGOING_QUEUE_POLICY },
+    ]);
+    expect(OUTGOING_QUEUE_POLICY).toBe('key_strict_fifo');
+    // Sem a fila antiga, não há o que esvaziar.
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingReplies,
     ]);
 
     await handler(JOBS.outgoingReplies)([
@@ -645,6 +680,53 @@ describe('registerReplyWorker', () => {
       saida(['primeira'], new Date(1000)),
     ]);
     expect(entregues).toEqual([['primeira'], ['segunda']]);
+  });
+
+  it('com a fila antiga (sem ordem) ainda existindo, entrega o que sobrou nela (SCRUM-307)', async () => {
+    const { boss, chamadas, handler } = bossFalso([JOBS.outgoingRepliesLegacy]);
+    const entregues: Resposta[][] = [];
+    await registerReplyWorker(
+      boss,
+      {
+        send: (mensagem) => {
+          entregues.push(respostasDoJob(mensagem, chaves));
+          return Promise.resolve();
+        },
+      },
+      deps.logger,
+    );
+
+    // Antiga vazia: as duas são consumidas, a antiga primeiro.
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingRepliesLegacy,
+      JOBS.outgoingReplies,
+    ]);
+    await handler(JOBS.outgoingRepliesLegacy)([saida(['sobrou do deploy'])]);
+    expect(entregues).toEqual([['sobrou do deploy']]);
+  });
+
+  it('com respostas na fila antiga, a nova só é consumida depois que ela esvaziar (SCRUM-307)', async () => {
+    vi.useFakeTimers();
+    try {
+      const existentes = { [JOBS.outgoingRepliesLegacy]: { queuedCount: 2, activeCount: 0 } };
+      const { boss, chamadas } = bossFalso(existentes);
+      const consumidas = () => chamadas.filter((c) => c[0] === 'work').map((c) => c[1]);
+      await registerReplyWorker(boss, { send: () => Promise.resolve() }, deps.logger);
+
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 1 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 0 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy, JOBS.outgoingReplies]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('um envio que falha não derruba os outros do lote', async () => {
@@ -667,6 +749,53 @@ describe('registerReplyWorker', () => {
       ['falha', 'failed'],
       ['ok', 'completed'],
     ]);
+  });
+});
+
+describe('desbloquearConversas (SCRUM-307)', () => {
+  it('tira da frente o job falhado de vez também na fila de respostas', async () => {
+    const apagados: [string, string[]][] = [];
+    const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage || fila === JOBS.outgoingReplies
+            ? { policy: 'key_strict_fifo' }
+            : null,
+        ),
+      getBlockedKeys: (fila: string) =>
+        Promise.resolve(fila === JOBS.outgoingReplies ? [PHONE_HMAC] : []),
+      findJobs: () =>
+        Promise.resolve([
+          { id: 'falhou', state: 'failed' },
+          { id: 'esperando', state: 'created' },
+        ]),
+      deleteJob: (fila: string, ids: string[]) => {
+        apagados.push([fila, ids]);
+        return Promise.resolve();
+      },
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(1);
+    expect(apagados).toEqual([[JOBS.outgoingReplies, ['falhou']]]);
+  });
+
+  it('pula a fila que ainda não é ordenada (o pg-boss lançaria no getBlockedKeys)', async () => {
+    const consultadas: string[] = [];
+    const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage ? { policy: 'key_strict_fifo' } : { policy: 'standard' },
+        ),
+      getBlockedKeys: (fila: string) => {
+        consultadas.push(fila);
+        return Promise.resolve([]);
+      },
+      findJobs: () => Promise.resolve([]),
+      deleteJob: () => Promise.resolve(),
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(0);
+    expect(consultadas).toEqual([JOBS.incomingMessage]);
   });
 });
 
