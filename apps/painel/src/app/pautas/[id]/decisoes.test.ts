@@ -22,13 +22,13 @@ describe('decisões da curadoria pela tela', () => {
     expect(recusar).not.toHaveBeenCalled();
   });
 
-  it('aprovar e recusar gravam com o id do curador da sessão e voltam para a fila', async () => {
+  it('aprovar e recusar gravam com o id do curador da sessão e voltam para a própria pauta', async () => {
     const { decisoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/fila?feito=aprovada');
+    expect(await decisoes.aprovar(ID, 'ensino')).toBe(`/pautas/${ID}?feito=aprovada`);
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino');
 
-    expect(await decisoes.recusar(ID, 'Duplicada.')).toBe('/fila?feito=recusada');
+    expect(await decisoes.recusar(ID, 'Duplicada.')).toBe(`/pautas/${ID}?feito=recusada`);
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1', 'Duplicada.');
   });
 
