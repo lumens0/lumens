@@ -76,9 +76,10 @@ confere:
 Registre cada teste na tabela abaixo. O critério da SCRUM-95 pede um feito por alguém além de
 quem escreveu este procedimento.
 
-| Data       | Quem | Backup (data, tamanho) | Origem → restaurado                      | Resultado                    |
-| ---------- | ---- | ---------------------- | ---------------------------------------- | ---------------------------- |
-| 2026-11-10 | —    | local, 152 KB          | 9 pautas, 982 apoios, 35 eventos → igual | ok, no Postgres local (seed) |
+| Data       | Quem | Backup (data, tamanho) | Origem → restaurado                       | Resultado                    |
+| ---------- | ---- | ---------------------- | ----------------------------------------- | ---------------------------- |
+| 2026-11-10 | —    | local, 152 KB          | 9 pautas, 982 apoios, 35 eventos → igual  | ok, no Postgres local (seed) |
+| 2026-11-17 | —    | VM, 784 KB             | 13 pautas, 983 apoios, 70 eventos → igual | ok, na homologação (timer)   |
 
 Para testar na sua máquina, contra o Postgres do `docker-compose.yml`:
 
