@@ -7,6 +7,7 @@ export {
   hmacDoEmailDeCurador,
   listarCuradores,
   reativarCurador,
+  recifrarEmailsDeCuradores,
 } from './curadores/curadores';
 export type {
   ChavesDeCurador,
