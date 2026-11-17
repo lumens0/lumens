@@ -86,10 +86,35 @@ echo "--> Reiniciando o Caddy para ler o Caddyfile novo"
 # Os certificados ficam no volume caddy-data, então reiniciar não pede emissão nova.
 "${COMPOSE[@]}" restart caddy
 
-echo "--> Limpando imagens antigas"
-# Sem isto o disco da t3.micro enche depois de alguns deploys e o build seguinte falha
-# por falta de espaço — erro que não parece ter relação com o deploy.
-docker image prune --force
+echo "--> Limpando cache de build e imagens antigas"
+# Sem isto o disco da VM enche depois de alguns deploys e o build seguinte falha por falta de
+# espaço, erro que não parece ter relação com o deploy (SCRUM-329). Cada deploy faz dois builds
+# (`run --build` e `up --build`): `image prune` sozinho só tirava imagem sem tag, e o cache do
+# BuildKit e as imagens antigas com tag ficavam para sempre.
+#
+# - Cache: o de mais de 72 h sai, e o resto fica em no máximo 3 GB. As 72 h deixam o cache dos
+#   deploys recentes para o próximo build; o teto segura um dia de muitos deploys.
+# - Imagens: a que o rebuild deixou sem tag (o compose reusa `lumens-<serviço>:latest`) sai na
+#   hora, como antes; a com tag que nenhum contêiner usa sai depois de 72 h. Imagem usada por
+#   contêiner nunca sai, nem com --all.
+#
+# A limpeza não derruba o deploy: o código novo já está no ar quando ela roda.
+docker builder prune --force --filter until=72h ||
+  echo "::warning::Não consegui limpar o cache de build antigo do Docker." >&2
+# --keep-storage: no Docker 29 virou `--reserved-space` (o nome antigo segue aceito, com aviso);
+# o docker.io do Ubuntu da VM pode ser anterior e só conhecer o antigo.
+docker builder prune --force --keep-storage 3gb ||
+  echo "::warning::Não consegui limitar o cache de build do Docker a 3 GB." >&2
+docker image prune --force ||
+  echo "::warning::Não consegui limpar as imagens sem tag do Docker." >&2
+docker image prune --all --force --filter until=72h ||
+  echo "::warning::Não consegui limpar as imagens antigas do Docker." >&2
+
+# Aviso antes de encher: com o Postgres no mesmo disco, disco cheio também para o banco.
+uso_do_disco=$(df --output=pcent / | tail -n 1 | tr -dc '0-9')
+if ((uso_do_disco > 85)); then
+  echo "::warning::Disco da VM em ${uso_do_disco}% depois da limpeza. Veja 'docker system df' e 'df -h /'." >&2
+fi
 
 echo "--> Pronto. Contêineres:"
 "${COMPOSE[@]}" ps
