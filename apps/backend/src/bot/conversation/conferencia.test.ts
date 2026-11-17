@@ -87,7 +87,13 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
 
   /** Pauta com uma promessa em conferência; `apoiou` diz se a pessoa do telefone a apoia. */
   async function cenario(
-    opcoes: { apoiou?: boolean; abreEm?: Date; fechaEm?: Date; resultado?: string } = {},
+    opcoes: {
+      apoiou?: boolean;
+      apoioEm?: Date;
+      abreEm?: Date;
+      fechaEm?: Date;
+      resultado?: string;
+    } = {},
   ) {
     const n = String(++seq);
     const agora = Date.now();
@@ -116,7 +122,13 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     if (opcoes.apoiou ?? true) {
       await db
         .insert(apoios)
-        .values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+        // Por padrão o apoio é de antes da abertura (que fica um dia atrás): só esses valem.
+        .values({
+          pautaId: pauta.id,
+          estudanteId: estudante.id,
+          origem: 'bot',
+          criadoEm: opcoes.apoioEm ?? new Date(agora - 2 * DIA),
+        });
     }
     const [promessa] = await db
       .insert(promessas)
@@ -248,6 +260,14 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
 
     expect(await c.votos()).toEqual([]);
     expect(respostas).not.toContainEqual(expect.stringContaining('Anotei sua resposta'));
+  });
+
+  it('"sim" digitado por quem apoiou depois da abertura segue para a conversa', async () => {
+    const c = await cenario({ apoioEm: new Date() });
+    await store.save(c.phoneHmac, 'MENU', {});
+
+    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_TEXT]);
+    expect(await c.votos()).toEqual([]);
   });
 
   it('"sim" digitado por quem não tem conferência aberta segue para a conversa', async () => {
