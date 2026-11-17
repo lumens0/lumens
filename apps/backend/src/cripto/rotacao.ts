@@ -1,4 +1,4 @@
-import { conversas, curadores, eq, estudantes, sql, type Db, type Tx } from '@lumens/db';
+import { conversas, eq, estudantes, sql, type Db, type Tx } from '@lumens/db';
 import { cifrar, decifrar } from './cifra';
 
 const PREFIXO_LAPIDE = 'saiu:';
@@ -19,7 +19,6 @@ export class FilaComJobsPendentesError extends Error {
 }
 
 export interface ResultadoDaRotacao {
-  curadores: number;
   estudantes: number;
   /** Conversas em andamento com algum campo recifrado (SCRUM-311). */
   conversas: number;
@@ -98,8 +97,8 @@ function recifrarValor(valor: unknown, antiga: Buffer, nova: Buffer): [unknown, 
 /**
  * Rotaciona a chave de cifra AES-256-GCM dos dados sensíveis armazenados no banco.
  *
- * Atualiza:
- * - `curador.email_cifrado`
+ * Atualiza (o e-mail dos curadores usa a CHAVE_CIFRA_PAINEL e fica de fora; veja
+ * `recifrarEmailsDeCuradores` no domínio):
  * - `estudante.telefone_cifrado` (exceto se for lápide 'saiu:')
  * - `estudante.email_cifrado` (quando não nulo e exceto se for lápide 'saiu:')
  * - os campos cifrados de `conversa.dados`, nas conversas em andamento (SCRUM-311)
@@ -123,22 +122,7 @@ export async function rotacionarCifra(
 
   return await db.transaction(async (tx) => {
     const jobsApagados = await limparFilasCifradas(tx);
-    let curadoresCount = 0;
     let estudantesCount = 0;
-
-    const listaCuradores = await tx
-      .select({ id: curadores.id, emailCifrado: curadores.emailCifrado })
-      .from(curadores);
-
-    for (const curador of listaCuradores) {
-      const emailDecifrado = decifrar(curador.emailCifrado, chaveAntiga);
-      const novoEmailCifrado = cifrar(emailDecifrado, chaveNova);
-      await tx
-        .update(curadores)
-        .set({ emailCifrado: novoEmailCifrado })
-        .where(eq(curadores.id, curador.id));
-      curadoresCount++;
-    }
 
     const listaEstudantes = await tx
       .select({
@@ -185,7 +169,6 @@ export async function rotacionarCifra(
     }
 
     return {
-      curadores: curadoresCount,
       estudantes: estudantesCount,
       conversas: conversasCount,
       jobsApagados,

@@ -56,7 +56,7 @@ const { db, pool } = criarCliente(databaseUrl);
 try {
   const resultado = await rotacionarCifra(db, chaveAntiga, chaveNova);
   console.log(
-    `Rotação de chaves concluída com sucesso: ${String(resultado.curadores)} curador(es), ${String(resultado.estudantes)} estudante(s) e ${String(resultado.conversas)} conversa(s) em andamento recifrado(s); ${String(resultado.jobsApagados)} job(s) encerrado(s) do bot apagado(s).`,
+    `Rotação de chaves concluída com sucesso: ${String(resultado.estudantes)} estudante(s) e ${String(resultado.conversas)} conversa(s) em andamento recifrado(s); ${String(resultado.jobsApagados)} job(s) encerrado(s) do bot apagado(s). O e-mail dos curadores usa a CHAVE_CIFRA_PAINEL e não muda aqui.`,
   );
 } catch (erro) {
   // Recusa esperada (fila com job pendente): só a explicação, sem a pilha.
