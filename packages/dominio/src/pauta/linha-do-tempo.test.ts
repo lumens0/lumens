@@ -64,7 +64,9 @@ describe('listarLinhaDoTempo', () => {
     const curador = await criarCurador(db);
     for (let i = 0; i < 10; i++) {
       const pauta = await criarPauta(db, { status: 'em_curadoria' });
-      await db.transaction((tx) => aprovarPauta(tx, { pautaId: pauta.id, curadorId: curador.id }));
+      await db.transaction((tx) =>
+        aprovarPauta(tx, { pautaId: pauta.id, curadorId: curador.id, categoria: 'infraestrutura' }),
+      );
 
       const tipos = (await listarLinhaDoTempo(db, pauta.id)).map((e) => e.tipo);
 
