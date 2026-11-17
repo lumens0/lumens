@@ -150,6 +150,90 @@ Se o Node não estiver na instância, use o contêiner:
 docker run --rm node:24-slim node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
+### Endurecer o sistema da VM
+
+A porta 22 continua aberta para qualquer origem (veja a seção 1): o que protege a máquina é o que
+roda nela. Faça uma vez, na VM nova ou na que já está no ar. Deixe **outra sessão SSH aberta**
+enquanto mexe no SSH: se a configuração quebrar, é por ela que se desfaz.
+
+**Root não entra pelo SSH.** O deploy entra como `azureuser`; root não precisa. O `sshd` usa o
+primeiro valor que lê, e os arquivos de `sshd_config.d/` entram em ordem alfabética, então o
+nosso começa com `01-`:
+
+```bash
+echo 'PermitRootLogin no' | sudo tee /etc/ssh/sshd_config.d/01-lumens.conf && sudo sshd -t && sudo systemctl reload ssh
+```
+
+Confira (esperado: `permitrootlogin no`):
+
+```bash
+sudo sshd -T | grep -i '^permitrootlogin'
+```
+
+Se vier outro valor, algum arquivo lido antes define a diretiva:
+`sudo grep -ri permitrootlogin /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`.
+
+**fail2ban no SSH.** Bane por um tempo o IP que erra a autenticação várias vezes (no padrão, 5
+erros em 10 minutos). No Ubuntu, o pacote já vem com o jail do `sshd` ligado:
+
+```bash
+sudo apt-get update && sudo apt-get install -y fail2ban && sudo systemctl enable --now fail2ban
+```
+
+```bash
+sudo fail2ban-client status sshd
+```
+
+Esperado: o jail listado, com `Currently banned`, sem erro. Se o serviço não subir, veja
+`journalctl -u fail2ban -n 30`.
+
+O deploy do CI entra com a chave e não erra, então não é banido. Se a chave do secret
+`HOMOLOG_SSH_CHAVE` estiver errada, o runner pode ser banido, e o banimento recusa a conexão na
+porta 22: o job sai com o aviso de **VM desligada** mesmo com ela ligada. Nesse caso, confira o
+`fail2ban-client status sshd` antes de procurar outra causa.
+
+**Nenhum `.env` antigo em `/opt/lumens`.** Os arquivos em uso são **só** o `.env.producao` e o
+`.env.producao.admin`; os `.example` vêm do Git e também ficam. Qualquer outro
+`.env.producao.*` (ex.: `.bak-*`, `.antes-*`) é cópia antiga, com segredos que podem continuar
+valendo (senha de SMTP antiga, chaves). Liste:
+
+```bash
+ls -la /opt/lumens/.env.producao*
+```
+
+Para cada cópia, compare com o atual e, para cada segredo que mudou, revogue o antigo na origem
+(senha de app do Google, chave da Brevo, token do BotFather). **Exceção:** se a cópia tem
+`CHAVE_CIFRA` ou `CHAVE_HMAC` diferente da atual, guarde essa chave no lugar compartilhado e
+seguro do time antes de apagar: os backups feitos antes da troca só decifram com ela (veja
+[Backup do banco](backup.md)). Depois apague a cópia (`sudo` se ela for do root):
+
+```bash
+sudo shred -u /opt/lumens/<cópia antiga>
+```
+
+**Alerta de indisponibilidade.** Hoje ninguém fica sabendo se o `/saude` cai, se o chip da
+Evolution desconecta ou se o crédito do Azure acaba: descobre na hora de usar.
+
+- Monitor HTTP externo gratuito (UptimeRobot, por exemplo) em `https://<DOMINIO>/saude`, com o
+  alerta indo para o e-mail de mais de uma pessoa do time. O monitor precisa buscar a URL: serviço
+  que só recebe ping (como o Healthchecks.io) não serve aqui.
+- O chip da Evolution só tem checagem de fora quando existir uma rota de saúde do WhatsApp no
+  back-end; até lá, a conferência é o `./scripts/evolution.sh estado` dentro da VM
+  ([canal da Evolution](evolution.md)). Quando a rota existir, monitore-a também.
+- Como a VM fica **desligada por padrão** (veja [Ligar e desligar](#ligar-e-desligar)), um monitor
+  ligado o tempo todo alertaria durante todo o tempo em que ela está parada. Ligue-o na semana da
+  demo, junto com o auto-shutdown desligado, e pause-o depois. **Fora da semana da demo, não há
+  monitoramento**: a queda continua sendo descoberta na hora de usar.
+- Crédito: no portal, **Cost Management → Budgets**, um orçamento **anual** (ou de período
+  personalizado até o fim do crédito) de $100, com alerta por e-mail em 50% e 80%. O padrão do
+  portal é mensal, e um orçamento mensal mede o gasto do mês, não o crédito. Os dados chegam com
+  atraso de algumas horas. Se a assinatura de estudante não deixar criar orçamento, o painel
+  _Education_ mostra o saldo, e vale olhar toda semana. O crédito também vence em 365 dias,
+  independentemente do saldo: anote a data.
+
+Para conferir com a VM parada: com o monitor ligado, pare a VM pelo portal e confira que o
+alerta chega ao time.
+
 ## 5. Primeiro deploy
 
 ```bash
@@ -254,4 +338,5 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
   limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
 - **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
 - **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
-  cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
+  cobrança. O aviso antes disso é o orçamento da seção 4 (ou, sem ele, o painel _Education_), e o
+  crédito vence em 365 dias mesmo com saldo.
