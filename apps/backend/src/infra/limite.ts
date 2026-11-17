@@ -33,7 +33,9 @@ export const MUITAS_REQUISICOES = 'Muitas requisições. Tente de novo em instan
  * O IP de quem chamou, sem ligar o `trustProxy`. O Caddy põe no `X-Forwarded-For` o IP do
  * cliente, que fica no fim da lista (o que vem antes, o cliente pode ter escrito). Com o
  * `trustProxy`, o Fastify passaria a registrar esse IP em todo log de requisição, e a contagem só
- * precisa dele na memória. Sem o cabeçalho (rede interna do compose, testes), vale o `req.ip`.
+ * precisa dele na memória. Só é confiável atrás do Caddy: se o back-end for alcançado direto (porta
+ * publicada, outro proxy), o cliente escreve o cabeçalho e forja o IP, e com ele a própria contagem.
+ * Sem o cabeçalho (rede interna do compose, testes), vale o `req.ip`.
  */
 export function ipDoCliente(req: FastifyRequest): string {
   const encaminhado = req.headers['x-forwarded-for'];

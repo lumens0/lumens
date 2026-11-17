@@ -27,6 +27,8 @@ export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
   leitura: ApiPluginOptions;
   /** Limite de requisições por IP (SCRUM-310). O padrão é o de produção; os testes baixam. */
   limites?: { api: Limite; webhooks: Limite };
+  /** SHA publicado, devolvido pelo /saude (SCRUM-322). Sem ele, o /saude não diz a versão. */
+  versao?: string;
 };
 
 /**
@@ -57,17 +59,18 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // banco fora do ar continua respondendo 200 num check que só olha o próprio processo, e o
   // deploy quebrado passa despercebido. Substituiu o /health, que devolvia ok sem checar nada.
   //
-  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou.
+  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou. A versão
+  // (o SHA do commit, que o repositório já mostra) é o que deixa o deploy conferir o que subiu.
   app.get('/saude', async (_req, reply) => {
     try {
       await deps.db.execute(sql`select 1`);
-      return { ok: true };
+      return deps.versao === undefined ? { ok: true } : { ok: true, versao: deps.versao };
     } catch (erro) {
       deps.logger.error({ erro: resumoDoErro(erro) }, 'healthcheck: banco indisponível');
       return reply.code(503).send({ ok: false });
     }
   });
-  const { leitura, config, telegram, evolution, limites, ...bot } = deps;
+  const { leitura, config, telegram, evolution, limites, versao: _versao, ...bot } = deps;
   // SCRUM-310: um limite por escopo, com contagem própria. O /saude fica de fora: é o healthcheck
   // do compose e o smoke test do deploy.
   const { api: limiteDaApi, webhooks: limiteDosWebhooks } = limites ?? {

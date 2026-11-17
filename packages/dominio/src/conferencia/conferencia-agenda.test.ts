@@ -239,6 +239,29 @@ describe('fecho da conferência', () => {
     expect(await statusDa(pautaId)).toBe('prometido');
   });
 
+  it('sem apoiadores: não lança, reabre sem avisos e a segunda rodada fecha sem_quorum', async () => {
+    const { pautaId, promessaId } = await cenario(0);
+    expect(await abrir(promessaId, depois(0))).toMatchObject({ avisos: 0 });
+
+    expect(await fechar(promessaId, depois(7 * DIA))).toMatchObject({
+      apurada: false,
+      motivo: 'reaberta',
+      avisos: 0,
+    });
+    const segunda = await fechar(promessaId, depois(15 * DIA));
+
+    expect(segunda).toEqual({
+      apurada: true,
+      resultado: 'sem_quorum',
+      respondentes: 0,
+      apoiadores: 0,
+    });
+    expect((await promessa(promessaId))?.resultado).toBe('sem_quorum');
+    expect(await eventosDa(pautaId, 'conferencia_apurada')).toHaveLength(1);
+    // Mesmo caminho de qualquer sem_quorum na segunda rodada (o destino da pauta é a SCRUM-308).
+    expect(await statusDa(pautaId)).toBe('prometido');
+  });
+
   it('não fecha conferência que nunca abriu', async () => {
     const { promessaId } = await cenario(1);
 
