@@ -125,6 +125,9 @@ export const curadoresSeed = [
     emailCifrado: placeholderCifrado('email', 'ana.curadoria@seed.invalid'),
     nome: 'Ana Curadoria',
     ativo: true,
+    // Data fixa: com o default `now()`, o seed mudaria a cada execução.
+    criadoEm: data(1, 8),
+    papel: 'administrador',
   },
   {
     id: uuid(3, 2),
@@ -132,6 +135,7 @@ export const curadoresSeed = [
     emailCifrado: placeholderCifrado('email', 'caio.curadoria@seed.invalid'),
     nome: 'Caio Curadoria',
     ativo: true,
+    criadoEm: data(1, 8),
   },
 ] satisfies Array<NovoCurador & { id: string }>;
 

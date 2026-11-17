@@ -79,7 +79,9 @@ const POR_CHAVE = new Map<string, Curso>(CURSOS.map((curso) => [chave(curso), cu
 const PALAVRAS_DO_CURSO = CURSOS.map((curso) => ({ curso, palavras: palavras(curso) }));
 
 export function buscarCurso(texto: string): BuscaDeCurso {
-  const exato = POR_CHAVE.get(chave(texto)) ?? APELIDOS[chave(texto)];
+  const exato =
+    POR_CHAVE.get(chave(texto)) ??
+    (Object.hasOwn(APELIDOS, chave(texto)) ? APELIDOS[chave(texto)] : undefined);
   if (exato !== undefined) return { tipo: 'um', curso: exato };
 
   const digitadas = palavras(texto);

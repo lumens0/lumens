@@ -25,6 +25,13 @@ describe('CURSOS: a lista oficial do campus (SCRUM-296)', () => {
 });
 
 describe('buscarCurso', () => {
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
+    'nome de propriedade herdada (%s) não é curso',
+    (texto) => {
+      expect(buscarCurso(texto)).toEqual({ tipo: 'nenhum' });
+    },
+  );
+
   it.each([
     ['Medicina', 'Medicina'],
     ['medicina', 'Medicina'],

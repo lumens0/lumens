@@ -151,12 +151,11 @@ aparecem no uso da organização. Para não gastar à toa:
   Abra como rascunho enquanto ainda vai empurrar vários commits.
 - **Editar título ou descrição da PR não roda o CI.** Só o workflow `jira`, que confere a chave
   `[SCRUM-n]` no título e leva segundos.
-- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` na `main`).
-  O `apps/site/vercel.json` desliga o deploy automático da `main` pela integração Git da Vercel,
-  que publicava duas vezes por merge, e antes dos testes. Os previews das PRs continuam.
+- **A produção do site é publicada só pelo CI** (job `deploy-site`, depois do `check` e do `e2e` na `main`).
+  O `apps/site/vercel.json` desliga o deploy automático da integração Git da Vercel em todas as
+  branches. As PRs não têm deploy de preview: cada push gastava um dos 100 deploys por dia do
+  plano grátis, e o `deploy-site` falhava sem cota (SCRUM-254).
 - **O painel não usa a Vercel**: roda na VM de homologação, publicado pelo `deploy-backend`.
-- Junte correções num push só quando puder: cada push numa PR com o site ou `packages/`
-  alterado gasta um deploy de preview.
 
 ## Banco local
 
@@ -295,30 +294,36 @@ pnpm --filter @lumens/painel dev     # http://localhost:3002 (lê o .env da raiz
 pnpm --filter @lumens/painel build   # build de produção
 ```
 
-O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
-`.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também `AWS_REGION`,
-`S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do `.env.producao`
-da VM.
+O painel usa `DATABASE_URL`, `CHAVE_CIFRA`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*`
+(SMTP) do `.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também
+`AWS_REGION`, `S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do
+`.env.producao` da VM.
 
-**Adicionar um curador** (ou reativar quem saiu):
+**Gerir quem entra** (SCRUM-295): cada curador tem um papel, `curador` ou `administrador`. Só
+administrador vê a tela `/curadores` (link "Curadores" no cabeçalho), onde adiciona pessoas com
+e-mail `@ufal.br` e nome, desativa e reativa. Ninguém desativa a si mesmo, o último administrador
+ativo não sai, e cada mudança fica registrada na tabela `curador_auditoria` (quem fez, em quem e
+quando, sem e-mail). Curador comum recebe 404 nessa tela.
+
+O script só cria o **primeiro administrador**; o resto da equipe é pela tela:
 
 ```bash
-pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+pnpm --filter @lumens/backend curador --administrador fulana@ufal.br "Fulana de Tal"
 ```
 
 O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as mesmas
-`CHAVE_CIFRA` e `CHAVE_HMAC` do ambiente onde o painel roda. Para tirar o acesso, ponha
-`ativo = false` na linha dela.
+`CHAVE_CIFRA` e `CHAVE_HMAC` do ambiente onde o painel roda. Quem já existia antes dos papéis
+virou administrador na migration.
 
 Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
 Homologação: `https://painel.<DOMINIO>`, na mesma VM do banco. O painel não fica na Vercel
 porque o Postgres da homologação não tem porta publicada: fora da rede do `docker compose`,
-ninguém o alcança. Para cadastrar curador lá, rode o script dentro da VM, pelo contêiner do
-back-end (que já tem o `.env.producao`):
+ninguém o alcança. Para criar o primeiro administrador lá, rode o script dentro da VM, pelo
+contêiner do back-end (que já tem o `.env.producao`); depois disso, o resto é pela tela:
 
 ```bash
-cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador --administrador fulana@ufal.br "Fulana de Tal"
 ```
 
 ## Bot (parte 2)
