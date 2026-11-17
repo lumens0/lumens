@@ -272,7 +272,7 @@ async function decidir(
  */
 function relatosDeOrigemPendentes(tx: Tx, pautaId: string) {
   return tx
-    .select({ id: relatos.id, texto: relatos.texto })
+    .select({ id: relatos.id, texto: relatos.texto, fotoChave: relatos.fotoChave })
     .from(relatos)
     .innerJoin(
       papeisPauta,
@@ -337,7 +337,14 @@ export async function aprovarPauta(
   if (resultado.decidida) {
     await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
     for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
-      await aprovarRelato(tx, { relatoId: relato.id, curadorId, agora });
+      // A foto lida aqui, na mesma transação travada pela decisão da pauta: o relato de origem sai
+      // como estava no momento da aprovação (SCRUM-301 exige `fotoVista` em toda aprovação).
+      await aprovarRelato(tx, {
+        relatoId: relato.id,
+        curadorId,
+        agora,
+        fotoVista: relato.fotoChave,
+      });
     }
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   }
