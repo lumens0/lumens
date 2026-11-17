@@ -1,4 +1,15 @@
-import { eq, estudantes, papeisPauta, pautas, sql, type Db } from '@lumens/db';
+import {
+  apoios,
+  curadores,
+  eq,
+  estudantes,
+  papeisPauta,
+  pautas,
+  promessas,
+  respostasConferencia,
+  sql,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -18,8 +29,11 @@ import {
   type HandlerRegistry,
 } from './conversation/handlers';
 import { lista, type Resposta } from './conversation/resposta';
+import { CONFERENCIA_REGISTRADA_TEXT } from './conversation/conferencia';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
+import { renderizarAviso } from './envio/aviso';
+import { chaveDoChat, jobDoTelegram, mensagemDoUpdate } from './telegram/update';
 import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
   BOT_QUEUE_OPTIONS,
@@ -685,5 +699,101 @@ describe('logSender', () => {
     };
     await logSender(logger, chaves, { mostrarTexto: true }).send(mensagem);
     expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({ texto: [GREETING_TEXT, MENU_TEXT] });
+  });
+});
+
+describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
+  const TITULO = 'Mais mesas no RU';
+
+  /** Promessa em conferência aberta, apoiada por quem tem o `telefoneHmac`. */
+  async function conferenciaApoiadaPor(telefoneHmac: string) {
+    const [estudante] = await db
+      .insert(estudantes)
+      .values({ telefoneHmac, telefoneCifrado: 'x', verificadoEm: new Date() })
+      .onConflictDoUpdate({ target: estudantes.telefoneHmac, set: { verificadoEm: new Date() } })
+      .returning({ id: estudantes.id });
+    const [pauta] = await db
+      .insert(pautas)
+      .values({
+        slug: `mais-mesas-${String(++contador)}`,
+        titulo: TITULO,
+        descricao: 'Faltam mesas no almoço.',
+        categoria: 'infraestrutura',
+        status: 'prometido',
+        meta: 120,
+      })
+      .returning({ id: pautas.id });
+    const [curador] = await db
+      .insert(curadores)
+      .values({ emailHmac: `c-${String(contador)}`, emailCifrado: 'x', nome: 'Curadoria' })
+      .returning({ id: curadores.id });
+    if (!estudante || !pauta || !curador) throw new Error('cenário incompleto');
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    const [promessa] = await db
+      .insert(promessas)
+      .values({
+        pautaId: pauta.id,
+        resumo: 'Instalar 20 mesas',
+        dataEntrega: '2026-11-01',
+        fonte: 'Ofício 1',
+        registradaPor: curador.id,
+        conferenciaAbreEm: new Date(Date.now() - 86_400_000),
+        conferenciaFechaEm: new Date(Date.now() + 6 * 86_400_000),
+      })
+      .returning({ id: promessas.id });
+    if (!promessa) throw new Error('promessa não criada');
+    const aviso = renderizarAviso({
+      tipo: 'conferencia',
+      aviso: promessa.id,
+      modelo: 'lumens_conferencia',
+      parametros: [TITULO, '01/11/2026', 'Instalar 20 mesas', '07/11/2026'],
+    });
+    const [sim] = aviso.botoes;
+    if (sim?.tipo !== 'QUICK_REPLY') throw new Error('o primeiro botão não é resposta rápida');
+    const votos = async () =>
+      (
+        await db
+          .select({ resposta: respostasConferencia.resposta })
+          .from(respostasConferencia)
+          .where(eq(respostasConferencia.promessaId, promessa.id))
+      ).map((v) => v.resposta);
+    return { sim, votos };
+  }
+
+  it('WhatsApp: o toque em "Sim" chega como button, grava o voto e a confirmação vai para a fila', async () => {
+    const { sim, votos } = await conferenciaApoiadaPor(PHONE_HMAC);
+    await deps.store.save(PHONE_HMAC, 'NEW_ASK_TITLE', {});
+
+    await processIncomingJob(
+      job({ button: { text: 'Sim', payload: sim.payload } }, 'button'),
+      deps,
+    );
+
+    expect(await votos()).toEqual(['sim']);
+    expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
+    expect(await passo()).toBe('NEW_ASK_TITLE');
+  });
+
+  it('Telegram: o callback do botão vira o mesmo job, grava o voto e confirma', async () => {
+    const chatId = 4242;
+    const { sim, votos } = await conferenciaApoiadaPor(chaveDoChat(chatId, chaves));
+    const r = mensagemDoUpdate({
+      update_id: 77,
+      callback_query: {
+        id: 'cb',
+        data: sim.payload,
+        message: { chat: { id: chatId, type: 'private' } },
+      },
+    });
+    if (r.tipo !== 'mensagem') throw new Error(`ignorado: ${r.motivo}`);
+    const dados = jobDoTelegram(r.mensagem, chaves);
+
+    await processIncomingJob({ ...job({ text: { body: '' } }), data: dados }, deps);
+
+    expect(await votos()).toEqual(['sim']);
+    // Primeiro contato pelo Telegram: o aviso de privacidade vai junto (5.7).
+    expect(await respostas()).toEqual([
+      [PRIVACY_NOTICE_TEXT, CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')],
+    ]);
   });
 });

@@ -56,6 +56,7 @@ function travarAdministradores(tx: Tx): Promise<{ id: string }[]> {
     .select({ id: curadores.id })
     .from(curadores)
     .where(and(eq(curadores.papel, 'administrador'), eq(curadores.ativo, true)))
+    .orderBy(curadores.id)
     .for('update');
 }
 
