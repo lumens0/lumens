@@ -294,30 +294,38 @@ pnpm --filter @lumens/painel dev     # http://localhost:3002 (lê o .env da raiz
 pnpm --filter @lumens/painel build   # build de produção
 ```
 
-O painel usa `DATABASE_URL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*` (SMTP) do
-`.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também `AWS_REGION`,
-`S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do `.env.producao`
-da VM.
+O painel usa `DATABASE_URL`, `CHAVE_CIFRA_PAINEL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*`
+(SMTP) do `.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também
+`AWS_REGION`, `S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do
+`.env.producao` da VM.
 
-**Adicionar um curador** (ou reativar quem saiu):
+**Gerir quem entra** (SCRUM-295): cada curador tem um papel, `curador` ou `administrador`. Só
+administrador vê a tela `/curadores` (link "Curadores" no cabeçalho), onde adiciona pessoas com
+e-mail `@ufal.br` e nome, desativa e reativa. Ninguém desativa a si mesmo, o último administrador
+ativo não sai, e cada mudança fica registrada na tabela `curador_auditoria` (quem fez, em quem e
+quando, sem e-mail). Curador comum recebe 404 nessa tela.
+
+O script só cria o **primeiro administrador**; o resto da equipe é pela tela:
 
 ```bash
-pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+pnpm --filter @lumens/backend curador --administrador fulana@ufal.br "Fulana de Tal"
 ```
 
-O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as mesmas
-`CHAVE_CIFRA` e `CHAVE_HMAC` do ambiente onde o painel roda. Para tirar o acesso, ponha
-`ativo = false` na linha dela.
+O e-mail é guardado cifrado com a `CHAVE_CIFRA_PAINEL` e com HMAC da `CHAVE_HMAC`; use as mesmas do
+ambiente onde o painel roda. A chave do painel é só dela: o painel nunca recebe a `CHAVE_CIFRA`, que
+abre telefone e e-mail dos estudantes. Curadores cadastrados antes dela passam para a chave nova uma
+vez, com `pnpm --filter @lumens/backend curador --recifrar` (lê as duas chaves). Quem já existia
+antes dos papéis virou administrador na migration.
 
 Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
 Homologação: `https://painel.<DOMINIO>`, na mesma VM do banco. O painel não fica na Vercel
 porque o Postgres da homologação não tem porta publicada: fora da rede do `docker compose`,
-ninguém o alcança. Para cadastrar curador lá, rode o script dentro da VM, pelo contêiner do
-back-end (que já tem o `.env.producao`):
+ninguém o alcança. Para criar o primeiro administrador lá, rode o script dentro da VM, pelo
+contêiner do back-end (que já tem o `.env.producao`); depois disso, o resto é pela tela:
 
 ```bash
-cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador fulana@ufal.br "Fulana de Tal"
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm -T backend pnpm --filter @lumens/backend curador --administrador fulana@ufal.br "Fulana de Tal"
 ```
 
 ## Bot (parte 2)
@@ -339,7 +347,7 @@ telefone): vão como HMAC da `CHAVE_HMAC`, para achar a conversa, e cifrados com
 para o worker responder.
 
 Um worker consome a fila `incoming-message` e anda a conversa. O novo estado, as respostas (na
-fila `outgoing-replies`) e a conclusão do job entram na mesma transação: se o processo cair no
+fila `outgoing-replies-ordered`, em ordem por conversa) e a conclusão do job entram na mesma transação: se o processo cair no
 meio, a mensagem é reentregue em até 1 minuto e aplicada uma vez só. Enquanto o envio pela Meta
 não existe, as respostas aparecem no log do `pnpm dev` como `respostas do bot`, com o texto no
 campo `texto`. Só o `pnpm dev` (flag `--dev`) mostra o texto; o `start` de produção registra
