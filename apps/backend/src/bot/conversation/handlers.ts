@@ -20,7 +20,13 @@ import { proposalAskText } from './proposta';
 import { leaveConfirm, PRIVACY_NOTICE_TEXT } from './privacidade';
 import { ownerAskProtocol, ownerAskProtocolDate } from './protocolo-falabr';
 import { ownerSendResponse } from './resposta-oficial';
-import { reportAskBlock, reportAskText, reportPickSimilar, REPORT_PROMPT_TEXT } from './relato';
+import {
+  newPickSimilar,
+  reportAskBlock,
+  reportAskText,
+  reportPickSimilar,
+  REPORT_PROMPT_TEXT,
+} from './relato';
 import type { Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import type { Step } from './steps';
@@ -137,6 +143,7 @@ export const defaultHandlers: HandlerRegistry = {
   REPORT_PICK_SIMILAR: reportPickSimilar,
   NEW_ASK_TITLE: newAskTitle,
   NEW_ASK_PLACE: newAskPlace,
+  NEW_PICK_SIMILAR: newPickSimilar,
   NEW_ASK_DESCRIPTION: newAskDescription,
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,

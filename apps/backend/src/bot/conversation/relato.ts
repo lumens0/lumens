@@ -18,11 +18,18 @@ import { z } from 'zod';
 import { entrarNoApoio } from './apoio';
 import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
-import { entrarNaPautaNova } from './nova-pauta';
-import { lista, type MensagemDeLista } from './resposta';
+import { DESCRIPTION_QUESTION_TEXT, NEW_SIMILAR_LIST_TEXT, entrarNaPautaNova } from './nova-pauta';
+import {
+  escolheuOutro,
+  listaDeParecidas,
+  OTHER_ROW_ID,
+  parecidaSchema,
+  pautaEscolhida,
+  type Parecida,
+} from './parecidas';
 import { normalize } from './texto';
 
-// Os testes do relato e quem já importava daqui continuam achando as funções de blocos.
+// Os testes do relato e quem já importava daqui continuam achando as funções de blocos e da lista.
 export {
   BLOCK_NOT_FOUND_TEXT,
   BLOCK_QUESTION_TEXT,
@@ -31,37 +38,24 @@ export {
   blocoEscolhido,
   listaDeBlocos,
 } from './blocos';
+export { listaDeParecidas, OTHER_ROW_ID, SIMILAR_LIST_TEXT } from './parecidas';
 
 export const REPORT_PROMPT_TEXT =
   'Descreva o problema que você encontrou. Se alguém já te mandou o relato, pode encaminhar a mensagem aqui.';
 export const REPORT_TOO_SHORT_TEXT =
   'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado".';
-export const SIMILAR_LIST_TEXT =
-  'Achei pautas abertas parecidas com o seu relato. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const PICK_AGAIN_TEXT = 'Não entendi. Escolha uma pauta da lista ou "É outro problema".';
 export const YES_NO_TEXT = 'Responda *sim* para criar uma pauta nova ou *não* para voltar ao menu.';
 export const NEW_FROM_REPORT_TEXT = 'Certo, vamos criar uma pauta nova com o seu relato.';
 export const NO_SIMILAR_TEXT = `Não encontrei pauta aberta parecida com o seu relato. Quer criar uma pauta nova com ele?\n${YES_NO_TEXT}`;
 export const NOTHING_CREATED_TEXT = 'Tudo bem, não criei nada.';
+export const NEW_SUPPORT_FAILED_TEXT =
+  'Não consegui registrar o apoio nessa pauta. Vamos seguir com a sua pauta nova.';
 export const REPORT_LOST_TEXT =
   'Não consegui recuperar o seu relato. Escolha 1 no menu para relatar de novo.';
 
-/** Linha que leva à pauta nova. */
-export const OTHER_ROW_ID = 'outro';
-const PAUTA_ROW_PREFIX = 'pauta:';
-
 const YES = new Set(['sim', 's', 'quero', 'criar', 'pode']);
 const NO = new Set(['nao', 'n', 'nao quero']);
-const OTHER = new Set([
-  'outro',
-  'outra',
-  'e outro problema',
-  'outro problema',
-  'nenhuma',
-  'nenhum',
-]);
-const parecidaSchema = z.object({ id: z.string(), titulo: z.string(), descricao: z.string() });
-type Parecida = z.infer<typeof parecidaSchema>;
 
 /** O que os passos do relato guardam na conversa. Validado: o dado pode ser de outra versão. */
 const dadosSchema = z.object({
@@ -78,22 +72,6 @@ function dadosDoRelato(data: unknown): z.infer<typeof dadosSchema> {
 
 /** Tira os dados do relato da conversa quando o fluxo acaba sem pauta nova. */
 const LIMPAR: DataPatch = { relatoCifrado: undefined, blocoId: undefined, parecidas: undefined };
-
-/** Até 3 pautas e "É outro problema". Título e descrição já cortados por `lista()`. */
-export function listaDeParecidas(parecidas: readonly Parecida[]): MensagemDeLista {
-  return lista({
-    corpo: SIMILAR_LIST_TEXT,
-    botao: 'Ver pautas',
-    linhas: [
-      ...parecidas.map((p) => ({
-        id: `${PAUTA_ROW_PREFIX}${p.id}`,
-        titulo: p.titulo,
-        descricao: p.descricao,
-      })),
-      { id: OTHER_ROW_ID, titulo: 'É outro problema', descricao: 'Criar uma pauta nova' },
-    ],
-  });
-}
 
 /** Busca as parecidas e mostra a lista, ou oferece pauta nova quando não há nenhuma. */
 async function mostrarParecidas(
@@ -151,18 +129,6 @@ function decifrado(segredo: Segredo, cifrado: string): string | undefined {
   }
 }
 
-/** A pauta que a pessoa escolheu: a linha da lista, o número dela ou o título digitado. */
-function pautaEscolhida(resposta: string, parecidas: readonly Parecida[]): Parecida | undefined {
-  const bruta = resposta.trim();
-  if (bruta.startsWith(PAUTA_ROW_PREFIX)) {
-    return parecidas.find((p) => p.id === bruta.slice(PAUTA_ROW_PREFIX.length));
-  }
-  const texto = normalize(bruta);
-  const numero = /^\d+$/.test(texto) ? Number(texto) : NaN;
-  if (numero >= 1 && numero <= parecidas.length) return parecidas[numero - 1];
-  return parecidas.find((p) => normalize(p.titulo) === texto);
-}
-
 /** "É outro problema" / "sim": pauta nova, levando o relato e o bloco; a lista já não serve. */
 async function paraPautaNova(ctx: StepContext): Promise<StepResult> {
   const resultado = await entrarNaPautaNova(ctx, [NEW_FROM_REPORT_TEXT]);
@@ -180,7 +146,7 @@ export const reportPickSimilar: StepHandler = (ctx) => {
     return { next: 'REPORT_PICK_SIMILAR', replies: [YES_NO_TEXT] };
   }
 
-  if (input.text.trim() === OTHER_ROW_ID || OTHER.has(texto)) return paraPautaNova(ctx);
+  if (escolheuOutro(input.text)) return paraPautaNova(ctx);
 
   const escolhida = pautaEscolhida(input.text, parecidas);
   if (escolhida === undefined) {
@@ -188,4 +154,50 @@ export const reportPickSimilar: StepHandler = (ctx) => {
   }
   // "É essa": o apoio vai na mesma transação da conversa e leva o relato para ser oferecido.
   return entrarNoApoio(ctx, escolhida.id);
+};
+
+/**
+ * A mesma escolha, vinda da pauta nova pelo menu (SCRUM-346, `newAskPlace`). Fica aqui, e não em
+ * `nova-pauta.ts`, porque o apoio já importa `nova-pauta.ts`. "É outro" volta à pauta nova, que
+ * segue para a descrição com o título e o bloco guardados; "É essa" vai ao apoio, sem o título.
+ */
+export const newPickSimilar: StepHandler = async (ctx) => {
+  const { state, input } = ctx;
+  const parecidas = dadosDoRelato(state.data).parecidas ?? [];
+
+  if (parecidas.length === 0 || escolheuOutro(input.text)) {
+    return {
+      next: 'NEW_ASK_DESCRIPTION',
+      data: { parecidas: undefined },
+      replies: [DESCRIPTION_QUESTION_TEXT],
+    };
+  }
+
+  const escolhida = pautaEscolhida(input.text, parecidas);
+  if (escolhida === undefined) {
+    return {
+      next: 'NEW_PICK_SIMILAR',
+      replies: [PICK_AGAIN_TEXT, listaDeParecidas(parecidas, NEW_SIMILAR_LIST_TEXT)],
+    };
+  }
+  const resultado = await entrarNoApoio(ctx, escolhida.id);
+  if (resultado.next === 'MENU') {
+    // O apoio não deu (a pauta fechou entre a lista e a escolha): segue a pauta nova, que era o
+    // que a pessoa veio fazer, sem perder o título e o bloco.
+    return {
+      next: 'NEW_ASK_DESCRIPTION',
+      data: { parecidas: undefined },
+      replies: [NEW_SUPPORT_FAILED_TEXT, DESCRIPTION_QUESTION_TEXT],
+    };
+  }
+  // A pauta nova não vai ser criada: o título e o bloco saem da conversa junto com a lista.
+  return {
+    ...resultado,
+    data: {
+      tituloCifrado: undefined,
+      blocoId: undefined,
+      parecidas: undefined,
+      ...resultado.data,
+    },
+  };
 };

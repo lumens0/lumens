@@ -1,4 +1,5 @@
 import {
+  apoios,
   blocos,
   conversas,
   eq,
@@ -19,6 +20,7 @@ import {
   DESCRIPTION_EMPTY_TEXT,
   DESCRIPTION_QUESTION_TEXT,
   FROM_REPORT_DESCRIPTION_TEXT,
+  NEW_SIMILAR_LIST_TEXT,
   NO_PHOTO_TEXT,
   NOT_VERIFIED_AT_END_TEXT,
   PHOTO_ASK_TEXT,
@@ -31,7 +33,14 @@ import {
   titleTooLongText,
 } from './nova-pauta';
 import { hashPhone } from './phone';
-import { BLOCK_NOT_FOUND_TEXT, CAMPUS_ROW_ID, NEW_FROM_REPORT_TEXT, OTHER_ROW_ID } from './relato';
+import {
+  BLOCK_NOT_FOUND_TEXT,
+  CAMPUS_ROW_ID,
+  NEW_FROM_REPORT_TEXT,
+  NEW_SUPPORT_FAILED_TEXT,
+  OTHER_ROW_ID,
+  PICK_AGAIN_TEXT,
+} from './relato';
 import type { MensagemDeLista, Resposta } from './resposta';
 import { handleIncoming } from './router';
 import { ConversationStore } from './store';
@@ -289,6 +298,90 @@ describe('pauta nova pelo menu', () => {
   });
 });
 
+/** Pauta aberta no Bloco 18, parecida com qualquer relato ou título sobre bebedouro. */
+async function abrirPautaDeBebedouros(): Promise<string> {
+  const [pauta] = await db
+    .insert(pautas)
+    .values({
+      slug: 'bebedouros',
+      titulo: 'Bebedouros funcionando no Bloco 18',
+      descricao: 'Consertar os bebedouros existentes do bloco.',
+      blocoId: bloco18,
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      meta: 30,
+    })
+    .returning({ id: pautas.id });
+  if (!pauta) throw new Error('pauta não inserida');
+  return pauta.id;
+}
+
+describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () => {
+  const TITULO = 'Bebedouro quebrado no corredor';
+  let aberta: string;
+
+  beforeEach(async () => {
+    await verificar();
+    aberta = await abrirPautaDeBebedouros();
+    await send('2');
+    await send(TITULO);
+  });
+
+  it('depois do bloco, oferece apoiar a parecida antes de pedir a descrição', async () => {
+    const lista = listaEm(await send(`bloco:${bloco18}`));
+    expect(lista.corpo).toBe(NEW_SIMILAR_LIST_TEXT);
+    expect(lista.linhas.map((l) => l.id)).toEqual([`pauta:${aberta}`, OTHER_ROW_ID]);
+    expect(await passo()).toBe('NEW_PICK_SIMILAR');
+  });
+
+  it('"É outro problema" segue o fluxo normal e cria a pauta com o título e o bloco', async () => {
+    await send(`bloco:${bloco18}`);
+    expect(await send(OTHER_ROW_ID)).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    await send(DESCRICAO);
+    expect(resumoEm(await send('pular'))).toContain(`*Título:* ${TITULO}`);
+
+    const criada = (await todasAsPautas()).find((p) => p.id !== aberta);
+    expect(criada).toMatchObject({ titulo: TITULO, blocoId: bloco18, status: 'em_curadoria' });
+    expect(await dados()).toEqual({});
+  });
+
+  it('"É essa" apoia a pauta aberta, não cria outra e tira o título da conversa', async () => {
+    await send(`bloco:${bloco18}`);
+    const respostas = await send(`pauta:${aberta}`);
+    expect(respostas[0]).toContain('Apoio registrado');
+    expect(await passo()).toBe('SUPPORT_ASK_REPORT');
+    expect(await db.select().from(apoios).where(eq(apoios.pautaId, aberta))).toHaveLength(1);
+    expect(await todasAsPautas()).toHaveLength(1);
+
+    const restantes = await dados();
+    expect(restantes).toMatchObject({ apoioPautaId: aberta });
+    for (const chave of ['tituloCifrado', 'blocoId', 'parecidas']) {
+      expect(restantes).not.toHaveProperty(chave);
+    }
+  });
+
+  it('se a pauta escolhida fechou no meio, avisa e segue a pauta nova sem perder o título', async () => {
+    await send(`bloco:${bloco18}`);
+    await db.update(pautas).set({ status: 'recusada' }).where(eq(pautas.id, aberta));
+
+    expect(await send(`pauta:${aberta}`)).toEqual([
+      NEW_SUPPORT_FAILED_TEXT,
+      DESCRIPTION_QUESTION_TEXT,
+    ]);
+    await send(DESCRICAO);
+    expect(resumoEm(await send('pular'))).toContain(`*Título:* ${TITULO}`);
+    expect(await db.select().from(apoios)).toEqual([]);
+  });
+
+  it('resposta fora da lista pergunta de novo, com a mesma lista', async () => {
+    await send(`bloco:${bloco18}`);
+    const respostas = await send('talvez');
+    expect(respostas[0]).toBe(PICK_AGAIN_TEXT);
+    expect(listaEm(respostas).linhas.map((l) => l.id)).toEqual([`pauta:${aberta}`, OTHER_ROW_ID]);
+    expect(await passo()).toBe('NEW_PICK_SIMILAR');
+  });
+});
+
 describe('pauta nova vinda do relato (2.5)', () => {
   const RELATO = 'o bebedouro do bloco 18 ta quebrado, sala 12';
 
@@ -314,6 +407,17 @@ describe('pauta nova vinda do relato (2.5)', () => {
       { texto: RELATO },
     ]);
     expect(await dados()).toEqual({});
+  });
+
+  it('com pauta parecida aberta, "É outro" no relato não mostra a lista de novo', async () => {
+    await abrirPautaDeBebedouros();
+    listaEm(await send(RELATO));
+    await send(OTHER_ROW_ID);
+    expect(await send('Bebedouro do Bloco 18')).toEqual([
+      FROM_REPORT_DESCRIPTION_TEXT,
+      PHOTO_ASK_TEXT,
+    ]);
+    expect(await passo()).toBe('NEW_ASK_PHOTO');
   });
 
   it('relato maior que o limite da descrição: pergunta a descrição', async () => {
