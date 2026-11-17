@@ -6,6 +6,10 @@ describe('rotuloDaCategoria', () => {
     expect(rotuloDaCategoria(chave)).toBe(rotulo);
   });
 
+  it('ignora espaços nas pontas do valor', () => {
+    expect(rotuloDaCategoria(' seguranca ')).toBe('Segurança');
+  });
+
   it('a_classificar e valor fora da lista não têm rótulo', () => {
     expect(rotuloDaCategoria('a_classificar')).toBeUndefined();
     expect(rotuloDaCategoria('Infraestrutura')).toBeUndefined();

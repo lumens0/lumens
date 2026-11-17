@@ -25,7 +25,7 @@
  * equipe quiser os relatos no corpo, cada um terá de passar pela RN08
  * individualmente e isso é outra decisão, não um parâmetro deste módulo.
  */
-import { rotuloDaCategoria } from '@lumens/contratos';
+import { rotuloDaCategoria } from '../pauta/pauta';
 import {
   type Achado,
   type OpcoesDeConferencia,
@@ -103,7 +103,7 @@ export function gerarTextoFalaBr(
 ): TextoFalaBr {
   const titulo = exigirTexto(pauta.titulo, 'titulo');
   const descricao = exigirTexto(pauta.descricao, 'descricao');
-  const categoria = rotuloDaCategoria(pauta.categoria.trim());
+  const categoria = rotuloDaCategoria(pauta.categoria);
 
   exigirInteiroNaoNegativo(pauta.apoios, 'apoios');
   exigirInteiroNaoNegativo(pauta.meta, 'meta');
