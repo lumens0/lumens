@@ -12,7 +12,8 @@ on:
   push:
     branches: [main]
   # Para redeployar a homologação depois de ligar a VM: a máquina fica desligada fora
-  # de uso para poupar crédito, então o deploy do merge pode ter sido pulado.
+  # de uso para poupar crédito, então o deploy do merge pode ter sido pulado. Só publica
+  # quando disparado da `main` (SCRUM-336); de outra branch, o job `deploy-fora-da-main` avisa.
   workflow_dispatch:
 
 concurrency:
@@ -294,9 +295,11 @@ jobs:
     name: deploy-backend
     # Como o `deploy`: só publica com o check e o e2e verdes deste mesmo commit (SCRUM-312).
     needs: [check, e2e]
+    # Só da `main`, também no Run workflow (SCRUM-336): disparado de outra branch, publicaria e
+    # migraria o banco da homologação com código sem revisão — e esse banco não tem backup.
     if: >-
-      ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      || github.event_name == 'workflow_dispatch' }}
+      ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -432,3 +435,17 @@ jobs:
         run: |
           echo "::error title=Merge não publicado::check=$CHECK, e2e=$E2E, deploy-site=$SITE, deploy-backend=$BACKEND. O código deste merge NÃO está na homologação. Reexecute o run (Re-run all jobs) ou dispare Actions > CI > Run workflow na main."
           exit 1
+
+  # Run workflow fora da `main` (SCRUM-336): o `deploy-backend` é pulado, e sem este job o
+  # pulo seria silencioso e pareceria que publicou. O aviso deixa claro que nada foi publicado.
+  deploy-fora-da-main:
+    name: deploy-fora-da-main
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Avisar que o deploy foi ignorado
+        run: >-
+          echo "::warning title=Deploy ignorado::A homologação só é publicada a partir da main.
+          Este Run workflow foi disparado de ${GITHUB_REF} e nada foi publicado.
+          Rode de novo escolhendo a branch main."
