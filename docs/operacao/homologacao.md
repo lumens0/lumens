@@ -12,7 +12,9 @@ Quem entra no painel: o script `curador` só cria o **primeiro administrador**, 
 back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
 "<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
 para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
-`CHAVE_CIFRA` do `.env.producao`, para mostrar o e-mail de quem já foi cadastrado.
+`CHAVE_CIFRA_PAINEL` do `.env.producao`, só dele, para mostrar o e-mail de quem já foi cadastrado.
+Ao criar essa chave, rode uma vez `... run --rm -T backend pnpm --filter @lumens/backend curador
+--recifrar`, que passa o e-mail dos curadores existentes da `CHAVE_CIFRA` para ela.
 
 ## Onde roda, e por que não é a AWS
 
