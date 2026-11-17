@@ -45,8 +45,17 @@ export class StaleJobError extends Error {
 export const JOBS = {
   incomingMessage: 'incoming-message',
   incomingMessageDead: 'incoming-message-dead',
-  outgoingReplies: 'outgoing-replies',
-  outgoingRepliesDead: 'outgoing-replies-dead',
+  /**
+   * Respostas da conversa, em ordem por conversa (`key_strict_fifo`, SCRUM-307). Nome novo porque
+   * a política de uma fila do pg-boss não muda depois de criada.
+   */
+  outgoingReplies: 'outgoing-replies-ordered',
+  outgoingRepliesDead: 'outgoing-replies-ordered-dead',
+  /**
+   * A fila de respostas de antes da SCRUM-307, sem ordem por conversa. Só é consumida para entregar
+   * o que tiver sobrado nela no deploy; nada novo entra. Pode sair depois de vazia em produção.
+   */
+  outgoingRepliesLegacy: 'outgoing-replies',
   cleanupConversations: 'cleanup-expired-conversations',
   unblockConversations: 'unblock-conversations',
   /** Gatilho do aviso de meta batida (3.2): enfileira na fila de disparos. */

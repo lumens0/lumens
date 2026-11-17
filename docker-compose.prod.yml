@@ -104,6 +104,8 @@ services:
       # Host repassado com AUTH_TRUST_HOST; fixar a URL evita depender do cabeçalho.
       AUTH_URL: https://painel.${DOMINIO:?defina DOMINIO no .env.producao}
       AUTH_TRUST_HOST: 'true'
+      # Chave própria do e-mail dos curadores (/curadores). Sem ela a tela quebra em produção.
+      CHAVE_CIFRA_PAINEL: ${CHAVE_CIFRA_PAINEL:?defina CHAVE_CIFRA_PAINEL no .env.producao}
     # Sem `ports`: quem fala com a internet é o Caddy.
     healthcheck:
       # /api/auth/providers monta a configuração do login: responde 500 se faltar variável
