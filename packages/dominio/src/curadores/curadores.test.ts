@@ -8,6 +8,7 @@ import {
   hmacDoEmailDeCurador,
   listarCuradores,
   reativarCurador,
+  recifrarEmailsDeCuradores,
   type ChavesDeCurador,
 } from './curadores';
 
@@ -254,5 +255,27 @@ describe('listarCuradores', () => {
     const lista = await listarCuradores(db, chaves);
 
     expect(lista.find((c) => c.id === doSeed?.id)?.email).toBe('E-mail indisponível');
+  });
+});
+
+describe('recifrarEmailsDeCuradores', () => {
+  it('passa o e-mail para a chave do painel, pode rodar de novo e pula o que não abre', async () => {
+    const chaveDoPainel = Buffer.alloc(32, 7);
+    const autor = await administrador();
+    const r = await adicionarCurador(db, chaves, {
+      autorId: autor,
+      email: 'recifrar@ufal.br',
+      nome: 'Recifrar',
+    });
+    if (!r.feito) throw new Error('esperava sucesso');
+
+    const primeira = await recifrarEmailsDeCuradores(db, chaves.cifra, chaveDoPainel);
+    const segunda = await recifrarEmailsDeCuradores(db, chaves.cifra, chaveDoPainel);
+
+    expect(primeira.recifrados).toBeGreaterThan(0);
+    expect(segunda.recifrados).toBe(0);
+    expect(segunda.jaNaChaveNova).toBe(primeira.recifrados + primeira.jaNaChaveNova);
+    const lista = await listarCuradores(db, { cifra: chaveDoPainel, hmac: chaves.hmac });
+    expect(lista.find((c) => c.id === r.curadorId)?.email).toBe('recifrar@ufal.br');
   });
 });
