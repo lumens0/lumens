@@ -42,7 +42,7 @@ describe('home', () => {
     const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
     vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
     const html = await render('bloco-a');
-    expect(buscarPautas).toHaveBeenCalledWith('bloco-a', undefined);
+    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
     expect(html).toContain('Bloco A</h2>');
     for (const p of doBlocoA) expect(html).toContain(p.titulo);
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
@@ -63,23 +63,24 @@ describe('home', () => {
 
   it('bloco que não existe busca todas as pautas', async () => {
     await render('nao-existe');
-    expect(buscarPautas).toHaveBeenCalledWith(undefined, undefined);
+    expect(buscarPautas).toHaveBeenCalledWith(undefined);
   });
 
   it('status combinado ao bloco filtra a lista e os totais', async () => {
-    const pautas = PAUTAS_TESTE.filter(
-      (p) => p.status === 'prometido' && p.bloco_slug === 'bloco-a',
-    );
-    vi.mocked(buscarPautas).mockResolvedValue(pautas as never);
+    // A busca vem sem o filtro de status; a home filtra e conta a partir das pautas do bloco.
+    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
+    expect(doBlocoA.some((p) => p.status !== 'prometido')).toBe(true);
+    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
     const html = await render('bloco-a', 'prometido');
-    expect(buscarPautas).toHaveBeenCalledWith('bloco-a', 'prometido');
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
+    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
     expect(html).toContain('<dt>Apoios</dt><dd>0</dd>');
     expect(html).toContain('Nenhuma pauta prometida neste bloco');
   });
 
   it('status não público não segue para a busca', async () => {
     await Home({ searchParams: Promise.resolve({ status: 'em_curadoria' }) });
-    expect(buscarPautas).toHaveBeenCalledWith(undefined, undefined);
+    expect(buscarPautas).toHaveBeenCalledWith(undefined);
   });
 
   it('erro da API sobe para o error.tsx em vez de renderizar a página vazia', async () => {
@@ -99,12 +100,10 @@ describe('home', () => {
     const semFiltro = contagensDe(await render('bloco-a'));
     expect(buscarPautas).toHaveBeenCalledTimes(1);
     expect(semFiltro.prometido).toBe(prometidas.length);
-    // Com status: a lista vem filtrada e as contagens vêm de uma segunda busca, sem o filtro.
-    vi.mocked(buscarPautas).mockReset();
-    vi.mocked(buscarPautas).mockImplementation(((_bloco, status) =>
-      Promise.resolve(status ? prometidas : doBlocoA)) as typeof buscarPautas);
+    // Com status: continua uma busca só, e as contagens são as mesmas.
+    vi.mocked(buscarPautas).mockClear();
     const comFiltro = contagensDe(await render('bloco-a', 'prometido'));
-    expect(buscarPautas).toHaveBeenCalledTimes(2);
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
     expect(comFiltro).toEqual(semFiltro);
   });
 });

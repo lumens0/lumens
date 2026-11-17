@@ -11,7 +11,6 @@ import { FiltroStatus } from '../componentes/FiltroStatus';
 import { STATUS } from '../componentes/StatusPill';
 import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarBlocos, buscarPautas } from '../dados/api';
-import type { Pauta } from '../dados/tipos';
 import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
 import { STATUS_PUBLICOS } from '@lumens/contratos';
 import { nomeDoCanal } from '../whatsapp';
@@ -36,26 +35,18 @@ export default async function Home({
     typeof statusParam === 'string'
       ? STATUS_PUBLICOS.find((etapa) => etapa === statusParam)
       : undefined;
-  // A API já filtra e ordena; o `pautasPublicas` repete a regra como segunda barreira.
-  const [pautasDaLista, pautasParaContar] = await Promise.all([
-    buscarPautas(bloco?.slug, status),
-    status ? buscarPautas(bloco?.slug) : Promise.resolve<Pauta[]>([]),
-  ]);
-  const lista = pautasPublicas(pautasDaLista, bloco).filter(
-    (pauta) => !status || pauta.status === status,
-  );
+  // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
+  // segunda barreira. O status filtra a lista aqui; as contagens do filtro e o mapa do hero usam as
+  // pautas do bloco inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
+  const todas = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
+  const lista = status ? todas.filter((pauta) => pauta.status === status) : todas;
   const contagens = Object.fromEntries(
-    STATUS_PUBLICOS.map((etapa) => [
-      etapa,
-      pautasDaLista.length && !status
-        ? pautasDaLista.filter((pauta) => pauta.status === etapa).length
-        : pautasParaContar.filter((pauta) => pauta.status === etapa).length,
-    ]),
+    STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
   );
   const contagem = totais(lista);
   const { abertas, apoios, conquistas } = contagem;
   const onde = bloco?.nome ?? 'Todo o campus';
-  const marcadores = marcadoresDoMapa(blocos, lista);
+  const marcadores = marcadoresDoMapa(blocos, todas);
   return (
     <main className={estilos.pagina}>
       <section className={[estilos.hero, 'noite'].join(' ')}>
