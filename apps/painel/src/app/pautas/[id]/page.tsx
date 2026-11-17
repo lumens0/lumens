@@ -1,9 +1,9 @@
-import { buscarPautaDaCuradoria } from '@lumens/dominio';
+import { detalharPautaDaCuradoria } from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { sair } from '../../acoes';
 import { Moldura } from '../../moldura';
-import { aprovar, recusar } from './acoes';
+import { aprovar, definirCategoria, recusar } from './acoes';
 import { UUID } from './decisoes';
 import { Pauta } from './pauta';
 
@@ -18,7 +18,7 @@ export default async function PaginaDaPauta({
   if (!curador) redirect('/login');
 
   const { id } = await params;
-  const pauta = UUID.test(id) ? await buscarPautaDaCuradoria(servidor().db, id) : undefined;
+  const pauta = UUID.test(id) ? await detalharPautaDaCuradoria(servidor().db, id) : undefined;
   if (!pauta) notFound();
 
   const { erro, feito, avisados } = await searchParams;
@@ -30,8 +30,10 @@ export default async function PaginaDaPauta({
         pauta={pauta}
         erro={erro}
         avisados={avisadosValido ? numero : undefined}
+        categoriaSalva={feito === 'categoria'}
         aprovar={aprovar}
         recusar={recusar}
+        definirCategoria={definirCategoria}
       />
     </Moldura>
   );

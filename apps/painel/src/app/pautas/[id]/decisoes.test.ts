@@ -16,7 +16,7 @@ describe('decisões da curadoria pela tela', () => {
   it('sem curador ativo na sessão vai para o login e não grava nada', async () => {
     const { decisoes, aprovar, recusar } = montar(undefined);
 
-    expect(await decisoes.aprovar(ID)).toBe('/login');
+    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/login');
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe('/login');
     expect(aprovar).not.toHaveBeenCalled();
     expect(recusar).not.toHaveBeenCalled();
@@ -25,8 +25,8 @@ describe('decisões da curadoria pela tela', () => {
   it('aprovar e recusar gravam com o id do curador da sessão e voltam para a fila', async () => {
     const { decisoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await decisoes.aprovar(ID)).toBe('/fila?feito=aprovada');
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1');
+    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/fila?feito=aprovada');
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino');
 
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe('/fila?feito=recusada');
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1', 'Duplicada.');
@@ -41,15 +41,23 @@ describe('decisões da curadoria pela tela', () => {
     },
   );
 
+  it('categoria inválida devolvida pelo domínio mantém a curadoria na pauta com aviso', async () => {
+    const { decisoes } = montar(
+      { id: 'curador-1' },
+      { decidida: false, motivo: 'categoria_invalida' },
+    );
+    expect(await decisoes.aprovar(ID, '')).toBe(`/pautas/${ID}?erro=categoria_invalida`);
+  });
+
   it('pauta inexistente ou id que não é UUID volta para a fila sem consultar o banco à toa', async () => {
     const { decisoes } = montar(
       { id: 'curador-1' },
       { decidida: false, motivo: 'pauta_inexistente' },
     );
-    expect(await decisoes.aprovar(ID)).toBe('/fila');
+    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/fila');
 
     const invalido = montar({ id: 'curador-1' });
-    expect(await invalido.decisoes.aprovar('1; drop table pauta')).toBe('/fila');
+    expect(await invalido.decisoes.aprovar('1; drop table pauta', 'ensino')).toBe('/fila');
     expect(invalido.aprovar).not.toHaveBeenCalled();
   });
 });

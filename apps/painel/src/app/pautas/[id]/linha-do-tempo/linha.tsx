@@ -25,6 +25,7 @@ const ROTULOS: Record<TipoEvento, string> = {
   owner_entrou: 'Novo owner',
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
+  categoria_alterada: 'Categoria alterada',
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
