@@ -20,18 +20,20 @@ export const PRIVACY_NOTICE_TEXT = [
   '🔒 *Sua privacidade no Lumens*',
   'Guardamos seu telefone cifrado para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso.',
   'No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome, telefone ou e-mail. Quem apoia não aparece: só o total.',
-  'Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair e apagar seu vínculo, envie *sair* a qualquer momento.',
+  'Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie *sair* a qualquer momento.',
   `Política completa: ${ORIGEM_SITE_PRODUCAO}/privacidade`,
 ].join('\n');
 
+// SCRUM-314: o que sai e o que fica, como o `sairDoLumens` faz (docs/decisoes/SCRUM-314-...).
 export const LEAVE_CONFIRM_TEXT = [
   'Quer mesmo sair do Lumens?',
-  'Seu telefone e seu e-mail serão apagados, e você deixa de ser responsável pelas pautas que cuidava. Os apoios que você já deu continuam contando, sem ligação com você.',
+  'Seu telefone e seu e-mail serão apagados, e você deixa de ser responsável pelas pautas que cuidava. Os relatos que ainda não foram publicados também são apagados, com as fotos.',
+  `Continuam, sem ligação com você: os apoios que você já deu, os relatos já publicados no site e os PDFs de resposta que você enviou. Para pedir a remoção de algum deles, veja como em ${ORIGEM_SITE_PRODUCAO}/privacidade.`,
   'Responda *sim* para sair ou qualquer outra coisa para continuar.',
 ].join('\n\n');
 
 export const LEFT_TEXT =
-  'Pronto, você saiu do Lumens. Apagamos seu telefone, seu e-mail e esta conversa. Se quiser voltar, é só mandar uma mensagem e se verificar de novo.';
+  'Pronto, você saiu do Lumens. Apagamos seu telefone, seu e-mail, esta conversa e os relatos que ainda não estavam publicados. Se quiser voltar, é só mandar uma mensagem e se verificar de novo.';
 
 export const NOTHING_TO_DELETE_TEXT =
   'Você não tem cadastro no Lumens, então não há vínculo para apagar. Apaguei esta conversa e o código de verificação, se havia um.';
@@ -69,7 +71,12 @@ export const leaveConfirm: StepHandler = async (ctx) => {
   const estudanteId = await estudanteDoTelefone(ctx);
   if (estudanteId !== undefined) {
     // Savepoint na transação da mensagem, como o `criarPauta` da 2.6.
-    await ctx.db.transaction((tx) => sairDoLumens(tx, { estudanteId }));
+    const saida = await ctx.db.transaction((tx) => sairDoLumens(tx, { estudanteId }));
+    // SCRUM-314: as fotos dos relatos apagados estão no storage, fora do banco. Melhor esforço: se a
+    // transação desfizer depois, o retry roda o `sair` de novo e o relato sai de vez.
+    if (saida.saiu && saida.fotosParaApagar.length > 0) {
+      await ctx.fotos?.removerFotos?.(saida.fotosParaApagar);
+    }
   } else {
     // O cadastro sumiu no meio: o `sairDoLumens` não roda, então o código sai aqui.
     await apagarCodigo(ctx.db, ctx.phoneHmac);
