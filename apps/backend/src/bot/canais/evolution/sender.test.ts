@@ -203,6 +203,19 @@ describe('avisos pela Evolution', () => {
     );
   });
 
+  it('o aviso de aprovação sai como texto, com o endereço da pauta', () => {
+    const aprovada = renderizarAviso({
+      tipo: 'aprovacao',
+      aviso: 'pauta-1',
+      modelo: 'lumens_pauta_aprovada',
+      parametros: ['Bebedouro', 'bebedouro-quebrado'],
+    });
+    const texto = textoDoAviso(aprovada, 'https://lumens.exemplo');
+    expect(texto).toContain('A pauta "Bebedouro"');
+    expect(texto).toContain('Ver a pauta: https://lumens.exemplo/p/bebedouro-quebrado');
+    expect(texto).not.toContain('{{');
+  });
+
   it('telefone ilegível tira o aviso da fila sem chamar a Evolution', async () => {
     const { fn, chamadas } = fetchFalso([ENVIADA]);
     const sender = avisosPelaEvolution(cliente(fn), { intervaloMinMs: 0, intervaloMaxMs: 0 });

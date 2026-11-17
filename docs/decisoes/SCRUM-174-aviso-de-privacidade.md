@@ -17,7 +17,7 @@ O bot mostra um aviso no primeiro contato (SCRUM-175) e aceita `sair` (SCRUM-176
 | Dado                    | Quando                      | Como fica guardado                                    | Aparece no site?              |
 | ----------------------- | --------------------------- | ----------------------------------------------------- | ----------------------------- |
 | Telefone                | Toda mensagem               | Cifrado (AES-256-GCM) + HMAC para busca               | Nunca                         |
-| Passo da conversa       | Durante um fluxo            | Cifrado, apagado em 24 h pela limpeza diária          | Nunca                         |
+| Passo da conversa       | Durante um fluxo            | Cifrado, apagado em 24 h pela limpeza de hora em hora | Nunca                         |
 | Mensagens e respostas   | Toda mensagem               | Cópia cifrada (com o telefone) nas filas do pg-boss   | Nunca                         |
 | E-mail `@ufal.br`       | Só se a pessoa se verificar | Cifrado + HMAC; o código de verificação, só como hash | Nunca                         |
 | Curso                   | Na verificação              | Em claro (é o que o site mostra)                      | Sim, nos owners e nos relatos |
@@ -29,7 +29,7 @@ conteúdo e o telefone cifrados (`apps/backend/src/bot/webhook/process.ts`). O L
 prazos do pg-boss (`BOT_QUEUE_OPTIONS` em `apps/backend/src/bot/worker.ts`), então valem os
 padrões da versão 12: o job concluído é apagado **7 dias** depois (`deleteAfterSeconds`), e o que
 não foi processado — inclusive na fila de mortas — em até **14 dias** (`retentionSeconds`). A
-limpeza diária do Lumens cuida só da conversa e do dedup, não desses jobs.
+limpeza do Lumens (de hora em hora, SCRUM-332) cuida da conversa, do dedup e dos códigos vencidos, não desses jobs.
 
 Quem sai (`sair`) tem telefone, e-mail, conversa e código apagados na hora; os apoios seguem
 contando sem ligação com a pessoa (SCRUM-91). **Limitação conhecida:** o `sair` não apaga os jobs
@@ -66,8 +66,8 @@ No bot (`PRIVACY_NOTICE_TEXT`, `apps/backend/src/bot/conversation/privacidade.ts
 > também seu e-mail @ufal.br (cifrado) e seu curso.
 > No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome,
 > telefone ou e-mail. Quem apoia não aparece: só o total.
-> Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair e apagar seu vínculo,
-> envie _sair_ a qualquer momento.
+> Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie _sair_ a
+> qualquer momento. ("e apagar seu vínculo" saiu na SCRUM-314: relatos publicados e PDFs ficam.)
 > Política completa: https://lumens-ufal.vercel.app/privacidade
 
 No site, a página `/privacidade` ganha a seção "Base legal" e deixa de dizer que a verificação e a
