@@ -22,7 +22,7 @@
   --luz-tinta: #8f4c00;
   --luz-fundo: #fff1cc;
 
-  /* Cores públicas de status (contraste mínimo 3:1 em papel e noite). */
+  /* Cores públicas de status (contraste mínimo 3:1 em papel e noite); as mesmas de `STATUS` em StatusPill.tsx. */
   --status-apoios: #356fc2;
   --status-meta: #8959bd;
   --status-cobrando: #c05b12;
@@ -30,8 +30,6 @@
   --status-parcial: #a98216;
   --status-conquistada: #36864f;
   --status-descumprida: #d0443b;
-  --status-curadoria: #74788c;
-  --status-recusada: #646876;
 
   /* Compatibilidade com nomes antigos ainda usados por alguns componentes. */
   --primaria: var(--tinta);

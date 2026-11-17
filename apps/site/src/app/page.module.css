@@ -357,8 +357,9 @@
 }
 
 /*
- * O tom do evento segue as cores de status: azul para o que entra, turquesa para a meta, âmbar
- * para a cobrança, vermelho para a promessa descumprida e verde para o que foi entregue. A cor nunca vai sozinha: o rótulo diz o que foi.
+ * O tom do evento segue as cores de status: azul para o que entra, roxo para a meta, âmbar
+ * para a cobrança, turquesa para a promessa, amarelo para a entrega parcial, vermelho para a promessa
+ * descumprida e verde para o que foi entregue. A cor nunca vai sozinha: o rótulo diz o que foi.
  */
 .evento[data-tom='azul'] {
   --tom: var(--status-apoios);
@@ -366,10 +367,22 @@
   --tom-fundo: color-mix(in srgb, var(--status-apoios) 12%, white);
 }
 
-.evento[data-tom='turquesa'] {
+.evento[data-tom='roxo'] {
   --tom: var(--status-meta);
   --tom-tinta: color-mix(in srgb, var(--status-meta) 65%, var(--tinta));
   --tom-fundo: color-mix(in srgb, var(--status-meta) 12%, white);
+}
+
+.evento[data-tom='turquesa'] {
+  --tom: var(--status-prometido);
+  --tom-tinta: color-mix(in srgb, var(--status-prometido) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-prometido) 12%, white);
+}
+
+.evento[data-tom='amarelo'] {
+  --tom: var(--status-parcial);
+  --tom-tinta: color-mix(in srgb, var(--status-parcial) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-parcial) 12%, white);
 }
 
 .evento[data-tom='ambar'] {
