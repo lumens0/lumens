@@ -23,6 +23,7 @@ const ROTULOS: Record<string, string> = {
   relato_aprovado: 'Relato publicado',
   meta_ajustada: 'Meta ajustada pela curadoria',
   bloco_corrigido: 'Bloco corrigido pela curadoria',
+  categoria_alterada: 'Categoria alterada pela curadoria',
 };
 
 /** Tipo fora do catálogo não quebra a página: vira texto legível. */

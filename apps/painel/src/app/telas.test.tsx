@@ -26,6 +26,7 @@ const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCur
   apoios: 80,
   meta: 300,
   urgente: false,
+  urgenteMotivo: null,
   metaBatidaEm: null,
   responsaveis: [],
   relatos: [],
@@ -264,6 +265,9 @@ describe('tela da pauta', () => {
     );
 
     expect(html).toContain('Barrar: e-mail (pessoa@ufal.br)');
+    // Com e-mail no relato pendente, a tela avisa e oferece recusar só o relato.
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('Recusar só o relato');
   });
 
   it('avisa quando a recusa veio sem motivo ou outra pessoa já decidiu', () => {

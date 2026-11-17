@@ -1,5 +1,6 @@
 import {
   CATEGORIAS,
+  MOTIVO_RECUSA_MAXIMO,
   type BlocoParaRelato,
   type DetalhePautaDaCuradoria,
   type EventoDaLinha,
@@ -19,8 +20,14 @@ const ERRO: Record<string, string> = {
   motivo_obrigatorio: 'Para recusar, escreva o motivo. Ele é enviado a quem criou a pauta.',
   motivo_invalido: 'O motivo da urgência deve ter até 200 caracteres e uma única linha.',
   pauta_nao_publica: 'A urgência só pode ser alterada em pautas públicas.',
+  motivo_longo: `O motivo passou de ${String(MOTIVO_RECUSA_MAXIMO)} caracteres. Resuma e recuse de novo.`,
   ja_decidida: 'Outra pessoa da curadoria já decidiu esta pauta.',
   categoria_invalida: 'Escolha uma categoria válida para esta pauta.',
+  relato_com_dado_pessoal:
+    'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
+  sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
+  pauta_nao_publicada:
+    'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
 };
 
 type Acao = (formulario: FormData) => Promise<void>;
@@ -52,6 +59,8 @@ export function Pauta({
   recusar,
   definirCategoria = async () => {},
   atualizarUrgencia = async () => {},
+  recusarRelatoDeOrigem = async () => {},
+  linhaAberta = false,
   categoriaSalva,
   blocos = [],
   corrigirBloco = acaoVazia,
@@ -70,6 +79,8 @@ export function Pauta({
   recusar: Acao;
   definirCategoria?: Acao;
   atualizarUrgencia?: Acao;
+  recusarRelatoDeOrigem?: Acao;
+  linhaAberta?: boolean;
   categoriaSalva?: boolean;
   blocos?: BlocoParaRelato[];
   corrigirBloco?: Acao;
@@ -83,6 +94,11 @@ export function Pauta({
     pauta.categoria === 'a_classificar'
       ? 'A classificar'
       : ((CATEGORIAS as Record<string, string | undefined>)[pauta.categoria] ?? pauta.categoria);
+  const relatoComDadoPessoal = pauta.relatos.some(
+    (relato) =>
+      relato.moderacao === 'pendente' &&
+      relato.achados.some((achado) => achado.severidade === 'bloqueio'),
+  );
   return (
     <>
       <h1>{pauta.titulo}</h1>
@@ -90,6 +106,11 @@ export function Pauta({
         <p className={estilos.aviso} role="status">
           Pauta aprovada. Ela já aparece no site e pode receber apoios; o relato de quem a criou
           também foi publicado.
+        </p>
+      )}
+      {feito === 'relato_recusado' && (
+        <p className={estilos.aviso} role="status">
+          Relato recusado. A pauta continua esperando a decisão e, aprovada, vai ao site sem ele.
         </p>
       )}
       {feito === 'recusada' && (
@@ -247,7 +268,13 @@ export function Pauta({
         </section>
       )}
 
-      <LinhaDoTempo pautaId={pauta.id} titulo={pauta.titulo} eventos={eventos} recolhivel />
+      <LinhaDoTempo
+        pautaId={pauta.id}
+        titulo={pauta.titulo}
+        eventos={eventos}
+        recolhivel
+        aberta={linhaAberta}
+      />
 
       {prorrogarPrazo && corrigirProtocolo && remarcarPromessa && (
         <AjustesDePrazo
@@ -264,6 +291,19 @@ export function Pauta({
         <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>
           Registrar resposta e promessa
         </Link>
+      )}
+
+      {pauta.status === 'em_curadoria' && relatoComDadoPessoal && (
+        <form action={recusarRelatoDeOrigem} className={estilos.aviso} role="alert">
+          <p>
+            O relato de quem criou a pauta tem e-mail ou telefone. Aprovar publicaria esse dado:
+            recuse só o relato e depois aprove a pauta sem ele.
+          </p>
+          <input type="hidden" name="pautaId" value={pauta.id} />
+          <button className={estilos.botaoPerigo} type="submit">
+            Recusar só o relato
+          </button>
+        </form>
       )}
 
       {pauta.status === 'em_curadoria' && (
@@ -301,7 +341,7 @@ export function Pauta({
             <h2>Recusar</h2>
             <input type="hidden" name="pautaId" value={pauta.id} />
             <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
-            <textarea id="motivo" name="motivo" required maxLength={500} />
+            <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
             <button className={estilos.botaoPerigo} type="submit">
               Recusar pauta
             </button>
@@ -317,7 +357,15 @@ export function Pauta({
             urgente
           </label>
           <label htmlFor="motivo-urgencia">Motivo curto (opcional)</label>
-          <input id="motivo-urgencia" name="motivo" maxLength={200} />
+          <input
+            id="motivo-urgencia"
+            name="motivo"
+            maxLength={200}
+            defaultValue={pauta.urgenteMotivo ?? ''}
+          />
+          <p className={estilos.detalhes}>
+            O motivo fica só no painel. No site aparece apenas que a pauta é urgente.
+          </p>
           <button className={estilos.botao} type="submit">
             Salvar urgência
           </button>

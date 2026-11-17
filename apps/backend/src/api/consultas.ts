@@ -114,7 +114,9 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
       db,
       sql`SELECT tipo, dados, ${iso('criado_em')}
           FROM v_linha_do_tempo WHERE pauta_slug = ${slug}
-          ORDER BY v_linha_do_tempo.criado_em`,
+          -- A view não expõe a ordem de inserção: eventos do mesmo instante (aprovar e marcar
+          -- urgente na mesma transação) desempatam pelo tipo, sempre na mesma ordem.
+          ORDER BY v_linha_do_tempo.criado_em, tipo`,
     ),
   ]);
   const [pauta] = pautas;

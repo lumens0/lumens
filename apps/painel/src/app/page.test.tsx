@@ -26,8 +26,8 @@ describe('início do painel de curadoria', () => {
     expect(html).toContain('4 pautas.');
     expect(html).toContain('5 conferências.');
     expect(html).toContain('href="/pautas?status=em_curadoria"');
-    expect(html).toContain('href="/pautas?status=cobrando"');
-    expect(html).toContain('href="/pautas?status=prometido"');
+    expect(html).toContain('href="/pautas?status=cobrando&amp;pendencia=sem_resposta_oficial"');
+    expect(html).toContain('href="/pautas?status=todas&amp;pendencia=conferencia_aberta"');
     expect(html).toContain('href="/relatos"');
     expect(html).toContain('Início');
     expect(html).toContain('href="/pautas">Pautas</a>');

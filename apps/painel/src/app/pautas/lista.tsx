@@ -1,4 +1,4 @@
-import type { PautaDaCuradoria } from '@lumens/dominio';
+import { LIMITE_DA_LISTA, type PautaDaCuradoria } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../painel.module.css';
 import { textoDoPrazo } from '../prazo';
@@ -20,6 +20,11 @@ export function ListaDePautas({
       <p className={estilos.apoio}>
         Abra uma pauta para conferir os relatos e acompanhar a resposta oficial.
       </p>
+      {pautas.length >= LIMITE_DA_LISTA && (
+        <p className={estilos.aviso} role="status">
+          Mostrando as {LIMITE_DA_LISTA} mais antigas. Use o filtro ou a busca para achar as outras.
+        </p>
+      )}
       <form action="/pautas" method="get" className={estilos.filtros}>
         <label htmlFor="status-pautas">Situação</label>
         <select id="status-pautas" name="status" defaultValue={status}>

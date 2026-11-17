@@ -7,5 +7,5 @@ export default async function LinhaDoTempo({
   params: Promise<{ id: string }>;
 }): Promise<never> {
   const { id } = await params;
-  permanentRedirect(`/pautas/${encodeURIComponent(id)}#linha-do-tempo`);
+  permanentRedirect(`/pautas/${encodeURIComponent(id)}?linha=aberta#linha-do-tempo`);
 }

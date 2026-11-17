@@ -9,6 +9,7 @@ export {
   hmacDoEmailDeCurador,
   listarCuradores,
   reativarCurador,
+  recifrarEmailsDeCuradores,
 } from './curadores/curadores';
 export type {
   ChavesDeCurador,
@@ -130,6 +131,7 @@ export type {
 
 export {
   MODELO_PAUTA_RECUSADA,
+  MOTIVO_RECUSA_MAXIMO,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
   marcarUrgencia,
@@ -138,9 +140,12 @@ export {
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
+  recusarRelatoDeOrigem,
   resumoDaCuradoria,
+  LIMITE_DA_LISTA,
 } from './pauta/curadoria';
 export type {
+  PendenciaDaCuradoria,
   PautaDaCuradoria,
   PautaNaFila,
   ResultadoDecisao,
