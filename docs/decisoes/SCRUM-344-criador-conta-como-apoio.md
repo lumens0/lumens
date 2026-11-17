@@ -1,7 +1,7 @@
 # SCRUM-344 · Quem cria a pauta conta como apoio
 
 Bug · Parte 2 · 2026-11-16 · @JGSEIXAS
-**Situação:** proposta, aguardando a aprovação da equipe na PR.
+**Situação:** decidida. Aprovada por Sthefany Lima em 16/11/2026, para as pautas novas.
 
 ## O problema
 
@@ -30,6 +30,8 @@ o texto do Fala.BR, o aviso da promessa e a conferência contam só a tabela `ap
 
 ## O que fica de fora
 
-- **Pautas aprovadas antes desta mudança** continuam sem o apoio de quem criou. Se a equipe quiser,
-  uma migração de dados pode registrar esse apoio (com `criado_em` igual a `aprovada_em`). Ela
-  ficou fora desta entrega porque mexe nos números públicos de pautas que já estão no site.
+- **Pautas aprovadas antes desta mudança** continuam sem o apoio de quem criou, e isso foi decidido: o
+  backfill não entra nesta PR e vira task própria. Ele deve ser feito por script que chame
+  `registrarApoio` (para respeitar a meta e os avisos), e não por migração SQL, com conferência do
+  total antes de rodar. Até lá, pautas antigas e novas têm regras diferentes de quórum e de aviso da
+  promessa, e os números públicos de pautas que já estão no site não mudam.
