@@ -24,6 +24,10 @@ export const FILAS_COM_TELEFONE = [
   JOBS.incomingMessageDead,
   JOBS.outgoingReplies,
   JOBS.outgoingRepliesDead,
+  // SCRUM-307: a fila de antes da ordem por conversa ainda pode ter respostas do deploy, e a fila de
+  // mortas dela (o nome antigo de `outgoingRepliesDead`) também.
+  JOBS.outgoingRepliesLegacy,
+  'outgoing-replies-dead',
 ] as const;
 
 /** Segundos depois de concluído. 0 desligaria a remoção no pg-boss, por isso 1. */

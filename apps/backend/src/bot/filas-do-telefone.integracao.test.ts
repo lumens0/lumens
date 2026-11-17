@@ -175,6 +175,24 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)('sair apaga o telefone das filas (
     expect(outra.rows).toHaveLength(1);
   }, 60_000);
 
+  it('apaga também a resposta morta que ficou na fila de antes da SCRUM-307', async () => {
+    const { db, boss } = await montar();
+    const legadaMorta = 'outgoing-replies-dead';
+    if (!(await boss.getQueue(legadaMorta))) await boss.createQueue(legadaMorta);
+    await db.transaction((tx) =>
+      filaPgBoss(boss).send(
+        legadaMorta,
+        { job: { phoneHmac: QUEM_SAI, repliesCifradas: 'x' }, erro: 'erro permanente' },
+        tx,
+      ),
+    );
+    expect((await jobsDe(ambiente.pool, QUEM_SAI)).map((j) => j.name)).toContain(legadaMorta);
+
+    await mandar(db, boss, QUEM_SAI, 'sair');
+
+    expect((await jobsDe(ambiente.pool, QUEM_SAI)).map((j) => j.name)).not.toContain(legadaMorta);
+  }, 60_000);
+
   it('sem cadastro, o sair também apaga o que ficou nas filas', async () => {
     const { db, boss } = await montar();
     await mandar(db, boss, QUEM_SAI, 'oi');
