@@ -6,3 +6,10 @@ packages:
 # O esbuild é o motor do tsx (script `dev` do back-end) e precisa do binário.
 onlyBuiltDependencies:
   - esbuild
+
+# SCRUM-304: o next-auth 5 beta declara nodemailer ^7 || ^8 como dependência par, mas só usa o
+# createTransport no envio padrão do link, que o painel substitui pelo próprio. A 10 corrige
+# falhas conhecidas da 8.
+peerDependencyRules:
+  allowedVersions:
+    nodemailer: '10'

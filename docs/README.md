@@ -31,6 +31,7 @@ Cada pasta responde a uma pergunta. Comece pelo [README da raiz](../README.md) p
 - [Backup do banco](operacao/backup.md): backup diário, teste de restauração e incidentes.
 - [Chaves de criptografia](operacao/chaves.md): gerar, rotacionar e o que fazer se vazar.
 - [Canal da Evolution](operacao/evolution.md): WhatsApp não oficial, pareamento e troca de chip.
+- [Teste do e-mail da UFAL](operacao/teste-email-ufal.md): DNS do remetente e roteiro com contas reais (SCRUM-259).
 
 ## Meta (WhatsApp)
 

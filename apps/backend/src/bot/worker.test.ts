@@ -1,7 +1,18 @@
-import { eq, estudantes, papeisPauta, pautas, sql, type Db } from '@lumens/db';
+import {
+  apoios,
+  curadores,
+  eq,
+  estudantes,
+  papeisPauta,
+  pautas,
+  promessas,
+  respostasConferencia,
+  sql,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cifrar, type Chaves } from '../cripto/cifra';
 import { JOBS, StaleJobError } from '../infra/queue';
 import {
@@ -17,16 +28,23 @@ import {
   MENU_TEXT,
   type HandlerRegistry,
 } from './conversation/handlers';
+import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { lista, type Resposta } from './conversation/resposta';
+import { CONFERENCIA_REGISTRADA_TEXT } from './conversation/conferencia';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
+import { renderizarAviso } from './envio/aviso';
+import { chaveDoChat, jobDoTelegram, mensagemDoUpdate } from './telegram/update';
 import type { ConteudoMensagem, IncomingMessageJob } from './webhook/process';
 import {
   BOT_QUEUE_OPTIONS,
   BOT_WORK_OPTIONS,
+  ESPERA_DA_FILA_ANTIGA_MS,
   INCOMING_QUEUE_POLICY,
+  OUTGOING_QUEUE_POLICY,
   inputOf,
   instanteDaMensagem,
+  desbloquearConversas,
   logSender,
   processIncomingJob,
   registerIncomingWorker,
@@ -239,6 +257,13 @@ describe('processIncomingJob', () => {
     expect(await jobsConcluidos(db)).toEqual([{ name: JOBS.incomingMessage, id: entrada.id }]);
   });
 
+  it('as respostas vão para a fila com a chave da conversa, para sair em ordem (SCRUM-307)', async () => {
+    await processIncomingJob(texto('oi'), deps);
+    await processIncomingJob(texto('2'), deps);
+
+    expect(queue.chaves).toEqual([PHONE_HMAC, PHONE_HMAC]);
+  });
+
   it('o texto da pessoa e as respostas não ficam em claro na fila', async () => {
     const email = 'meu.email@ufal.br';
     await processIncomingJob(texto('2'), deps);
@@ -374,6 +399,24 @@ describe('menu em texto (SCRUM-275)', () => {
 
     expect(peloNumero).toEqual(['escolheu:pauta:2']);
     expect(peloBotao).toEqual(peloNumero);
+  });
+
+  it('aviso de endereço velho no passo não apaga o menu: o número ainda escolhe (SCRUM-307)', async () => {
+    // Num passo com pergunta aberta, o endereço velho vira aviso e a conversa não anda.
+    const noPasso: HandlerRegistry = {
+      ...handlers,
+      NEW_ASK_PLACE: (ctx) => ({ next: 'NEW_ASK_PLACE', replies: [`escolheu:${ctx.input.text}`] }),
+    };
+    const noPassoProcessar = (j: JobDeTeste) =>
+      processIncomingJob(j, { ...deps, handlers: noPasso, menusEmTexto: true });
+    await noPassoProcessar(texto('oi'));
+    const guardado = await deps.store.get(PHONE_HMAC);
+    await deps.store.save(PHONE_HMAC, 'NEW_ASK_PLACE', guardado?.data ?? {});
+
+    const aviso = await noPassoProcessar(texto('apoiar pauta-que-nao-existe'));
+    expect(aviso).toEqual([PAUTA_NOT_FOUND_IN_FLOW_TEXT]);
+
+    expect(await noPassoProcessar(texto('2'))).toEqual(['escolheu:pauta:2']);
   });
 
   it('o título digitado também escolhe', async () => {
@@ -620,10 +663,16 @@ describe('registerReplyWorker', () => {
       deps.logger,
     );
     expect(chamadas[0]).toEqual(['createQueue', JOBS.outgoingRepliesDead]);
+    // SCRUM-307: ordenada por conversa, como a entrada.
     expect(chamadas[1]).toEqual([
       'createQueue',
       JOBS.outgoingReplies,
-      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead },
+      { ...BOT_QUEUE_OPTIONS, deadLetter: JOBS.outgoingRepliesDead, policy: OUTGOING_QUEUE_POLICY },
+    ]);
+    expect(OUTGOING_QUEUE_POLICY).toBe('key_strict_fifo');
+    // Sem a fila antiga, não há o que esvaziar.
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingReplies,
     ]);
 
     await handler(JOBS.outgoingReplies)([
@@ -631,6 +680,53 @@ describe('registerReplyWorker', () => {
       saida(['primeira'], new Date(1000)),
     ]);
     expect(entregues).toEqual([['primeira'], ['segunda']]);
+  });
+
+  it('com a fila antiga (sem ordem) ainda existindo, entrega o que sobrou nela (SCRUM-307)', async () => {
+    const { boss, chamadas, handler } = bossFalso([JOBS.outgoingRepliesLegacy]);
+    const entregues: Resposta[][] = [];
+    await registerReplyWorker(
+      boss,
+      {
+        send: (mensagem) => {
+          entregues.push(respostasDoJob(mensagem, chaves));
+          return Promise.resolve();
+        },
+      },
+      deps.logger,
+    );
+
+    // Antiga vazia: as duas são consumidas, a antiga primeiro.
+    expect(chamadas.filter((c) => c[0] === 'work').map((c) => c[1])).toEqual([
+      JOBS.outgoingRepliesLegacy,
+      JOBS.outgoingReplies,
+    ]);
+    await handler(JOBS.outgoingRepliesLegacy)([saida(['sobrou do deploy'])]);
+    expect(entregues).toEqual([['sobrou do deploy']]);
+  });
+
+  it('com respostas na fila antiga, a nova só é consumida depois que ela esvaziar (SCRUM-307)', async () => {
+    vi.useFakeTimers();
+    try {
+      const existentes = { [JOBS.outgoingRepliesLegacy]: { queuedCount: 2, activeCount: 0 } };
+      const { boss, chamadas } = bossFalso(existentes);
+      const consumidas = () => chamadas.filter((c) => c[0] === 'work').map((c) => c[1]);
+      await registerReplyWorker(boss, { send: () => Promise.resolve() }, deps.logger);
+
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 1 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy]);
+
+      existentes[JOBS.outgoingRepliesLegacy] = { queuedCount: 0, activeCount: 0 };
+      await vi.advanceTimersByTimeAsync(ESPERA_DA_FILA_ANTIGA_MS);
+      expect(consumidas()).toEqual([JOBS.outgoingRepliesLegacy, JOBS.outgoingReplies]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('um envio que falha não derruba os outros do lote', async () => {
@@ -653,6 +749,53 @@ describe('registerReplyWorker', () => {
       ['falha', 'failed'],
       ['ok', 'completed'],
     ]);
+  });
+});
+
+describe('desbloquearConversas (SCRUM-307)', () => {
+  it('tira da frente o job falhado de vez também na fila de respostas', async () => {
+    const apagados: [string, string[]][] = [];
+    const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage || fila === JOBS.outgoingReplies
+            ? { policy: 'key_strict_fifo' }
+            : null,
+        ),
+      getBlockedKeys: (fila: string) =>
+        Promise.resolve(fila === JOBS.outgoingReplies ? [PHONE_HMAC] : []),
+      findJobs: () =>
+        Promise.resolve([
+          { id: 'falhou', state: 'failed' },
+          { id: 'esperando', state: 'created' },
+        ]),
+      deleteJob: (fila: string, ids: string[]) => {
+        apagados.push([fila, ids]);
+        return Promise.resolve();
+      },
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(1);
+    expect(apagados).toEqual([[JOBS.outgoingReplies, ['falhou']]]);
+  });
+
+  it('pula a fila que ainda não é ordenada (o pg-boss lançaria no getBlockedKeys)', async () => {
+    const consultadas: string[] = [];
+    const boss = {
+      getQueue: (fila: string) =>
+        Promise.resolve(
+          fila === JOBS.incomingMessage ? { policy: 'key_strict_fifo' } : { policy: 'standard' },
+        ),
+      getBlockedKeys: (fila: string) => {
+        consultadas.push(fila);
+        return Promise.resolve([]);
+      },
+      findJobs: () => Promise.resolve([]),
+      deleteJob: () => Promise.resolve(),
+    } as unknown as Parameters<typeof desbloquearConversas>[0];
+
+    expect(await desbloquearConversas(boss, deps.logger)).toBe(0);
+    expect(consultadas).toEqual([JOBS.incomingMessage]);
   });
 });
 
@@ -685,5 +828,101 @@ describe('logSender', () => {
     };
     await logSender(logger, chaves, { mostrarTexto: true }).send(mensagem);
     expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({ texto: [GREETING_TEXT, MENU_TEXT] });
+  });
+});
+
+describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
+  const TITULO = 'Mais mesas no RU';
+
+  /** Promessa em conferência aberta, apoiada por quem tem o `telefoneHmac`. */
+  async function conferenciaApoiadaPor(telefoneHmac: string) {
+    const [estudante] = await db
+      .insert(estudantes)
+      .values({ telefoneHmac, telefoneCifrado: 'x', verificadoEm: new Date() })
+      .onConflictDoUpdate({ target: estudantes.telefoneHmac, set: { verificadoEm: new Date() } })
+      .returning({ id: estudantes.id });
+    const [pauta] = await db
+      .insert(pautas)
+      .values({
+        slug: `mais-mesas-${String(++contador)}`,
+        titulo: TITULO,
+        descricao: 'Faltam mesas no almoço.',
+        categoria: 'infraestrutura',
+        status: 'prometido',
+        meta: 120,
+      })
+      .returning({ id: pautas.id });
+    const [curador] = await db
+      .insert(curadores)
+      .values({ emailHmac: `c-${String(contador)}`, emailCifrado: 'x', nome: 'Curadoria' })
+      .returning({ id: curadores.id });
+    if (!estudante || !pauta || !curador) throw new Error('cenário incompleto');
+    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    const [promessa] = await db
+      .insert(promessas)
+      .values({
+        pautaId: pauta.id,
+        resumo: 'Instalar 20 mesas',
+        dataEntrega: '2026-11-01',
+        fonte: 'Ofício 1',
+        registradaPor: curador.id,
+        conferenciaAbreEm: new Date(Date.now() - 86_400_000),
+        conferenciaFechaEm: new Date(Date.now() + 6 * 86_400_000),
+      })
+      .returning({ id: promessas.id });
+    if (!promessa) throw new Error('promessa não criada');
+    const aviso = renderizarAviso({
+      tipo: 'conferencia',
+      aviso: promessa.id,
+      modelo: 'lumens_conferencia',
+      parametros: [TITULO, '01/11/2026', 'Instalar 20 mesas', '07/11/2026'],
+    });
+    const [sim] = aviso.botoes;
+    if (sim?.tipo !== 'QUICK_REPLY') throw new Error('o primeiro botão não é resposta rápida');
+    const votos = async () =>
+      (
+        await db
+          .select({ resposta: respostasConferencia.resposta })
+          .from(respostasConferencia)
+          .where(eq(respostasConferencia.promessaId, promessa.id))
+      ).map((v) => v.resposta);
+    return { sim, votos };
+  }
+
+  it('WhatsApp: o toque em "Sim" chega como button, grava o voto e a confirmação vai para a fila', async () => {
+    const { sim, votos } = await conferenciaApoiadaPor(PHONE_HMAC);
+    await deps.store.save(PHONE_HMAC, 'NEW_ASK_TITLE', {});
+
+    await processIncomingJob(
+      job({ button: { text: 'Sim', payload: sim.payload } }, 'button'),
+      deps,
+    );
+
+    expect(await votos()).toEqual(['sim']);
+    expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
+    expect(await passo()).toBe('NEW_ASK_TITLE');
+  });
+
+  it('Telegram: o callback do botão vira o mesmo job, grava o voto e confirma', async () => {
+    const chatId = 4242;
+    const { sim, votos } = await conferenciaApoiadaPor(chaveDoChat(chatId, chaves));
+    const r = mensagemDoUpdate({
+      update_id: 77,
+      callback_query: {
+        id: 'cb',
+        data: sim.payload,
+        message: { chat: { id: chatId, type: 'private' } },
+      },
+    });
+    if (r.tipo !== 'mensagem') throw new Error(`ignorado: ${r.motivo}`);
+    const dados = jobDoTelegram(r.mensagem, chaves);
+
+    await processIncomingJob({ ...job({ text: { body: '' } }), data: dados }, deps);
+
+    expect(await votos()).toEqual(['sim']);
+    // Primeiro contato pelo Telegram: o aviso de privacidade vai junto (5.7).
+    expect(await respostas()).toEqual([
+      [PRIVACY_NOTICE_TEXT, CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')],
+    ]);
   });
 });
