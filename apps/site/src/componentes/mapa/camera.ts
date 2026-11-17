@@ -390,6 +390,7 @@ export function criarCamera(
       const passo = Math.max(24, Math.min(80, largura * 0.06));
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
+        giro = normalizar(giro);
         irPara(vista, 0);
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();

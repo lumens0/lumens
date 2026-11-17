@@ -447,7 +447,13 @@ describe('câmera ligada ao mapa', () => {
     enviar('ArrowLeft', true);
     mapa.avancar(600);
     expect(mapa.camera.estado().giro).not.toBe(0);
+    // Mesmo depois de uma volta inteira, o N volta pelo lado mais curto (sem desenrolar 2π).
+    mapa.camera.girar(Math.PI * 2 + 0.2);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).toBeGreaterThan(Math.PI * 2);
     enviar('n');
+    mapa.avancar(16);
+    expect(Math.abs(mapa.camera.estado().giro)).toBeLessThan(0.2);
     mapa.avancar(600);
     expect(mapa.camera.estado().giro).toBe(0);
     mapa.desligar();
