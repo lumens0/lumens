@@ -8,7 +8,6 @@ import { hashPhone } from '../conversation/phone';
 import { conteudoDoJob } from '../webhook/process';
 import { inputOf } from '../worker';
 import {
-  AVISO_SEM_RESPOSTA_TEXT,
   chaveDoChat,
   comandoDoStart,
   jobDoTelegram,
@@ -237,27 +236,24 @@ describe('processarUpdate', () => {
     expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', { callback_query_id: 'cb-1' });
   });
 
-  it('resposta rápida de um aviso não vai para a conversa: o botão é respondido com um aviso', async () => {
-    // Nenhum fluxo lê `tipo:aviso:i` ainda; como texto, viraria resposta à pergunta em aberto.
-    const data = 'conferencia:0b9c1f9e-8d2e-4c39-9a51-2f6f3a1d7c10:0';
-    const update = {
-      update_id: 3,
-      callback_query: { id: 'cb-2', data, message: { chat: chatPrivado } },
-    };
-
-    expect(await processarUpdate(update, deps())).toBe('ignorada');
-    expect(await mensagensNaFila(db)).toHaveLength(0);
-    expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', {
-      callback_query_id: 'cb-2',
-      text: AVISO_SEM_RESPOSTA_TEXT,
-    });
-    // O id de um botão da conversa que só se parece com o payload continua indo para a conversa.
-    expect(
-      textoDaConversa({
-        ...update,
-        callback_query: { ...update.callback_query, data: 'caminho:falabr' },
-      }),
-    ).toBe('caminho:falabr');
+  it('resposta rápida de um aviso vai para a fila como o payload, também na segunda rodada', async () => {
+    // A conversa reconhece o payload antes do passo atual (SCRUM-293, `conversation/conferencia.ts`).
+    const promessa = '0b9c1f9e-8d2e-4c39-9a51-2f6f3a1d7c10';
+    for (const [n, data] of [
+      [3, `conferencia:${promessa}:0`],
+      [4, `conferencia:${promessa}:reaberta:2`],
+    ] as const) {
+      const update = {
+        update_id: n,
+        callback_query: { id: `cb-${String(n)}`, data, message: { chat: chatPrivado } },
+      };
+      expect(textoDaConversa(update)).toBe(data);
+      expect(await processarUpdate(update, deps())).toBe('enfileirada');
+      expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', {
+        callback_query_id: `cb-${String(n)}`,
+      });
+    }
+    expect(await mensagensNaFila(db)).toHaveLength(2);
   });
 
   it('update fora do formato e chat de grupo não enfileiram nada', async () => {

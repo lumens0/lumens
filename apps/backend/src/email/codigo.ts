@@ -15,6 +15,12 @@ import type { Logger } from '../infra/logger';
 export interface ServicoDeEmail {
   /** `true` se o servidor de e-mail aceitou a mensagem; `false` se falhou (a pessoa tenta de novo). */
   enviarCodigo(para: string, codigo: string): Promise<boolean>;
+  /**
+   * SCRUM-298: avisa o dono do e-mail que o cadastro dele passou para outro número ou chat (troca
+   * de canal). Se não foi ele, alguém acertou o código e tomou o cadastro. Opcional só para os
+   * falsos dos testes; o SMTP e o `logEmail` têm.
+   */
+  avisarTransferencia?(para: string, quando: Date): Promise<boolean>;
 }
 
 export interface MensagemDeEmail {
@@ -59,25 +65,52 @@ export function textoDoCodigo(codigo: string): string {
   ].join('\n');
 }
 
+export const ASSUNTO_DA_TRANSFERENCIA = 'Seu cadastro no Lumens foi ligado a outro número';
+
+const dataHoraBR = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+export function textoDaTransferencia(quando: Date): string {
+  return [
+    'Olá!',
+    '',
+    `Em ${dataHoraBR.format(quando)}, o seu cadastro no Lumens foi ligado a outro número de WhatsApp ou chat do Telegram, depois que o código de verificação enviado para este e-mail foi digitado lá.`,
+    '',
+    'Se foi você (trocou de número ou passou a usar o Telegram), não precisa fazer nada.',
+    '',
+    'Se não foi você, responda este e-mail o quanto antes: alguém pode estar usando o seu cadastro, com os seus apoios e as pautas que você cuida.',
+    '',
+    'Equipe Lumens',
+  ].join('\n');
+}
+
 export function criarEmailSmtp(opcoes: OpcoesSmtp): ServicoDeEmail {
   let transporte = opcoes.transporte;
+  async function enviar(mensagem: Omit<MensagemDeEmail, 'from'>, oQue: string) {
+    transporte ??= criarTransporteSmtp(opcoes);
+    try {
+      await transporte.sendMail({ from: opcoes.remetente, ...mensagem });
+      return true;
+    } catch (erro) {
+      const tipo = erro instanceof Error ? erro.name : typeof erro;
+      opcoes.avisar?.(`não consegui enviar ${oQue} por e-mail (${tipo})`);
+      return false;
+    }
+  }
   return {
-    async enviarCodigo(para, codigo) {
-      transporte ??= criarTransporteSmtp(opcoes);
-      try {
-        await transporte.sendMail({
-          from: opcoes.remetente,
-          to: para,
-          subject: ASSUNTO_DO_CODIGO,
-          text: textoDoCodigo(codigo),
-        });
-        return true;
-      } catch (erro) {
-        const tipo = erro instanceof Error ? erro.name : typeof erro;
-        opcoes.avisar?.(`não consegui enviar o código de verificação por e-mail (${tipo})`);
-        return false;
-      }
-    },
+    enviarCodigo: (para, codigo) =>
+      enviar(
+        { to: para, subject: ASSUNTO_DO_CODIGO, text: textoDoCodigo(codigo) },
+        'o código de verificação',
+      ),
+    avisarTransferencia: (para, quando) =>
+      enviar(
+        { to: para, subject: ASSUNTO_DA_TRANSFERENCIA, text: textoDaTransferencia(quando) },
+        'o aviso de transferência do cadastro',
+      ),
   };
 }
 
@@ -111,6 +144,10 @@ export function logEmail(logger: Logger): ServicoDeEmail {
   return {
     enviarCodigo(_para, codigo) {
       logger.info({ codigo }, 'código de verificação (pnpm dev: e-mail não enviado)');
+      return Promise.resolve(true);
+    },
+    avisarTransferencia(_para, quando) {
+      logger.info({ quando }, 'aviso de transferência do cadastro (pnpm dev: e-mail não enviado)');
       return Promise.resolve(true);
     },
   };
