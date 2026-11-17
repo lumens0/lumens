@@ -115,6 +115,11 @@ export function botoes(mensagem: Omit<MensagemDeBotoes, 'tipo'>): MensagemDeBoto
 /**
  * A resposta cortada nos limites da Meta (SCRUM-323). Quem envia pela Cloud API do WhatsApp chama
  * isto antes de montar o payload; os outros canais recebem o texto inteiro.
+ *
+ * LEGADO: nenhum código de produção chama esta função hoje. O canal em uso é a Evolution
+ * (SCRUM-275), que manda o menu em texto, e o envio pela Cloud API da Meta não existe (o número de
+ * produção está bloqueado). Fica para o dia em que esse envio for escrito; quem o escrever deve
+ * chamá-la antes de montar o payload, ou apagá-la com os testes se a Cloud API for abandonada.
  */
 export function dentroDosLimitesDaMeta(resposta: Resposta): Resposta {
   if (typeof resposta === 'string' || resposta.tipo === 'imagem') return resposta;
