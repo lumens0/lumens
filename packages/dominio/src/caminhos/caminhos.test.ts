@@ -592,9 +592,10 @@ ${fonte}   `,
     expect(dataDeEntregaMaxima(new Date('2027-01-01T03:00:00.000Z'))).toBe('2029-01-01');
   });
 
-  it('em 29/02 o teto não aceita 01/03 dois anos depois', async () => {
+  it('em 29/02 o teto é 28/02, uma data que existe, e 01/03 é recusado', async () => {
     const bissexto = new Date('2028-02-29T15:00:00.000Z');
-    expect(dataDeEntregaMaxima(bissexto)).toBe('2030-02-29');
+    // O teto vai no `max` do campo: o navegador ignora um `max` inexistente como 2030-02-29.
+    expect(dataDeEntregaMaxima(bissexto)).toBe('2030-02-28');
     const pauta = await criarPauta(db, { status: 'cobrando' });
     const curador = await criarCurador(db);
     await expect(

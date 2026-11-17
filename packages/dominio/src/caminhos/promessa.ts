@@ -90,12 +90,15 @@ export const hojeEmMaceio = (agora = new Date()) =>
   new Date(agora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
 
 /**
- * Último dia aceito como data de entrega, `YYYY-MM-DD`. Em 29/02 o teto vira 29/02 de um ano não
- * bissexto, que só serve de comparação: 28/02 passa, 01/03 não.
+ * Último dia aceito como data de entrega, `YYYY-MM-DD`, sempre uma data que existe: vai no `max` do
+ * campo, e o navegador ignora um `max` inválido. Em 29/02 o teto é 28/02 de dois anos depois.
  */
 export function dataDeEntregaMaxima(agora = new Date()): string {
   const hoje = hojeEmMaceio(agora);
-  return `${String(Number(hoje.slice(0, 4)) + ANOS_ATE_A_ENTREGA_MAXIMO)}${hoje.slice(4)}`;
+  const ano = Number(hoje.slice(0, 4)) + ANOS_ATE_A_ENTREGA_MAXIMO;
+  const bissexto = (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0;
+  const diaEMes = hoje.slice(4) === '-02-29' && !bissexto ? '-02-28' : hoje.slice(4);
+  return `${String(ano)}${diaEMes}`;
 }
 
 const tamanho = (texto: string) => Array.from(texto).length;
