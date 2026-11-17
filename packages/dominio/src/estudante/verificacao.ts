@@ -13,9 +13,24 @@
  *    estudante (RN02), já que o apoio é contado por estudante.
  * 5. `concluirVerificacao` (SCRUM-138): com o curso escolhido, o estudante passa a ser verificado
  *    (RN01). Só vale curso da lista `CURSOS`, porque o curso de quem cuida da pauta vai para o site.
+ * 6. `bloqueioDaVerificacao` e `registrarNaVerificacao` (SCRUM-298): limites acumulados em 24 h,
+ *    por e-mail e por identidade, que o "reenviar" não zera. Sem eles, 5 palpites por minuto davam
+ *    ~7.200 por dia por identidade; com eles, no máximo 20 por dia por e-mail, somando todas as
+ *    identidades. Também seguram o envio de e-mail em massa para endereços de terceiros.
  */
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { CURSOS, codigosVerificacao, eq, estudantes, type Db } from '@lumens/db';
+import {
+  CURSOS,
+  and,
+  codigosVerificacao,
+  eq,
+  estudantes,
+  gt,
+  lt,
+  or,
+  registrosVerificacao,
+  type Db,
+} from '@lumens/db';
 
 /** O domínio da UFAL. Subdomínios (`*.ufal.br`) também valem. */
 export const DOMINIO_UFAL = 'ufal.br';
@@ -114,6 +129,24 @@ export async function guardarCodigo(
   return { expiraEm: valores.expiraEm };
 }
 
+/** Quanto tempo um código vencido ainda fica guardado antes da limpeza (SCRUM-332). */
+export const CODIGO_GUARDADO_APOS_VENCER_MS = 24 * 3_600_000;
+
+/**
+ * Apaga os códigos vencidos há mais de um dia. Sem isto, o código de quem pediu e não terminou a
+ * verificação ficava para sempre, com o HMAC do telefone. O dia de folga não muda nada para quem
+ * está verificando: depois de vencer, o código já não serve para nada. Retorna quantos apagou.
+ */
+export async function apagarCodigosVencidos(db: Db, agora: Date = new Date()): Promise<number> {
+  const linhas = await db
+    .delete(codigosVerificacao)
+    .where(
+      lt(codigosVerificacao.expiraEm, new Date(agora.getTime() - CODIGO_GUARDADO_APOS_VENCER_MS)),
+    )
+    .returning({ telefoneHmac: codigosVerificacao.telefoneHmac });
+  return linhas.length;
+}
+
 /** Tentativas por código. Esgotadas, só um código novo (reenvio) libera de novo. */
 export const MAX_TENTATIVAS = 5;
 
@@ -123,21 +156,26 @@ export const REENVIO_APOS_MS = 60_000;
 export type ResultadoConferencia =
   | { certo: true }
   | { certo: false; motivo: 'errado'; restantes: number }
-  | { certo: false; motivo: 'sem_tentativas' | 'expirado' | 'sem_codigo' };
+  | { certo: false; motivo: 'sem_tentativas' | 'expirado' | 'sem_codigo' }
+  | { certo: false; motivo: 'bloqueado'; liberaEm: Date };
 
 /**
  * Confere o código digitado. Certo: o código é apagado (vale uma vez só). Errado: conta uma
  * tentativa e diz quantas restam. Código vencido, sem tentativas ou inexistente não é conferido:
  * a pessoa precisa pedir outro. A linha é travada (`FOR UPDATE`) para duas mensagens ao mesmo
  * tempo não contarem como uma tentativa só.
+ *
+ * SCRUM-298: com 20 erros nas últimas 24 h, pelo e-mail ou pela identidade, nem confere
+ * (`bloqueado`), e cada erro fica no registro, que o "reenviar" não zera.
  */
 export async function conferirCodigo(
   db: Db,
   {
     telefoneHmac,
+    emailHmac,
     codigo,
     agora = new Date(),
-  }: { telefoneHmac: string; codigo: string; agora?: Date },
+  }: { telefoneHmac: string; emailHmac: string; codigo: string; agora?: Date },
 ): Promise<ResultadoConferencia> {
   const [linha] = await db
     .select()
@@ -145,6 +183,8 @@ export async function conferirCodigo(
     .where(eq(codigosVerificacao.telefoneHmac, telefoneHmac))
     .for('update');
   if (linha === undefined) return { certo: false, motivo: 'sem_codigo' };
+  const bloqueio = await bloqueioPor(db, 'erro', { telefoneHmac, emailHmac, agora });
+  if (bloqueio !== undefined) return { certo: false, motivo: 'bloqueado', liberaEm: bloqueio };
   if (linha.tentativas >= MAX_TENTATIVAS) return { certo: false, motivo: 'sem_tentativas' };
   if (linha.expiraEm.getTime() <= agora.getTime()) return { certo: false, motivo: 'expirado' };
 
@@ -157,6 +197,7 @@ export async function conferirCodigo(
     .update(codigosVerificacao)
     .set({ tentativas })
     .where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
+  await registrarNaVerificacao(db, 'erro', { telefoneHmac, emailHmac, agora });
   return { certo: false, motivo: 'errado', restantes: MAX_TENTATIVAS - tentativas };
 }
 
@@ -188,8 +229,127 @@ export async function apagarCodigo(db: Db, telefoneHmac: string): Promise<void> 
   await db.delete(codigosVerificacao).where(eq(codigosVerificacao.telefoneHmac, telefoneHmac));
 }
 
+/** Janela dos limites acumulados (SCRUM-298). */
+export const JANELA_DOS_LIMITES_MS = 24 * 60 * 60_000;
+
+/** Códigos enviados em 24 h, por e-mail e por identidade. O 6º pedido é recusado sem e-mail. */
+export const MAX_ENVIOS_POR_DIA = 5;
+
+/** Códigos errados em 24 h, por e-mail e por identidade. Ao chegar aqui, a conferência para. */
+export const MAX_ERROS_POR_DIA = 20;
+
+export type TipoDeRegistro = 'envio' | 'erro';
+
+export interface ChavesDaVerificacao {
+  telefoneHmac: string;
+  /** HMAC do e-mail normalizado, o mesmo de `estudante.email_hmac`. */
+  emailHmac: string;
+  agora?: Date;
+}
+
+const LIMITE: Record<TipoDeRegistro, number> = {
+  envio: MAX_ENVIOS_POR_DIA,
+  erro: MAX_ERROS_POR_DIA,
+};
+
+/**
+ * Até quando um tipo está bloqueado; `undefined` se não está. Conta separado por e-mail e por
+ * identidade: basta um dos dois chegar ao limite. Libera quando o registro que fez passar do limite
+ * sai da janela de 24 h.
+ */
+async function bloqueioPor(
+  db: Db,
+  tipo: TipoDeRegistro,
+  { telefoneHmac, emailHmac, agora = new Date() }: ChavesDaVerificacao,
+): Promise<Date | undefined> {
+  const desde = new Date(agora.getTime() - JANELA_DOS_LIMITES_MS);
+  const linhas = await db
+    .select({
+      telefoneHmac: registrosVerificacao.telefoneHmac,
+      emailHmac: registrosVerificacao.emailHmac,
+      em: registrosVerificacao.em,
+    })
+    .from(registrosVerificacao)
+    .where(
+      and(
+        eq(registrosVerificacao.tipo, tipo),
+        gt(registrosVerificacao.em, desde),
+        or(
+          eq(registrosVerificacao.emailHmac, emailHmac),
+          eq(registrosVerificacao.telefoneHmac, telefoneHmac),
+        ),
+      ),
+    );
+  const limite = LIMITE[tipo];
+  const liberacoes = [
+    linhas.filter((l) => l.emailHmac === emailHmac),
+    linhas.filter((l) => l.telefoneHmac === telefoneHmac),
+  ].flatMap((daChave) => {
+    if (daChave.length < limite) return [];
+    // Mais novo primeiro: o bloqueio dura até o `limite`-ésimo mais novo sair da janela.
+    const emOrdem = daChave.map((l) => l.em.getTime()).sort((a, b) => b - a);
+    const marco = emOrdem[limite - 1] ?? agora.getTime();
+    return [marco + JANELA_DOS_LIMITES_MS];
+  });
+  return liberacoes.length === 0 ? undefined : new Date(Math.max(...liberacoes));
+}
+
+export type BloqueioDaVerificacao = { motivo: 'envios' | 'erros'; liberaEm: Date } | undefined;
+
+/**
+ * Pode mandar outro código para este e-mail, desta identidade? Bloqueia com 5 códigos enviados ou
+ * 20 erros nas últimas 24 h, contados por e-mail e por identidade. Chame antes de gerar o código:
+ * bloqueado, nenhum e-mail sai.
+ */
+export async function bloqueioDaVerificacao(
+  db: Db,
+  chaves: ChavesDaVerificacao,
+): Promise<BloqueioDaVerificacao> {
+  const erros = await bloqueioPor(db, 'erro', chaves);
+  if (erros !== undefined) return { motivo: 'erros', liberaEm: erros };
+  const envios = await bloqueioPor(db, 'envio', chaves);
+  if (envios !== undefined) return { motivo: 'envios', liberaEm: envios };
+  return undefined;
+}
+
+/**
+ * Registra um código enviado ou um código errado, só com os HMACs. Aproveita para apagar o que já
+ * saiu da janela de 24 h, de qualquer pessoa: a tabela não cresce sem limite.
+ */
+export async function registrarNaVerificacao(
+  db: Db,
+  tipo: TipoDeRegistro,
+  { telefoneHmac, emailHmac, agora = new Date() }: ChavesDaVerificacao,
+): Promise<void> {
+  await apagarRegistrosVencidos(db, agora);
+  await db.insert(registrosVerificacao).values({ telefoneHmac, emailHmac, tipo, em: agora });
+}
+
+/**
+ * Apaga os registros que já saíram da janela de 24 h: não contam mais para limite nenhum. Roda a
+ * cada registro novo e também na limpeza de hora em hora (SCRUM-332), para não depender de alguém
+ * verificar: sem isso, as linhas de um dia sem verificações ficariam até a próxima. Retorna quantos
+ * apagou.
+ */
+export async function apagarRegistrosVencidos(db: Db, agora: Date = new Date()): Promise<number> {
+  const linhas = await db
+    .delete(registrosVerificacao)
+    .where(lt(registrosVerificacao.em, new Date(agora.getTime() - JANELA_DOS_LIMITES_MS)))
+    .returning({ id: registrosVerificacao.id });
+  return linhas.length;
+}
+
 export type ResultadoVinculo =
-  { vinculado: true; estudanteId: string } | { vinculado: false; motivo: 'email_em_uso' };
+  | {
+      vinculado: true;
+      estudanteId: string;
+      /**
+       * SCRUM-298: o cadastro saiu de outra identidade para esta (troca de canal). Quem chama avisa
+       * o dono pelo e-mail: se não foi ele, alguém acertou o código e tomou o cadastro.
+       */
+      transferido?: true;
+    }
+  | { vinculado: false; motivo: 'email_em_uso' };
 
 export interface NovoVinculo {
   telefoneHmac: string;
@@ -240,7 +400,7 @@ export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<Resul
       .update(estudantes)
       .set({ telefoneHmac: vinculo.telefoneHmac, telefoneCifrado: vinculo.telefoneCifrado })
       .where(eq(estudantes.id, dono.id));
-    return { vinculado: true, estudanteId: dono.id };
+    return { vinculado: true, estudanteId: dono.id, transferido: true };
   }
 
   if (meu !== undefined) {
