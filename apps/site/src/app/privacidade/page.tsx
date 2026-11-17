@@ -209,6 +209,15 @@ export default function Privacidade() {
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
           publicadas, que não carregam seus dados pessoais, permanecem no site.
         </p>
+        {/* SCRUM-314: sairDoLumens apaga os relatos não publicados e as fotos deles. */}
+        <p>
+          Os relatos que você enviou e que ainda não tinham sido publicados (em análise ou
+          recusados) são apagados na hora, com as fotos. Os relatos já publicados continuam no site,
+          sem o seu nome, e os PDFs de resposta oficial que você enviou ficam com a pauta, porque
+          são o registro da cobrança. Para pedir que algum deles seja retirado, fale com a equipe
+          pelo mesmo canal do {nomeDoCanal()}, de preferência antes de sair: depois, não temos mais
+          como saber que foi você quem enviou.
+        </p>
         <p>
           Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do{' '}
           {nomeDoCanal()}: o pedido é atendido manualmente pela equipe.
