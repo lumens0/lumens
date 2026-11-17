@@ -134,6 +134,21 @@ describe('rodarGatilhos', () => {
     expect(segunda).toMatchObject({ conferenciasAbertas: 0, conferenciasApuradas: 0 });
   });
 
+  // Antes do teste da promessa quebrada: ela continua falhando nas rodadas seguintes.
+  it('promessa sem apoiadores não derruba a rodada e termina com resultado (SCRUM-297)', async () => {
+    const { promessaId } = await promessaCom(0);
+
+    for (const quando of [5 * 60_000, 7 * DIA + 5 * 60_000, 15 * DIA + 5 * 60_000]) {
+      await expect(rodarGatilhos(db, logger, depois(quando))).resolves.toBeDefined();
+    }
+
+    expect(await resultadoDa(promessaId)).toBe('sem_quorum');
+    // Com o resultado gravado, ela sai da lista do agendador: as próximas rodadas não a tocam.
+    expect(await rodarGatilhos(db, logger, depois(16 * DIA))).toMatchObject({
+      conferenciasApuradas: 0,
+    });
+  });
+
   it('uma promessa com erro não impede as outras, e a rodada acusa a falha', async () => {
     const quebrada = await promessaCom(10);
     const boa = await promessaCom(10);
