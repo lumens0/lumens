@@ -383,7 +383,7 @@ export interface NovoVinculo {
  */
 export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<ResultadoVinculo> {
   const [dono] = await db
-    .select({ id: estudantes.id, telefoneHmac: estudantes.telefoneHmac })
+    .select({ id: estudantes.id, telefoneHmac: estudantes.telefoneHmac, saiuEm: estudantes.saiuEm })
     .from(estudantes)
     .where(eq(estudantes.emailHmac, vinculo.emailHmac))
     .for('update');
@@ -407,6 +407,9 @@ export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<Resul
         emailCifrado: vinculo.emailCifrado,
       })
       .where(eq(estudantes.id, dono.id));
+    // Quem saiu e volta é o próprio dono (o código provou o e-mail): não há o que avisar. O aviso
+    // de transferência é para o cadastro ativo que muda de identidade.
+    if (dono.saiuEm !== null) return { vinculado: true, estudanteId: dono.id };
     return { vinculado: true, estudanteId: dono.id, transferido: true };
   }
 
