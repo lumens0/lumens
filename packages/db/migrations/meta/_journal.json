@@ -138,8 +138,15 @@
     {
       "idx": 19,
       "version": "7",
-      "when": 1794946582446,
-      "tag": "0019_proxima_etapa_com_ano",
+      "when": 1794947352365,
+      "tag": "0019_papel_pauta_ativo_unico",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794949980364,
+      "tag": "0020_proxima_etapa_com_ano",
       "breakpoints": true
     }
   ]

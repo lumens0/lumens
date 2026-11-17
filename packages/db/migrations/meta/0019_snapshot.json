@@ -1,5 +1,5 @@
 {
-  "id": "8b1b477c-a2a7-43b6-97ee-c9ca5621e7c8",
+  "id": "f22162a4-181b-4ff1-b427-bf7cbecbb59d",
   "prevId": "d4eb9630-ce03-4909-bb0d-ead71d5b64bc",
   "version": "7",
   "dialect": "postgresql",
@@ -1093,6 +1093,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "papel_pauta_ativo_unico": {
+          "name": "papel_pauta_ativo_unico",
+          "columns": [
+            {
+              "expression": "pauta_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estudante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"papel_pauta\".\"ate\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

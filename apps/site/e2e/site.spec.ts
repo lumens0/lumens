@@ -122,3 +122,11 @@ test('atividade lista do mais novo ao mais antigo, pagina e leva até a pauta', 
   await itens.first().getByRole('link', { name: ATIVIDADE.tituloMaisNova, exact: true }).click();
   await expect(page).toHaveURL(`/p/${ATIVIDADE.maisNova.slug}`);
 });
+
+// SCRUM-338: robots e sitemap respondem, e o sitemap traz as pautas do seed.
+test('robots.txt e sitemap.xml respondem 200', async ({ request }) => {
+  expect((await request.get('/robots.txt')).status()).toBe(200);
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  expect(await sitemap.text()).toContain(`/p/${PAUTA.slug}</loc>`);
+});

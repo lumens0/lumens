@@ -125,6 +125,7 @@ describe('registrarEvento (RN11)', () => {
   });
 
   it('o catálogo tem os 16 tipos da T7', () => {
-    expect(TIPOS_EVENTO).toHaveLength(16);
+    expect(TIPOS_EVENTO).toHaveLength(17);
+    expect(TIPOS_EVENTO).toContain('categoria_alterada');
   });
 });

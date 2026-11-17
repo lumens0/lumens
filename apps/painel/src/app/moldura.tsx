@@ -24,9 +24,9 @@ export function Moldura({
           Lumens · Curadoria
         </Link>
         <nav aria-label="Seções do painel" className={estilos.navegacao}>
-          <Link href="/fila">Pautas novas</Link>
-          <Link href="/relatos">Relatos</Link>
-          <Link href="/pautas">Todas as pautas</Link>
+          <Link href="/">Início</Link>
+          <Link href="/pautas">Pautas</Link>
+          <Link href="/relatos">Relatos em pautas publicadas</Link>
           {administrador && <Link href="/curadores">Curadores</Link>}
         </nav>
         <form action={sair} className={estilos.sessao}>

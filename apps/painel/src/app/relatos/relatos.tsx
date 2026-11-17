@@ -11,6 +11,8 @@ const FEITO: Record<string, string> = {
 
 const ERRO: Record<string, string> = {
   ja_moderado: 'Outra pessoa da curadoria já decidiu este relato.',
+  relato_mudou:
+    'O relato ganhou uma foto depois que você abriu a fila. Confira de novo antes de aprovar.',
 };
 
 const MOTIVO: Record<string, string> = {
@@ -39,7 +41,11 @@ export function Relatos({
   const falha = erro === undefined ? undefined : ERRO[erro];
   return (
     <>
-      <h1>Relatos novos</h1>
+      <h1>Relatos em pautas publicadas</h1>
+      <p className={estilos.apoio}>
+        O relato de quem criou uma pauta é conferido junto com a pauta; esta lista mostra relatos
+        novos de pautas já públicas.
+      </p>
       <p className={estilos.apoio}>
         Antes de aprovar, barre o que identifica alguém: nome de pessoa, ofensa e dado pessoal.
         Confira também a foto, se houver. Aprovar e recusar valem para o texto e a foto juntos.
@@ -85,6 +91,7 @@ export function Relatos({
                   <div className={estilos.decisoes}>
                     <form action={aprovar}>
                       <input type="hidden" name="relatoId" value={relato.id} />
+                      <input type="hidden" name="fotoVista" value={relato.fotoChave ?? ''} />
                       <button className={estilos.botao} type="submit">
                         Aprovar relato
                       </button>
