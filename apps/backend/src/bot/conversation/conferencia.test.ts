@@ -22,7 +22,6 @@ import {
 } from './conferencia';
 import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
 import { hashPhone } from './phone';
-import { PRIVACY_NOTICE_TEXT } from './privacidade';
 import { handleIncoming } from './router';
 import { ConversationStore } from './store';
 
@@ -169,13 +168,10 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     });
   });
 
-  it('sem conversa guardada, o aviso de privacidade vai só no primeiro toque; o segundo troca o voto', async () => {
+  it('sem conversa guardada, quem tem cadastro não recebe o aviso de privacidade de novo (SCRUM-333); o segundo toque troca o voto', async () => {
     const c = await cenario();
 
-    expect(await c.send(c.botao('Sim'))).toEqual([
-      PRIVACY_NOTICE_TEXT,
-      CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim'),
-    ]);
+    expect(await c.send(c.botao('Sim'))).toEqual([CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]);
     expect(await c.send(c.botao('Em parte'))).toEqual([
       CONFERENCIA_TROCADA_TEXT(TITULO, 'Em parte'),
     ]);
@@ -202,10 +198,8 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     const c = await cenario();
     await db.update(estudantes).set({ verificadoEm: null });
 
-    expect(await c.send(c.botao('Sim'))).toEqual([
-      PRIVACY_NOTICE_TEXT,
-      RECUSA_DA_CONFERENCIA_TEXT.nao_apoiou,
-    ]);
+    // Já tem cadastro (a linha existe, só não está verificada): o aviso não vai de novo (SCRUM-333).
+    expect(await c.send(c.botao('Sim'))).toEqual([RECUSA_DA_CONFERENCIA_TEXT.nao_apoiou]);
     // Sem cadastro, nenhuma conversa fica guardada com o HMAC do telefone (5.7).
     expect(await store.get(c.phoneHmac)).toBeNull();
   });
