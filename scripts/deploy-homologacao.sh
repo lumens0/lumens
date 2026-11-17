@@ -58,6 +58,16 @@ if grep -qE '^[[:space:]]*CANAL_WHATSAPP=evolution[[:space:]]*$' .env.producao &
   COMPOSE+=(--profile evolution)
 fi
 
+# Backup diário (docs/operacao/backup.md). Na homologação ele nunca foi instalado, e ninguém
+# percebeu (SCRUM-328): o timer é um passo à mão, fora do deploy. Aqui não para o deploy, porque
+# publicar não piora o backup que falta, mas o aviso aparece em todo deploy até alguém instalar.
+# Timer ativo não basta: se o último backup falhou (disco cheio, Postgres parado), avisa também.
+if ! systemctl is-active --quiet lumens-backup.timer 2>/dev/null; then
+  echo "::warning::O timer lumens-backup.timer não está ativo nesta VM: o banco está sem backup diário. Instale como em docs/operacao/backup.md (Instalar na VM)." >&2
+elif systemctl is-failed --quiet lumens-backup.service 2>/dev/null; then
+  echo "::warning::O último backup do banco falhou. Veja: journalctl -u lumens-backup.service -n 50" >&2
+fi
+
 echo "--> Atualizando o código para $REF"
 git fetch --prune origin
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
