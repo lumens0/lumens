@@ -1,5 +1,5 @@
 {
-  "id": "4fe5d61c-0230-4171-be75-14769676f22b",
+  "id": "f22162a4-181b-4ff1-b427-bf7cbecbb59d",
   "prevId": "d4eb9630-ce03-4909-bb0d-ead71d5b64bc",
   "version": "7",
   "dialect": "postgresql",
@@ -1096,6 +1096,28 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "papel_pauta_ativo_unico": {
+          "name": "papel_pauta_ativo_unico",
+          "columns": [
+            {
+              "expression": "pauta_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estudante_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"papel_pauta\".\"ate\" IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1441,16 +1463,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "promessa_resumo_ate_500": {
-          "name": "promessa_resumo_ate_500",
-          "value": "char_length(\"promessa\".\"resumo\") <= 500"
-        },
-        "promessa_fonte_ate_120": {
-          "name": "promessa_fonte_ate_120",
-          "value": "char_length(\"promessa\".\"fonte\") <= 120"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.proposta": {

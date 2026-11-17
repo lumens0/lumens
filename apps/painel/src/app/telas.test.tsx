@@ -1,7 +1,6 @@
-import type { PautaComRelatosPendentes, PautaDaCuradoria } from '@lumens/dominio';
+import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Fila } from './fila/fila';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
 import { ListaDePautas } from './pautas/lista';
@@ -11,7 +10,7 @@ import { Relatos } from './relatos/relatos';
 const HORA = 3_600_000;
 const acao = () => Promise.resolve();
 
-const pauta = (campos: Partial<PautaDaCuradoria> = {}): PautaDaCuradoria => ({
+const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCuradoria => ({
   id: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
   titulo: 'Bebedouro quebrado no bloco 12',
   descricao: 'O bebedouro do térreo não funciona desde agosto.',
@@ -22,6 +21,14 @@ const pauta = (campos: Partial<PautaDaCuradoria> = {}): PautaDaCuradoria => ({
   restanteMs: 5 * HORA,
   status: 'em_curadoria',
   motivoRecusa: null,
+  categoria: 'infraestrutura',
+  apoios: 80,
+  meta: 300,
+  metaBatidaEm: null,
+  responsaveis: [],
+  relatos: [],
+  caminhos: [],
+  promessa: null,
   ...campos,
 });
 
@@ -37,41 +44,6 @@ describe('textoDoPrazo', () => {
     [-280 * 24 * HORA, 'atrasada há 280 dias'],
   ])('%i ms → %s', (ms, texto) => {
     expect(textoDoPrazo(ms)).toBe(texto);
-  });
-});
-
-describe('fila das pautas novas', () => {
-  it('lista as pautas com bloco, prazo e link para a tela de cada uma', () => {
-    const html = renderToStaticMarkup(
-      <Fila
-        pautas={[
-          pauta(),
-          pauta({
-            id: 'outra',
-            titulo: 'Sem luz no estacionamento',
-            bloco: null,
-            restanteMs: -HORA,
-          }),
-        ]}
-      />,
-    );
-
-    expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
-    expect(html).toContain('Bloco 12');
-    expect(html).toContain('faltam 5 h');
-    expect(html).toContain('Campus inteiro');
-    expect(html).toContain('atrasada há 1 h');
-  });
-
-  it('fila vazia e aviso depois de uma decisão', () => {
-    const html = renderToStaticMarkup(<Fila pautas={[]} feito="recusada" />);
-
-    expect(html).toContain('Nenhuma pauta esperando decisão.');
-    expect(html).toContain('Quem criou recebe o motivo pelo WhatsApp.');
-  });
-
-  it('valor desconhecido em ?feito não vira texto na tela', () => {
-    expect(renderToStaticMarkup(<Fila pautas={[]} feito="<script>" />)).not.toContain('script');
   });
 });
 
@@ -95,14 +67,137 @@ describe('tela da pauta', () => {
     expect(html).toContain('Bloco 12');
     expect(html).toContain('O bebedouro do térreo não funciona desde agosto.');
     expect(html).toContain('Sem foto');
-    expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab/linha-do-tempo"');
+    expect(html).toContain('<details id="linha-do-tempo"');
+    expect(html).toContain('Linha do tempo');
     expect(html).toContain('Aprovar pauta');
+    expect(html).toContain('também publica o relato de quem a criou');
     expect(html).toContain('Recusar pauta');
     expect(html.match(/name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"/g)).toHaveLength(
       2,
     );
     // Recusa sem motivo nem sai do navegador; o servidor confere de novo.
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
+    expect(html).toMatch(/<select[^>]*name="categoria"[^>]*required/);
+    expect(html).toContain('Infraestrutura');
+    expect(html).toContain('Segurança');
+    expect(html).toContain('Permanência');
+  });
+
+  it('mostra informações operacionais da pauta sem expor identidade de estudante', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          status: 'juntando_apoios',
+          apoios: 300,
+          meta: 300,
+          metaBatidaEm: new Date('2026-11-10T12:00:00.000Z'),
+          relatos: [
+            {
+              texto: 'O elevador está parado.',
+              achados: [],
+              curso: 'Engenharia Civil',
+              fotoChave: 'fotos/relato.jpg',
+              moderacao: 'aprovado',
+              data: new Date('2026-11-09T12:00:00.000Z'),
+            },
+            {
+              texto: 'A lâmpada continua apagada.',
+              achados: [],
+              curso: 'Pedagogia',
+              fotoChave: null,
+              moderacao: 'pendente',
+              data: null,
+            },
+            {
+              texto: 'Relato recusado.',
+              achados: [],
+              curso: null,
+              fotoChave: null,
+              moderacao: 'recusado',
+              data: null,
+            },
+          ],
+          responsaveis: [{ curso: 'Engenharia Civil' }, { curso: 'Pedagogia' }],
+          caminhos: [
+            { tipo: 'falabr', protocolo: '12345.678901/2026-11', prazo: '2026-12-09' },
+            { tipo: 'comunidade', protocolo: null, prazo: null },
+            { tipo: 'representante', protocolo: 'REP-42', prazo: null },
+          ],
+          promessa: {
+            resumo: 'Reparo até dezembro.',
+            fonte: 'Ouvidoria da UFAL',
+            dataEntrega: '2026-12-01',
+            conferenciaAbreEm: new Date('2026-12-01T03:00:00Z'),
+            conferenciaFechaEm: new Date('2026-12-08T03:00:00Z'),
+            votos: { sim: 4, em_parte: 2, nao: 1 },
+          },
+        })}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+
+    expect(html).toContain('300 de 300 apoios');
+    expect(html).toContain('Meta batida em');
+    expect(html).toContain('O elevador está parado.');
+    expect(html).toContain('Situação da moderação: Aprovado');
+    expect(html).toContain('Situação da moderação: Pendente');
+    expect(html).toContain('Situação da moderação: Recusado');
+    expect(html).toContain('Engenharia Civil');
+    expect(html).toContain('Pedagogia');
+    expect(html).toContain('Fala.BR');
+    expect(html).toContain('Comunidade');
+    expect(html).toContain('Representante');
+    expect(html).toContain('12345.678901/2026-11');
+    expect(html).toContain('Promessa registrada');
+    expect(html).toContain('4 sim, 2 em parte, 1 não');
+    expect(html).not.toMatch(/nome(?: completo)?|telefone|e-?mail|@ufal\.br/i);
+  });
+
+  it('pauta aprovada permite trocar categoria; recusada não oferece esse formulário', () => {
+    const aprovada = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'juntando_apoios' })} aprovar={acao} recusar={acao} />,
+    );
+    const recusada = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'recusada' })} aprovar={acao} recusar={acao} />,
+    );
+    expect(aprovada).toContain('Trocar categoria');
+    expect(aprovada).toContain('id="nova-categoria"');
+    expect(recusada).not.toContain('Trocar categoria');
+  });
+
+  it('mostra achados de dado pessoal no relato de origem ao lado do texto e da foto', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          relatos: [
+            {
+              texto: 'Contato: pessoa@ufal.br',
+              curso: 'Engenharia Civil',
+              fotoChave: null,
+              moderacao: 'pendente',
+              data: null,
+              achados: [
+                {
+                  severidade: 'bloqueio',
+                  motivo: 'email',
+                  trecho: 'pessoa@ufal.br',
+                  inicio: 9,
+                  fim: 25,
+                },
+              ],
+            },
+          ],
+        })}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+
+    expect(html).toContain('Barrar: e-mail (pessoa@ufal.br)');
+    // Com e-mail no relato pendente, a tela avisa e oferece recusar só o relato.
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('Recusar só o relato');
   });
 
   it('avisa quando a recusa veio sem motivo ou outra pessoa já decidiu', () => {
@@ -249,13 +344,25 @@ describe('lista de todas as pautas', () => {
   it('mostra a situação de cada pauta e o link para a tela dela', () => {
     const html = renderToStaticMarkup(
       <ListaDePautas
-        pautas={[pauta({ status: 'cobrando' }), pauta({ id: 'b', status: 'conquistada' })]}
+        pautas={[
+          pauta({ status: 'em_curadoria', restanteMs: -HORA }),
+          pauta({ id: 'b', status: 'cobrando' }),
+          pauta({ id: 'c', status: 'conquistada' }),
+        ]}
+        status="em_curadoria"
+        q="bebedouro"
       />,
     );
 
     expect(html).toContain('Em cobrança');
     expect(html).toContain('Conquistada');
     expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
+    expect(html).toContain('name="status"');
+    expect(html).toContain('name="q"');
+    expect(html).toContain('value="bebedouro"');
+    expect(html).toContain('de 300 apoios');
+    expect(html).toContain('atrasada há 1 h');
+    expect(html).toContain('selected');
   });
 });
 
@@ -302,6 +409,8 @@ describe('relatos novos', () => {
     );
 
     expect(html).toContain('nome de pessoa, ofensa e dado pessoal');
+    expect(html).toContain('Relatos em pautas publicadas');
+    expect(html).toContain('O relato de quem criou uma pauta é conferido junto com a pauta');
     expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
     expect(html).toContain('Campus inteiro');
     // A foto aparece para a curadoria conferir, pela rota que exige sessão (SCRUM-262).
