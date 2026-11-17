@@ -143,6 +143,7 @@ const storage: Storage = {
     guardados.push({ chave, contentType, bytes });
     return Promise.resolve();
   },
+  remover: () => Promise.resolve(),
 };
 
 const avisoSender: AvisoSender = {
@@ -264,7 +265,7 @@ async function montarFimDoRoteiro2() {
   slug = criada.slug;
   meta = criada.meta;
   const aprovada = await admin.transaction((tx) =>
-    aprovarPauta(tx, { pautaId, curadorId, agora: diasAtras(15) }),
+    aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura', agora: diasAtras(15) }),
   );
   expect(aprovada).toEqual({ decidida: true });
 
@@ -410,7 +411,9 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
     it('a curadoria modera os relatos e só o aprovado vai ao site, sem nome', async () => {
       // Como o painel: uma transação por decisão, com o curador da sessão.
       expect(
-        await db.transaction((tx) => aprovarRelato(tx, { relatoId: relatoParaAprovar, curadorId })),
+        await db.transaction((tx) =>
+          aprovarRelato(tx, { relatoId: relatoParaAprovar, curadorId, fotoVista: null }),
+        ),
       ).toEqual({ moderado: true });
       expect(
         await db.transaction((tx) => recusarRelato(tx, { relatoId: relatoParaRecusar, curadorId })),
@@ -419,6 +422,13 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       const pauta = await lerPauta();
       // Só texto, foto, curso e data: nada de quem relatou.
       expect(pauta.relatos).toEqual([
+        // O relato da criação sai junto com a aprovação da pauta (#144).
+        {
+          texto: PAUTA.descricao,
+          foto_chave: null,
+          curso: 'Agronomia',
+          moderado_em: expect.any(String) as string,
+        },
         {
           texto: RELATO_APROVADO,
           foto_chave: null,
@@ -428,12 +438,12 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       ]);
       expect(JSON.stringify(pauta)).not.toContain(RELATO_RECUSADO);
       expect(JSON.stringify(pauta)).not.toContain(apoiadoresIds[0]);
-      // O relato da criação não foi moderado: segue pendente e fora do site.
+      // O relato da criação foi aprovado com a pauta.
       const [daCriacao] = await admin
         .select({ moderacao: relatos.moderacao })
         .from(relatos)
         .where(eq(relatos.id, relatoDaCriacao));
-      expect(daCriacao?.moderacao).toBe('pendente');
+      expect(daCriacao?.moderacao).toBe('aprovado');
     });
 
     it('a responsável envia o PDF da resposta em 4 · Minhas pautas, e o bot confirma', async () => {
@@ -581,10 +591,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       }
     });
 
-    // SCRUM-288: o bot ainda não trata o toque nos botões do "Foi feito?" (o payload do botão cai
-    // na conversa comum e nada é registrado). Quando a SCRUM-288 entrar, este passo passa a
-    // passar e vira `it`. Hoje ele falha na contagem das linhas, não por tempo esgotado.
-    it.fails('os apoiadores respondem pelo bot, uma resposta por pessoa (SCRUM-288)', async () => {
+    // SCRUM-288: o bot trata o toque nos botões do "Foi feito?" e registra uma resposta por pessoa.
+    it('os apoiadores respondem pelo bot, uma resposta por pessoa (SCRUM-288)', async () => {
       // O toque leva o payload que o aviso daquela pessoa de fato levou; espera a resposta do bot,
       // seja qual for, antes do próximo toque.
       const toque = (telefone: string, texto: string) => {
@@ -622,8 +630,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       );
     });
 
-    // Enquanto a SCRUM-288 não entra, as respostas vão pelo domínio (a mesma função que o bot vai
-    // chamar), para a apuração ter o que contar.
+    // As demais respostas vão pelo domínio (a mesma função que o bot chama), para a apuração ter o
+    // que contar.
     it('as respostas ficam registradas pelo domínio, uma por pessoa', async () => {
       const dentroDaJanela = new Date(abreEm.getTime() + 3_600_000);
       const responder = (estudanteId: string, resposta: 'sim' | 'em_parte') =>
@@ -698,6 +706,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
         ['owner_entrou', { papel: 'owner' }],
         ['status_alterado', { de: 'em_curadoria', para: 'juntando_apoios' }],
         ['pauta_aprovada', {}],
+        ['relato_aprovado', { relato_id: relatoDaCriacao }],
         ['meta_batida', { meta, apoios: meta }],
         ['status_alterado', { de: 'juntando_apoios', para: 'meta_batida' }],
         ['caminho_aberto', { caminho_id: caminhoId, tipo: 'falabr' }],
