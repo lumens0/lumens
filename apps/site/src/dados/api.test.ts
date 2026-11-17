@@ -138,7 +138,7 @@ describe('buscarPautas e buscarBlocos', () => {
     await buscarPautas('bloco-a', 'prometido');
     expect(fetch).toHaveBeenCalledWith(
       'http://api.teste/pautas?limit=100&offset=0&bloco=bloco-a&status=prometido',
-      { next: { revalidate: 30 } },
+      { next: { revalidate: 30 }, signal: SINAL },
     );
   });
 
