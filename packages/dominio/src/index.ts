@@ -1,6 +1,21 @@
 export { META_MAXIMA, META_MINIMA, calcularMeta } from './pauta/meta';
 export type { BlocoParaMeta } from './pauta/meta';
 
+export {
+  adicionarCurador,
+  desativarCurador,
+  hmacDoEmailDeCurador,
+  listarCuradores,
+  reativarCurador,
+  recifrarEmailsDeCuradores,
+} from './curadores/curadores';
+export type {
+  ChavesDeCurador,
+  CuradorListado,
+  MotivoRecusaCurador,
+  ResultadoCurador,
+} from './curadores/curadores';
+
 export { conferirAnonimato } from './compartilhado/anonimato';
 export type {
   Achado,
@@ -104,15 +119,26 @@ export {
   MOTIVO_RECUSA_MAXIMO,
   PRAZO_DE_CURADORIA_MS,
   aprovarPauta,
+  definirCategoria,
   buscarPautaDaCuradoria,
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
   recusarPauta,
+  recusarRelatoDeOrigem,
+  resumoDaCuradoria,
+  LIMITE_DA_LISTA,
 } from './pauta/curadoria';
-export type { PautaDaCuradoria, PautaNaFila, ResultadoDecisao } from './pauta/curadoria';
+export type {
+  PendenciaDaCuradoria,
+  PautaDaCuradoria,
+  PautaNaFila,
+  ResultadoDecisao,
+  ResumoDaCuradoria,
+} from './pauta/curadoria';
 
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {
+  AprovacaoDeRelato,
   DecisaoDeModeracao,
   PautaComRelatosPendentes,
   RelatoPendente,
@@ -121,6 +147,12 @@ export type {
 
 export { listarLinhaDoTempo } from './pauta/linha-do-tempo';
 export type { EventoDaLinha } from './pauta/linha-do-tempo';
+export { detalharPautaDaCuradoria } from './pauta/detalhe-curadoria';
+export type {
+  DetalhePautaDaCuradoria,
+  PromessaDaCuradoria,
+  RelatoDaCuradoria,
+} from './pauta/detalhe-curadoria';
 
 export { TRANSICOES, podeTransicionar, transicionarStatus } from './pauta/status';
 export type { Transicao } from './pauta/status';
@@ -140,8 +172,13 @@ export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 
-export { RELATO_MAXIMO, adicionarRelato } from './pauta/relato';
-export type { NovoRelatoDoEstudante, ResultadoRelato } from './pauta/relato';
+export { RELATO_MAXIMO, adicionarRelato, anexarFotoAoRelato } from './pauta/relato';
+export type {
+  FotoDoRelato,
+  NovoRelatoDoEstudante,
+  ResultadoFotoDoRelato,
+  ResultadoRelato,
+} from './pauta/relato';
 
 export { processarUmaVez } from './compartilhado/processar-uma-vez';
 export type { ResultadoProcessamento } from './compartilhado/processar-uma-vez';
@@ -232,14 +269,24 @@ export {
   conferirCodigo,
   cursoValido,
   emailInstitucional,
+  apagarCodigosVencidos,
+  apagarRegistrosVencidos,
   esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
   vincularEmail,
+  JANELA_DOS_LIMITES_MS,
+  MAX_ENVIOS_POR_DIA,
+  MAX_ERROS_POR_DIA,
+  bloqueioDaVerificacao,
+  registrarNaVerificacao,
 } from './estudante/verificacao';
 export type {
+  BloqueioDaVerificacao,
+  ChavesDaVerificacao,
+  TipoDeRegistro,
   NovoVinculo,
   ResultadoConclusao,
   ResultadoConferencia,
@@ -249,3 +296,4 @@ export type {
 
 export { documentosDeResposta, registrarDocumentoDeResposta } from './caminhos/documento-resposta';
 export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-resposta';
+export { cifrar, decifrar } from './compartilhado/cifra';
