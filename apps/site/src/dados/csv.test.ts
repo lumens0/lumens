@@ -34,8 +34,14 @@ describe('CSV de dados abertos', () => {
     };
 
     expect(linhas(csvDe([pauta]))[1]).toBe(
-      'Iluminação no ponto;https://lumens.exemplo/p/iluminacao;infraestrutura;Todo o campus;Cobrando;84;300;2026-11-01;2026-10-01;',
+      'Iluminação no ponto;https://lumens.exemplo/p/iluminacao;Infraestrutura;Todo o campus;Cobrando;84;300;2026-11-01;2026-10-01;',
     );
+  });
+
+  it('categoria a_classificar sai como célula vazia, nunca o slug', () => {
+    const linha = linhas(csvDe([{ ...base, slug: 'x', categoria: 'a_classificar' }]))[1] ?? '';
+    expect(linha).toContain('/p/x;;');
+    expect(linha).not.toContain('a_classificar');
   });
 
   it('texto com ponto e vírgula, aspas ou quebra de linha vai entre aspas', () => {

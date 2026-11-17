@@ -184,5 +184,6 @@ export function ehCategoria(valor: string): valor is Categoria {
 
 /** Rótulo da categoria; `undefined` para `a_classificar` ou qualquer valor fora da lista. */
 export function rotuloDaCategoria(valor: string): string | undefined {
-  return ehCategoria(valor) ? CATEGORIAS[valor] : undefined;
+  const chave = valor.trim();
+  return ehCategoria(chave) ? CATEGORIAS[chave] : undefined;
 }

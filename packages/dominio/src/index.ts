@@ -132,6 +132,7 @@ export {
   TITULO_MAXIMO,
   criarPauta,
   ehCategoria,
+  rotuloDaCategoria,
   gerarSlug,
 } from './pauta/pauta';
 export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
