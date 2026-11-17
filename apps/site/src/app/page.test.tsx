@@ -39,8 +39,12 @@ describe('home', () => {
     expect(html).toContain('Bloco A</h2>');
     for (const p of doBlocoA) expect(html).toContain(p.titulo);
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
-    expect(html).toContain('<dt>Apoios</dt><dd>499</dd>');
-    expect(html).toContain('<dt>Pautas abertas</dt><dd>0</dd>');
+    const total = (rotulo: string, n: string) =>
+      new RegExp(
+        `<dt>${rotulo}</dt><dd><span aria-hidden="true">${n}</span><span class="[^"]*somenteLeitor[^"]*">${n}</span></dd>`,
+      );
+    expect(html).toMatch(total('Apoios', '499'));
+    expect(html).toMatch(total('Pautas abertas', '0'));
   });
 
   it('o leitor de tela ouve os totais uma vez, sem os quadros da animação (SCRUM-58)', async () => {
