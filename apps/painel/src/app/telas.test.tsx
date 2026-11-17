@@ -1,4 +1,4 @@
-import type { PautaComRelatosPendentes, PautaDaCuradoria } from '@lumens/dominio';
+import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { Fila } from './fila/fila';
@@ -11,7 +11,7 @@ import { Relatos } from './relatos/relatos';
 const HORA = 3_600_000;
 const acao = () => Promise.resolve();
 
-const pauta = (campos: Partial<PautaDaCuradoria> = {}): PautaDaCuradoria => ({
+const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCuradoria => ({
   id: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
   titulo: 'Bebedouro quebrado no bloco 12',
   descricao: 'O bebedouro do térreo não funciona desde agosto.',
@@ -22,6 +22,14 @@ const pauta = (campos: Partial<PautaDaCuradoria> = {}): PautaDaCuradoria => ({
   restanteMs: 5 * HORA,
   status: 'em_curadoria',
   motivoRecusa: null,
+  categoria: 'infraestrutura',
+  apoios: 80,
+  meta: 300,
+  metaBatidaEm: null,
+  responsaveis: [],
+  relatos: [],
+  caminhos: [],
+  promessa: null,
   ...campos,
 });
 
@@ -103,6 +111,90 @@ describe('tela da pauta', () => {
     );
     // Recusa sem motivo nem sai do navegador; o servidor confere de novo.
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
+    expect(html).toMatch(/<select[^>]*name="categoria"[^>]*required/);
+    expect(html).toContain('Infraestrutura');
+    expect(html).toContain('Segurança');
+    expect(html).toContain('Permanência');
+  });
+
+  it('mostra informações operacionais da pauta sem expor identidade de estudante', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          status: 'juntando_apoios',
+          apoios: 300,
+          meta: 300,
+          metaBatidaEm: new Date('2026-11-10T12:00:00.000Z'),
+          relatos: [
+            {
+              texto: 'O elevador está parado.',
+              curso: 'Engenharia Civil',
+              fotoChave: 'fotos/relato.jpg',
+              moderacao: 'aprovado',
+              data: new Date('2026-11-09T12:00:00.000Z'),
+            },
+            {
+              texto: 'A lâmpada continua apagada.',
+              curso: 'Pedagogia',
+              fotoChave: null,
+              moderacao: 'pendente',
+              data: null,
+            },
+            {
+              texto: 'Relato recusado.',
+              curso: null,
+              fotoChave: null,
+              moderacao: 'recusado',
+              data: null,
+            },
+          ],
+          responsaveis: [{ curso: 'Engenharia Civil' }, { curso: 'Pedagogia' }],
+          caminhos: [
+            { tipo: 'falabr', protocolo: '12345.678901/2026-11', prazo: '2026-12-09' },
+            { tipo: 'comunidade', protocolo: null, prazo: null },
+            { tipo: 'representante', protocolo: 'REP-42', prazo: null },
+          ],
+          promessa: {
+            resumo: 'Reparo até dezembro.',
+            fonte: 'Ouvidoria da UFAL',
+            dataEntrega: '2026-12-01',
+            conferenciaAbreEm: new Date('2026-12-01T03:00:00Z'),
+            conferenciaFechaEm: new Date('2026-12-08T03:00:00Z'),
+            votos: { sim: 4, em_parte: 2, nao: 1 },
+          },
+        })}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+
+    expect(html).toContain('300 de 300 apoios');
+    expect(html).toContain('Meta batida em');
+    expect(html).toContain('O elevador está parado.');
+    expect(html).toContain('Situação da moderação: Aprovado');
+    expect(html).toContain('Situação da moderação: Pendente');
+    expect(html).toContain('Situação da moderação: Recusado');
+    expect(html).toContain('Engenharia Civil');
+    expect(html).toContain('Pedagogia');
+    expect(html).toContain('Fala.BR');
+    expect(html).toContain('Comunidade');
+    expect(html).toContain('Representante');
+    expect(html).toContain('12345.678901/2026-11');
+    expect(html).toContain('Promessa registrada');
+    expect(html).toContain('4 sim, 2 em parte, 1 não');
+    expect(html).not.toMatch(/nome(?: completo)?|telefone|e-?mail|@ufal\.br/i);
+  });
+
+  it('pauta aprovada permite trocar categoria; recusada não oferece esse formulário', () => {
+    const aprovada = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'juntando_apoios' })} aprovar={acao} recusar={acao} />,
+    );
+    const recusada = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'recusada' })} aprovar={acao} recusar={acao} />,
+    );
+    expect(aprovada).toContain('Trocar categoria');
+    expect(aprovada).toContain('id="nova-categoria"');
+    expect(recusada).not.toContain('Trocar categoria');
   });
 
   it('avisa quando a recusa veio sem motivo ou outra pessoa já decidiu', () => {

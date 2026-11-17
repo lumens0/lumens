@@ -23,6 +23,7 @@ import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { transicionarStatus } from './status';
+import { CATEGORIAS } from './pauta';
 
 /** Mensagem modelo (SCRUM-170): título da pauta e motivo da recusa. */
 export const MODELO_PAUTA_RECUSADA = 'lumens_pauta_recusada';
@@ -109,7 +110,12 @@ export type ResultadoDecisao =
   | { decidida: true }
   | {
       decidida: false;
-      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'motivo_longo';
+      motivo:
+        | 'pauta_inexistente'
+        | 'ja_decidida'
+        | 'motivo_obrigatorio'
+        | 'motivo_longo'
+        | 'categoria_invalida';
     };
 
 async function decidir(
@@ -156,11 +162,54 @@ async function decidir(
  */
 export async function aprovarPauta(
   tx: Tx,
-  { pautaId, curadorId, agora = new Date() }: { pautaId: string; curadorId: string; agora?: Date },
+  {
+    pautaId,
+    curadorId,
+    categoria,
+    agora = new Date(),
+  }: { pautaId: string; curadorId: string; categoria: string; agora?: Date },
 ): Promise<ResultadoDecisao> {
+  if (!categoria || !Object.hasOwn(CATEGORIAS, categoria))
+    return { decidida: false, motivo: 'categoria_invalida' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
-  if (resultado.decidida) await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  if (resultado.decidida) {
+    await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+    await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  }
   return resultado;
+}
+
+export type ResultadoCategoria =
+  | { feito: true }
+  | { feito: false; motivo: 'categoria_invalida' | 'pauta_inexistente' | 'pauta_nao_publicada' };
+
+/**
+ * Troca a categoria de pauta já publicada. A troca fica na linha do tempo (`categoria_alterada`),
+ * como as outras decisões da curadoria; trocar pela mesma categoria não registra nada.
+ */
+export async function definirCategoria(
+  tx: Tx,
+  { pautaId, categoria }: { pautaId: string; categoria: string },
+): Promise<ResultadoCategoria> {
+  if (!Object.hasOwn(CATEGORIAS, categoria)) return { feito: false, motivo: 'categoria_invalida' };
+  const [pauta] = await tx
+    .select({ status: pautas.status, categoria: pautas.categoria })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { feito: false, motivo: 'pauta_inexistente' };
+  if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
+    return { feito: false, motivo: 'pauta_nao_publicada' };
+  }
+  if (pauta.categoria === categoria) return { feito: true };
+  await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+  await registrarEvento(tx, {
+    pautaId,
+    tipo: 'categoria_alterada',
+    dados: { de: pauta.categoria, para: categoria },
+    origem: 'curadoria',
+  });
+  return { feito: true };
 }
 
 /**
