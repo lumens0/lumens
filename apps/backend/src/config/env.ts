@@ -77,6 +77,9 @@ const esquema = z
         .positive()
         .default(3001),
     ),
+    // SHA do código publicado (SCRUM-322). Vem da imagem (`ARG VERSAO` do Dockerfile), não do
+    // .env: o /saude devolve, e o smoke test do deploy confere que é o do run.
+    LUMENS_VERSAO: opcional,
     LOG_LEVEL: comPadrao(
       z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     ),
