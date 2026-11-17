@@ -8,7 +8,7 @@ import type { Adapter, AdapterUser } from 'next-auth/adapters';
 
 export const normalizarEmail = (email: string) => email.trim().toLowerCase();
 
-/** Mesmo cálculo do script que adiciona curador (`pnpm --filter @lumens/backend curador`). */
+/** Mesmo cálculo de `hmacDoEmailDeCurador` em `@lumens/dominio`, que grava o curador. */
 export function hmacDoEmail(email: string, chave: Buffer): string {
   return createHmac('sha256', chave).update(normalizarEmail(email)).digest('hex');
 }
@@ -25,13 +25,16 @@ export async function curadorAtivo(
   return curador;
 }
 
-/** O curador da sessão, se ainda estiver ativo. Desativar tira o acesso já no pedido seguinte. */
+/**
+ * O curador da sessão, se ainda estiver ativo, com o papel de agora (não o do login). Desativar
+ * ou rebaixar tira o acesso já no pedido seguinte.
+ */
 export async function curadorAtivoPorId(
   db: Db,
   id: string,
-): Promise<{ id: string; nome: string } | undefined> {
+): Promise<{ id: string; nome: string; papel: 'curador' | 'administrador' } | undefined> {
   const [curador] = await db
-    .select({ id: curadores.id, nome: curadores.nome })
+    .select({ id: curadores.id, nome: curadores.nome, papel: curadores.papel })
     .from(curadores)
     .where(and(eq(curadores.id, id), eq(curadores.ativo, true)));
   return curador;
@@ -39,7 +42,7 @@ export async function curadorAtivoPorId(
 
 /**
  * Adapter mínimo do Auth.js: só o que o login por link pede com sessão em JWT. O "usuário" é o
- * curador; ninguém é criado pelo login (adicionar curador é pelo script).
+ * curador; ninguém é criado pelo login (curador é adicionado pela tela /curadores; o primeiro, pelo script).
  */
 export function adaptador(db: Db, chave: Buffer): Adapter {
   const comoUsuario = (id: string, nome: string, email: string): AdapterUser => ({

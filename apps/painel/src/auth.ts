@@ -4,6 +4,7 @@
  * para qualquer endereço: quem tenta não descobre quem é da curadoria.
  */
 import { criarDb, criarPool, type Db } from '@lumens/db';
+import type { ChavesDeCurador } from '@lumens/dominio';
 import NextAuth from 'next-auth';
 import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
@@ -11,6 +12,7 @@ import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
+import { opcoesSmtp } from './smtp';
 
 const QUINZE_MINUTOS = 15 * 60;
 
@@ -40,13 +42,29 @@ export function servidor(): { db: Db; chave: Buffer } {
   return conexao;
 }
 
+/**
+ * O e-mail do curador vai cifrado com a CHAVE_CIFRA_PAINEL, só dele: o painel não recebe a
+ * CHAVE_CIFRA, que abre telefone e e-mail dos estudantes (SCRUM-303).
+ */
+export function chavesDeCurador(): ChavesDeCurador {
+  const cifra = Buffer.from(exigir('CHAVE_CIFRA_PAINEL'), 'base64');
+  const { chave: hmac } = servidor();
+  if (cifra.length !== 32 || cifra.equals(hmac)) {
+    throw new Error(
+      'CHAVE_CIFRA_PAINEL precisa ter 32 bytes em base64 (openssl rand -base64 32) e ser diferente da CHAVE_HMAC.',
+    );
+  }
+  return { cifra, hmac };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const { db, chave } = servidor();
-  const smtp = {
+  const smtp = opcoesSmtp({
     host: exigir('EMAIL_HOST'),
-    port: Number(exigir('EMAIL_PORT')),
-    auth: { user: exigir('EMAIL_USUARIO'), pass: exigir('EMAIL_SENHA') },
-  };
+    porta: Number(exigir('EMAIL_PORT')),
+    usuario: exigir('EMAIL_USUARIO'),
+    senha: exigir('EMAIL_SENHA'),
+  });
   return {
     ...configBase,
     adapter: adaptador(db, chave),
@@ -94,7 +112,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
  * Quem está pedindo, conferido no banco. O JWT da sessão vale 7 dias; sem esta checagem, um
  * curador desativado continuaria entrando até ele vencer. Toda rota e página do painel usa isto.
  */
-export async function curadorDaSessao(): Promise<{ id: string; nome: string } | undefined> {
+export async function curadorDaSessao(): Promise<
+  { id: string; nome: string; papel: 'curador' | 'administrador' } | undefined
+> {
   const id = (await auth())?.user?.id;
   return id ? curadorAtivoPorId(servidor().db, id) : undefined;
 }

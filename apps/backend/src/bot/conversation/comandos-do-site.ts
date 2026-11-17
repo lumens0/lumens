@@ -12,6 +12,9 @@
  * no site quer fazer aquilo agora. A exceção é o alvo que não existe no meio de um fluxo: "apoiar
  * estudantes" pode ser só a resposta (o título de uma pauta nova, por exemplo), então a mensagem
  * segue para o passo atual. No menu ou no primeiro contato, o alvo que não existe vira um aviso.
+ *
+ * SCRUM-299: o "ajudar" segue a mesma regra. "Ajudar calouros" no título de uma pauta nova não é
+ * um comando: sem id de proposta nem pauta com esse endereço, a mensagem vai para o passo atual.
  */
 import { eq, pautas, type Db } from '@lumens/db';
 import { SEM_APOIO } from '@lumens/dominio';
@@ -53,22 +56,49 @@ async function pautaDoAlvo(db: Db, alvo: string) {
 const SEM_PERGUNTA_ABERTA: readonly Step[] = ['GREETING', 'MENU'];
 
 /**
+ * A forma do endereço de uma pauta no site: minúsculas, números e hífens, com pelo menos um hífen
+ * (`gerarSlug` sempre termina em `-<8 do id>`). "apoiar estudantes" não tem essa forma e pode ser
+ * só uma resposta; "apoiar pauta-que-nao-existe" é o botão do site com um endereço velho.
+ */
+const FORMA_DE_ENDERECO = /^[a-z0-9]+(?:-[a-z0-9]+)+$/;
+
+export const PAUTA_NOT_FOUND_IN_FLOW_TEXT =
+  'Não encontrei essa pauta. Ela pode ter mudado de endereço: abra a página dela no site e toque no botão de novo. Enquanto isso, a conversa continua de onde parou: responda à última pergunta, ou mande *menu* para voltar ao início.';
+
+/** O comando não muda nada na conversa: só avisa, e a pessoa segue no passo em que estava. */
+export interface AvisoNoPasso {
+  avisoNoPasso: string;
+}
+
+/**
  * Executa o comando. `null` quando a mensagem deve seguir para o passo atual (alvo que não existe
  * no meio de um fluxo). O fluxo largado não deixa dados: o `state` passado aos fluxos vem vazio.
+ * `AvisoNoPasso` quando o endereço tem a forma do site mas a pauta não existe (SCRUM-307).
  */
 export async function executarComandoDoSite(
   ctx: StepContext,
   comando: ComandoDoSite,
-): Promise<StepResult | null> {
+): Promise<StepResult | AvisoNoPasso | null> {
   const limpo: StepContext = { ...ctx, state: { step: ctx.state.step, data: {} } };
   if (comando.kind === 'nova-pauta') return entrarNaPautaNova(limpo);
-  if (comando.kind === 'ajudar') return vouAjudar(limpo, comando.alvo);
+  if (comando.kind === 'ajudar') {
+    // O id vem dos botões do próprio bot; o endereço, do site. Sem nenhum dos dois no meio de um
+    // fluxo, é texto da pessoa.
+    const alvoExiste =
+      UUID.test(comando.alvo) || (await pautaDoAlvo(ctx.db, comando.alvo)) !== undefined;
+    if (!alvoExiste && !SEM_PERGUNTA_ABERTA.includes(ctx.state.step)) return null;
+    return vouAjudar(limpo, comando.alvo);
+  }
 
   const pauta = await pautaDoAlvo(ctx.db, comando.alvo);
   if (pauta === undefined) {
-    return SEM_PERGUNTA_ABERTA.includes(ctx.state.step)
-      ? { next: 'MENU', replies: [PAUTA_NOT_FOUND_TEXT] }
-      : null;
+    if (SEM_PERGUNTA_ABERTA.includes(ctx.state.step)) {
+      return { next: 'MENU', replies: [PAUTA_NOT_FOUND_TEXT] };
+    }
+    // SCRUM-307: no meio de um fluxo, o endereço velho do botão do site não pode sumir em silêncio
+    // (no passo da foto, só repetia o pedido da foto). Avisa e deixa a conversa como está.
+    const aviso: AvisoNoPasso = { avisoNoPasso: PAUTA_NOT_FOUND_IN_FLOW_TEXT };
+    return FORMA_DE_ENDERECO.test(comando.alvo) ? aviso : null;
   }
   if (comando.kind === 'cuidar') return cuidarDaPauta(limpo, pauta.id);
   // Fechada para apoio: avisa já, sem mandar a pessoa verificar o e-mail para nada.
