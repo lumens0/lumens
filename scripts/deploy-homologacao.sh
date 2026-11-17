@@ -9,6 +9,8 @@
 #
 # O CI passa o SHA exato que passou nos testes, não `origin/main`: entre o fim do job
 # `check` e este deploy pode entrar outro merge, e aí subiria código que ninguém testou.
+# O ref precisa estar na `main` (SCRUM-336): commit de outra branch é recusado antes de
+# tocar no código ou no banco, que não tem backup.
 
 # -E propaga o trap para funções, -u pega variável não definida, pipefail evita que uma
 # falha no meio de um pipe passe como sucesso.
@@ -80,9 +82,19 @@ fi
 
 echo "--> Atualizando o código para $REF"
 git fetch --prune origin
+if ! git rev-parse --verify --quiet "$REF^{commit}" >/dev/null ||
+  ! git merge-base --is-ancestor "$REF" origin/main; then
+  echo "::error::$REF não é um commit da main. A homologação só publica o que já entrou na main (SCRUM-336)." >&2
+  exit 1
+fi
 # reset --hard em vez de pull: o servidor nunca tem commit local legítimo, e um merge
 # pendurado aqui deixaria o deploy travado esperando resolução que ninguém vai fazer.
 git reset --hard "$REF"
+# O /saude devolve este SHA, e o smoke test do CI confere que é o do run (SCRUM-322). O compose
+# passa para o build da imagem do back-end.
+# O CI também manda VERSAO no ambiente da chamada, para o primeiro deploy depois desta linha existir.
+VERSAO=$(git rev-parse HEAD)
+export VERSAO
 
 echo "--> Migrando o banco"
 # Comando separado e antes do up: código de saída diferente de zero encerra o script
