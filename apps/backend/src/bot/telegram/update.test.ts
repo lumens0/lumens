@@ -190,13 +190,14 @@ describe('jobDoTelegram', () => {
 describe('processarUpdate', () => {
   let db: Db;
   let queue: FakeQueue;
-  const chamar = vi.fn(() => Promise.resolve(true));
+  const chamar = vi.fn((_metodo: string, _corpo?: unknown) => Promise.resolve(true));
 
   beforeEach(async () => {
     db = await criarBancoEmMemoria();
     await prepararFilaFalsa(db);
     queue = new FakeQueue();
-    chamar.mockClear();
+    chamar.mockReset();
+    chamar.mockImplementation(() => Promise.resolve(true));
   }, 20_000);
 
   const deps = () => ({ db, queue, logger: silencioso, chaves, api: { chamar: chamar as never } });
@@ -262,7 +263,8 @@ describe('processarUpdate', () => {
 
     it('o mesmo update de novo (reenvio) não edita outra vez', async () => {
       await processarUpdate(toque(31), deps());
-      chamar.mockClear();
+      chamar.mockReset();
+      chamar.mockImplementation(() => Promise.resolve(true));
 
       expect(await processarUpdate(toque(31), deps())).toBe('duplicada');
       expect(chamar).not.toHaveBeenCalledWith('editMessageText', expect.anything());
@@ -287,10 +289,23 @@ describe('processarUpdate', () => {
       expect(r.tipo === 'mensagem' ? r.mensagem.escolha : 'ignorado').toBeUndefined();
     });
 
-    it('a edição que falha não derruba o update', async () => {
-      chamar.mockRejectedValueOnce(new Error('400 message is not modified'));
+    it('a edição que falha é registrada e não derruba o update', async () => {
+      // `answerCallbackQuery` sai antes: a rejeição tem de ser só da edição da mensagem.
+      chamar.mockImplementation((metodo: string) =>
+        metodo === 'editMessageText'
+          ? Promise.reject(new Error('400 message is not modified'))
+          : Promise.resolve(true),
+      );
+      const avisos: string[] = [];
+      const logger = pino({ level: 'warn' }, { write: (linha: string) => avisos.push(linha) });
 
-      expect(await processarUpdate(toque(34), deps())).toBe('enfileirada');
+      const r = await processarUpdate(toque(34), { ...deps(), logger });
+      await vi.waitFor(() => {
+        expect(avisos.join('')).toContain('mostrar a escolha');
+      });
+
+      expect(r).toBe('enfileirada');
+      expect(chamar).toHaveBeenCalledWith('editMessageText', expect.anything());
     });
   });
 
