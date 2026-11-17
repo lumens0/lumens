@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   apoios,
   blocos,
@@ -30,13 +31,21 @@ import {
   supportFirstText,
 } from './co-owner';
 import { PAUTA_NOT_FOUND_TEXT, parseComandoDoSite } from './comandos-do-site';
-import { MENU_TEXT } from './handlers';
+import { AVISO_SEM_RESPOSTA_TEXT } from './conferencia';
+import {
+  MENU_TEXT,
+  defaultHandlers,
+  type HandlerRegistry,
+  type StepContext,
+  type StepResult,
+} from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
 import { hashPhone } from './phone';
 import { PRIVACY_NOTICE_TEXT } from './privacidade';
 import { NO_PROPOSAL_TEXT } from './proposta';
 import type { Resposta } from './resposta';
 import { handleIncoming } from './router';
+import { TRANSITIONS, type Step } from './steps';
 import { ConversationStore } from './store';
 import { NEW_TITLE_TEXT } from './texto';
 import { VERIFIED_TEXT } from './verificacao';
@@ -411,5 +420,115 @@ describe('virar co-owner (2.8, RN06)', () => {
     // Ainda não apoia: o pedido retomado oferece o apoio primeiro.
     expect(ids(r)).toEqual([`apoiar ${pautaId}`]);
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
+  });
+});
+
+describe('comandos e botões de aviso no meio de um fluxo (SCRUM-299)', () => {
+  const PASSOS_DE_TEXTO: Step[] = [
+    'REPORT_ASK_TEXT',
+    'NEW_ASK_TITLE',
+    'NEW_ASK_DESCRIPTION',
+    'PROPOSAL_ASK_TEXT',
+    'SUPPORT_ASK_REPORT',
+  ];
+  // Botão de um aviso que ainda não tem resposta gravada (a da conferência é gravada, SCRUM-288).
+  const AVISO = `lembrete:${randomUUID()}:1`;
+
+  /**
+   * Uma pessoa parada no `passo`, com dados já escritos, e o handler do passo trocado por um
+   * espião: mostra se a mensagem chegou ao passo e não mexe nos dados.
+   */
+  async function noPasso(passo: Step) {
+    const telefone = '5582999990900';
+    const phoneHmac = hashPhone(telefone, CHAVE);
+    await store.save(phoneHmac, passo, { escrito: 'o que a pessoa já tinha escrito' });
+    const recebidos: string[] = [];
+    const handlers: HandlerRegistry = {
+      ...defaultHandlers,
+      // Fica no mesmo passo (todo passo de texto livre pode se repetir, para pedir de novo).
+      [passo]: (ctx: StepContext): StepResult => {
+        recebidos.push(ctx.input.text);
+        return { next: passo, replies: ['passo atendeu'] };
+      },
+    };
+    const send = (text: string) =>
+      handleIncoming(
+        { phoneHmac, text, phoneCifrado: segredo.cifrar(telefone) },
+        { store, db, segredo, email, hmac, handlers },
+      );
+    const conversa = () => store.get(phoneHmac);
+    return { send, recebidos, conversa };
+  }
+
+  it.each(PASSOS_DE_TEXTO)('%s pode se repetir (o espião fica nele)', (passo) => {
+    expect(TRANSITIONS[passo]).toContain(passo);
+  });
+
+  it.each(PASSOS_DE_TEXTO)(
+    '"ajudar <palavra>" em %s é a resposta da pessoa, e a conversa continua',
+    async (passo) => {
+      const p = await noPasso(passo);
+      expect(await p.send('Ajudar calouros')).toEqual(['passo atendeu']);
+      expect(p.recebidos).toEqual(['Ajudar calouros']);
+      expect(await p.conversa()).toMatchObject({
+        step: passo,
+        data: { escrito: 'o que a pessoa já tinha escrito' },
+      });
+    },
+  );
+
+  it.each(PASSOS_DE_TEXTO)(
+    'botão de aviso em %s não vira texto: avisa e a conversa fica como estava',
+    async (passo) => {
+      const p = await noPasso(passo);
+      expect(await p.send(AVISO)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+      expect(p.recebidos).toEqual([]);
+      expect(await p.conversa()).toMatchObject({
+        step: passo,
+        data: { escrito: 'o que a pessoa já tinha escrito' },
+      });
+    },
+  );
+
+  it('"ajudar <endereço de pauta>" continua sendo o comando do site, mesmo no meio de um fluxo', async () => {
+    const p = await noPasso('NEW_ASK_TITLE');
+    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(p.recebidos).toEqual([]);
+  });
+
+  it('texto parecido com aviso, mas de um tipo que não existe, segue para o passo', async () => {
+    const p = await noPasso('NEW_ASK_TITLE');
+    await p.send('reuniao:sala-3:2');
+    expect(p.recebidos).toEqual(['reuniao:sala-3:2']);
+  });
+
+  it('o caso do bug: "Ajudar calouros" como título de pauta nova', async () => {
+    const p = pessoa('5582999990901');
+    await p.jaVerificado();
+    await p.send('oi');
+    expect(await p.send('2')).toEqual([NEW_TITLE_TEXT]);
+
+    const respostas = await p.send('Ajudar calouros');
+    expect(respostas).not.toContain(NO_PROPOSAL_TEXT);
+    expect(await p.passo()).toBe('NEW_ASK_PLACE');
+    expect(Object.keys(await p.dados()).some((k) => k.startsWith('titulo'))).toBe(true);
+  });
+
+  it('o caso do bug: botão de aviso no título da pauta nova não vira o título', async () => {
+    const p = pessoa('5582999990902');
+    await p.jaVerificado();
+    await p.send('oi');
+    await p.send('2');
+
+    expect(await p.send(AVISO)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+    expect(await p.passo()).toBe('NEW_ASK_TITLE');
+    expect(Object.keys(await p.dados()).some((k) => k.startsWith('titulo'))).toBe(false);
+  });
+
+  it('botão do lembrete ao owner, no menu, avisa em vez de "Não entendi"', async () => {
+    const p = pessoa('5582999990903');
+    await p.send('oi');
+    expect(await p.send(`lembrete:${randomUUID()}:1`)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+    expect(await p.passo()).toBe('MENU');
   });
 });

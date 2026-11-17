@@ -1,6 +1,20 @@
 export { META_MAXIMA, META_MINIMA, calcularMeta } from './pauta/meta';
 export type { BlocoParaMeta } from './pauta/meta';
 
+export {
+  adicionarCurador,
+  desativarCurador,
+  hmacDoEmailDeCurador,
+  listarCuradores,
+  reativarCurador,
+} from './curadores/curadores';
+export type {
+  ChavesDeCurador,
+  CuradorListado,
+  MotivoRecusaCurador,
+  ResultadoCurador,
+} from './curadores/curadores';
+
 export { conferirAnonimato } from './compartilhado/anonimato';
 export type {
   Achado,
@@ -84,6 +98,7 @@ export {
   enfileirarAvisoMetaBatida,
   pautasComMetaBatidaSemAviso,
 } from './avisos/aviso-meta-batida';
+export { MODELO_PAUTA_APROVADA, enfileirarAvisoDeAprovacao } from './avisos/aviso-aprovacao';
 export { MODELO_VITORIA, enfileirarAvisoDeVitoria } from './avisos/aviso-vitoria';
 export type { CanalDoBot, DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
 
@@ -228,14 +243,24 @@ export {
   conferirCodigo,
   cursoValido,
   emailInstitucional,
+  apagarCodigosVencidos,
+  apagarRegistrosVencidos,
   esperaParaReenviar,
   gerarCodigo,
   guardarCodigo,
   hashDoCodigo,
   normalizarEmail,
   vincularEmail,
+  JANELA_DOS_LIMITES_MS,
+  MAX_ENVIOS_POR_DIA,
+  MAX_ERROS_POR_DIA,
+  bloqueioDaVerificacao,
+  registrarNaVerificacao,
 } from './estudante/verificacao';
 export type {
+  BloqueioDaVerificacao,
+  ChavesDaVerificacao,
+  TipoDeRegistro,
   NovoVinculo,
   ResultadoConclusao,
   ResultadoConferencia,
@@ -245,3 +270,4 @@ export type {
 
 export { documentosDeResposta, registrarDocumentoDeResposta } from './caminhos/documento-resposta';
 export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-resposta';
+export { cifrar, decifrar } from './compartilhado/cifra';
