@@ -341,6 +341,9 @@ export async function aprovarPauta(
     return { decidida: false, motivo: 'categoria_invalida' };
   // Aprovar publica também o relato de quem criou a pauta. Com e-mail ou telefone nele, a pauta não
   // sai: a curadoria recusa só o relato (`recusarRelatoDeOrigem`) e aprova depois, sem ele.
+  // Pauta antes do relato, na ordem de `recusarPauta` e `recusarRelatoDeOrigem`: com a ordem
+  // trocada, aprovar e recusar ao mesmo tempo travariam uma à espera da outra (deadlock).
+  await tx.select({ id: pautas.id }).from(pautas).where(eq(pautas.id, pautaId)).for('update');
   const origem = await relatosDeOrigemPendentes(tx, pautaId, { travar: true });
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
