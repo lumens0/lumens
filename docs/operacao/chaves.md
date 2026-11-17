@@ -1,13 +1,14 @@
 # Chaves de criptografia
 
-SCRUM-90 · T17. O Lumens usa três segredos para proteger telefone, e-mail e a sessão do painel.
+SCRUM-90 · T17. O Lumens usa quatro segredos para proteger telefone, e-mail e a sessão do painel.
 Este documento diz para que serve cada um, onde ele vive, como rotacionar e o que fazer se vazar.
 
-| Variável      | Para que serve                                                         | Quem lê                                  |
-| ------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
-| `CHAVE_CIFRA` | AES-256-GCM: cifra o que precisa voltar a ser lido                     | back-end (bot, envio, script de curador) |
-| `CHAVE_HMAC`  | HMAC-SHA256: identifica sem revelar (busca e unicidade); não tem volta | back-end e painel                        |
-| `AUTH_SECRET` | Assina a sessão do Auth.js no painel de curadoria                      | só o painel                              |
+| Variável             | Para que serve                                                         | Quem lê                                  |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| `CHAVE_CIFRA`        | AES-256-GCM: cifra o que precisa voltar a ser lido                     | back-end (bot, envio, script de curador) |
+| `CHAVE_HMAC`         | HMAC-SHA256: identifica sem revelar (busca e unicidade); não tem volta | back-end e painel                        |
+| `CHAVE_CIFRA_PAINEL` | AES-256-GCM só do e-mail dos curadores (SCRUM-295)                     | painel e script de curador               |
+| `AUTH_SECRET`        | Assina a sessão do Auth.js no painel de curadoria                      | só o painel                              |
 
 Regras das três: **32 bytes em base64**, **valores diferentes entre si** (e diferentes entre
 local e homologação), **nunca em log, commit, print ou chat**. O back-end não sobe se faltar
@@ -20,7 +21,11 @@ local e homologação), **nunca em log, commit, print ou chat**. O back-end não
 cifrado). Colunas `*_cifrado`:
 
 - `estudante.telefone_cifrado` e `estudante.email_cifrado`
-- `curador.email_cifrado`
+
+O `curador.email_cifrado` usa a **`CHAVE_CIFRA_PAINEL`**, só do painel: assim o painel mostra o
+e-mail da equipe sem receber a chave que abre os dados dos estudantes. Para trocar essa chave, ou
+para passar curadores antigos da `CHAVE_CIFRA` para ela, `pnpm --filter @lumens/backend curador
+--recifrar` (com `CHAVE_CIFRA` = a de origem e `CHAVE_CIFRA_PAINEL` = a nova).
 
 Também cifra o que passa pelo bot: o conteúdo, o telefone e o wamid dos jobs da fila de entrada,
 as respostas na fila de saída e o e-mail que o estudante digita durante a verificação (guardado na
@@ -66,8 +71,8 @@ reserva das chaves. Definir isso (quem guarda, onde fica o cofre) é decisão da
 O script `apps/backend/scripts/rotacionar-cifra.ts` (função em `src/cripto/rotacao.ts`) decifra
 tudo com a chave antiga e recifra com a nova, **em uma transação só**.
 
-O que ele recifra: `curador.email_cifrado`, `estudante.telefone_cifrado` e
-`estudante.email_cifrado` (quando não nulo). Pula as lápides `saiu:`, de quem saiu do bot.
+O que ele recifra: `estudante.telefone_cifrado` e `estudante.email_cifrado` (quando não nulo). O
+e-mail dos curadores usa a `CHAVE_CIFRA_PAINEL` e fica de fora. Pula as lápides `saiu:`, de quem saiu do bot.
 
 O que ele **não** recifra: o que está na fila do pg-boss e o e-mail guardado numa conversa em
 andamento. Isso é transitório e, depois da troca, não decifra mais; esses jobs falham e a conversa
