@@ -42,3 +42,18 @@ o HMAC na própria linha do estudante guarda uma coisa só e reaproveita a regra
 - A volta reaproveita `curso` e `verificado_em` da linha antiga até o fim da verificação, que grava
   o curso escolhido agora e marca `verificado_em` de novo.
 - Os papéis de owner/co-owner encerrados na saída continuam encerrados: voltar não devolve a pauta.
+
+## Aprovação
+
+Decisão tomada em 17/11/2026, a pedido da responsável pelo repositório (Sthefany Lima), que
+autorizou decidir o ponto que a revisão deixou para a equipe: **o HMAC do e-mail fica no `sair`.**
+
+- Apagá-lo reabriria a fraude que o PR fecha (uma pessoa refazendo o cadastro para apoiar de novo e
+  bater a meta sozinha), e o aviso coletivo e o número público ficariam falsos.
+- A escolha é a de menor dado entre as que fecham a brecha: um valor só, na linha do estudante, sem
+  o e-mail e sem como recuperá-lo, só para reconhecer quem volta (ver a seção LGPD).
+- Os textos que prometem isso (aviso de privacidade do bot e "Seus direitos" em `/privacidade`)
+  descrevem a marca, e não dizem que tudo é apagado.
+- Se a UFAL ou a disciplina exigir apagar também o HMAC, a saída é trocar a prevenção por outra
+  (por exemplo, um bloqueio por pauta com prazo), e essa mudança volta a ser decidida aqui.
+
