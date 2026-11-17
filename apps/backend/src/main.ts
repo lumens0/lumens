@@ -230,6 +230,7 @@ async function iniciar(env: Env): Promise<void> {
       logger,
       chaves,
       leitura: { db: criarDb(poolLeitura), origensCors: env.CORS_ORIGENS },
+      ...(env.LUMENS_VERSAO === undefined ? {} : { versao: env.LUMENS_VERSAO }),
     });
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
