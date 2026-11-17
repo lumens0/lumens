@@ -5,6 +5,7 @@ import {
   definirCategoria as gravarCategoria,
   marcarUrgencia,
   recusarPauta,
+  recusarRelatoDeOrigem as recusarRelatoNoDominio,
 } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
@@ -58,17 +59,34 @@ export async function recusar(formulario: FormData) {
   redirect(await decisoes.recusar(texto(formulario, 'pautaId'), texto(formulario, 'motivo')));
 }
 
+/** Recusa só o relato de quem criou a pauta, que tem dado pessoal; a pauta segue em curadoria. */
+export async function recusarRelatoDeOrigem(formulario: FormData) {
+  const pautaId = texto(formulario, 'pautaId');
+  const quem = await curadorDaSessao();
+  if (!quem) redirect('/login');
+  if (!UUID.test(pautaId)) redirect('/fila');
+  const resultado = await servidor().db.transaction((tx) =>
+    recusarRelatoNoDominio(tx, { pautaId, curadorId: quem.id }),
+  );
+  redirect(
+    resultado.feito
+      ? `/pautas/${pautaId}?feito=relato_recusado`
+      : `/pautas/${pautaId}?erro=${resultado.motivo}`,
+  );
+}
+
 export async function definirCategoria(formulario: FormData) {
   const pautaId = texto(formulario, 'pautaId');
   const quem = await curadorDaSessao();
   if (!quem) redirect('/login');
   if (!UUID.test(pautaId)) redirect('/fila');
-  const atualizada = await servidor().db.transaction((tx) =>
+  const resultado = await servidor().db.transaction((tx) =>
     gravarCategoria(tx, { pautaId, categoria: texto(formulario, 'categoria') }),
   );
+  if (resultado.feito) redirect(`/pautas/${pautaId}?feito=categoria`);
   redirect(
-    atualizada
-      ? `/pautas/${pautaId}?feito=categoria`
-      : `/pautas/${pautaId}?erro=categoria_invalida`,
+    resultado.motivo === 'pauta_inexistente'
+      ? '/fila'
+      : `/pautas/${pautaId}?erro=${resultado.motivo}`,
   );
 }

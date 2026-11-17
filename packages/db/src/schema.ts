@@ -108,6 +108,8 @@ export const pautas = pgTable(
     urgente: boolean('urgente').notNull().default(false),
     urgenteDesde: instante('urgente_desde'),
     urgentePor: uuid('urgente_por').references(() => curadores.id, { onDelete: 'restrict' }),
+    /** Por que a curadoria marcou; só o painel lê, nunca vai à view pública nem ao evento. */
+    urgenteMotivo: text('urgente_motivo'),
     /**
      * Português sem acento (`portugues_sem_acento`, migração 0007): "iluminacao" acha
      * "Iluminação". O título pesa mais (A) que a descrição (B) na busca de pautas parecidas.

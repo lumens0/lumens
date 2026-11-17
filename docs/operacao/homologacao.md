@@ -12,7 +12,9 @@ Quem entra no painel: o script `curador` só cria o **primeiro administrador**, 
 back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
 "<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
 para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
-`CHAVE_CIFRA` do `.env.producao`, para mostrar o e-mail de quem já foi cadastrado.
+`CHAVE_CIFRA_PAINEL` do `.env.producao`, só dele, para mostrar o e-mail de quem já foi cadastrado.
+Ao criar essa chave, rode uma vez `... run --rm -T backend pnpm --filter @lumens/backend curador
+--recifrar`, que passa o e-mail dos curadores existentes da `CHAVE_CIFRA` para ela.
 
 ## Onde roda, e por que não é a AWS
 
@@ -187,7 +189,7 @@ Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 | `HOMOLOG_SSH_KNOWN_HOSTS` | saída de `ssh-keyscan <IP>`          |
 | `HOMOLOG_DOMINIO`         | o domínio, sem `https://`            |
 
-A partir daí, todo push na `main` com o `check` verde roda o job `deploy-backend`, que migra
+A partir daí, todo push na `main` com o `check` e o `e2e` verdes roda o job `deploy-backend`, que migra
 e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
 `/resumo`.
 
@@ -222,7 +224,7 @@ O job `deploy-backend` testa a porta 22 antes de tentar publicar. Se a VM não r
 Isso é deliberado. Falhar o job pintaria a `main` de vermelho sem ninguém ter errado nada, e
 CI que fica vermelho por motivo normal é CI que todo mundo aprende a ignorar.
 
-Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O `check` roda de
+Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O `check` e o `e2e` rodam de
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
 

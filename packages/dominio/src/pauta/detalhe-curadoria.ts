@@ -96,7 +96,9 @@ export async function detalharPautaDaCuradoria(
       .from(relatos)
       .innerJoin(estudantes, eq(estudantes.id, relatos.estudanteId))
       .where(eq(relatos.pautaId, pautaId))
-      .orderBy(relatos.id),
+      // O banco não guarda quando o relato chegou: os moderados primeiro, pela data da moderação,
+      // e os pendentes no fim.
+      .orderBy(sql`${relatos.moderadoEm} asc nulls last`, relatos.id),
     listarCaminhosDaPauta(db, pautaId),
     db
       .select({
