@@ -44,7 +44,7 @@ export const SUPPORT_NOT_FOUND_TEXT =
 export const ASK_ATTACH_REPORT_TEXT =
   'Quer juntar o seu relato a esta pauta? Ele ajuda a curadoria e só aparece no site depois da moderação, sem o seu nome.\nResponda *sim* ou *não*.';
 export const ASK_WRITE_REPORT_TEXT =
-  "Quer contar o que você viu? Escreva um relato curto, ou responda 'pular'. Ele só aparece no site depois da moderação, sem o seu nome.";
+  "Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda 'pular'. O relato só aparece no site depois da moderação, sem o seu nome.";
 export const SUPPORT_PHOTO_ASK_TEXT =
   "Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado.';
@@ -56,6 +56,13 @@ export const SUPPORT_DATA_LOST_TEXT =
   'Não consegui recuperar o seu relato. O seu apoio continua contado.';
 export const REPORT_REFUSED_TEXT =
   'Não consegui guardar o relato, mas o seu apoio continua contado.';
+
+/** SCRUM-343: resposta ao "sim" da pergunta do relato, que não é o relato. */
+export const WRITE_REPORT_TEXT =
+  "Pode escrever: conte numa mensagem o que você viu e onde. Se mudar de ideia, responda 'pular'.";
+/** SCRUM-343: o relato vai para a curadoria; uma ou duas palavras não dizem o que houve. */
+export const SUPPORT_REPORT_TOO_SHORT_TEXT =
+  'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado". Ou responda \'pular\'.';
 
 export function reportTooLongText(tamanho: number): string {
   return `Seu relato tem ${String(tamanho)} caracteres e o limite é ${String(RELATO_MAXIMO)}. Escreva um relato mais curto, ou responda 'pular'.`;
@@ -94,6 +101,11 @@ export function cardDaPauta(slug: string, totalApoios: number): MensagemDeImagem
 const YES = new Set(['sim', 's', 'quero', 'pode']);
 const NO = new Set(['nao', 'n', 'nao quero']);
 const SKIP = new Set(['pular', 'nao', 'n', 'sem foto', 'sem relato']);
+/** SCRUM-343: "sim" à pergunta "Quer contar o que você viu?" quer dizer "vou escrever". */
+const QUER_ESCREVER = new Set([...YES, 'sim quero', 'quero contar', 'quero escrever', 'claro']);
+/** Menos que isso não diz o que aconteceu nem onde ("sim", "quebrado", "ar quebrado"). */
+const PALAVRAS_DO_RELATO = 3;
+const palavras = (texto: string) => (texto.match(/[\p{L}\p{N}]+/gu) ?? []).length;
 
 /** O que os passos do apoio guardam na conversa. Validado: o dado pode ser de outra versão. */
 const dadosSchema = z.object({
@@ -241,8 +253,14 @@ export const supportAskReport: StepHandler = async (ctx) => {
   }
 
   if (SKIP.has(texto)) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
+  // SCRUM-343: antes, o "sim" virava o próprio relato, e o texto de verdade caía no passo da foto.
+  if (QUER_ESCREVER.has(texto)) return { next: 'SUPPORT_ASK_REPORT', replies: [WRITE_REPORT_TEXT] };
   const relato = input.text.trim();
   if (relato === '') return { next: 'SUPPORT_ASK_REPORT', replies: [ASK_WRITE_REPORT_TEXT] };
+  // O longo demais tem resposta própria, logo abaixo, mesmo sem espaços.
+  if (palavras(relato) < PALAVRAS_DO_RELATO && tamanho(relato) <= RELATO_MAXIMO) {
+    return { next: 'SUPPORT_ASK_REPORT', replies: [SUPPORT_REPORT_TOO_SHORT_TEXT] };
+  }
   if (tamanho(relato) > RELATO_MAXIMO) {
     return { next: 'SUPPORT_ASK_REPORT', replies: [reportTooLongText(tamanho(relato))] };
   }
