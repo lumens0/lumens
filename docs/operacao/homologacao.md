@@ -8,6 +8,12 @@ Ele responde em `https://painel.<DOMINIO>`: com DuckDNS o nome já resolve para 
 outro DNS, crie o registro antes do deploy. Precisa do `AUTH_SECRET` no `.env.producao`
 (`openssl rand -base64 32`); o deploy recusa publicar sem ele.
 
+Quem entra no painel: o script `curador` só cria o **primeiro administrador**, pelo contêiner do
+back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
+"<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
+para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
+`CHAVE_CIFRA` do `.env.producao`, para mostrar o e-mail de quem já foi cadastrado.
+
 ## Onde roda, e por que não é a AWS
 
 A decisão original era AWS. Ela não se sustentou, e o motivo fica aqui para ninguém repetir
@@ -190,7 +196,8 @@ para e nada é publicado. Confira:
 curl -s https://<DOMINIO>/saude
 ```
 
-Esperado: `{"ok":true}`. Para a demo, com o banco vazio:
+Esperado: `{"ok":true,"versao":"<SHA>"}`, com o SHA do commit publicado (SCRUM-322).
+Para a demo, com o banco vazio:
 
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
@@ -210,7 +217,14 @@ Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 
 A partir daí, todo push na `main` com o `check` e o `e2e` verdes roda o job `deploy-backend`, que migra
 e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
-`/resumo`.
+`/resumo`. O `/saude` precisa devolver o SHA do run: um back-end antigo que tenha ficado no
+ar não passa.
+
+Se o `check` ou um deploy de um push na `main` for cancelado (timeout, cancelamento manual),
+o job `deploy-perdido` falha e pinta a `main` de vermelho: aquele merge não está na
+homologação. Reexecute o run ou use **Actions → CI → Run workflow** na `main`. Quando vários
+merges entram seguidos, o run que esperava na fila é substituído pelo mais novo e nem começa;
+isso é normal, porque o mais novo publica tudo.
 
 ## 7. Webhook da Meta
 
@@ -246,6 +260,10 @@ CI que fica vermelho por motivo normal é CI que todo mundo aprende a ignorar.
 Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O `check` e o `e2e` rodam de
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
+
+Dispare o Run workflow **da `main`**. De outra branch o deploy é pulado com o aviso "Deploy
+ignorado" e nada é publicado; e o `scripts/deploy-homologacao.sh` também recusa qualquer SHA que
+não esteja na `main` (SCRUM-336), porque o banco da homologação não tem backup.
 
 ### O que o site mostra quando ela está desligada
 
