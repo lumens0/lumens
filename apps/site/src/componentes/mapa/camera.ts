@@ -256,6 +256,7 @@ export function criarCamera(
       pincou = false;
       vx = 0;
       vy = 0;
+      velocidadeGiro = 0;
       inicio = { x: e.clientX, y: e.clientY };
       modoPonteiro =
         e.pointerType === 'mouse' && (e.button === 2 || e.ctrlKey || e.metaKey) ? 'girar' : 'mover';
@@ -270,8 +271,8 @@ export function criarCamera(
       if (
         Math.hypot(e.clientX - (inicio?.x ?? e.clientX), e.clientY - (inicio?.y ?? e.clientY)) >= 4
       ) {
+        if (!arrastou) aoGesto?.(1);
         arrastou = true;
-        aoGesto?.(1);
         // Instantânea: o `scroll-behavior: smooth` da página faria cada movimento recomeçar uma
         // animação curta, e a página andaria menos que o dedo.
         window.scrollBy({ top: -deslocamento, behavior: 'instant' });
@@ -384,6 +385,8 @@ export function criarCamera(
       e.preventDefault();
     };
     const aoTeclar = (e: KeyboardEvent) => {
+      // Alt+setas, Ctrl/⌘+mais/menos e ⌘+setas são do navegador.
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
       const passo = Math.max(24, Math.min(80, largura * 0.06));
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
@@ -415,7 +418,8 @@ export function criarCamera(
         }
       }
     };
-    // Shift+roda gira; trackpad (deltas horizontais/pequenos/fracionários) faz pan; Ctrl+roda é pinça.
+    // Shift+roda gira; trackpad (delta horizontal ou fracionário) faz pan; Ctrl+roda é pinça.
+    // Roda de mouse, mesmo de alta resolução, só tem delta vertical inteiro: sempre dá zoom.
     const roda = (e: WheelEvent) => {
       e.preventDefault();
       aoGesto?.(0);
@@ -427,10 +431,7 @@ export function criarCamera(
         agendar();
       } else if ((e.ctrlKey || e.metaKey) && e.deltaMode === 0)
         mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.01), px, py, giro)));
-      else if (
-        e.deltaMode === 0 &&
-        (e.deltaX !== 0 || Math.abs(e.deltaY) < 50 || !Number.isInteger(e.deltaY))
-      )
+      else if (e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY)))
         mover(deslocada(-e.deltaX, -e.deltaY));
       else mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.0015), px, py, giro)));
     };

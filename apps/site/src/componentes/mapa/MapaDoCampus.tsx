@@ -82,28 +82,35 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   }, []);
   // O `viewBox` fica parado na visão de abertura; a câmera move a camada dentro dele.
   const [base] = useState(geral);
-  const [camera] = useState(() =>
-    criarCamera(
+  const [camera] = useState(() => {
+    // O primeiro gesto fecha a ajuda; os seguintes não regravam nada.
+    let ajudaFechada = false;
+    let avisoAte = 0;
+    return criarCamera(
       base,
       (v) => {
         setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
       },
       (dedos) => {
-        setAjudaVisivel(false);
-        try {
-          localStorage.setItem('mapa-ajuda-fechada', 'sim');
-        } catch {
-          // O mapa continua utilizável sem armazenamento local.
+        if (!ajudaFechada) {
+          ajudaFechada = true;
+          setAjudaVisivel(false);
+          try {
+            localStorage.setItem('mapa-ajuda-fechada', 'sim');
+          } catch {
+            // O mapa continua utilizável sem armazenamento local.
+          }
         }
-        if (dedos === 1 && matchMedia('(max-width: 720px)').matches) {
+        if (dedos === 1 && Date.now() > avisoAte && matchMedia('(max-width: 720px)').matches) {
+          avisoAte = Date.now() + 1800;
           setAvisoToque(true);
           window.setTimeout(() => {
             setAvisoToque(false);
           }, 1800);
         }
       },
-    ),
-  );
+    );
+  });
   const svg = useRef<SVGSVGElement>(null);
   const camada = useRef<SVGGElement>(null);
   useEffect(() => {
@@ -243,6 +250,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           Atalhos do mapa: setas movem, mais e menos alteram o zoom, Shift com setas gira e N volta
           ao norte.
         </p>
+        {/* O título fica na página mesmo com a ajuda fechada: é o único h1 do mapa. */}
+        {!ajudaVisivel && <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>}
         {ajudaVisivel && (
           <div className={estilos.hudTitulo}>
             <h1 className={estilos.hudNome}>Mapa do campus</h1>

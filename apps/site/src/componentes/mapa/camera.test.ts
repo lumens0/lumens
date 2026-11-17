@@ -318,13 +318,13 @@ describe('câmera ligada ao mapa', () => {
   it('soltar um giro com o botão direito não faz o mapa deslizar', () => {
     const mapa = montar();
     mapa.tela(1000, 500);
-    const enviar = (handler: keyof typeof mapa.camera.eventos, clientY: number) => {
+    const enviar = (handler: keyof typeof mapa.camera.eventos, clientX: number) => {
       const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
       fn({
         pointerId: 1,
         pointerType: 'mouse',
-        clientX: 100,
-        clientY,
+        clientX,
+        clientY: 100 + clientX / 2,
         button: 2,
         ctrlKey: false,
         metaKey: false,
@@ -332,16 +332,28 @@ describe('câmera ligada ao mapa', () => {
       });
     };
     enviar('onPointerDown', 100);
-    // Dois movimentos verticais rápidos: no modo de giro, só o horizontal gira.
+    // Movimentos rápidos na diagonal: o giro ganha inércia, mas a visão não pode deslizar.
     mapa.avancar(16);
     enviar('onPointerMove', 120);
     mapa.avancar(16);
     enviar('onPointerMove', 140);
     const parado = { ...mapa.camera.estado().vista };
+    const giroAoSoltar = mapa.camera.estado().giro;
     enviar('onPointerUp', 140);
     mapa.avancar(16);
     mapa.avancar(16);
     expect(mapa.camera.estado().vista).toEqual(parado);
+    expect(mapa.camera.estado().giro).toBeGreaterThan(giroAoSoltar);
+    // Pegar o mapa no meio do giro e arrastar curto para o outro lado: a inércia nova segue o
+    // gesto novo, sem herdar a velocidade do anterior.
+    enviar('onPointerDown', 300);
+    mapa.avancar(16);
+    enviar('onPointerMove', 294);
+    const giroDoSegundo = mapa.camera.estado().giro;
+    enviar('onPointerUp', 294);
+    mapa.avancar(16);
+    mapa.avancar(16);
+    expect(mapa.camera.estado().giro).toBeLessThan(giroDoSegundo);
     mapa.desligar();
     vi.restoreAllMocks();
   });
@@ -362,13 +374,27 @@ describe('câmera ligada ao mapa', () => {
         preventDefault() {},
         ...dados,
       } as WheelEvent);
+    const visao = () => ({ ...mapa.camera.estado().vista });
     emitir({ shiftKey: true, deltaY: 12 });
     expect(mapa.camera.estado().giro).toBeCloseTo(0.024);
+    let antes = visao();
     emitir({ deltaX: 4.5, deltaY: 2.5 });
-    expect(mapa.vista().x).not.toBe(base.x);
-    const w = mapa.camera.estado().vista.w;
+    expect(visao().x).not.toBe(antes.x);
+    expect(visao().w).toBe(antes.w);
+    antes = visao();
+    emitir({ deltaY: 0.75 });
+    expect(visao().y).not.toBe(antes.y);
+    expect(visao().w).toBe(antes.w);
+    // Roda de mouse de alta resolução (deltas inteiros pequenos) dá zoom, devagar ou rápido.
+    for (const deltaY of [40, 60, -40, 120]) {
+      antes = visao();
+      emitir({ deltaY });
+      if (deltaY > 0) expect(visao().w).toBeGreaterThan(antes.w);
+      else expect(visao().w).toBeLessThan(antes.w);
+    }
+    antes = visao();
     emitir({ ctrlKey: true, deltaY: -10 });
-    expect(mapa.camera.estado().vista.w).toBeLessThan(w);
+    expect(visao().w).toBeLessThan(antes.w);
     mapa.desligar();
     vi.restoreAllMocks();
   });
@@ -390,10 +416,34 @@ describe('câmera ligada ao mapa', () => {
     const mapa = montar();
     mapa.tela(1000, 500);
     const tecla = mapa.ouvintes.get('keydown');
-    const enviar = (key: string, shiftKey = false) =>
-      tecla?.({ key, shiftKey, preventDefault() {} } as KeyboardEvent);
+    let bloqueou = false;
+    const enviar = (key: string, shiftKey = false, mod: Partial<KeyboardEvent> = {}) =>
+      tecla?.({
+        key,
+        shiftKey,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        preventDefault() {
+          bloqueou = true;
+        },
+        ...mod,
+      } as KeyboardEvent);
+    const antes = { ...mapa.camera.estado().vista };
     enviar('ArrowRight');
-    expect(mapa.camera.estado().vista.x).not.toBe(base.x);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().vista.x).toBeGreaterThan(antes.x);
+    expect(mapa.camera.estado().vista.y).toBe(antes.y);
+    // Atalhos do navegador passam direto: voltar (Alt+←) e zoom da página (Ctrl/⌘ + mais/menos).
+    bloqueou = false;
+    const parado = { ...mapa.camera.estado().vista };
+    enviar('ArrowLeft', false, { altKey: true });
+    enviar('+', false, { ctrlKey: true });
+    enviar('-', false, { metaKey: true });
+    enviar('ArrowUp', false, { metaKey: true });
+    mapa.avancar(600);
+    expect(bloqueou).toBe(false);
+    expect(mapa.camera.estado().vista).toEqual(parado);
     enviar('ArrowLeft', true);
     mapa.avancar(600);
     expect(mapa.camera.estado().giro).not.toBe(0);
