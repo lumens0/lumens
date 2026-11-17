@@ -34,9 +34,9 @@ import type { MensagemDeImagem, Resposta } from './resposta';
 import { normalize } from './texto';
 
 export const SUPPORT_VERIFY_FIRST_TEXT =
-  'Para apoiar uma pauta, você precisa ser estudante verificado. Vamos verificar o seu e-mail institucional: qual é ele?';
+  'Para apoiar uma pauta, você precisa verificar o seu e-mail institucional. Qual é ele?';
 export const SUPPORT_NOT_VERIFIED_TEXT =
-  'Não consegui registrar o apoio: o seu cadastro de estudante não está verificado. Escolha 3 no menu para verificar o e-mail.';
+  'Não consegui registrar o apoio: falta verificar o seu e-mail institucional. Escolha 3 no menu para verificar.';
 export const SUPPORT_CLOSED_TEXT =
   'Essa pauta não está recebendo apoios agora. Escolha 1 no menu para relatar outro problema.';
 export const SUPPORT_NOT_FOUND_TEXT =

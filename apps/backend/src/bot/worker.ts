@@ -80,7 +80,20 @@ export class MensagemIlegivelError extends Error {
   }
 }
 
-export const UNSUPPORTED_TEXT = 'Por enquanto eu só entendo mensagens de texto.';
+/** SCRUM-334: diz o que fazer, e não só que o bot não entende. */
+export const UNSUPPORTED_TEXT =
+  'Ainda não entendo esse tipo de mensagem. Escreva em texto ou mande *menu*.';
+export const AUDIO_TEXT = 'Não consigo ouvir áudio. Escreva em texto ou mande *menu*.';
+export const VIDEO_TEXT = 'Não consigo ver vídeo. Escreva em texto ou mande *menu*.';
+export const STICKER_TEXT = 'Não consigo ver figurinha. Escreva em texto ou mande *menu*.';
+
+/** A resposta ao que não tem texto, pelo `type` da Meta (o Telegram e a Evolution usam o mesmo). */
+export function textoSemSuporte(tipo: string): string {
+  if (tipo === 'audio') return AUDIO_TEXT;
+  if (tipo === 'video') return VIDEO_TEXT;
+  if (tipo === 'sticker') return STICKER_TEXT;
+  return UNSUPPORTED_TEXT;
+}
 
 /**
  * Configuração das filas do bot. `notify` acorda o worker na hora em que o job é criado (com o
@@ -189,7 +202,7 @@ export async function processIncomingJob(
       : lido;
     const respondidas =
       input === null
-        ? [UNSUPPORTED_TEXT]
+        ? [textoSemSuporte(data.type)]
         : await handleIncoming(
             { phoneHmac: data.phoneHmac, phoneCifrado: data.phoneCifrado, ...input },
             {

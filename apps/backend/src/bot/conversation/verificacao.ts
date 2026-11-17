@@ -75,9 +75,9 @@ export const CODE_OK_TEXT = 'Código certo ✅';
 export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
 export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
 export const VERIFIED_TEXT =
-  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
+  'Pronto, sua verificação está feita ✅ Agora você pode criar pautas e apoiar as que já existem. A verificação vale para esta conversa: não precisa fazer de novo.';
 export const ALREADY_VERIFIED_TEXT =
-  'Você já é estudante verificado ✅ Não precisa verificar de novo.';
+  'Sua verificação já está feita ✅ Não precisa verificar de novo.';
 export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
 
 const CURSO_ROW_PREFIX = 'curso:';

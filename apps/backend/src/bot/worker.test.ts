@@ -255,7 +255,7 @@ describe('processIncomingJob', () => {
   });
 
   it('tipo sem texto responde que ainda não entende e não mexe na conversa', async () => {
-    await processIncomingJob(job({}, 'audio'), deps);
+    await processIncomingJob(job({}, 'location'), deps);
     expect(await respostas()).toEqual([[UNSUPPORTED_TEXT]]);
     expect(await passo()).toBeUndefined();
   });
