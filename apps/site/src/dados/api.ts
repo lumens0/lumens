@@ -23,17 +23,33 @@ function urlDaApi(): string {
 // timeout de conexão do fetch antes de cair no `error.tsx`.
 const TEMPO_LIMITE_MS = 5000;
 
+// Depois de um tempo esgotado, os pedidos seguintes falham na hora por 10 s. Quando a página
+// falha, o Next renderiza a de erro chamando o `generateMetadata` de novo, numa render nova (o
+// `cache` do React não vale entre as duas): sem a pausa, a pauta esperaria os 5 s duas vezes.
+const PAUSA_MS = 10_000;
+let apiSemResponderAte = 0;
+
 /**
  * O cache de 30 s acompanha o `Cache-Control` da API. `fresca` lê sem ele: o card da pauta, que o
  * bot pede logo depois de um apoio, precisa do total de agora.
  */
-const buscar = (caminho: string, fresca = false) =>
-  fetch(
-    `${urlDaApi()}${caminho}`,
-    fresca
-      ? { cache: 'no-store', signal: AbortSignal.timeout(TEMPO_LIMITE_MS) }
-      : { next: { revalidate: 30 }, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) },
-  );
+async function buscar(caminho: string, fresca = false): Promise<Response> {
+  if (Date.now() < apiSemResponderAte)
+    throw new Error(
+      'API de leitura não respondeu há pouco: sem nova tentativa por alguns segundos.',
+    );
+  try {
+    return await fetch(
+      `${urlDaApi()}${caminho}`,
+      fresca
+        ? { cache: 'no-store', signal: AbortSignal.timeout(TEMPO_LIMITE_MS) }
+        : { next: { revalidate: 30 }, signal: AbortSignal.timeout(TEMPO_LIMITE_MS) },
+    );
+  } catch (erro) {
+    if ((erro as Error).name === 'TimeoutError') apiSemResponderAte = Date.now() + PAUSA_MS;
+    throw erro;
+  }
+}
 
 /** GET que só aceita 200. Qualquer erro sobe e cai no `error.tsx`. */
 async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {

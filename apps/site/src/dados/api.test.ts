@@ -34,26 +34,38 @@ describe('buscarPauta', () => {
     });
   });
 
-  it('API que não responde em 5 s lança erro (a VM desligada)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        (_url: string, { signal }: RequestInit) =>
-          new Promise<Response>((_, rejeitar) =>
-            signal?.addEventListener('abort', () => {
-              rejeitar(signal.reason as Error);
-            }),
-          ),
-      ),
+  it('API que não responde em 5 s lança erro e os pedidos dos 10 s seguintes falham na hora', async () => {
+    // Relógio no passado: a pausa termina antes do horário real e não vaza para os outros testes.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2020-01-01T12:00:00Z') });
+    const fetch = vi.fn(
+      (_url: string, { signal }: RequestInit) =>
+        new Promise<Response>((_, rejeitar) =>
+          signal?.addEventListener('abort', () => {
+            rejeitar(signal.reason as Error);
+          }),
+        ),
     );
+    vi.stubGlobal('fetch', fetch);
     // O timer do `AbortSignal.timeout` é interno do Node: o teste troca o sinal por um controlável.
     const controle = new AbortController();
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controle.signal);
-    const pedido = buscarPauta('x');
-    expect(timeout).toHaveBeenCalledWith(5000);
-    controle.abort(new DOMException('tempo esgotado', 'TimeoutError'));
-    await expect(pedido).rejects.toThrow('tempo esgotado');
-    timeout.mockRestore();
+    try {
+      const pedido = buscarPauta('x');
+      expect(timeout).toHaveBeenCalledWith(5000);
+      controle.abort(new DOMException('tempo esgotado', 'TimeoutError'));
+      await expect(pedido).rejects.toThrow('tempo esgotado');
+
+      // A página de erro chama o `generateMetadata` de novo: não espera outros 5 s.
+      await expect(buscarPauta('x')).rejects.toThrow('não respondeu há pouco');
+      expect(fetch).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(new Date('2020-01-01T12:00:10Z'));
+      vi.stubGlobal('fetch', responder(200, { slug: 'x' }));
+      expect(await buscarPauta('x')).toEqual({ slug: 'x' });
+    } finally {
+      timeout.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it.each([404, 400])('%i vira null', async (status) => {
