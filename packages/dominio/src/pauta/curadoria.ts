@@ -103,11 +103,19 @@ export async function buscarPautaDaCuradoria(
   return pauta;
 }
 
+/** Teto do motivo da recusa, conferido aqui: o `maxLength` do painel não protege a chamada direta. */
+export const MOTIVO_RECUSA_MAXIMO = 500;
+
 export type ResultadoDecisao =
   | { decidida: true }
   | {
       decidida: false;
-      motivo: 'pauta_inexistente' | 'ja_decidida' | 'motivo_obrigatorio' | 'categoria_invalida';
+      motivo:
+        | 'pauta_inexistente'
+        | 'ja_decidida'
+        | 'motivo_obrigatorio'
+        | 'motivo_longo'
+        | 'categoria_invalida';
     };
 
 async function decidir(
@@ -129,6 +137,10 @@ async function decidir(
   if (pauta.status !== 'em_curadoria') return { decidida: false, motivo: 'ja_decidida' };
   if (para === 'recusada' && (motivo?.trim() ?? '') === '') {
     return { decidida: false, motivo: 'motivo_obrigatorio' };
+  }
+  // Depois das checagens de status: pauta já decidida ou inexistente não pede para resumir o texto.
+  if (para === 'recusada' && Array.from(motivo?.trim() ?? '').length > MOTIVO_RECUSA_MAXIMO) {
+    return { decidida: false, motivo: 'motivo_longo' };
   }
 
   await transicionarStatus(tx, { pautaId, para, origem: 'curadoria', motivo, agora });
@@ -167,17 +179,37 @@ export async function aprovarPauta(
   return resultado;
 }
 
+export type ResultadoCategoria =
+  | { feito: true }
+  | { feito: false; motivo: 'categoria_invalida' | 'pauta_inexistente' | 'pauta_nao_publicada' };
+
+/**
+ * Troca a categoria de pauta já publicada. A troca fica na linha do tempo (`categoria_alterada`),
+ * como as outras decisões da curadoria; trocar pela mesma categoria não registra nada.
+ */
 export async function definirCategoria(
   tx: Tx,
   { pautaId, categoria }: { pautaId: string; categoria: string },
-): Promise<boolean> {
-  if (!Object.hasOwn(CATEGORIAS, categoria)) return false;
-  const resultado = await tx
-    .update(pautas)
-    .set({ categoria })
-    .where(and(eq(pautas.id, pautaId), sql`${pautas.status} not in ('em_curadoria', 'recusada')`))
-    .returning({ id: pautas.id });
-  return resultado.length > 0;
+): Promise<ResultadoCategoria> {
+  if (!Object.hasOwn(CATEGORIAS, categoria)) return { feito: false, motivo: 'categoria_invalida' };
+  const [pauta] = await tx
+    .select({ status: pautas.status, categoria: pautas.categoria })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { feito: false, motivo: 'pauta_inexistente' };
+  if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
+    return { feito: false, motivo: 'pauta_nao_publicada' };
+  }
+  if (pauta.categoria === categoria) return { feito: true };
+  await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+  await registrarEvento(tx, {
+    pautaId,
+    tipo: 'categoria_alterada',
+    dados: { de: pauta.categoria, para: categoria },
+    origem: 'curadoria',
+  });
+  return { feito: true };
 }
 
 /**
