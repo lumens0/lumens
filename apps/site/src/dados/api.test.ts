@@ -68,6 +68,24 @@ describe('buscarPauta', () => {
     }
   });
 
+  it('tempo esgotado no meio do corpo JSON também pausa os pedidos seguintes', async () => {
+    // Outro dia: a pausa deixada pelo teste anterior (01/01) não vale aqui.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2020-01-02T12:00:00Z') });
+    const resposta = new Response('{}', { status: 200 });
+    vi.spyOn(resposta, 'json').mockRejectedValue(
+      new DOMException('tempo esgotado', 'TimeoutError'),
+    );
+    const fetch = vi.fn(() => Promise.resolve(resposta));
+    vi.stubGlobal('fetch', fetch);
+    try {
+      await expect(buscarPauta('x')).rejects.toThrow('tempo esgotado');
+      await expect(buscarBlocos()).rejects.toThrow('não respondeu há pouco');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([404, 400])('%i vira null', async (status) => {
     vi.stubGlobal('fetch', responder(status));
     expect(await buscarPauta('nao-existe')).toBeNull();
