@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import {
   ASK_ATTACH_REPORT_TEXT,
+  ASK_WRITE_REPORT_TEXT,
   cardDaPauta,
   SUPPORT_DONE_TEXT,
   supportedText,
@@ -72,6 +73,15 @@ const PAUTA = {
   meta: 120,
 };
 let pautaId: string;
+
+/** A pauta que a estudante apoia pelo botão "Apoiar" do site, sem passar pelo relato. */
+const PAUTA_DO_SITE = {
+  slug: 'iluminacao-do-estacionamento',
+  titulo: 'Iluminação no estacionamento do Bloco 18',
+  descricao: 'Trocar as lâmpadas queimadas do estacionamento, que fica escuro à noite.',
+  meta: 60,
+};
+let pautaDoSiteId: string;
 
 /** O que o bot mandou, na ordem em que saiu da fila. */
 const enviadas: Resposta[] = [];
@@ -130,8 +140,19 @@ beforeAll(async () => {
       aprovadaEm: new Date(),
     })
     .returning({ id: pautas.id });
-  if (pauta === undefined) throw new Error('fixture não criada');
+  const [doSite] = await admin
+    .insert(pautas)
+    .values({
+      ...PAUTA_DO_SITE,
+      blocoId: bloco?.id,
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      aprovadaEm: new Date(),
+    })
+    .returning({ id: pautas.id });
+  if (pauta === undefined || doSite === undefined) throw new Error('fixture não criada');
   pautaId = pauta.id;
+  pautaDoSiteId = doSite.id;
   const url = new URL(banco.url);
   const credenciais = new URL(URL_APLICACAO);
   url.username = credenciais.username;
@@ -252,9 +273,19 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(doApoio[0]).toMatchObject({ estudanteId, origem: 'bot' });
     });
 
-    // O botão "Apoiar" do site manda `apoiar <slug>`, e quem interpreta o comando é a 2.8
-    // (SCRUM-103, regex na SCRUM-153), que ainda não entrou. Quando entrar, este passo manda o
-    // comando do botão e confere a contagem.
-    it.todo('apoia uma pauta pelo comando do botão do site (2.8)');
+    // O botão "Apoiar" do site abre o bot com `apoiar <slug>` já escrito (2.8): a estudante, já
+    // verificada, cai direto no apoio, sem menu nem relato antes.
+    it('apoia uma pauta pelo comando do botão do site (2.8)', async () => {
+      expect(await texto(`apoiar ${PAUTA_DO_SITE.slug}`, 3)).toEqual([
+        supportedText(PAUTA_DO_SITE.titulo, 1, PAUTA_DO_SITE.meta),
+        cardDaPauta(PAUTA_DO_SITE.slug, 1),
+        ASK_WRITE_REPORT_TEXT,
+      ]);
+
+      const estudanteId = await estudanteVerificado(db, hashPhone(TELEFONE, chaves.hmac));
+      const doApoio = await admin.select().from(apoios).where(eq(apoios.pautaId, pautaDoSiteId));
+      expect(doApoio).toHaveLength(1);
+      expect(doApoio[0]).toMatchObject({ estudanteId, origem: 'bot' });
+    });
   },
 );
