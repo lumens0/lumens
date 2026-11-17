@@ -27,7 +27,7 @@ export default async function PaginaDaPromessa({
   if (!pauta) notFound();
 
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <FormularioDaPromessa
         pauta={pauta}
         documentos={await documentosDeResposta(servidor().db, pauta.id)}
