@@ -2,13 +2,21 @@
 // é adicionada e desativada pela tela /curadores, só por administrador.
 // Uso: pnpm --filter @lumens/backend curador --administrador <email> "<nome>"
 // Sem `--administrador` cadastra um curador comum (ou reativa quem saiu), útil se ninguém mais
-// entra no painel. Lê DATABASE_URL, CHAVE_CIFRA e CHAVE_HMAC do .env da raiz. O e-mail vai cifrado
-// e com HMAC, que é como o painel acha o curador no login: a regra mora em `@lumens/dominio`.
+// entra no painel. Lê DATABASE_URL, CHAVE_CIFRA_PAINEL e CHAVE_HMAC do .env da raiz. O e-mail vai
+// cifrado com a chave do painel e com HMAC, que é como o painel acha o curador no login: a regra
+// mora em `@lumens/dominio`.
+//
+// Uma vez, ao adotar a CHAVE_CIFRA_PAINEL: `pnpm --filter @lumens/backend curador --recifrar`
+// passa o e-mail dos curadores já cadastrados da CHAVE_CIFRA para a CHAVE_CIFRA_PAINEL.
 import { criarCliente } from '@lumens/db';
-import { adicionarCurador, type MotivoRecusaCurador } from '@lumens/dominio';
-import { chavesDoEnv } from '../src/cripto/cifra';
+import {
+  adicionarCurador,
+  recifrarEmailsDeCuradores,
+  type MotivoRecusaCurador,
+} from '@lumens/dominio';
 
-const USO = 'Uso: pnpm --filter @lumens/backend curador [--administrador] <email> "<nome>"';
+const USO =
+  'Uso: pnpm --filter @lumens/backend curador [--administrador] <email> "<nome>" | --recifrar';
 const MOTIVOS: Partial<Record<MotivoRecusaCurador, string>> = {
   email_invalido: 'Só e-mail @ufal.br.',
   nome_obrigatorio: 'Informe o nome.',
@@ -16,40 +24,58 @@ const MOTIVOS: Partial<Record<MotivoRecusaCurador, string>> = {
 };
 
 const argumentos = process.argv.slice(2);
+const recifrar = argumentos.includes('--recifrar');
 const administrador = argumentos.includes('--administrador');
-const [email, nome] = argumentos.filter((a) => a !== '--administrador');
-const { DATABASE_URL, CHAVE_CIFRA, CHAVE_HMAC } = process.env;
+const [email, nome] = argumentos.filter((a) => !a.startsWith('--'));
+const { DATABASE_URL, CHAVE_CIFRA, CHAVE_CIFRA_PAINEL, CHAVE_HMAC } = process.env;
 
-if (!email || !nome) {
+if (!recifrar && (!email || !nome)) {
   console.error(USO);
   process.exit(1);
 }
-if (!DATABASE_URL || !CHAVE_CIFRA || !CHAVE_HMAC) {
-  console.error('Defina DATABASE_URL, CHAVE_CIFRA e CHAVE_HMAC no .env da raiz.');
+if (!DATABASE_URL || !CHAVE_CIFRA_PAINEL || !CHAVE_HMAC) {
+  console.error('Defina DATABASE_URL, CHAVE_CIFRA_PAINEL e CHAVE_HMAC no .env da raiz.');
   process.exit(1);
 }
 
-const chaves = chavesDoEnv({ CHAVE_CIFRA, CHAVE_HMAC });
-// As mesmas regras do `env.ts` do servidor: 32 bytes cada e diferentes entre si (com a mesma
-// chave, quem tiver a do HMAC decifra os e-mails).
-if (chaves.cifra.length !== 32 || chaves.hmac.length !== 32 || chaves.cifra.equals(chaves.hmac)) {
+const cifra = Buffer.from(CHAVE_CIFRA_PAINEL, 'base64');
+const hmac = Buffer.from(CHAVE_HMAC, 'base64');
+// 32 bytes cada e diferentes entre si (com a mesma chave, quem tiver a do HMAC decifra os e-mails).
+if (cifra.length !== 32 || hmac.length !== 32 || cifra.equals(hmac)) {
   console.error(
-    'CHAVE_CIFRA e CHAVE_HMAC precisam ter 32 bytes em base64 cada (openssl rand -base64 32) e ser diferentes.',
+    'CHAVE_CIFRA_PAINEL e CHAVE_HMAC precisam ter 32 bytes em base64 cada (openssl rand -base64 32) e ser diferentes.',
   );
   process.exit(1);
 }
 const { db, pool } = criarCliente(DATABASE_URL);
 try {
-  const resultado = await adicionarCurador(db, chaves, {
-    email,
-    nome,
-    papel: administrador ? 'administrador' : 'curador',
-  });
-  if (resultado.feito) {
-    console.log(`${nome.trim()} pode entrar no painel com ${email.trim().toLowerCase()}.`);
+  if (recifrar) {
+    const antiga = Buffer.from(CHAVE_CIFRA ?? '', 'base64');
+    if (antiga.length !== 32) {
+      console.error(
+        'Para recifrar, defina também a CHAVE_CIFRA (a chave de onde os e-mails saem).',
+      );
+      process.exitCode = 1;
+    } else {
+      const r = await recifrarEmailsDeCuradores(db, antiga, cifra);
+      console.log(
+        `${String(r.recifrados)} recifrado(s), ${String(r.jaNaChaveNova)} já na chave do painel, ${String(r.ilegiveis)} ilegível(is).`,
+      );
+    }
   } else {
-    console.error(MOTIVOS[resultado.motivo] ?? 'Não foi possível adicionar.');
-    process.exitCode = 1;
+    const resultado = await adicionarCurador(
+      db,
+      { cifra, hmac },
+      { email: email ?? '', nome: nome ?? '', papel: administrador ? 'administrador' : 'curador' },
+    );
+    if (resultado.feito) {
+      console.log(
+        `${(nome ?? '').trim()} pode entrar no painel com ${(email ?? '').trim().toLowerCase()}.`,
+      );
+    } else {
+      console.error(MOTIVOS[resultado.motivo] ?? 'Não foi possível adicionar.');
+      process.exitCode = 1;
+    }
   }
 } finally {
   await pool.end();

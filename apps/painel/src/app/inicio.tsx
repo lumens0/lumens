@@ -1,43 +1,48 @@
 import Link from 'next/link';
+import type { ResumoDaCuradoria } from '@lumens/dominio';
 import estilos from './painel.module.css';
 
-/** Início do painel para quem já entrou: o que está esperando a curadoria. */
-export function Inicio({
-  nome,
-  pautasNaFila,
-  relatosPendentes,
-}: {
-  nome: string;
-  pautasNaFila: number;
-  relatosPendentes: number;
-}) {
+/** Início do painel para quem já entrou: resumo do trabalho que espera a curadoria. */
+export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
   return (
     <>
       <h1>Painel de curadoria</h1>
-      <p className={estilos.apoio}>Você entrou como {nome}.</p>
       <ul className={estilos.lista}>
         <li className={estilos.cartao}>
           <h2>
-            <Link href="/fila">Pautas novas</Link>
+            <Link href="/pautas?status=em_curadoria">Pautas a decidir</Link>
           </h2>
           <p className={estilos.detalhes}>
-            {pautasNaFila === 0
-              ? 'Nenhuma pauta esperando decisão.'
-              : pautasNaFila === 1
-                ? '1 pauta esperando decisão.'
-                : `${String(pautasNaFila)} pautas esperando decisão.`}
+            {resumo.pautasADecidir} esperando decisão; {resumo.pautasAtrasadas}{' '}
+            {resumo.pautasAtrasadas === 1 ? 'pauta atrasada' : 'pautas atrasadas'} no prazo de 24 h.
           </p>
         </li>
         <li className={estilos.cartao}>
           <h2>
-            <Link href="/relatos">Relatos novos</Link>
+            <Link href="/relatos">Relatos a moderar</Link>
+          </h2>
+          <p className={estilos.detalhes}>{resumo.relatosAModerar} relatos em pautas publicadas.</p>
+        </li>
+        <li className={estilos.cartao}>
+          <h2>
+            <Link href="/pautas?status=cobrando&pendencia=sem_resposta_oficial">
+              Pautas em cobrança sem resposta oficial
+            </Link>
           </h2>
           <p className={estilos.detalhes}>
-            {relatosPendentes === 0
-              ? 'Nenhum relato esperando moderação.'
-              : relatosPendentes === 1
-                ? '1 relato esperando moderação.'
-                : `${String(relatosPendentes)} relatos esperando moderação.`}
+            {resumo.pautasSemRespostaOficial}{' '}
+            {resumo.pautasSemRespostaOficial === 1 ? 'pauta' : 'pautas'}.
+          </p>
+        </li>
+        <li className={estilos.cartao}>
+          <h2>
+            <Link href="/pautas?status=todas&pendencia=conferencia_aberta">
+              Conferências abertas
+            </Link>
+          </h2>
+          <p className={estilos.detalhes}>
+            {resumo.conferenciasAbertas}{' '}
+            {resumo.conferenciasAbertas === 1 ? 'conferência' : 'conferências'}.
           </p>
         </li>
       </ul>
