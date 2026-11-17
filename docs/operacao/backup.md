@@ -34,7 +34,7 @@ perdido (ou recriado vazio por um deploy), não de fotos apagadas.
 > Lumens, e essa sessão não deve sair da VM. Perdê-los só obriga a parear o chip de novo
 > ([canal da Evolution](evolution.md)).
 
-> **Limitação conhecida:** os backups, inclusive o espelho das fotos, ficam no mesmo disco da VM. Eles cobrem erro humano,
+> **Limitação conhecida:** os backups ficam no mesmo disco da VM. Eles cobrem erro humano,
 > migração ruim e banco corrompido, mas não a perda do disco ou da VM. Até a equipe decidir um
 > destino fora dela (Azure Blob Storage privado, por exemplo), copie um backup para fora antes de
 > qualquer mudança grande — veja [Cópia para fora da VM](#cópia-para-fora-da-vm).
