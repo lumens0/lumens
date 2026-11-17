@@ -15,6 +15,7 @@ const CAMINHO: Caminho = {
   status: 'aberto',
   protocolo: null,
   prazo: null,
+  prorrogado: false,
   aberto_em: '2026-02-09T12:00:00.000Z',
   descricao: null,
   pessoas_necessarias: null,
@@ -291,17 +292,22 @@ describe('página da pauta: seções', () => {
   });
 
   it('mostra prazo prorrogado e data prometida remarcada na página', () => {
-    const caminho = { ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-12-20' };
+    const caminho = {
+      ...CAMINHO,
+      tipo: 'falabr' as const,
+      prazo: '2026-12-20',
+      prorrogado: true,
+    };
+    // Formato real de `v_linha_do_tempo`: sem chaves `*_id`.
     const linha_do_tempo = [
       {
         tipo: 'caminho_aberto',
-        dados: { tipo: 'falabr', caminho_id: 'c1' },
+        dados: { tipo: 'falabr' },
         criado_em: fixture.criada_em,
       },
       {
         tipo: 'prazo_prorrogado',
         dados: {
-          caminho_id: 'c1',
           data_antiga: '2026-12-01',
           data_nova: '2026-12-31',
           motivo: 'Aguardando material',
@@ -326,11 +332,9 @@ describe('página da pauta: seções', () => {
       },
     ];
     const pauta = { ...fixture, caminhos: [caminho], linha_do_tempo };
-    expect(
-      renderToStaticMarkup(
-        <Caminhos caminhos={[caminho]} slug={fixture.slug} eventos={linha_do_tempo} />,
-      ),
-    ).toContain('Prazo prorrogado');
+    expect(renderToStaticMarkup(<Caminhos caminhos={[caminho]} slug={fixture.slug} />)).toContain(
+      'Prazo prorrogado',
+    );
     expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} />)).toContain(
       'Prazo do Fala.BR prorrogado.',
     );
@@ -338,6 +342,59 @@ describe('página da pauta: seções', () => {
     const timeline = renderToStaticMarkup(<LinhaDoTempo eventos={linha_do_tempo} />);
     expect(timeline).toContain('Promessa remarcada: 10/12/2026 → 15/12/2026');
     expect(timeline).toContain('Motivo: Entrega adiada. Fonte: Comunicado.');
+  });
+
+  it('prorrogação e remarcação antigas não vazam para novo Fala.BR nem para nova promessa', () => {
+    const pauta = {
+      ...fixture,
+      caminhos: [
+        {
+          ...CAMINHO,
+          tipo: 'falabr' as const,
+          prazo: '2026-04-30',
+          prorrogado: true,
+          aberto_em: '2026-03-01T12:00:00.000Z',
+        },
+        {
+          ...CAMINHO,
+          tipo: 'falabr' as const,
+          prazo: '2026-06-30',
+          prorrogado: false,
+          aberto_em: '2026-06-01T12:00:00.000Z',
+        },
+      ],
+      linha_do_tempo: [
+        {
+          tipo: 'prazo_prorrogado',
+          dados: { data_antiga: '2026-03-31', data_nova: '2026-04-30' },
+          criado_em: '2026-03-20T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_registrada',
+          dados: { data_entrega: '2026-05-01', resumo: 'Primeira promessa.' },
+          criado_em: '2026-04-10T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_remarcada',
+          dados: { data_antiga: '2026-05-01', data_nova: '2026-05-20' },
+          criado_em: '2026-04-25T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_registrada',
+          dados: { data_entrega: '2026-08-15', resumo: 'Segunda promessa.' },
+          criado_em: '2026-06-10T12:00:00.000Z',
+        },
+      ],
+    };
+    const proxima = renderToStaticMarkup(<ProximaEtapa pauta={pauta} />);
+    expect(proxima).toContain('Prazo de resposta do Fala.BR: 30/06/2026');
+    expect(proxima).not.toContain('Prazo do Fala.BR prorrogado.');
+
+    const resposta = renderToStaticMarkup(<RespostaOficial pauta={pauta} />);
+    expect(resposta).toContain('Segunda promessa.');
+    expect(resposta).toContain('entrega até 15/08/2026');
+    expect(resposta).not.toContain('Promessa remarcada');
+    expect(resposta).not.toContain('20/05/2026');
   });
 
   it('fonte sem URL fica como texto, e `javascript:` nunca vira link', () => {
