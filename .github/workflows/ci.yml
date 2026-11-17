@@ -291,20 +291,6 @@ jobs:
   #
   # Separado do job `deploy` porque publica outra coisa, noutro lugar, e a falha de um não
   # deve esconder a do outro — site na Vercel e back-end na VM caem por motivos diferentes.
-  # Sem este job, um Run workflow de outra branch pularia o deploy em silêncio e pareceria
-  # que publicou. O aviso deixa claro que nada foi para a homologação (SCRUM-336).
-  deploy-fora-da-main:
-    name: deploy-fora-da-main
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Avisar que o deploy foi ignorado
-        run: >-
-          echo "::warning title=Deploy ignorado::A homologação só é publicada a partir da main.
-          Este Run workflow foi disparado de ${GITHUB_REF} e nada foi publicado.
-          Rode de novo escolhendo a branch main."
-
   deploy-backend:
     name: deploy-backend
     # Como o `deploy`: só publica com o check e o e2e verdes deste mesmo commit (SCRUM-312).
@@ -414,3 +400,17 @@ jobs:
             fi
             sleep 6
           done
+
+  # Run workflow fora da `main` (SCRUM-336): o `deploy-backend` é pulado, e sem este job o
+  # pulo seria silencioso e pareceria que publicou. O aviso deixa claro que nada foi publicado.
+  deploy-fora-da-main:
+    name: deploy-fora-da-main
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Avisar que o deploy foi ignorado
+        run: >-
+          echo "::warning title=Deploy ignorado::A homologação só é publicada a partir da main.
+          Este Run workflow foi disparado de ${GITHUB_REF} e nada foi publicado.
+          Rode de novo escolhendo a branch main."
