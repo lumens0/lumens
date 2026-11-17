@@ -401,7 +401,9 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
 
     it('2. a curadoria aprova e a pauta aparece na API juntando apoios, com 0 apoios', async () => {
       // Como o painel faz (apps/painel/src/app/pautas/[id]/acoes.ts).
-      const decisao = await db.transaction((tx) => aprovarPauta(tx, { pautaId, curadorId }));
+      const decisao = await db.transaction((tx) =>
+        aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura' }),
+      );
       expect(decisao).toEqual({ decidida: true });
 
       expect(await pautaNaApi()).toMatchObject({
@@ -425,9 +427,9 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
         ASK_WRITE_REPORT_TEXT,
       ]);
       const relato = 'Ontem caí no estacionamento por causa do escuro.';
-      expect(await texto(APOIADOR, relato, 1)).toEqual([SUPPORT_PHOTO_ASK_TEXT]);
+      expect(await texto(APOIADOR, relato, 2)).toEqual([REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT]);
       expect(await texto(APOIADOR, 'pular', 3)).toEqual([
-        REPORT_SENT_TEXT,
+        SUPPORT_DONE_TEXT,
         {
           tipo: 'botoes',
           corpo: COOWNER_INVITE_TEXT,
