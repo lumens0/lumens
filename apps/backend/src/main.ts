@@ -217,7 +217,14 @@ async function iniciar(env: Env): Promise<void> {
       ...(telegram?.modo === 'webhook' && telegram.segredoDoWebhook !== undefined && apiDoTelegram
         ? { telegram: { segredo: telegram.segredoDoWebhook, api: apiDoTelegram } }
         : {}),
-      ...(configEvolution ? { evolution: { segredo: configEvolution.segredoDoWebhook } } : {}),
+      ...(configEvolution
+        ? {
+            evolution: {
+              segredo: configEvolution.segredoDoWebhook,
+              ...(evolution?.estadoDaConexao ? { estadoDaConexao: evolution.estadoDaConexao } : {}),
+            },
+          }
+        : {}),
       db,
       queue,
       logger,
