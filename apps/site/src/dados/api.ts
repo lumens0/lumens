@@ -38,16 +38,21 @@ async function buscar(caminho: string, fresca = false): Promise<Response> {
     throw new Error(
       'API de leitura não respondeu há pouco: sem nova tentativa por alguns segundos.',
     );
-  try {
-    return await fetch(`${urlDaApi()}${caminho}`, {
-      ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } }),
-      signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
-    });
-  } catch (erro) {
-    if (erro instanceof Error && erro.name === 'TimeoutError')
-      apiSemResponderAte = Date.now() + PAUSA_MS;
-    throw erro;
-  }
+  return fetch(`${urlDaApi()}${caminho}`, {
+    ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } }),
+    signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+  }).catch(pausarSeEsgotou);
+}
+
+function pausarSeEsgotou(erro: unknown): never {
+  if (erro instanceof Error && erro.name === 'TimeoutError')
+    apiSemResponderAte = Date.now() + PAUSA_MS;
+  throw erro;
+}
+
+/** Corpo JSON da resposta. O tempo limite segue valendo aqui: a API pode travar no meio do corpo. */
+async function lerJson<T>(resposta: Response): Promise<T> {
+  return (await resposta.json().catch(pausarSeEsgotou)) as T;
 }
 
 /** GET que só aceita 200. Qualquer erro sobe e cai no `error.tsx`. */
@@ -55,7 +60,7 @@ async function buscarJson<T>(caminho: string, oQue: string): Promise<T> {
   const resposta = await buscar(caminho);
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para ${oQue}.`);
-  return (await resposta.json()) as T;
+  return lerJson<T>(resposta);
 }
 
 /**
@@ -70,7 +75,7 @@ export async function buscarPauta(
   if (resposta.status === 404 || resposta.status === 400) return null;
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para a pauta.`);
-  return (await resposta.json()) as PautaDetalhe;
+  return lerJson<PautaDetalhe>(resposta);
 }
 
 export async function buscarBlocos(): Promise<Bloco[]> {
