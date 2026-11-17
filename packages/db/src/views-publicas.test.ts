@@ -269,7 +269,7 @@ describe('views públicas com o seed', () => {
         'bebedouros-no-bloco-18': 'Faltam 48 apoios',
         'biblioteca-aberta-aos-sabados': 'Aguardando o encaminhamento',
         'iluminacao-no-bloco-de-artes': 'Prazo do Fala.BR venceu em 20/03/2026',
-        'sala-de-descanso-na-saude': 'Entrega prometida venceu em 30/04/2026',
+        'sala-de-descanso-na-saude': 'Prazo da entrega venceu em 30/04/2026',
         'acessibilidade-no-bloco-18': 'Cobrar o restante',
         'internet-na-residencia': 'Retomar a cobrança',
         'laboratorios-abertos-nas-engenharias': null,
@@ -639,7 +639,7 @@ describe('views públicas com dados além do seed', () => {
     expect(await etapa(falabr)).toBe(`Prazo do Fala.BR em ${ano.texto}`);
 
     await comEntrega(ontem.data);
-    expect(await etapa(promessa)).toBe(`Entrega prometida venceu em ${ontem.texto}`);
+    expect(await etapa(promessa)).toBe(`Prazo da entrega venceu em ${ontem.texto}`);
     await comEntrega(hoje.data);
     expect(await etapa(promessa)).toBe(`Entrega prometida para ${hoje.texto}`);
     await comEntrega(ano.data);
