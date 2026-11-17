@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buscarBlocos, buscarPautas } from '../dados/api';
@@ -7,7 +8,10 @@ import Home from './page';
 
 // O filtro usa o router do Next, que não existe fora do app.
 vi.mock('../componentes/FiltroBloco', () => ({ FiltroBloco: () => null }));
-vi.mock('../componentes/FiltroStatus', () => ({ FiltroStatus: () => null }));
+vi.mock('../componentes/FiltroStatus', () => ({
+  FiltroStatus: ({ contagens }: { contagens: Record<string, number> }) =>
+    createElement('pre', { id: 'contagens' }, JSON.stringify(contagens)),
+}));
 vi.mock('../dados/api', () => ({ buscarBlocos: vi.fn(), buscarPautas: vi.fn() }));
 
 const render = async (bloco?: string, status?: string) =>
@@ -81,5 +85,26 @@ describe('home', () => {
   it('erro da API sobe para o error.tsx em vez de renderizar a página vazia', async () => {
     vi.mocked(buscarPautas).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');
+  });
+
+  it('as contagens do filtro de status somam a lista do bloco, com ou sem status escolhido', async () => {
+    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
+    const prometidas = doBlocoA.filter((p) => p.status === 'prometido');
+    const contagensDe = (html: string): Record<string, number> =>
+      JSON.parse(
+        /<pre id="contagens">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}',
+      ) as Record<string, number>;
+    // Sem status: uma busca só, e as contagens saem dela.
+    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
+    const semFiltro = contagensDe(await render('bloco-a'));
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
+    expect(semFiltro.prometido).toBe(prometidas.length);
+    // Com status: a lista vem filtrada e as contagens vêm de uma segunda busca, sem o filtro.
+    vi.mocked(buscarPautas).mockReset();
+    vi.mocked(buscarPautas).mockImplementation(((_bloco, status) =>
+      Promise.resolve(status ? prometidas : doBlocoA)) as typeof buscarPautas);
+    const comFiltro = contagensDe(await render('bloco-a', 'prometido'));
+    expect(buscarPautas).toHaveBeenCalledTimes(2);
+    expect(comFiltro).toEqual(semFiltro);
   });
 });
