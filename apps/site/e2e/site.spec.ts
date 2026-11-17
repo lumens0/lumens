@@ -18,11 +18,11 @@ async function conferirTotais(
 ) {
   const totais = page.getByRole('region', { name: regiao });
   await expect(totais.locator('dt')).toHaveText(['Pautas abertas', 'Apoios', 'Conquistas']);
-  await expect(totais.locator('dd')).toHaveText([
-    esperado.abertas,
-    esperado.apoios,
-    esperado.conquistas,
-  ]);
+  // Cada número aparece duas vezes no `<dd>`: o animado, escondido do leitor de tela, e o valor
+  // final em texto oculto, que é o que o leitor lê (SCRUM-306). Os dois têm de chegar ao total.
+  const numeros = [esperado.abertas, esperado.apoios, esperado.conquistas];
+  await expect(totais.locator('dd > [aria-hidden="true"]')).toHaveText(numeros);
+  await expect(totais.locator('dd > :not([aria-hidden])')).toHaveText(numeros);
   await expect(page.getByRole('article')).toHaveCount(esperado.cards);
 }
 
