@@ -294,7 +294,7 @@ pnpm --filter @lumens/painel dev     # http://localhost:3002 (lê o .env da raiz
 pnpm --filter @lumens/painel build   # build de produção
 ```
 
-O painel usa `DATABASE_URL`, `CHAVE_CIFRA`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*`
+O painel usa `DATABASE_URL`, `CHAVE_CIFRA_PAINEL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*`
 (SMTP) do `.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também
 `AWS_REGION`, `S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do
 `.env.producao` da VM.
@@ -311,9 +311,11 @@ O script só cria o **primeiro administrador**; o resto da equipe é pela tela:
 pnpm --filter @lumens/backend curador --administrador fulana@ufal.br "Fulana de Tal"
 ```
 
-O e-mail é guardado cifrado e com HMAC, como o telefone dos estudantes; use as mesmas
-`CHAVE_CIFRA` e `CHAVE_HMAC` do ambiente onde o painel roda. Quem já existia antes dos papéis
-virou administrador na migration.
+O e-mail é guardado cifrado com a `CHAVE_CIFRA_PAINEL` e com HMAC da `CHAVE_HMAC`; use as mesmas do
+ambiente onde o painel roda. A chave do painel é só dela: o painel nunca recebe a `CHAVE_CIFRA`, que
+abre telefone e e-mail dos estudantes. Curadores cadastrados antes dela passam para a chave nova uma
+vez, com `pnpm --filter @lumens/backend curador --recifrar` (lê as duas chaves). Quem já existia
+antes dos papéis virou administrador na migration.
 
 Sem sessão, toda página manda para `/login` e toda rota de API em `/curadoria/*` responde 401.
 
@@ -345,7 +347,7 @@ telefone): vão como HMAC da `CHAVE_HMAC`, para achar a conversa, e cifrados com
 para o worker responder.
 
 Um worker consome a fila `incoming-message` e anda a conversa. O novo estado, as respostas (na
-fila `outgoing-replies`) e a conclusão do job entram na mesma transação: se o processo cair no
+fila `outgoing-replies-ordered`, em ordem por conversa) e a conclusão do job entram na mesma transação: se o processo cair no
 meio, a mensagem é reentregue em até 1 minuto e aplicada uma vez só. Enquanto o envio pela Meta
 não existe, as respostas aparecem no log do `pnpm dev` como `respostas do bot`, com o texto no
 campo `texto`. Só o `pnpm dev` (flag `--dev`) mostra o texto; o `start` de produção registra

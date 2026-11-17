@@ -12,7 +12,9 @@ Quem entra no painel: o script `curador` só cria o **primeiro administrador**, 
 back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
 "<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
 para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
-`CHAVE_CIFRA` do `.env.producao`, para mostrar o e-mail de quem já foi cadastrado.
+`CHAVE_CIFRA_PAINEL` do `.env.producao`, só dele, para mostrar o e-mail de quem já foi cadastrado.
+Ao criar essa chave, rode uma vez `... run --rm -T backend pnpm --filter @lumens/backend curador
+--recifrar`, que passa o e-mail dos curadores existentes da `CHAVE_CIFRA` para ela.
 
 ## Onde roda, e por que não é a AWS
 
@@ -233,6 +235,10 @@ CI que fica vermelho por motivo normal é CI que todo mundo aprende a ignorar.
 Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O `check` e o `e2e` rodam de
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
+
+Dispare o Run workflow **da `main`**. De outra branch o deploy é pulado com o aviso "Deploy
+ignorado" e nada é publicado; e o `scripts/deploy-homologacao.sh` também recusa qualquer SHA que
+não esteja na `main` (SCRUM-336), porque o banco da homologação não tem backup.
 
 ### O que o site mostra quando ela está desligada
 
