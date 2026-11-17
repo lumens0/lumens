@@ -10,6 +10,7 @@ import {
   corrigirBloco,
   definirCategoria,
   recusar,
+  recusarRelatoDeOrigem,
 } from './acoes';
 import { UUID } from './decisoes';
 import { Pauta } from './pauta';
@@ -20,7 +21,7 @@ export default async function PaginaDaPauta({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erro?: string; feito?: string; avisados?: string }>;
+  searchParams: Promise<{ erro?: string; feito?: string; avisados?: string; linha?: string }>;
 }) {
   const curador = await curadorDaSessao();
   if (!curador) redirect('/login');
@@ -29,7 +30,7 @@ export default async function PaginaDaPauta({
   const pauta = UUID.test(id) ? await detalharPautaDaCuradoria(servidor().db, id) : undefined;
   if (!pauta) notFound();
 
-  const { erro, feito, avisados } = await searchParams;
+  const { erro, feito, avisados, linha } = await searchParams;
   const numero = Number(avisados);
   const avisadosValido = feito === 'promessa' && Number.isInteger(numero) && numero >= 0;
   return (
@@ -51,6 +52,8 @@ export default async function PaginaDaPauta({
         prorrogarPrazo={prorrogarPrazo}
         corrigirProtocolo={corrigirProtocolo}
         remarcarPromessa={remarcarPromessa}
+        recusarRelatoDeOrigem={recusarRelatoDeOrigem}
+        linhaAberta={linha === 'aberta'}
       />
     </Moldura>
   );

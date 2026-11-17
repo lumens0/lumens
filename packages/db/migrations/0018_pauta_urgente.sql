@@ -1,6 +1,7 @@
 ALTER TABLE "pauta" ADD COLUMN "urgente" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "pauta" ADD COLUMN "urgente_desde" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "pauta" ADD COLUMN "urgente_por" uuid;--> statement-breakpoint
+ALTER TABLE "pauta" ADD COLUMN "urgente_motivo" text;--> statement-breakpoint
 ALTER TABLE "pauta" ADD CONSTRAINT "pauta_urgente_por_curador_id_fk" FOREIGN KEY ("urgente_por") REFERENCES "public"."curador"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pauta" ADD CONSTRAINT "pauta_urgencia_consistente" CHECK (("pauta"."urgente" AND "pauta"."urgente_desde" IS NOT NULL AND "pauta"."urgente_por" IS NOT NULL)
         OR (NOT "pauta"."urgente" AND "pauta"."urgente_desde" IS NULL AND "pauta"."urgente_por" IS NULL));--> statement-breakpoint

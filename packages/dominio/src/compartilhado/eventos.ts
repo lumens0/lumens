@@ -52,7 +52,6 @@ export interface DadosPorTipo {
   owner_entrou: { papel: PapelPauta['papel'] };
   owner_removido: { papel: PapelPauta['papel'] };
   relato_aprovado: { relato_id: string };
-  pauta_urgente: { urgente: boolean; motivo?: string };
   bloco_corrigido: {
     blocoAntes: string | null;
     blocoDepois: string | null;
@@ -61,6 +60,8 @@ export interface DadosPorTipo {
     motivo: string;
   };
   meta_ajustada: { metaAntes: number; metaDepois: number; motivo: string };
+  pauta_urgente: { urgente: boolean };
+  categoria_alterada: { de: string; para: string };
 }
 
 export type TipoEvento = keyof DadosPorTipo;
@@ -90,6 +91,7 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   pauta_urgente: true,
   bloco_corrigido: true,
   meta_ajustada: true,
+  categoria_alterada: true,
 };
 
 export const TIPOS_EVENTO = Object.keys(PUBLICO) as TipoEvento[];

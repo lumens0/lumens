@@ -173,7 +173,8 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     botoes: [],
   },
 
-  // Aprovação na curadoria (SCRUM-300): a pauta já está no site, e o convite é para divulgar o link.
+  // Aprovação na curadoria (SCRUM-300): a pauta já está no site e recebe apoios. O texto só relata
+  // o fato, sem convite (o teste de catálogo barra apelo de campanha).
   lumens_pauta_aprovada: {
     nome: 'lumens_pauta_aprovada',
     categoria: 'UTILITY',

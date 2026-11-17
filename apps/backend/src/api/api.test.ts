@@ -8,7 +8,7 @@ import {
   resumo,
   SLUG_MAX,
 } from '@lumens/contratos';
-import { sql, type Db } from '@lumens/db';
+import { eq, eventos, pautas as tabelaDePautas, sql, type Db } from '@lumens/db';
 import { executarSeed } from '@lumens/db/seed';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -230,6 +230,36 @@ describe('API de leitura pública com o seed', () => {
   });
 
   describe('GET /pautas/:slug', () => {
+    it('eventos do mesmo instante saem sempre na mesma ordem', async () => {
+      const instante = new Date('2026-02-07T12:00:00.000Z');
+      const banco = await bancoDoSite(async (db) => {
+        const [pauta] = await db
+          .select({ id: tabelaDePautas.id })
+          .from(tabelaDePautas)
+          .where(eq(tabelaDePautas.slug, 'iluminacao-no-bloco-de-artes'));
+        if (!pauta) throw new Error('pauta do seed não encontrada');
+        // Inseridos ao contrário: a urgência antes da aprovação, no mesmo instante.
+        for (const tipo of ['pauta_urgente', 'pauta_aprovada'] as const) {
+          await db.insert(eventos).values({
+            pautaId: pauta.id,
+            tipo,
+            dados: tipo === 'pauta_urgente' ? { urgente: true } : {},
+            origem: 'curadoria',
+            publico: true,
+            criadoEm: instante,
+          });
+        }
+      });
+      const app = await montarApp(banco);
+      const res = await app.inject({ method: 'GET', url: '/pautas/iluminacao-no-bloco-de-artes' });
+      const tipos = res
+        .json<{ linha_do_tempo: { tipo: string }[] }>()
+        .linha_do_tempo.map((e) => e.tipo)
+        .filter((t) => t === 'pauta_aprovada' || t === 'pauta_urgente');
+      expect(tipos).toEqual(['pauta_aprovada', 'pauta_urgente']);
+      await app.close();
+    });
+
     it('junta pauta, relatos, caminhos e linha do tempo', async () => {
       const body = await corpo('/pautas/iluminacao-no-bloco-de-artes');
 
