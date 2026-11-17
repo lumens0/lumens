@@ -25,6 +25,7 @@ const ROTULOS: Record<TipoEvento, string> = {
   owner_entrou: 'Novo owner',
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
+  categoria_alterada: 'Categoria alterada',
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
@@ -108,15 +109,18 @@ export function LinhaDoTempo({
   titulo,
   eventos,
   recolhivel = false,
+  aberta = false,
 }: {
   pautaId: string;
   titulo: string;
   eventos: EventoDaLinha[];
   recolhivel?: boolean;
+  /** Vem aberta quando se chega pelo endereço antigo da linha do tempo. */
+  aberta?: boolean;
 }) {
   if (recolhivel) {
     return (
-      <details id="linha-do-tempo" className={estilos.detalhesRecolhiveis}>
+      <details id="linha-do-tempo" className={estilos.detalhesRecolhiveis} open={aberta}>
         <summary>Linha do tempo</summary>
         <p className={estilos.apoio}>
           Tudo o que aconteceu com a pauta, do mais antigo para o mais novo, inclusive o que não

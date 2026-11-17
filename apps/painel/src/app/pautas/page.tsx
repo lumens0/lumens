@@ -1,4 +1,4 @@
-import { listarPautasDaCuradoria } from '@lumens/dominio';
+import { listarPautasDaCuradoria, type PendenciaDaCuradoria } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
 import { sair } from '../acoes';
@@ -9,7 +9,7 @@ import { STATUS } from './status';
 export default async function PaginaDasPautas({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; pendencia?: string }>;
 }) {
   const curador = await curadorDaSessao();
   if (!curador) redirect('/login');
@@ -25,6 +25,10 @@ export default async function PaginaDasPautas({
       ? { status: status as keyof typeof STATUS }
       : {}),
     ...(parametros.q === undefined ? {} : { q: parametros.q }),
+    ...(parametros.pendencia === 'sem_resposta_oficial' ||
+    parametros.pendencia === 'conferencia_aberta'
+      ? { pendencia: parametros.pendencia }
+      : {}),
   };
   const pautas = await listarPautasDaCuradoria(servidor().db, new Date(), filtro);
   return (
