@@ -159,11 +159,11 @@ describe('guardarFoto', () => {
     expect(avisos).toHaveLength(1);
   });
 
-  it('storage fora do ar: indisponível', async () => {
+  it('storage fora do ar: armazenamento, não indisponível (o download deu certo)', async () => {
     const { servico } = montar({ bytes: jpeg, mimeType: 'image/jpeg' }, { storageFalha: true });
     expect(await servico.guardarFoto({ id: 'm', mimeType: 'image/jpeg' })).toEqual({
       ok: false,
-      motivo: 'indisponivel',
+      motivo: 'armazenamento',
     });
   });
 

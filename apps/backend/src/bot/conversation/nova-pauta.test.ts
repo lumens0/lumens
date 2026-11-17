@@ -196,7 +196,7 @@ describe('pauta nova pelo menu', () => {
     ]);
   });
 
-  it.each(['formato', 'tamanho', 'invalida', 'indisponivel'] as const)(
+  it.each(['formato', 'tamanho', 'invalida', 'indisponivel', 'armazenamento'] as const)(
     'foto recusada (%s): avisa, continua no passo da foto e não cria pauta',
     async (motivo) => {
       for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
@@ -209,6 +209,13 @@ describe('pauta nova pelo menu', () => {
       expect(resumoEm(await send('pular'))).toContain('*Foto:* não');
     },
   );
+
+  it('storage fora do ar: o texto não culpa o download nem pede outra foto', () => {
+    const texto = photoRefusedText('armazenamento');
+    expect(texto).not.toMatch(/baixar|download/i);
+    expect(texto).not.toMatch(/outra foto/i);
+    expect(texto).toContain("'pular'");
+  });
 
   it('sem serviço de fotos configurado, a foto é recusada como indisponível', async () => {
     for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
