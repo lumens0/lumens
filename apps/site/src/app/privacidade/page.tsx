@@ -93,7 +93,8 @@ export default function Privacidade() {
         <ul>
           <li>
             <strong>O passo em que sua conversa está</strong> (o que o bot já perguntou e o que você
-            respondeu) dura 24 horas. Depois expira, e uma rotina diária apaga o que expirou.
+            respondeu) dura 24 horas. Depois expira, e uma rotina que roda de hora em hora apaga o
+            que expirou.
           </li>
           <li>
             <strong>Cada mensagem passa por uma fila de processamento</strong>, que guarda uma cópia
