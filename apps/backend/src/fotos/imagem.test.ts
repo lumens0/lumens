@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import sharp from 'sharp';
+import { pngGigante } from '../teste/png-gigante';
 import {
   ErroImagemGrande,
   ErroImagemInvalida,
+  LIMITE_DE_PIXELS,
   TAMANHO_MAXIMO_FOTO,
   passaDoTamanhoMaximo,
   removerMetadados,
@@ -169,5 +171,24 @@ describe('arquivos inválidos', () => {
       .gif()
       .toBuffer();
     await expect(removerMetadados(gif)).rejects.toThrow(/Formato não suportado/);
+  });
+});
+
+describe('limite de pixels (SCRUM-304)', () => {
+  it('imagem de 8000×8000 com poucos KB é recusada como inválida, sem ser decodificada', async () => {
+    const bomba = pngGigante(8000);
+    expect(8000 * 8000).toBeGreaterThan(LIMITE_DE_PIXELS);
+    expect(passaDoTamanhoMaximo(bomba.length)).toBe(false);
+
+    const resultado = removerMetadados(bomba);
+    await expect(resultado).rejects.toBeInstanceOf(ErroImagemInvalida);
+    await expect(resultado).rejects.not.toBeInstanceOf(ErroImagemGrande);
+  });
+
+  it('imagem logo abaixo do limite ainda é aceita', async () => {
+    // 6000×6000 = 36 MP.
+    const saida = await removerMetadados(pngGigante(6000));
+    const m = await sharp(saida).metadata();
+    expect([m.width, m.height]).toEqual([6000, 6000]);
   });
 });
