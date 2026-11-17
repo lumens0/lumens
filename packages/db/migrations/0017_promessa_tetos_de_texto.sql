@@ -1,0 +1,2 @@
+ALTER TABLE "promessa" ADD CONSTRAINT "promessa_resumo_ate_500" CHECK (char_length("promessa"."resumo") <= 500);--> statement-breakpoint
+ALTER TABLE "promessa" ADD CONSTRAINT "promessa_fonte_ate_120" CHECK (char_length("promessa"."fonte") <= 120);

@@ -462,6 +462,24 @@ describe('migração inicial em Postgres real', () => {
     await promessa(pautaId, curadorId, 'em_parte');
   });
 
+  it('recusa resumo acima de 500 e fonte acima de 120 caracteres na promessa', async () => {
+    const id = await promessa(await pauta(), await curador());
+    const atualizar = (coluna: 'resumo' | 'fonte', valor: string) =>
+      pool.query(`UPDATE promessa SET ${coluna} = $1 WHERE id = $2`, [valor, id]);
+
+    // char_length conta caracteres, não bytes: o teto com emoji é o mesmo do domínio.
+    await atualizar('resumo', '😀'.repeat(500));
+    await atualizar('fonte', '😀'.repeat(120));
+    await expect(atualizar('resumo', 'a'.repeat(501))).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'promessa_resumo_ate_500',
+    });
+    await expect(atualizar('fonte', 'a'.repeat(121))).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'promessa_fonte_ate_120',
+    });
+  });
+
   it('recusa referências inexistentes e protege registros referenciados', async () => {
     const blocoId = await bloco();
     const pautaId = await pauta(randomUUID(), blocoId);

@@ -282,6 +282,9 @@ export const promessas = pgTable(
     uniqueIndex('promessa_ativa_por_pauta_unique')
       .on(t.pautaId)
       .where(sql`${t.resultado} IS NULL`),
+    // Os mesmos tetos de `registrarPromessa` (SCRUM-313); char_length conta caracteres, como o domínio.
+    check('promessa_resumo_ate_500', sql`char_length(${t.resumo}) <= 500`),
+    check('promessa_fonte_ate_120', sql`char_length(${t.fonte}) <= 120`),
   ],
 );
 
