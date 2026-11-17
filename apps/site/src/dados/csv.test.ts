@@ -34,7 +34,7 @@ describe('CSV de dados abertos', () => {
     };
 
     expect(linhas(csvDe([pauta]))[1]).toBe(
-      'Iluminação no ponto;https://lumens.exemplo/p/iluminacao;Infraestrutura;Todo o campus;Cobrando;84;300;2026-11-01;2026-10-01;',
+      'Iluminação no ponto;https://lumens.exemplo/p/iluminacao;infraestrutura;Todo o campus;Cobrando;84;300;2026-11-01;2026-10-01;',
     );
   });
 
