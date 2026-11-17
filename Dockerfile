@@ -30,6 +30,12 @@ RUN cd apps/backend \
 
 ENV NODE_ENV=production
 
+# SHA do commit publicado (SCRUM-322), que o /saude devolve e o smoke test do deploy confere.
+# Por último, perto do CMD: o valor muda a cada deploy e invalida o cache só daqui para baixo,
+# sem refazer o `pnpm install`. O deploy-homologacao.sh passa o `git rev-parse HEAD`.
+ARG VERSAO=
+ENV LUMENS_VERSAO=$VERSAO
+
 # Mesma porta do PORT padrão do .env.example. O Caddy é quem fala com a internet.
 EXPOSE 3000
 
