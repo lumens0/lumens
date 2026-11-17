@@ -20,6 +20,7 @@ import {
   type Segredo,
 } from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
+import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
@@ -211,7 +212,10 @@ export async function processIncomingJob(
     const replies = deps.menusEmTexto
       ? semMenuPrincipalDepoisDoMenu(respondidas, MENU_TEXT)
       : respondidas;
-    if (deps.menusEmTexto) {
+    // Aviso sem mexer na conversa (endereço velho do site no meio de um fluxo): o menu que valia
+    // continua valendo, e é a ele que a pessoa vai responder, como o aviso manda.
+    const semMudanca = replies.length === 1 && replies[0] === PAUTA_NOT_FOUND_IN_FLOW_TEXT;
+    if (deps.menusEmTexto && !semMudanca) {
       const menu = menuDoTurno(replies);
       await store.guardarMenu(
         data.phoneHmac,
@@ -225,7 +229,11 @@ export async function processIncomingJob(
       wamidHmac: data.wamidHmac,
       repliesCifradas: cifrar(JSON.stringify(replies), deps.chaves.cifra),
     };
-    const idDaResposta = await deps.queue.send(JOBS.outgoingReplies, outgoing, tx);
+    // SCRUM-307: a chave da conversa ordena as respostas como a entrada. Sem ela, uma resposta que
+    // falhasse de forma passageira saía depois da seguinte ("lista de blocos" antes do "Qual o título?").
+    const idDaResposta = await deps.queue.send(JOBS.outgoingReplies, outgoing, tx, {
+      chave: data.phoneHmac,
+    });
     // 5.7: quem saiu não deixa cópia das mensagens nas filas. Fica só o que ainda precisa
     // terminar (esta mensagem e a resposta de saída), marcado para sumir logo depois.
     if (saiu) {
@@ -294,6 +302,12 @@ type Boss = Pick<
  * instância só (o que havia antes) não impedia outra instância de pegar as mais novas.
  */
 export const INCOMING_QUEUE_POLICY = 'key_strict_fifo' as const;
+
+/** A fila de respostas segue a mesma ordem por conversa da entrada (SCRUM-307). */
+export const OUTGOING_QUEUE_POLICY = INCOMING_QUEUE_POLICY;
+
+/** As filas ordenadas por conversa, que um job falhado de vez trava (veja `desbloquearConversas`). */
+const FILAS_POR_CONVERSA = [JOBS.incomingMessage, JOBS.outgoingReplies] as const;
 
 /**
  * Cria a fila com as opções do bot, ou atualiza uma criada antes com outras opções. A política
@@ -413,26 +427,36 @@ export const UNBLOCK_CRON = '* * * * *';
  * @returns quantos jobs foram removidos.
  */
 export async function desbloquearConversas(
-  boss: Pick<PgBoss, 'getBlockedKeys' | 'findJobs' | 'deleteJob'>,
+  boss: Pick<PgBoss, 'getQueue' | 'getBlockedKeys' | 'findJobs' | 'deleteJob'>,
   logger: Logger,
 ): Promise<number> {
   let removidos = 0;
-  for (const chave of await boss.getBlockedKeys(JOBS.incomingMessage)) {
-    const falhados = (await boss.findJobs(JOBS.incomingMessage, { key: chave })).filter(
-      (job) => job.state === 'failed',
-    );
-    if (falhados.length === 0) continue;
-    await boss.deleteJob(
-      JOBS.incomingMessage,
-      falhados.map((job) => job.id),
-    );
-    removidos += falhados.length;
-    logger
-      .child({ conversa: chave.slice(0, 12) })
-      .warn({ jobs: falhados.length }, 'conversa destravada: job falhado tirado da frente');
+  // SCRUM-307: a fila de respostas também é ordenada: uma resposta que falhou de vez (a pessoa
+  // bloqueou o número, por exemplo) seguraria as próximas daquela conversa para sempre.
+  for (const fila of FILAS_POR_CONVERSA) {
+    // O pg-boss só tem chave travada em fila `key_strict_fifo` (e lança nas outras). A de respostas
+    // pode ainda não existir, ou ser de antes da ordem, até o worker de respostas subir.
+    if ((await boss.getQueue(fila))?.policy !== INCOMING_QUEUE_POLICY) continue;
+    for (const chave of await boss.getBlockedKeys(fila)) {
+      const falhados = (await boss.findJobs(fila, { key: chave })).filter(
+        (job) => job.state === 'failed',
+      );
+      if (falhados.length === 0) continue;
+      await boss.deleteJob(
+        fila,
+        falhados.map((job) => job.id),
+      );
+      removidos += falhados.length;
+      logger
+        .child({ conversa: chave.slice(0, 12), fila })
+        .warn({ jobs: falhados.length }, 'conversa destravada: job falhado tirado da frente');
+    }
   }
   return removidos;
 }
+
+/** De quanto em quanto tempo se confere se a fila antiga de respostas esvaziou. */
+export const ESPERA_DA_FILA_ANTIGA_MS = 2_000;
 
 export async function registerIncomingWorker(boss: Boss, deps: WorkerDeps): Promise<void> {
   await prepararFilaDeEntrada(boss);
@@ -462,26 +486,70 @@ export async function registerReplyWorker(
   sender: ReplySender,
   logger: Logger,
 ): Promise<void> {
-  await prepareQueue(boss, JOBS.outgoingReplies, JOBS.outgoingRepliesDead);
-  await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
-    JOBS.outgoingReplies,
-    BOT_WORK_OPTIONS,
-    async (jobs) => {
-      const results: JobResult[] = [];
-      for (const job of emOrdemDeChegada(jobs)) {
-        try {
-          await sender.send(job.data);
-          results.push({ id: job.id, status: 'completed' });
-        } catch (erro) {
-          logger
-            .child({ conversa: conversaDoLog(job.data) })
-            .warn({ erro: resumoDoErro(erro) }, 'envio das respostas falhou');
-          results.push({ id: job.id, status: 'failed', output: resumoDoErro(erro) });
-        }
+  // SCRUM-307: ordenada por conversa, como a entrada. Um envio que falha segura os seguintes da
+  // mesma conversa até o retry, em vez de deixá-los passar na frente.
+  await prepareQueue(boss, JOBS.outgoingReplies, JOBS.outgoingRepliesDead, OUTGOING_QUEUE_POLICY);
+  const entregar = async (jobs: { id: string; createdOn: Date; data: OutgoingReplies }[]) => {
+    const results: JobResult[] = [];
+    for (const job of emOrdemDeChegada(jobs)) {
+      try {
+        await sender.send(job.data);
+        results.push({ id: job.id, status: 'completed' });
+      } catch (erro) {
+        logger
+          .child({ conversa: conversaDoLog(job.data) })
+          .warn({ erro: resumoDoErro(erro) }, 'envio das respostas falhou');
+        results.push({ id: job.id, status: 'failed', output: resumoDoErro(erro) });
       }
-      return results;
-    },
+    }
+    return results;
+  };
+  const consumirNova = () =>
+    boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
+      JOBS.outgoingReplies,
+      BOT_WORK_OPTIONS,
+      entregar,
+    );
+  // O que sobrou na fila antiga (sem ordem) no deploy ainda é entregue. Nada novo entra nela.
+  const antiga = await boss.getQueue(JOBS.outgoingRepliesLegacy);
+  if (antiga === null) {
+    await consumirNova();
+    return;
+  }
+  await boss.work<OutgoingReplies, unknown, typeof BOT_WORK_OPTIONS>(
+    JOBS.outgoingRepliesLegacy,
+    BOT_WORK_OPTIONS,
+    entregar,
   );
+  // Barreira de drenagem: com respostas ainda na fila antiga, a nova só é consumida depois de a
+  // antiga esvaziar. Senão uma resposta nova da mesma conversa poderia sair antes de uma antiga
+  // (as duas filas não se coordenam pela chave).
+  const pendentes = (fila: { queuedCount: number; activeCount: number }) =>
+    fila.queuedCount + fila.activeCount;
+  if (pendentes(antiga) === 0) {
+    await consumirNova();
+    return;
+  }
+  logger.warn(
+    { pendentes: pendentes(antiga) },
+    'respostas na fila antiga: a fila nova só é consumida depois que ela esvaziar',
+  );
+  const esperar = async (): Promise<void> => {
+    try {
+      const fila = await boss.getQueue(JOBS.outgoingRepliesLegacy);
+      if (fila === null || pendentes(fila) === 0) {
+        await consumirNova();
+        return;
+      }
+    } catch (erro) {
+      logger.error(
+        { erro: resumoDoErro(erro) },
+        'não deu para conferir a fila antiga de respostas',
+      );
+    }
+    setTimeout(() => void esperar(), ESPERA_DA_FILA_ANTIGA_MS).unref();
+  };
+  setTimeout(() => void esperar(), ESPERA_DA_FILA_ANTIGA_MS).unref();
 }
 
 /**
