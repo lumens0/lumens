@@ -39,6 +39,7 @@ function montar(baixada: MidiaBaixada | Error, opcoes: { storageFalha?: boolean 
   const guardadas: Guardada[] = [];
   const baixados: string[] = [];
   const avisos: string[] = [];
+  const removidas: string[] = [];
   const deps: DependenciasDasFotos = {
     baixar: (id) => {
       baixados.push(id);
@@ -50,12 +51,31 @@ function montar(baixada: MidiaBaixada | Error, opcoes: { storageFalha?: boolean 
         guardadas.push({ chave, bytes, contentType });
         return Promise.resolve();
       },
+      remover: (chave) => {
+        if (chave.includes('falha')) return Promise.reject(new Error('bucket fora do ar'));
+        removidas.push(chave);
+        return Promise.resolve();
+      },
     },
     agora: () => new Date('2026-11-09T12:00:00Z'),
     avisar: (m) => avisos.push(m),
   };
-  return { servico: criarServicoDeFotos(deps), guardadas, baixados, avisos };
+  return { servico: criarServicoDeFotos(deps), guardadas, baixados, avisos, removidas };
 }
+
+describe('removerFotos (SCRUM-314)', () => {
+  it('apaga cada foto; uma que falha é avisada e não impede as outras', async () => {
+    const { servico, removidas, avisos } = montar({
+      bytes: Buffer.alloc(0),
+      mimeType: 'image/jpeg',
+    });
+
+    await servico.removerFotos?.(['fotos/a.jpg', 'fotos/falha.jpg', 'fotos/b.jpg']);
+
+    expect(removidas).toEqual(['fotos/a.jpg', 'fotos/b.jpg']);
+    expect(avisos).toEqual(['foto: remoção falhou (Error)']);
+  });
+});
 
 describe('guardarFoto', () => {
   it('baixa, tira os metadados e guarda com chave aleatória por mês', async () => {

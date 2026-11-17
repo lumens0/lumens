@@ -14,8 +14,10 @@ arquivo novo que diz qual substitui.
 | [SCRUM-192](SCRUM-192-canal-avisos.md)           | Canal dos avisos que só informam                         |
 | [SCRUM-239](SCRUM-239-janela-perdida.md)         | Agendador que perde a janela                             |
 | [SCRUM-251](SCRUM-251-fotos-sem-storage.md)      | Envio de foto quebrado até existir um bucket             |
+| [SCRUM-257](SCRUM-257-seed-pelo-dominio.md)      | Seed com inserções diretas e teste das regras do domínio |
 | [SCRUM-267](SCRUM-267-canal-telegram.md)         | Telegram como canal reserva do bot                       |
 | [SCRUM-275](SCRUM-275-canal-evolution.md)        | WhatsApp pela Evolution API para a demonstração          |
+| [SCRUM-314](SCRUM-314-sair-relatos-e-fotos.md)   | O que o `sair` apaga dos relatos, fotos e PDFs           |
 | [SCRUM-330](SCRUM-330-storage-minio.md)          | Storage das fotos e dos PDFs num MinIO dentro da VM      |
 
 Por que a homologação não está na AWS: [operação › homologação](../operacao/homologacao.md).

@@ -28,6 +28,9 @@ export const PDF_RECEIVED_TEXT =
   'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta pelo WhatsApp.';
 export const NEED_PDF_TEXT =
   'Preciso do arquivo PDF da resposta. Mande o arquivo ou responda *menu*.';
+/** SCRUM-307: a foto (da tela ou do papel) não serve; a curadoria precisa do PDF original. */
+export const NEED_PDF_NOT_PHOTO_TEXT =
+  'Recebi uma foto, mas aqui preciso do arquivo PDF da resposta (não uma foto da tela ou do papel). Mande o PDF ou responda *menu*.';
 export const NO_PROTOCOL_TEXT =
   'Esta pauta ainda não tem protocolo no Fala.BR, então ainda não há resposta para mandar.';
 export const FILES_UNAVAILABLE_TEXT =
@@ -73,8 +76,10 @@ export const ownerSendResponse: StepHandler = async (ctx) => {
 
   const caminhoId = caminhoIdDaConversa(ctx.state.data);
   if (caminhoId === undefined) return { next: 'MENU', data: LIMPAR, replies: [DATA_LOST_TEXT] };
-  if (input.document === undefined)
-    return { next: 'OWNER_SEND_RESPONSE', replies: [NEED_PDF_TEXT] };
+  if (input.document === undefined) {
+    const pedido = input.image === undefined ? NEED_PDF_TEXT : NEED_PDF_NOT_PHOTO_TEXT;
+    return { next: 'OWNER_SEND_RESPONSE', replies: [pedido] };
+  }
   if (respostas === undefined) {
     return { next: 'OWNER_PATHS', data: LIMPAR_PASSO, replies: [FILES_UNAVAILABLE_TEXT] };
   }

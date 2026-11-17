@@ -30,6 +30,11 @@ export type ResultadoFoto = { ok: true; chave: string } | { ok: false; motivo: M
 
 export interface ServicoDeFotos {
   guardarFoto(midia: { id: string; mimeType: string }): Promise<ResultadoFoto>;
+  /**
+   * Apaga as fotos do storage (SCRUM-314, "sair"). Melhor esforço: uma que falha é avisada e não
+   * impede as outras nem a saída. Opcional para os falsos dos testes da conversa.
+   */
+  removerFotos?(chaves: readonly string[]): Promise<void>;
 }
 
 export interface DependenciasDasFotos {
@@ -50,6 +55,15 @@ export function criarServicoDeFotos({
   avisar = () => undefined,
 }: DependenciasDasFotos): ServicoDeFotos {
   return {
+    async removerFotos(chaves) {
+      for (const chave of chaves) {
+        try {
+          await storage.remover(chave);
+        } catch (erro) {
+          avisar(`foto: remoção falhou (${erro instanceof Error ? erro.name : 'erro'})`);
+        }
+      }
+    },
     async guardarFoto(midia) {
       // Confere o tipo antes de baixar: um GIF ou um vídeo nem chega a ser baixado.
       if (TIPOS_ACEITOS[tipoBase(midia.mimeType)] === undefined) {

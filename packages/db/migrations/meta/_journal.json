@@ -134,6 +134,13 @@
       "when": 1794848983333,
       "tag": "0018_registro_verificacao",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794947352365,
+      "tag": "0019_papel_pauta_ativo_unico",
+      "breakpoints": true
     }
   ]
 }
