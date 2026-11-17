@@ -24,7 +24,7 @@ export default async function PaginaDaLinhaDoTempo({
   if (!pauta) notFound();
 
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <LinhaDoTempo pautaId={id} titulo={pauta.titulo} eventos={await listarLinhaDoTempo(db, id)} />
     </Moldura>
   );
