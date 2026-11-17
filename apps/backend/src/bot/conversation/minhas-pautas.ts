@@ -424,11 +424,20 @@ export const proposalAskPeople: StepHandler = async ({ input, state, db, segredo
     return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [LOST_OWNER_TEXT] };
   }
 
+  // SCRUM-307: dado corrompido ou chave trocada não pode deixar a conversa muda (o job iria para
+  // a fila de mortas sem resposta). Como nos outros passos, a proposta se perde e a pessoa sabe.
+  let descricao: string;
+  try {
+    descricao = segredo.decifrar(propostaCifrada);
+  } catch {
+    return { next: 'MENU', data: LIMPAR_PROPOSTA, replies: [PROPOSAL_LOST_TEXT] };
+  }
+
   const r = await db.transaction((tx) =>
     publicarProposta(tx, {
       pautaId,
       porEstudanteId: estudanteId,
-      descricao: segredo.decifrar(propostaCifrada),
+      descricao,
       pessoasNecessarias: pessoas,
       apenasUmaAberta: true,
     }),

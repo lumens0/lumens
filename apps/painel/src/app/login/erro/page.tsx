@@ -8,7 +8,8 @@ export default function Erro() {
         <p className={estilos.marca}>Lumens</p>
         <h1 id="titulo-erro">Este link não vale mais</h1>
         <p className={estilos.descricao}>
-          O link de acesso vale uma vez só e por 15 minutos. Peça um novo para entrar.
+          O link de acesso vale uma vez só e por 15 minutos: ele pode ter vencido ou já ter sido
+          aberto. Peça um novo para entrar.
         </p>
         <Link className={estilos.botao} href="/login">
           Pedir um novo link
