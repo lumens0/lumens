@@ -38,7 +38,7 @@ const MODULOS = {
 
 /** Número de telefone como identidade, ou o canal amarrado ao WhatsApp. */
 const SO_DO_WHATSAPP =
-  /\b(?:este|esse|seu|outro) número\b|número (?:de WhatsApp|antigo)|pelo WhatsApp/i;
+  /\b(?:d?este|d?esse|seu|outro) número\b|número (?:de WhatsApp|antigo)|pelo WhatsApp/i;
 
 const textos = Object.entries(MODULOS).flatMap(([modulo, exportados]) =>
   Object.entries(exportados as Record<string, unknown>)
@@ -53,5 +53,12 @@ describe('textos do bot valem para qualquer canal (SCRUM-323)', () => {
 
   it.each(textos)('%s não trata o telefone como identidade', (_nome, valor) => {
     expect(valor).not.toMatch(SO_DO_WHATSAPP);
+  });
+});
+
+describe('mensagem de bloqueio da verificação (SCRUM-323)', () => {
+  const liberaEm = new Date('2026-11-18T15:00:00Z');
+  it.each(['envios', 'erros'] as const)('motivo %s não fala em número', (motivo) => {
+    expect(verificacao.blockedText({ motivo, liberaEm })).not.toMatch(SO_DO_WHATSAPP);
   });
 });
