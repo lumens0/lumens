@@ -106,7 +106,8 @@ sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualqu
    Se vier alguma linha, suba o back-end de novo (`... start backend`), espere uns minutos para ele
    processar e repita este passo. Só siga com a consulta vazia.
 
-   As filas de mortas (`incoming-message-dead` e `outgoing-replies-dead`) ficam de fora: nenhum
+   As filas de mortas (`incoming-message-dead`, `outgoing-replies-ordered-dead` e, de antes da
+   SCRUM-307, `outgoing-replies-dead`) ficam de fora: nenhum
    consumidor as lê, então subir o back-end não as esvazia. Elas guardam mensagens que o bot já
    descartou, só para investigar, e saem sozinhas em até 14 dias
    ([retenção nas filas](../decisoes/SCRUM-174-aviso-de-privacidade.md)). Depois da troca não
@@ -120,7 +121,8 @@ sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualqu
    seguir, para não ficar no banco o que ninguém consegue ler:
 
    ```sql
-   delete from pgboss.job where name in ('incoming-message-dead', 'outgoing-replies-dead');
+   delete from pgboss.job
+   where name in ('incoming-message-dead', 'outgoing-replies-ordered-dead', 'outgoing-replies-dead');
    ```
 
 2. **Faça backup do banco** na hora, sem esperar o agendado:
