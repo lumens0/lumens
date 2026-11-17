@@ -169,7 +169,8 @@ para e nada é publicado. Confira:
 curl -s https://<DOMINIO>/saude
 ```
 
-Esperado: `{"ok":true}`. Para a demo, com o banco vazio:
+Esperado: `{"ok":true,"versao":"<SHA>"}`, com o SHA do commit publicado (SCRUM-322).
+Para a demo, com o banco vazio:
 
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
@@ -189,7 +190,14 @@ Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 
 A partir daí, todo push na `main` com o `check` e o `e2e` verdes roda o job `deploy-backend`, que migra
 e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
-`/resumo`.
+`/resumo`. O `/saude` precisa devolver o SHA do run: um back-end antigo que tenha ficado no
+ar não passa.
+
+Se o `check` ou um deploy de um push na `main` for cancelado (timeout, cancelamento manual),
+o job `deploy-perdido` falha e pinta a `main` de vermelho: aquele merge não está na
+homologação. Reexecute o run ou use **Actions → CI → Run workflow** na `main`. Quando vários
+merges entram seguidos, o run que esperava na fila é substituído pelo mais novo e nem começa;
+isso é normal, porque o mais novo publica tudo.
 
 ## 7. Webhook da Meta
 
