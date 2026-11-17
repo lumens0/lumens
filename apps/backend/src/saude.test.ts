@@ -19,7 +19,7 @@ describe('GET /saude', () => {
   let logs: string[];
   let app: FastifyInstance | undefined;
 
-  async function montar(dbDoApp: Db): Promise<FastifyInstance> {
+  async function montar(dbDoApp: Db, versao?: string): Promise<FastifyInstance> {
     const logger = pino({ level: 'error' }, { write: (linha: string) => logs.push(linha) });
     app = await buildApp({
       config,
@@ -28,6 +28,7 @@ describe('GET /saude', () => {
       logger,
       chaves,
       leitura: { db, origensCors: [] },
+      ...(versao === undefined ? {} : { versao }),
     });
     return app;
   }
@@ -62,6 +63,24 @@ describe('GET /saude', () => {
     const resposta = await (await montar(bancoFora)).inject({ method: 'GET', url: '/saude' });
 
     expect(resposta.statusCode).toBe(503);
+    expect(resposta.json()).toEqual({ ok: false });
+  });
+
+  // SCRUM-322: o smoke test do deploy confere que o back-end no ar é o do run.
+  it('com a versão da imagem, devolve o SHA publicado', async () => {
+    const sha = '4e4fe82a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e';
+    const resposta = await (await montar(db, sha)).inject({ method: 'GET', url: '/saude' });
+
+    expect(resposta.json()).toEqual({ ok: true, versao: sha });
+  });
+
+  it('banco fora do ar não diz a versão: o deploy não passa com o banco caído', async () => {
+    const bancoFora = { execute: () => Promise.reject(new Error('fora')) } as unknown as Db;
+
+    const resposta = await (
+      await montar(bancoFora, 'abc')
+    ).inject({ method: 'GET', url: '/saude' });
+
     expect(resposta.json()).toEqual({ ok: false });
   });
 

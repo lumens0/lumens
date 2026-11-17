@@ -4,7 +4,11 @@ import { UUID } from '../pautas/[id]/decisoes';
 export interface DependenciasDeModeracao {
   /** Curador da sessão, conferido no banco. Sem ele nada é gravado. */
   curador: () => Promise<{ id: string } | undefined>;
-  aprovar: (relatoId: string, curadorId: string) => Promise<ResultadoModeracao>;
+  aprovar: (
+    relatoId: string,
+    curadorId: string,
+    fotoVista: string | null,
+  ) => Promise<ResultadoModeracao>;
   recusar: (relatoId: string, curadorId: string) => Promise<ResultadoModeracao>;
 }
 
@@ -31,7 +35,9 @@ export function criarModeracoes({ curador, aprovar, recusar }: DependenciasDeMod
   }
 
   return {
-    aprovar: (relatoId: string) => moderar(relatoId, (c) => aprovar(relatoId, c), 'aprovado'),
+    /** `fotoVista`: a foto que a fila mostrava (`null` sem foto); se mudou, a aprovação é recusada. */
+    aprovar: (relatoId: string, fotoVista: string | null) =>
+      moderar(relatoId, (c) => aprovar(relatoId, c, fotoVista), 'aprovado'),
     recusar: (relatoId: string) => moderar(relatoId, (c) => recusar(relatoId, c), 'recusado'),
   };
 }

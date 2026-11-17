@@ -12,6 +12,9 @@
  * no site quer fazer aquilo agora. A exceção é o alvo que não existe no meio de um fluxo: "apoiar
  * estudantes" pode ser só a resposta (o título de uma pauta nova, por exemplo), então a mensagem
  * segue para o passo atual. No menu ou no primeiro contato, o alvo que não existe vira um aviso.
+ *
+ * SCRUM-299: o "ajudar" segue a mesma regra. "Ajudar calouros" no título de uma pauta nova não é
+ * um comando: sem id de proposta nem pauta com esse endereço, a mensagem vai para o passo atual.
  */
 import { eq, pautas, type Db } from '@lumens/db';
 import { SEM_APOIO } from '@lumens/dominio';
@@ -62,7 +65,14 @@ export async function executarComandoDoSite(
 ): Promise<StepResult | null> {
   const limpo: StepContext = { ...ctx, state: { step: ctx.state.step, data: {} } };
   if (comando.kind === 'nova-pauta') return entrarNaPautaNova(limpo);
-  if (comando.kind === 'ajudar') return vouAjudar(limpo, comando.alvo);
+  if (comando.kind === 'ajudar') {
+    // O id vem dos botões do próprio bot; o endereço, do site. Sem nenhum dos dois no meio de um
+    // fluxo, é texto da pessoa.
+    const alvoExiste =
+      UUID.test(comando.alvo) || (await pautaDoAlvo(ctx.db, comando.alvo)) !== undefined;
+    if (!alvoExiste && !SEM_PERGUNTA_ABERTA.includes(ctx.state.step)) return null;
+    return vouAjudar(limpo, comando.alvo);
+  }
 
   const pauta = await pautaDoAlvo(ctx.db, comando.alvo);
   if (pauta === undefined) {
