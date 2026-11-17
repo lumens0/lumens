@@ -18,6 +18,7 @@ const ROTULOS: Record<string, string> = {
   owner_entrou: 'Novo responsável',
   owner_removido: 'Responsável saiu',
   relato_aprovado: 'Relato publicado',
+  categoria_alterada: 'Categoria alterada pela curadoria',
 };
 
 /** Tipo fora do catálogo não quebra a página: vira texto legível. */

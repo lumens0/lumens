@@ -87,14 +87,24 @@ export type HandlerRegistry = Record<Step, StepHandler>;
 export const GREETING_TEXT = 'Olá! Eu sou o Lumens, o canal para melhorar o campus.';
 /** SCRUM-333: quem tem cadastro e volta depois de a conversa expirar. */
 export const WELCOME_BACK_TEXT = 'Oi de novo! Que bom ter você de volta ao Lumens.';
-export const MENU_TEXT = [
-  'O que você quer fazer?',
-  '1 Relatar problema',
-  '2 Nova pauta',
-  '3 Verificar e-mail',
-  '4 Minhas pautas',
-  '5 Ver pautas abertas',
-].join('\n');
+export const MENU_PERGUNTA = 'O que você quer fazer?';
+
+/**
+ * As opções do menu principal, num lugar só: o texto numerado (WhatsApp, Evolution) e o teclado do
+ * Telegram (SCRUM-324) saem daqui. O `id` é o que a pessoa digita e o que o botão manda.
+ */
+export const OPCOES_DO_MENU = [
+  { id: '1', titulo: 'Relatar problema' },
+  { id: '2', titulo: 'Nova pauta' },
+  { id: '3', titulo: 'Verificar e-mail' },
+  { id: '4', titulo: 'Minhas pautas' },
+  // SCRUM-334: as pautas abertas também pelo menu.
+  { id: '5', titulo: 'Ver pautas abertas' },
+] as const;
+
+export const MENU_TEXT = [MENU_PERGUNTA, ...OPCOES_DO_MENU.map((o) => `${o.id} ${o.titulo}`)].join(
+  '\n',
+);
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com um número de 1 a 5, ou *ajuda*.';
 
