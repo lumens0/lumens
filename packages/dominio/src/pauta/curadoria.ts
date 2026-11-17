@@ -41,6 +41,7 @@ export interface PautaNaFila {
   descricao: string;
   /** `null` é pauta do campus inteiro. */
   bloco: string | null;
+  blocoId: string | null;
   /** Foto do relato que originou a pauta, se houver. */
   fotoChave: string | null;
   criadaEm: Date;
@@ -66,6 +67,7 @@ function lerPautas(db: Db, filtro: SQL, agora: Date): Promise<PautaDaCuradoria[]
       titulo: pautas.titulo,
       descricao: pautas.descricao,
       bloco: blocos.nome,
+      blocoId: pautas.blocoId,
       // O relato de origem é o de quem criou a pauta (o owner): `relato` não guarda data, então
       // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
       fotoChave: sql<string | null>`(

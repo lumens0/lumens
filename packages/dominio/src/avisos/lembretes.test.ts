@@ -2,7 +2,8 @@ import { caminhos, disparos, eq, papeisPauta, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registrarEvento } from '../compartilhado/eventos';
-import { criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
+import { criarCurador, criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
+import { registrarProrrogacao } from '../caminhos/ajustes-de-prazo';
 import {
   enfileirarAvisosDeInatividade,
   enfileirarLembretesDePrazo,
@@ -112,6 +113,24 @@ describe('lembrete do prazo do Fala.BR (3.8)', () => {
       `prazo:${caminhoId}:2026-11-12`,
       `prazo:${caminhoId}:2026-11-14`,
     ]);
+  });
+
+  it('o lembrete usa a data do prazo após registrar a prorrogação', async () => {
+    const { caminhoId, pauta } = await cenario('2026-11-20');
+    const curador = await criarCurador(db);
+    await db.transaction((tx) =>
+      registrarProrrogacao(tx, {
+        caminhoId,
+        curadorId: curador.id,
+        motivo: 'Prazo solicitado',
+        fonte: 'Ofício',
+        agora: new Date('2026-11-10T15:00:00.000Z'),
+      }),
+    );
+    const agoraDoAviso = new Date('2026-12-15T15:00:00.000Z');
+    await db.transaction((tx) => enfileirarLembretesDePrazo(tx, { agora: agoraDoAviso }));
+    const [aviso] = await avisosDa(caminhoId);
+    expect(aviso?.parametros).toEqual([pauta.titulo, '20/12/2026', pauta.slug]);
   });
 });
 

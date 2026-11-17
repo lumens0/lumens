@@ -2,7 +2,7 @@
  * Mensagens modelo da Parte 3 (RNF04).
  *
  * Fora da janela de atendimento de 24h, o bot só pode escrever primeiro com uma
- * mensagem modelo que a Meta aprovou antes. Os sete avisos que o bot inicia
+ * mensagem modelo que a Meta aprovou antes. Os modelos de aviso que o bot inicia
  * moram aqui, num lugar só, porque o texto que a Meta aprovou e o código que
  * envia precisam concordar em nome, idioma e número de variáveis: qualquer
  * diferença e a Meta recusa o envio.
@@ -26,7 +26,8 @@ export type NomeModelo =
   | 'lumens_owner_inativo'
   | 'lumens_pauta_recusada'
   | 'lumens_conquista'
-  | 'lumens_pauta_aprovada';
+  | 'lumens_pauta_aprovada'
+  | 'lumens_promessa_remarcada';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -182,6 +183,18 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
       'A pauta "{{1}}", pela qual você é responsável, foi aprovada pela curadoria e já está no site, ' +
       'recebendo apoios.',
     exemplos: ['Bebedouro quebrado no bloco 12'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
+  },
+
+  lumens_promessa_remarcada: {
+    nome: 'lumens_promessa_remarcada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'apoiadores',
+    corpo:
+      'A data prometida para a pauta "{{1}}", que você apoiou, mudou de {{2}} para {{3}}. A pergunta "Foi feito?" chega na nova data.',
+    exemplos: ['Bebedouro quebrado no bloco 12', '15/10/2026', '22/10/2026'],
     rodape: RODAPE,
     botoes: [VER_PAUTA],
   },

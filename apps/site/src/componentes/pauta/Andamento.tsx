@@ -77,6 +77,11 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
           (pauta.status === 'conquistada' ? 'Pauta conquistada.' : 'A definir.')}
       </p>
       {prazo && <p className={estilos.vazio}>Prazo de resposta do Fala.BR: {formatarDia(prazo)}</p>}
+      {pauta.linha_do_tempo.some(
+        (evento) =>
+          evento.tipo === 'prazo_prorrogado' ||
+          (evento.tipo === 'protocolo_registrado' && evento.dados.prorrogado === true),
+      ) && <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>}
       {conferenciaAte && (
         <p className={estilos.vazio}>
           Conferência aberta até{' '}
@@ -91,10 +96,11 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
 export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
   const promessa = ultimo(pauta.linha_do_tempo, 'promessa_registrada');
+  const remarcacao = ultimo(pauta.linha_do_tempo, 'promessa_remarcada');
   // Promessa registrada sem evento de resposta ainda conta como resposta recebida.
   const recebida = resposta ?? promessa;
   const prazo = prazoFalabr(pauta);
-  const entrega = texto(promessa, 'data_entrega');
+  const entrega = texto(remarcacao, 'data_nova') ?? texto(promessa, 'data_entrega');
   const resumo = texto(promessa, 'resumo') ?? texto(resposta, 'resumo');
   const fonte = texto(promessa, 'fonte') ?? texto(resposta, 'fonte');
   return (
@@ -119,7 +125,8 @@ export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
           {resumo && <p className={estilos.texto}>{resumo}</p>}
           {entrega && (
             <p className={estilos.texto}>
-              <strong>Promessa:</strong> entrega até {formatarDia(entrega)}
+              <strong>Promessa{remarcacao ? ' remarcada' : ''}:</strong> entrega até{' '}
+              {formatarDia(entrega)}
             </p>
           )}
           {fonte && <Fonte fonte={fonte} />}

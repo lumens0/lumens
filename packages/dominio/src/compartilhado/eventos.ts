@@ -16,11 +16,32 @@ export interface DadosPorTipo {
   pauta_recusada: Record<string, never>;
   meta_batida: { meta: number; apoios: number };
   caminho_aberto: { caminho_id: string; tipo: TipoCaminho };
-  protocolo_registrado: { caminho_id: string; protocolo: string };
+  protocolo_registrado: { caminho_id: string; protocolo: string; prorrogado: boolean };
+  prazo_prorrogado: {
+    caminho_id: string;
+    data_antiga: string;
+    data_nova: string;
+    motivo: string;
+    fonte: string;
+  };
+  protocolo_corrigido: {
+    caminho_id: string;
+    data_antiga: string;
+    data_nova: string;
+    motivo: string;
+    fonte: string;
+  };
   proposta_publicada: { proposta_id: string; pessoas_necessarias: number };
   proposta_executada: { proposta_id: string };
   resposta_oficial_recebida: { caminho_id: string };
   promessa_registrada: { promessa_id: string; data_entrega: string; resumo: string; fonte: string };
+  promessa_remarcada: {
+    promessa_id: string;
+    data_antiga: string;
+    data_nova: string;
+    motivo: string;
+    fonte: string;
+  };
   conferencia_aberta: { promessa_id: string; fecha_em: string };
   conferencia_apurada: {
     promessa_id: string;
@@ -32,6 +53,14 @@ export interface DadosPorTipo {
   owner_removido: { papel: PapelPauta['papel'] };
   relato_aprovado: { relato_id: string };
   pauta_urgente: { urgente: boolean; motivo?: string };
+  bloco_corrigido: {
+    blocoAntes: string | null;
+    blocoDepois: string | null;
+    metaAntes: number;
+    metaDepois: number;
+    motivo: string;
+  };
+  meta_ajustada: { metaAntes: number; metaDepois: number; motivo: string };
 }
 
 export type TipoEvento = keyof DadosPorTipo;
@@ -45,10 +74,13 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   meta_batida: true,
   caminho_aberto: true,
   protocolo_registrado: true,
+  prazo_prorrogado: true,
+  protocolo_corrigido: true,
   proposta_publicada: true,
   proposta_executada: true,
   resposta_oficial_recebida: true,
   promessa_registrada: true,
+  promessa_remarcada: true,
   conferencia_aberta: true,
   conferencia_apurada: true,
   status_alterado: (dados) => dados.para !== 'recusada',
@@ -56,6 +88,8 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   owner_removido: true,
   relato_aprovado: true,
   pauta_urgente: true,
+  bloco_corrigido: true,
+  meta_ajustada: true,
 };
 
 export const TIPOS_EVENTO = Object.keys(PUBLICO) as TipoEvento[];
