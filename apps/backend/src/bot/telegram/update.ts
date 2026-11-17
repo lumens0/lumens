@@ -16,7 +16,7 @@
  * A conversa não sabe de onde veio a mensagem: botão vira o texto do id, `/start <payload>` vira o
  * comando que o link do site manda no WhatsApp.
  */
-import { PREFIXO_IDENTIDADE_TELEGRAM, PRIORIDADE } from '@lumens/dominio';
+import { PREFIXO_IDENTIDADE_TELEGRAM } from '@lumens/dominio';
 import { z } from 'zod';
 import { cifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro } from '../../infra/logger';
@@ -89,24 +89,7 @@ export interface MensagemDoTelegram {
 
 export type ResultadoDoUpdate =
   | { tipo: 'mensagem'; mensagem: MensagemDoTelegram }
-  | {
-      tipo: 'ignorado';
-      motivo: string;
-      callbackQueryId?: string;
-      /** Aviso curto que o Telegram mostra sobre o chat ao responder o botão. */
-      avisoDoBotao?: string;
-    };
-
-/**
- * Resposta rápida de um aviso da fila: `tipo:aviso:índice` (`envio/aviso.ts`). Nenhum fluxo da
- * conversa lê esse payload ainda — nem no WhatsApp. Se fosse para a conversa como texto, viraria
- * resposta à pergunta em aberto (o título de uma pauta nova, por exemplo). Por isso o toque é só
- * respondido, com um aviso, e não entra na fila.
- */
-const RESPOSTA_DE_AVISO = new RegExp(`^(?:${Object.keys(PRIORIDADE).join('|')}):[^:\\s]+:\\d+$`);
-
-export const AVISO_SEM_RESPOSTA_TEXT =
-  'Ainda não consigo registrar essa resposta pelo botão. Mande menu para ver as opções.';
+  | { tipo: 'ignorado'; motivo: string; callbackQueryId?: string };
 
 /**
  * Os links `t.me/<bot>?start=<payload>` do site. O `start` só aceita `A-Z a-z 0-9 _ -`, então o
@@ -140,14 +123,6 @@ export function mensagemDoUpdate(update: Update): ResultadoDoUpdate {
     if (!chat || chat.type !== 'private') return { tipo: 'ignorado', motivo: 'chat', ...base };
     if (callback.data === undefined || callback.data === '') {
       return { tipo: 'ignorado', motivo: 'callback sem data', ...base };
-    }
-    if (RESPOSTA_DE_AVISO.test(callback.data)) {
-      return {
-        tipo: 'ignorado',
-        motivo: 'resposta de aviso',
-        ...base,
-        avisoDoBotao: AVISO_SEM_RESPOSTA_TEXT,
-      };
     }
     return {
       tipo: 'mensagem',
@@ -279,7 +254,7 @@ export async function processarUpdate(
   const resultado = mensagemDoUpdate(update.data);
   if (resultado.tipo === 'ignorado') {
     deps.logger.info({ motivo: resultado.motivo }, 'update do Telegram ignorado');
-    responderBotao(resultado.callbackQueryId, deps, resultado.avisoDoBotao);
+    responderBotao(resultado.callbackQueryId, deps);
     return 'ignorada';
   }
   const job = jobDoTelegram(resultado.mensagem, deps.chaves);
@@ -293,14 +268,9 @@ export async function processarUpdate(
 }
 
 /** Para o spinner do botão. Melhor esforço, sem esperar: a resposta de verdade vem pela fila. */
-function responderBotao(id: string | undefined, deps: DepsDoTelegram, texto?: string): void {
+function responderBotao(id: string | undefined, deps: DepsDoTelegram): void {
   if (id === undefined || deps.api === undefined) return;
-  deps.api
-    .chamar('answerCallbackQuery', {
-      callback_query_id: id,
-      ...(texto === undefined ? {} : { text: texto }),
-    })
-    .catch((erro: unknown) => {
-      deps.logger.warn({ erro: resumoDoErro(erro) }, 'answerCallbackQuery falhou');
-    });
+  deps.api.chamar('answerCallbackQuery', { callback_query_id: id }).catch((erro: unknown) => {
+    deps.logger.warn({ erro: resumoDoErro(erro) }, 'answerCallbackQuery falhou');
+  });
 }
