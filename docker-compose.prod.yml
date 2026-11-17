@@ -47,7 +47,11 @@ services:
     command: sh -c 'pnpm db:provision && pnpm db:migrate'
 
   backend:
-    build: .
+    build:
+      context: .
+      # SHA do commit (SCRUM-322): o deploy-homologacao.sh exporta VERSAO antes do build.
+      args:
+        VERSAO: ${VERSAO:-}
     restart: unless-stopped
     depends_on:
       postgres:
