@@ -17,7 +17,7 @@ export default async function PaginaDosRelatos({
   const pautas = await listarRelatosPendentes(servidor().db);
   const { feito, erro } = await searchParams;
   return (
-    <Moldura nome={curador.nome} sair={sair}>
+    <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <Relatos pautas={pautas} feito={feito} erro={erro} aprovar={aprovar} recusar={recusar} />
     </Moldura>
   );
