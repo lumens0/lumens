@@ -416,7 +416,7 @@ describe('câmera ligada ao mapa', () => {
     const mapa = montar();
     mapa.tela(1000, 500);
     const tecla = mapa.ouvintes.get('keydown');
-    let bloqueou = false;
+    let bloqueou: boolean | undefined;
     const enviar = (key: string, shiftKey = false, mod: Partial<KeyboardEvent> = {}) =>
       tecla?.({
         key,
@@ -435,14 +435,14 @@ describe('câmera ligada ao mapa', () => {
     expect(mapa.camera.estado().vista.x).toBeGreaterThan(antes.x);
     expect(mapa.camera.estado().vista.y).toBe(antes.y);
     // Atalhos do navegador passam direto: voltar (Alt+←) e zoom da página (Ctrl/⌘ + mais/menos).
-    bloqueou = false;
+    bloqueou = undefined;
     const parado = { ...mapa.camera.estado().vista };
     enviar('ArrowLeft', false, { altKey: true });
     enviar('+', false, { ctrlKey: true });
     enviar('-', false, { metaKey: true });
     enviar('ArrowUp', false, { metaKey: true });
     mapa.avancar(600);
-    expect(bloqueou).toBe(false);
+    expect(bloqueou).toBeUndefined();
     expect(mapa.camera.estado().vista).toEqual(parado);
     enviar('ArrowLeft', true);
     mapa.avancar(600);
