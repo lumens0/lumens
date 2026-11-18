@@ -1,8 +1,8 @@
 # SCRUM-292 · Dados de demonstração na homologação
 
 Dívida · 2026-11-18
-**Situação:** em aberto. Este arquivo registra o que depende de decisão da equipe antes da demo
-(por volta de 25/11). Nada foi mudado no banco da homologação.
+**Situação:** decidida em 18/11/2026 (autorizada por Sthefany Lima para o time decidir). Nada foi
+mudado no banco da homologação: as ações abaixo são da pessoa que opera a VM.
 
 ## O que ficou claro
 
@@ -16,22 +16,23 @@ Dívida · 2026-11-18
   As saídas possíveis são recriar o banco da homologação (backup antes) ou manter o seed marcado
   como demonstração.
 
-## O que precisa ser decidido (por Sthefany Lima)
+## Decisões
 
-1. **Seed ou banco limpo na demo?** Recomendação: recriar o banco da homologação (já que é só
-   homologação) e subir o catálogo real, sem pautas de exemplo, mais as pautas que a equipe criar
-   pelo bot. Alternativa: manter o seed, mas com blocos e pautas marcados como demonstração no nome
-   de forma honesta (não "fictício").
-2. **Bases de estudantes:** quem confere os 31 valores, e se a migração do catálogo entra já com os
-   valores estimados ou só depois da conferência.
-3. **O agendador deve ignorar owners do seed?** Em 15/11 ele removeu os owners de demonstração por
-   inatividade (14 saídas em /atividade; a repetição na tela foi tratada na SCRUM-355) e as pautas
-   ficaram sem responsável.
-4. Dados de teste manual a apagar antes da demo: pautas "[TESTE] …", 3 relatos de teste, o apoio a
-   mais em "Bebedouros" e o co-owner de teste.
+1. **Banco limpo na demo, sem o seed.** O seed continua só para desenvolvimento e testes. Na
+   homologação: backup, `pnpm db:reset`, `pnpm db:migrate` e `pnpm db:blocos-ufal`. As pautas da
+   demo nascem pelo bot ou pelo painel. Isso resolve o evento append-only sem tentar apagar evento
+   (SCRUM-78) e leva junto os dados de teste manual ("[TESTE] …", relatos e apoios de teste).
+2. **Blocos reais por script, não por migração.** `packages/db/seed/blocos-ufal.ts` traz os 31
+   blocos do levantamento, com `ON CONFLICT (slug) DO NOTHING`. Não virou migração porque a
+   `base_estudantes` é estimativa não conferida e uma migração a fixaria em produção, além de
+   colidir com o slug `bloco-18` do seed nos testes. Antes de abrir para o público, a PROGRAD ou o
+   edital confere os valores; corrija com `UPDATE bloco` enquanto não houver pauta no bloco.
+3. **Agendador:** não ignora o seed. Como o seed não vai mais para a homologação, o caso some.
+4. **CSAU entra como bloco próprio; Residência Universitária fica fora** (deve ficar fora do campus,
+   a confirmar).
 
-## Próximo passo depois da decisão
+## O que continua pendente
 
-Migração `00NN_blocos_ufal.sql` com UUIDs fixos e `ON CONFLICT (slug) DO NOTHING`; seed passando a
-usar os mesmos ids; `BLOCOS_DO_PREDIO` do mapa (site, outra frente) com os slugs reais; testes que
-citam "Bloco 18 (fictício)" atualizados.
+- Ligar os blocos reais aos prédios do mapa (`BLOCOS_DO_PREDIO`, site, SCRUM-284, outra frente).
+- Conferir as bases de estudantes e a localização da Residência.
+- A recriação do banco da VM: não foi feita por esta entrega.
