@@ -64,6 +64,40 @@ beforeEach(async () => {
   await send('oi');
 }, 60_000);
 
+describe('o menu entende o que a pessoa quer fazer, escrito do jeito dela', () => {
+  it.each([
+    // Sem cadastro verificado, a opção 2 também começa pela verificação do e-mail.
+    ['quero criar uma nova pauta', 'VERIFY_ASK_EMAIL'],
+    ['Quero abrir uma pauta', 'VERIFY_ASK_EMAIL'],
+    ['quero relatar um problema', 'REPORT_ASK_TEXT'],
+    ['tenho um problema no bloco 18', 'REPORT_ASK_TEXT'],
+    ['quero verificar meu e-mail', 'VERIFY_ASK_EMAIL'],
+    ['confirmar email', 'VERIFY_ASK_EMAIL'],
+  ])('"%s" vai para o mesmo fluxo da opção', async (frase, passoEsperado) => {
+    await send('menu');
+    await send(frase);
+    expect(await passo()).toBe(passoEsperado);
+  });
+
+  it.each([
+    ['quero ver as minhas pautas', 'minhas pautas'],
+    ['quero corrigir minha pauta', 'editar'],
+    ['ver pautas abertas', 'pautas abertas'],
+  ])('"%s" cai na opção certa (%s)', async (frase) => {
+    await novoEstudante(H);
+    await send('menu');
+    const respostas = await send(frase);
+    // Sem pauta nenhuma, as duas opções do dono respondem com o aviso delas, nunca "Não entendi".
+    expect(JSON.stringify(respostas)).not.toContain('Não entendi');
+  });
+
+  it('frase longa ou sem pedido claro continua sendo "Não entendi"', async () => {
+    await send('menu');
+    expect(JSON.stringify(await send('bom dia, tudo bem com vocês?'))).toContain('Não entendi');
+    expect(await passo()).toBe('MENU');
+  });
+});
+
 describe('menu: 6 Editar pauta', () => {
   it('está no menu principal e também vale pelo nome', async () => {
     expect(JSON.stringify(MENU_PRINCIPAL)).toContain('Editar pauta');

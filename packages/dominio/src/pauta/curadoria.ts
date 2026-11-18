@@ -11,6 +11,7 @@ import {
   documentosResposta,
   eq,
   estudantes,
+  eventos,
   isNull,
   papeisPauta,
   pautas,
@@ -238,7 +239,8 @@ export type ResultadoDecisao =
         | 'motivo_longo'
         | 'categoria_invalida'
         | 'relato_com_dado_pessoal'
-        | 'relato_mudou';
+        | 'relato_mudou'
+        | 'pauta_editada';
     };
 
 async function decidir(
@@ -344,12 +346,18 @@ export async function aprovarPauta(
     curadorId,
     categoria,
     fotosVistas,
+    edicoesVistas = 0,
     urgente = false,
     agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
     categoria: string;
+    /**
+     * Quantas edições do autor (`pauta_editada`) a tela já mostrava. Se o autor editou depois,
+     * a curadoria não viu o texto que está para aprovar: nada muda e ela confere de novo.
+     */
+    edicoesVistas?: number;
     /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
     fotosVistas: Readonly<Record<string, string | null>>;
     urgente?: boolean;
@@ -371,6 +379,11 @@ export async function aprovarPauta(
   const visto = ({ id, fotoChave }: { id: string; fotoChave: string | null }) =>
     Object.hasOwn(fotosVistas, id) && fotosVistas[id] === fotoChave;
   if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
+  const [{ edicoes } = { edicoes: 0 }] = await tx
+    .select({ edicoes: sql<number>`count(*)::int` })
+    .from(eventos)
+    .where(and(eq(eventos.pautaId, pautaId), eq(eventos.tipo, 'pauta_editada')));
+  if (edicoes !== edicoesVistas) return { decidida: false, motivo: 'pauta_editada' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (!resultado.decidida) return resultado;
 

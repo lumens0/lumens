@@ -108,6 +108,10 @@ export default function Manual() {
             Mande <strong>cancelar</strong> (ou <em>desistir</em>) para largar o que estava fazendo.
           </li>
           <li>
+            No menu, você pode escrever o que quer fazer, como <em>quero criar uma nova pauta</em>{' '}
+            ou <em>quero relatar um problema</em>: o bot leva você para a opção certa.
+          </li>
+          <li>
             Para escolher uma opção, vale o número (<em>2</em>), o número por extenso (<em>dois</em>
             , <em>a segunda</em>, <em>opção 2</em>) ou o nome da opção.
           </li>

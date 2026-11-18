@@ -40,7 +40,7 @@ const MENU: MenuEmTexto = {
 };
 
 const MENU_COM_SAIDA: MenuEmTexto = {
-  opcoes: [...MENU.opcoes, { id: 'menu', titulo: 'Voltar ao menu principal' }],
+  opcoes: [...MENU.opcoes, { id: 'menu', titulo: 'Voltar ao menu principal', saida: true }],
 };
 
 describe('renderizarEmTexto', () => {
@@ -134,6 +134,9 @@ describe('resolverEscolha', () => {
     expect(resolverEscolha('0', MENU_COM_SAIDA)).toBe('menu');
     expect(resolverEscolha('Voltar ao menu principal', MENU_COM_SAIDA)).toBe('menu');
     expect(resolverEscolha('0', MENU)).toBeNull();
+    // Um número além da lista não cai na saída: quem erra o número não perde o que digitou.
+    expect(resolverEscolha('4', MENU_COM_SAIDA)).toBeNull();
+    expect(resolverEscolha('quatro', MENU_COM_SAIDA)).toBeNull();
   });
 
   it.each([

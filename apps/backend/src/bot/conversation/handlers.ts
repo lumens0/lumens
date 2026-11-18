@@ -200,7 +200,34 @@ const PEDE_AJUDA = new Set(['ajuda', 'help', 'socorro', 'comandos']);
 function opcaoDoMenu(texto: string): string | undefined {
   const t = normalize(texto);
   const escolha = MENU_ALIASES[t] ?? t;
-  return ['1', '2', '3', '4', '5', '6'].includes(escolha) ? escolha : undefined;
+  if (['1', '2', '3', '4', '5', '6'].includes(escolha)) return escolha;
+  return intencaoDoTexto(t);
+}
+
+/**
+ * A pessoa escreve o que quer fazer, em vez do número: "quero criar uma nova pauta" vale a opção 2.
+ * Em ordem, da mais específica para a mais geral ("corrigir minha pauta" é editar, não "minhas
+ * pautas"). Só vale no menu, onde a alternativa seria "Não entendi". `t` já vem sem acento.
+ */
+const INTENCOES: readonly (readonly [RegExp, string])[] = [
+  [/\b(editar|corrigir|alterar|mudar|arrumar|consertar)\b.*\bpauta\b/, '6'],
+  [
+    /\b(verificar|confirmar|validar)\b.*\be-?mail\b|\be-?mail\b.*\b(verificar|confirmar|validar)\b/,
+    '3',
+  ],
+  [/\bminhas? pautas?\b|\bpautas? (que )?(eu )?(criei|minhas?)\b|\bcuidar\b.*\bpauta\b/, '4'],
+  [/\b(pautas? abertas?|ver (as )?pautas|listar pautas|lista de pautas)\b/, '5'],
+  [/\b(criar|abrir|fazer|iniciar|cadastrar|registrar|nova|novo)\b.*\bpauta\b/, '2'],
+  [
+    /\b(relatar|reportar|denunciar|reclamar|avisar)\b|\b(tenho|quero|vi|encontrei) (um |uma )?(problema|reclamacao)\b/,
+    '1',
+  ],
+];
+
+function intencaoDoTexto(t: string): string | undefined {
+  // Texto longo é um relato ou uma conversa, não um pedido ao menu.
+  if (t === '' || t.length > 80) return undefined;
+  return INTENCOES.find(([regra]) => regra.test(t))?.[1];
 }
 
 function menu(ctx: StepContext): StepResult | Promise<StepResult> {

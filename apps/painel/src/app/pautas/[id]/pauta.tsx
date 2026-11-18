@@ -29,6 +29,8 @@ const ERRO: Record<string, string> = {
     'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
   relato_mudou:
     'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova ou relato novo). Confira e aprove de novo.',
+  pauta_editada:
+    'O autor editou o título ou a descrição depois que a tela abriu. Releia o texto novo (veja a linha do tempo) e aprove de novo.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
@@ -345,6 +347,11 @@ export function Pauta({
                   value={relato.fotoChave ?? ''}
                 />
               ))}
+            <input
+              type="hidden"
+              name="edicoesVistas"
+              value={eventos.filter((e) => e.tipo === 'pauta_editada').length}
+            />
             <label className={estilos.campo}>
               Categoria
               <select id="categoria" name="categoria" required defaultValue="">

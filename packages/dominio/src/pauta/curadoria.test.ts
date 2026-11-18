@@ -37,6 +37,7 @@ import {
   criarRelato,
   tornarOwner,
 } from '../teste/fabricas';
+import { registrarEvento } from '../compartilhado/eventos';
 import { transicionarStatus } from './status';
 
 let db: Db;
@@ -304,6 +305,34 @@ describe('aprovarPauta', () => {
         { tipo: 'pauta_aprovada', origem: 'curadoria', publico: true },
       ]),
     );
+  });
+
+  it('recusa aprovar se o autor editou o texto depois que a tela abriu, e aprova com a tela nova', async () => {
+    const pauta = await novaEmCuradoria();
+    await db.transaction((tx) =>
+      registrarEvento(tx, {
+        pautaId: pauta.id,
+        tipo: 'pauta_editada',
+        dados: { campo: 'titulo', antes: 'a', depois: 'b' },
+        origem: 'bot',
+      }),
+    );
+    const aprovar = (edicoesVistas?: number) =>
+      db.transaction((tx) =>
+        aprovarPauta(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          categoria: 'infraestrutura',
+          fotosVistas: {},
+          ...(edicoesVistas === undefined ? {} : { edicoesVistas }),
+        }),
+      );
+
+    // A tela velha (0 edições) e o formulário sem o campo valem 0: nada muda.
+    expect(await aprovar()).toEqual({ decidida: false, motivo: 'pauta_editada' });
+    expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
+    // A tela que já mostrava a edição aprova.
+    expect(await aprovar(1)).toEqual({ decidida: true });
   });
 
   /** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */

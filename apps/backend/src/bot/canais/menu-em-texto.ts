@@ -16,6 +16,8 @@ import { ehMenuPrincipal } from '../conversation/handlers';
 export interface OpcaoDoMenu {
   id: string;
   titulo: string;
+  /** A saída acrescentada pelo canal: só o "0" e o título a escolhem, nunca um número da lista. */
+  saida?: true;
 }
 
 /** As opções do último menu mandado a uma conversa, na ordem em que foram numeradas. */
@@ -40,7 +42,11 @@ export function menuDaResposta(resposta: Resposta): MenuEmTexto | null {
     ({ id, titulo }) => ({ id, titulo }),
   );
   // A opção 0 não aparece na numeração: vale a qualquer hora, em `resolverEscolha`.
-  return { opcoes: jaTemSaida(resposta, opcoes) ? opcoes : [...opcoes, { ...OPCAO_VOLTAR }] };
+  return {
+    opcoes: jaTemSaida(resposta, opcoes)
+      ? opcoes
+      : [...opcoes, { ...OPCAO_VOLTAR, saida: true as const }],
+  };
 }
 
 /**
@@ -109,7 +115,8 @@ export function resolverEscolha(texto: string, menu: MenuEmTexto | null): string
   if (numero !== null) {
     // O 0 é a saída; os outros números contam a partir da primeira linha.
     if (numero === 0) return menu.opcoes.find((o) => o.id === OPCAO_VOLTAR.id)?.id ?? null;
-    return menu.opcoes[numero - 1]?.id ?? null;
+    // Só as linhas que a pessoa viu numeradas: "4" num menu de 3 não é a saída.
+    return menu.opcoes.filter((o) => o.saida !== true)[numero - 1]?.id ?? null;
   }
   // Título cortado pelos limites da Meta termina em "…"; quem digita não escreve as reticências.
   const semReticencias = (titulo: string) => normalize(titulo.replace(/…$/u, ''));
