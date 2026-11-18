@@ -19,6 +19,8 @@ import { caminhosDaPauta as listarCaminhosDaPauta } from '../caminhos/caminhos';
 import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 
 export interface RelatoDaCuradoria {
+  /** Vai no formulário de aprovação: `aprovarPauta` confere a foto de cada relato que a tela mostrou. */
+  id: string;
   texto: string;
   achados: Achado[];
   curso: string | null;
@@ -87,6 +89,7 @@ export async function detalharPautaDaCuradoria(
       ),
     db
       .select({
+        id: relatos.id,
         texto: relatos.texto,
         curso: estudantes.curso,
         fotoChave: relatos.fotoChave,
@@ -148,7 +151,8 @@ export async function detalharPautaDaCuradoria(
     apoios: apoiosContados[0]?.total ?? 0,
     metaBatidaEm: metaBatida[0]?.criadoEm ?? registro[0]?.metaBatidaEm ?? null,
     responsaveis: responsaveis.map(({ curso }) => ({ curso })),
-    relatos: relatosDaPauta.map(({ texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+    relatos: relatosDaPauta.map(({ id, texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+      id,
       texto,
       achados: conferirAnonimato(texto).achados,
       curso,

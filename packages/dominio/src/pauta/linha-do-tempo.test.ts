@@ -69,7 +69,7 @@ describe('listarLinhaDoTempo', () => {
           pautaId: pauta.id,
           curadorId: curador.id,
           categoria: 'infraestrutura',
-          fotoVista: null,
+          fotosVistas: {},
         }),
       );
 
