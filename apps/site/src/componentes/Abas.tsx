@@ -9,6 +9,7 @@ const ABAS = [
   { href: '/mapa', rotulo: 'Mapa' },
   { href: '/conquistas', rotulo: 'Conquistas' },
   { href: '/atividade', rotulo: 'Atividade' },
+  { href: '/manual', rotulo: 'Manual' },
 ];
 
 /** A página de uma pauta conta como "Pautas": é de lá que se chega nela. */

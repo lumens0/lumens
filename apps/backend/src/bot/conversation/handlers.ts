@@ -143,6 +143,7 @@ export const HELP_TEXT = [
   '*menu*: mostra as opções de novo',
   '*cancelar*: larga o que você estava fazendo e volta ao menu',
   '*sair*: sai do Lumens e apaga o seu cadastro (eu peço confirmação antes)',
+  `Ficou com dúvida? O manual explica tudo: ${ORIGEM_SITE_PRODUCAO}/manual`,
 ].join('\n');
 
 /**

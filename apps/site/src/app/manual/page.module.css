@@ -1,0 +1,80 @@
+.pagina {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--espaco);
+}
+
+.titulo {
+  margin: 0;
+  font:
+    800 1.75em var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.resumo {
+  margin: 4px 0 var(--espaco);
+  color: var(--tinta-2);
+}
+
+/* O sumário: links grandes o bastante para o toque (44 px) e em lista, que o leitor de tela conta. */
+.sumario {
+  margin: 0 0 var(--espaco);
+  padding: 0;
+  list-style: none;
+}
+
+.sumario a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.secao {
+  margin-bottom: var(--espaco);
+  padding: 12px var(--espaco);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  /* O cabeçalho fixo (que quebra em duas linhas no celular) não pode cobrir o título da seção. */
+  scroll-margin-top: 140px;
+}
+
+.secaoTitulo {
+  margin: 0 0 8px;
+  font:
+    700 1.1875em var(--fonte-titulo),
+    sans-serif;
+}
+
+.secao p {
+  margin: 0 0 8px;
+}
+
+.secao p:last-child,
+.secao ul:last-child {
+  margin-bottom: 0;
+}
+
+.secao ul,
+.passos {
+  margin: 0 0 8px;
+  padding-left: 1.25em;
+}
+
+.passos {
+  padding-left: 1.5em;
+}
+
+.secao li {
+  margin-bottom: 6px;
+}
+
+.secao li:last-child {
+  margin-bottom: 0;
+}
+
+.nota {
+  color: var(--tinta-2);
+  font-size: 0.9375em;
+}

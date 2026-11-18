@@ -144,6 +144,10 @@ describe('menu (SCRUM-334)', () => {
     },
   );
 
+  it('a ajuda aponta o manual do site', () => {
+    expect(handlers.HELP_TEXT).toContain(`${ORIGEM_SITE_PRODUCAO}/manual`);
+  });
+
   it('a ajuda cita os comandos menu, cancelar e sair', () => {
     for (const comando of ['*menu*', '*cancelar*', '*sair*'])
       expect(handlers.HELP_TEXT).toContain(comando);

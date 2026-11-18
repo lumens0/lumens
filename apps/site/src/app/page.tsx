@@ -168,6 +168,7 @@ export default async function Home({
       </aside>
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
+          <Link href="/manual">Manual</Link>
           <Link href="/privacidade">Política de privacidade</Link>
           {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}
           <a href="/dados.csv" download>
