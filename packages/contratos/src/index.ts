@@ -70,7 +70,10 @@ export type Bloco = z.infer<typeof bloco>;
 export type Blocos = z.infer<typeof blocos>;
 
 // GET /pautas — v_pauta_publica
-export const pautasQuery = paginacaoQuery.extend({ bloco: slug.optional() });
+export const pautasQuery = paginacaoQuery.extend({
+  bloco: slug.optional(),
+  status: statusPublico.optional(),
+});
 export type PautasQuery = z.infer<typeof pautasQuery>;
 
 export const pauta = z.object({
