@@ -160,3 +160,30 @@ export type Atividade = z.infer<typeof atividade>;
 /** Corpo de 400 e 404. O 404 não diz se a pauta não existe ou não é pública. */
 export const erro = z.object({ erro: z.string() });
 export type Erro = z.infer<typeof erro>;
+
+/**
+ * Lista oficial das categorias de pauta (SCRUM-291), usada pelo site, pelo painel e pelo domínio.
+ * A chave é o valor gravado em `pauta.categoria`; o valor é o rótulo mostrado às pessoas.
+ * `a_classificar` fica de fora de propósito: pauta ainda não classificada não tem rótulo.
+ */
+export const CATEGORIAS = {
+  infraestrutura: 'Infraestrutura',
+  seguranca: 'Segurança',
+  acessibilidade: 'Acessibilidade',
+  ensino: 'Ensino',
+  permanencia: 'Permanência',
+  servicos: 'Serviços',
+  tecnologia: 'Tecnologia',
+} as const;
+export type Categoria = keyof typeof CATEGORIAS;
+
+/** Se o valor é uma das categorias oficiais. Chaves herdadas (`toString`, `__proto__`) não contam. */
+export function ehCategoria(valor: string): valor is Categoria {
+  return Object.hasOwn(CATEGORIAS, valor);
+}
+
+/** Rótulo da categoria; `undefined` para `a_classificar` ou qualquer valor fora da lista. */
+export function rotuloDaCategoria(valor: string): string | undefined {
+  const chave = valor.trim();
+  return ehCategoria(chave) ? CATEGORIAS[chave] : undefined;
+}

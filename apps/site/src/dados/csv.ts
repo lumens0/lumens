@@ -1,3 +1,4 @@
+import { rotuloDaCategoria } from '@lumens/contratos';
 import { STATUS } from '../componentes/StatusPill';
 import type { Pauta } from './tipos';
 
@@ -48,7 +49,7 @@ export function gerarCsv(pautas: readonly Pauta[], origem: URL): string {
     [
       p.titulo,
       new URL(`/p/${p.slug}`, origem).href,
-      p.categoria,
+      rotuloDaCategoria(p.categoria) ?? '',
       p.bloco_nome ?? 'Todo o campus',
       STATUS[p.status].rotulo,
       p.apoios,
