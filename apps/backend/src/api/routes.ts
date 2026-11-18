@@ -1,4 +1,6 @@
 import {
+  apoiosPorSemana,
+  apoiosPorSemanaQuery,
   atividade,
   blocos,
   conquistas,
@@ -20,6 +22,7 @@ import {
   buscarPauta,
   fotoEhPublica,
   buscarResumo,
+  listarApoiosPorSemana,
   listarAtividade,
   listarBlocos,
   listarConquistas,
@@ -118,6 +121,14 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
   app.get('/blocos', { schema: respostas(blocos) }, async () => ({
     itens: await listarBlocos(db),
   }));
+
+  // Só números agregados da view `v_apoio_semana`. A contagem reflete os apoios que existem hoje:
+  // quem sai do Lumens perde o apoio, então uma semana passada pode ficar menor depois.
+  app.get('/apoios-por-semana', { schema: respostas(apoiosPorSemana) }, async (req, reply) => {
+    const query = validar(apoiosPorSemanaQuery, req.query, reply);
+    if (!query) return reply;
+    return { itens: await listarApoiosPorSemana(db, query) };
+  });
 
   app.get('/pautas', { schema: respostas(pautas) }, async (req, reply) => {
     const query = validar(pautasQuery, req.query, reply);

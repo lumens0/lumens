@@ -1,4 +1,5 @@
 import {
+  apoiosPorSemana,
   atividade,
   blocos,
   conquistas,
@@ -17,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { buildApp } from '../app';
 import { FakeQueue } from '../infra/queue.fake';
+import { listarApoiosPorSemana, ultimasSemanas } from './consultas';
 import { apiPlugin, CACHE_PUBLICO } from './routes';
 
 // Os valores esperados saem do seed escrito à mão (`packages/db/seed/data.ts`) e das asserções
@@ -125,6 +127,67 @@ describe('API de leitura pública com o seed', () => {
 
       expect(body).toEqual({ pautas_abertas: 4, apoios: 978, conquistas: 1 });
       conferirContrato(resumo, body);
+    });
+  });
+
+  describe('GET /apoios-por-semana', () => {
+    it('devolve as 8 últimas semanas em ordem, só com semana e total', async () => {
+      const body = (await corpo('/apoios-por-semana')) as { itens: { semana: string }[] };
+
+      expect(body.itens).toHaveLength(8);
+      expect(body.itens.map((i) => i.semana)).toEqual(ultimasSemanas(new Date(), 8));
+      conferirContrato(apoiosPorSemana, body);
+    });
+
+    it('aceita o filtro de bloco e recusa bloco inválido', async () => {
+      expect((await get('/apoios-por-semana?bloco=bloco-18-ficticio')).statusCode).toBe(200);
+      expect((await get('/apoios-por-semana?bloco=')).statusCode).toBe(400);
+      expect((await get('/apoios-por-semana?bloco=a&bloco=b')).statusCode).toBe(400);
+    });
+
+    it('conta os apoios do seed na semana certa e zera as outras', async () => {
+      const semanas = await listarApoiosPorSemana(db, {}, new Date('2026-03-01T12:00:00Z'));
+
+      expect(semanas).toHaveLength(8);
+      const resultado: unknown = await db.execute(
+        sql`SELECT coalesce(sum(apoios), 0)::int AS total FROM v_apoio_semana`,
+      );
+      const resumo = (resultado as { rows: { total: number }[] }).rows[0];
+      const naJanela = semanas.reduce((soma, s) => soma + s.apoios, 0);
+      expect(naJanela).toBeGreaterThan(0);
+      expect(naJanela).toBeLessThanOrEqual(resumo?.total ?? 0);
+      expect(semanas.some((s) => s.apoios === 0)).toBe(true);
+    });
+
+    it('o filtro por bloco nunca devolve mais que o total', async () => {
+      const agora = new Date('2026-03-01T12:00:00Z');
+      const todos = await listarApoiosPorSemana(db, {}, agora);
+      const doBloco = await listarApoiosPorSemana(db, { bloco: 'bloco-18-ficticio' }, agora);
+
+      expect(doBloco.map((s) => s.semana)).toEqual(todos.map((s) => s.semana));
+      doBloco.forEach((s, i) => {
+        expect(s.apoios).toBeLessThanOrEqual(todos[i]?.apoios ?? 0);
+      });
+    });
+  });
+
+  describe('ultimasSemanas', () => {
+    it('começa na segunda-feira, mesmo quando hoje é domingo', () => {
+      // 2026-11-22 é domingo: a semana atual começa em 16/11.
+      expect(ultimasSemanas(new Date('2026-11-22T23:59:59Z'), 2)).toEqual([
+        '2026-11-09',
+        '2026-11-16',
+      ]);
+      expect(ultimasSemanas(new Date('2026-11-16T00:00:00Z'), 1)).toEqual(['2026-11-16']);
+    });
+
+    it('atravessa a virada de ano sem pular nem repetir semana', () => {
+      expect(ultimasSemanas(new Date('2027-01-05T10:00:00Z'), 4)).toEqual([
+        '2026-12-14',
+        '2026-12-21',
+        '2026-12-28',
+        '2027-01-04',
+      ]);
     });
   });
 
@@ -519,6 +582,7 @@ describe('API de leitura pública com o seed', () => {
     it.each([
       '/resumo',
       '/blocos',
+      '/apoios-por-semana',
       '/pautas',
       '/pautas/bebedouros-no-bloco-18',
       '/conquistas',
@@ -736,6 +800,7 @@ describe('API de leitura pública: serialização e rotas', () => {
         new Set([
           '/resumo',
           '/blocos',
+          '/apoios-por-semana',
           '/pautas',
           '/pautas/:slug',
           '/conquistas',

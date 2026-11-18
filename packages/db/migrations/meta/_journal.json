@@ -176,6 +176,13 @@
       "when": 1794998845399,
       "tag": "0024_pedido_link_login",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795010461456,
+      "tag": "0025_view_apoios_por_semana",
+      "breakpoints": true
     }
   ]
 }
