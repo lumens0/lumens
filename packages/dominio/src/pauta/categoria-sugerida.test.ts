@@ -44,6 +44,11 @@ describe('sugerirCategoria', () => {
     ['atraso no pagamento da bolsa e do auxilio moradia', 'permanencia'],
     ['sem creche pra quem tem filho', 'permanencia'],
     ['VAZAMENTO NO BANHEIRO!!!', 'infraestrutura'],
+    ['Mais árvores e sombra nas áreas de convivência', 'infraestrutura'],
+    ['Sala de descanso para estudantes da Saúde', 'permanencia'],
+    ['Laboratório de informática com goteira', undefined],
+    ['Sala de descanso dos professores sem ar condicionado', undefined],
+    ['Laboratórios de informática abertos no contraturno', 'tecnologia'],
   ] as const)('texto com termo claro: "%s" → %s', (texto, categoria) => {
     expect(sugerirCategoria(texto)).toBe(categoria);
   });
@@ -81,5 +86,50 @@ describe('sugerirCategoria', () => {
   it('vence a categoria com mais palavras', () => {
     // infraestrutura (banheiro) x seguranca (escuro, medo): 1 a 2.
     expect(sugerirCategoria('banheiro escuro, dá medo')).toBe('seguranca');
+  });
+});
+
+/**
+ * Avaliação da sugestão (SCRUM-369, docs/operacao/avaliacao-categorizacao.md): títulos do seed e
+ * relatos típicos. `undefined` é o esperado quando a frase é ambígua ou sem palavra conhecida.
+ */
+describe('avaliação com frases representativas', () => {
+  const casos: readonly (readonly [string, string | undefined])[] = [
+    ['Mais árvores e sombra nas áreas de convivência', 'infraestrutura'],
+    ['Tomadas nas mesas da biblioteca', 'infraestrutura'],
+    ['Bebedouros funcionando no Bloco 18', 'infraestrutura'],
+    ['Biblioteca aberta aos sábados', 'servicos'],
+    ['Iluminação no entorno do Bloco de Artes', undefined],
+    ['Sala de descanso para estudantes da Saúde', 'permanencia'],
+    ['Laboratório de informática com goteira', undefined],
+    ['Sala de descanso dos professores sem ar condicionado', undefined],
+    ['Acessibilidade nas entradas do Bloco 18', 'acessibilidade'],
+    ['Internet estável na residência universitária', 'tecnologia'],
+    ['Laboratórios de informática abertos no contraturno', 'tecnologia'],
+    ['O banheiro do bloco 3 está sem descarga e fede', 'infraestrutura'],
+    ['Falta ar condicionado na sala 12', 'infraestrutura'],
+    ['Roubaram celulares no estacionamento à noite', 'seguranca'],
+    ['O wifi cai toda hora no laboratório', 'tecnologia'],
+    ['Professor falta e não repõe aula', 'ensino'],
+    ['Restaurante universitário com fila enorme', 'servicos'],
+    ['Precisamos de rampa para cadeirante no bloco 5', 'acessibilidade'],
+    ['Auxílio moradia atrasado há dois meses', 'permanencia'],
+    ['O SIGAA não abre na matrícula', 'tecnologia'],
+    ['Falta ônibus circular no fim da tarde', 'servicos'],
+    ['Ponto de ônibus sem cobertura', 'servicos'],
+    ['Estudantes sem lugar para estudar à noite', undefined],
+    ['Quero horário de almoço maior entre as aulas', 'ensino'],
+  ];
+
+  it('nunca sugere categoria errada: o pior caso é não sugerir', () => {
+    for (const [texto, esperada] of casos) {
+      const sugerida = sugerirCategoria(texto);
+      if (sugerida !== undefined) expect(sugerida, texto).toBe(esperada);
+    }
+  });
+
+  it('acerta pelo menos 22 das 24 (as outras duas empatam e vão para a lista)', () => {
+    const acertos = casos.filter(([texto, esperada]) => sugerirCategoria(texto) === esperada);
+    expect(acertos.length).toBeGreaterThanOrEqual(22);
   });
 });

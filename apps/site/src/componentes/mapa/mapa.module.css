@@ -389,8 +389,8 @@
   position: absolute;
   top: 6px;
   right: 8px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -446,7 +446,7 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: var(--raio-controle);
   color: var(--tinta);
@@ -464,8 +464,8 @@
 }
 
 .zoom button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 0;
   background: none;
   color: var(--tinta);
@@ -544,8 +544,8 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 10px;
   background: none;

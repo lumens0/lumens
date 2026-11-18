@@ -139,6 +139,8 @@
 }
 
 .titulo a {
+  display: block;
+  min-height: 44px;
   color: var(--tinta);
   text-decoration: none;
 }
@@ -160,7 +162,7 @@
 }
 
 .filtro select {
-  min-height: 40px;
+  min-height: 44px;
   min-width: 220px;
   padding: 0 36px 0 12px;
   font: inherit;
@@ -219,7 +221,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 16px;
   border-radius: var(--raio-controle);
   font: inherit;

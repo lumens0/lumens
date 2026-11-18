@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
+  min-height: 44px;
   margin-bottom: 16px;
   color: var(--tinta-2);
   font-weight: 500;
@@ -92,7 +92,7 @@
 .fantasma {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 16px;
   border-radius: var(--raio-controle);
   border: 1px solid var(--borda-forte);

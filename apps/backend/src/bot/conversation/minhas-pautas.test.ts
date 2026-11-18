@@ -320,6 +320,18 @@ describe('texto do Fala.BR (3.4)', () => {
     expect(typeof estado).not.toBe('string');
   });
 
+  it('a mensagem de abertura explica os passos até o protocolo (SCRUM-370)', async () => {
+    const [aberto, explicacao] = await send('caminho:falabr');
+
+    expect(aberto).toEqual(expect.stringContaining('canal oficial'));
+    expect(aberto).toEqual(expect.stringContaining('prazo legal'));
+    expect(aberto).toEqual(expect.stringContaining('1. Copie o texto da manifestação'));
+    expect(aberto).toEqual(expect.stringContaining('https://falabr.cgu.gov.br'));
+    expect(aberto).toEqual(expect.stringContaining('*Registrar protocolo*'));
+    expect(aberto).toEqual(expect.stringContaining('campo "Descrição"'));
+    expect(explicacao).toEqual(expect.stringContaining('Copie só a mensagem abaixo'));
+  });
+
   it('o botão manda o texto de novo e continua nos caminhos', async () => {
     await send('caminho:falabr');
 
