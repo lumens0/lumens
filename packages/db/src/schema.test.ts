@@ -497,6 +497,62 @@ describe('migração inicial em Postgres real', () => {
     await promessa(pautaId, curadorId, 'em_parte');
   });
 
+  it('recusa resumo acima de 500 e fonte acima de 120 caracteres na promessa', async () => {
+    const id = await promessa(await pauta(), await curador());
+    const atualizar = (coluna: 'resumo' | 'fonte', valor: string) =>
+      pool.query(`UPDATE promessa SET ${coluna} = $1 WHERE id = $2`, [valor, id]);
+
+    // char_length conta caracteres, não bytes: o teto com emoji é o mesmo do domínio.
+    await atualizar('resumo', '😀'.repeat(500));
+    await atualizar('fonte', '😀'.repeat(120));
+    await expect(atualizar('resumo', 'a'.repeat(501))).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'promessa_resumo_ate_500',
+    });
+    await expect(atualizar('fonte', 'a'.repeat(121))).rejects.toMatchObject({
+      code: '23514',
+      constraint: 'promessa_fonte_ate_120',
+    });
+  });
+
+  it('a migração 0020 corta no teto a promessa já gravada acima dele, sem travar', async () => {
+    const id = await promessa(await pauta(), await curador());
+    const sqlDaMigracao = await readFile(
+      new URL('../migrations/0023_promessa_tetos_de_texto.sql', import.meta.url),
+      'utf8',
+    );
+    const cliente = await pool.connect();
+    try {
+      await cliente.query('BEGIN');
+      // Estado de antes da 0020: sem os CHECKs e com textos longos gravados por POST à mão.
+      await cliente.query(
+        'ALTER TABLE promessa DROP CONSTRAINT promessa_resumo_ate_500, DROP CONSTRAINT promessa_fonte_ate_120',
+      );
+      await cliente.query('UPDATE promessa SET resumo = $1, fonte = $2 WHERE id = $3', [
+        '😀'.repeat(900),
+        'b'.repeat(3000),
+        id,
+      ]);
+
+      for (const comando of sqlDaMigracao.split('--> statement-breakpoint')) {
+        await cliente.query(comando);
+      }
+
+      const { rows } = await cliente.query<{ resumo: string; fonte: string }>(
+        'SELECT resumo, fonte FROM promessa WHERE id = $1',
+        [id],
+      );
+      expect(rows[0]?.resumo).toBe(`${'😀'.repeat(499)}…`);
+      expect(rows[0]?.fonte).toBe(`${'b'.repeat(119)}…`);
+      await expect(
+        cliente.query('UPDATE promessa SET fonte = $1 WHERE id = $2', ['b'.repeat(121), id]),
+      ).rejects.toMatchObject({ code: '23514', constraint: 'promessa_fonte_ate_120' });
+    } finally {
+      await cliente.query('ROLLBACK');
+      cliente.release();
+    }
+  });
+
   it('recusa referências inexistentes e protege registros referenciados', async () => {
     const blocoId = await bloco();
     const pautaId = await pauta(randomUUID(), blocoId);

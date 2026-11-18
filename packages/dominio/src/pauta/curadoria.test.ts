@@ -894,6 +894,8 @@ describe('quem cria a pauta conta como apoio (SCRUM-344)', () => {
         dataEntrega: '2030-03-01',
         fonte: 'ofício 1/2030',
         registradaPor: curadorId,
+        // A entrega fica no teto de dois anos (SCRUM-313) contados de quando a promessa é registrada.
+        agora: new Date('2029-03-01T12:00:00Z'),
       }),
     );
     await db.transaction((tx) =>

@@ -163,6 +163,20 @@ describe('ajustes de prazo (SCRUM-321)', () => {
         }),
       ),
     ).toEqual({ feito: false, motivo: 'data_no_passado' });
+    for (const dataEntrega of ['2028-11-21', '9999-12-31']) {
+      expect(
+        await db.transaction((tx) =>
+          remarcarDataPrometida(tx, {
+            promessaId: promessa.promessaId,
+            curadorId: curador.id,
+            dataEntrega,
+            motivo: 'Data distante',
+            fonte: 'Comunicado',
+            agora: new Date('2026-11-20T12:00:00Z'),
+          }),
+        ),
+      ).toEqual({ feito: false, motivo: 'data_distante' });
+    }
     const resultado = await db.transaction((tx) =>
       remarcarDataPrometida(tx, {
         promessaId: promessa.promessaId,

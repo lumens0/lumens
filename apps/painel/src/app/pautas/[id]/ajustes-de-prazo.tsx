@@ -1,3 +1,4 @@
+import { dataDeEntregaMaxima } from '@lumens/dominio';
 import type { DetalhePautaDaCuradoria, EventoDaLinha } from '@lumens/dominio';
 import estilos from '../../painel.module.css';
 
@@ -14,6 +15,7 @@ const ERROS: Record<string, string> = {
   promessa_inexistente: 'A promessa ativa não foi encontrada.',
   conferencia_aberta: 'A conferência já abriu; a data prometida não pode mais ser remarcada.',
   data_no_passado: 'A nova data prometida precisa ser futura.',
+  data_distante: 'A nova data prometida pode ser no máximo dois anos à frente.',
 };
 
 // Maceió é UTC−3 o ano inteiro (sem horário de verão): deslocar o instante alinha o `min`/`max` do
@@ -127,6 +129,7 @@ export function AjustesDePrazo({
               name="dataEntrega"
               required
               min={diaEmMaceio(Date.now() + MS_POR_DIA)}
+              max={dataDeEntregaMaxima()}
             />
           </label>
           <CamposDeAuditoria />

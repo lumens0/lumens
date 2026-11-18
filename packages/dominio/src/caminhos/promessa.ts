@@ -72,6 +72,37 @@ async function caminhosRespondidos(
   return protocolados.length === 1 ? protocolados.map((c) => c.id) : [];
 }
 
+/**
+ * Tetos do resumo e da fonte, conferidos aqui: o `maxLength` do painel não protege a chamada direta,
+ * e a fonte vai inteira como parâmetro do aviso (SCRUM-313).
+ */
+export const RESUMO_MAXIMO = 500;
+export const FONTE_MAXIMA = 120;
+
+/**
+ * Teto da data de entrega: hoje + 2 anos (SCRUM-313). Um `2062` digitado no lugar de `2026` tiraria
+ * a pauta da cobrança por décadas, e o painel não edita promessa registrada.
+ */
+export const ANOS_ATE_A_ENTREGA_MAXIMO = 2;
+
+/** Hoje em Maceió (UTC−3, sem horário de verão), `YYYY-MM-DD`. O painel usa no `min` da data. */
+export const hojeEmMaceio = (agora = new Date()) =>
+  new Date(agora.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
+
+/**
+ * Último dia aceito como data de entrega, `YYYY-MM-DD`, sempre uma data que existe: vai no `max` do
+ * campo, e o navegador ignora um `max` inválido. Em 29/02 o teto é 28/02 de dois anos depois.
+ */
+export function dataDeEntregaMaxima(agora = new Date()): string {
+  const hoje = hojeEmMaceio(agora);
+  const ano = Number(hoje.slice(0, 4)) + ANOS_ATE_A_ENTREGA_MAXIMO;
+  const bissexto = (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0;
+  const diaEMes = hoje.slice(4) === '-02-29' && !bissexto ? '-02-28' : hoje.slice(4);
+  return `${String(ano)}${diaEMes}`;
+}
+
+const tamanho = (texto: string) => Array.from(texto).length;
+
 /** Janela da conferência (RN10). */
 export const DIAS_DE_CONFERENCIA = 7;
 
@@ -85,6 +116,8 @@ export interface NovaPromessa {
   fonte: string;
   /** Curador que registrou. */
   registradaPor: string;
+  /** Para o teto da data de entrega. Injetável para o teste. */
+  agora?: Date;
 }
 
 /**
@@ -117,6 +150,10 @@ export function janelaDeConferencia(dataEntrega: string): {
 /**
  * Registra a promessa e leva a pauta a `prometido`, na transação de quem chama.
  *
+ * Resumo e fonte são gravados sem os espaços das pontas. Acima de `RESUMO_MAXIMO` ou `FONTE_MAXIMA`
+ * (contados por code point) ou com data depois de `dataDeEntregaMaxima`, lança `ErroDeRegra` antes
+ * de tudo.
+ *
  * Só aceita a partir de `cobrando`, `entregue_em_parte` ou `descumprida` (via `transicionarStatus`);
  * fora disso lança `ErroDeRegra` e nada é gravado. Se ainda houver promessa ativa, ela é encerrada
  * como `substituida` antes: o banco só aceita uma ativa por pauta.
@@ -127,7 +164,14 @@ export function janelaDeConferencia(dataEntrega: string): {
  */
 export async function registrarPromessa(
   tx: Tx,
-  { pautaId, resumo, dataEntrega, fonte, registradaPor }: NovaPromessa,
+  {
+    pautaId,
+    resumo: resumoInformado,
+    dataEntrega,
+    fonte: fonteInformada,
+    registradaPor,
+    agora = new Date(),
+  }: NovaPromessa,
 ): Promise<{
   promessaId: string;
   conferenciaAbreEm: Date;
@@ -136,7 +180,20 @@ export async function registrarPromessa(
   /** PDFs do owner que a curadoria leu para esta resposta e que agora apontam para ela. */
   documentosLigados: number;
 }> {
+  // Mede o que é gravado: 500 caracteres mais espaços nas pontas não passam do teto.
+  const resumo = resumoInformado.trim();
+  const fonte = fonteInformada.trim();
+  if (tamanho(resumo) > RESUMO_MAXIMO) {
+    throw new ErroDeRegra('resumo_longo', `Resumo passa de ${String(RESUMO_MAXIMO)} caracteres`);
+  }
+  if (tamanho(fonte) > FONTE_MAXIMA) {
+    throw new ErroDeRegra('fonte_longa', `Fonte passa de ${String(FONTE_MAXIMA)} caracteres`);
+  }
   const { conferenciaAbreEm: abre, conferenciaFechaEm: fecha } = janelaDeConferencia(dataEntrega);
+  const teto = dataDeEntregaMaxima(agora);
+  if (dataEntrega > teto) {
+    throw new ErroDeRegra('data_distante', `Data de entrega ${dataEntrega} passa de ${teto}`);
+  }
 
   // Primeiro a transição: se a pauta não pode ir para `prometido`, nada abaixo acontece.
   await transicionarStatus(tx, { pautaId, para: 'prometido', origem: 'curadoria' });
