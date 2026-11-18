@@ -84,10 +84,12 @@ recente primeiro); depois `slug`, para a ordem ser estável entre páginas. É a
 | Query    | Tipo | Padrão | Limites                             |
 | -------- | ---- | ------ | ----------------------------------- |
 | `bloco`  | slug | —      | formato de slug, até 120 caracteres |
+| `status` | enum | —      | um dos sete status públicos         |
 | `limit`  | int  | `20`   | de `1` a `100`                      |
 | `offset` | int  | `0`    | `0` ou mais                         |
 
 - Sem `bloco`, vêm todas as pautas públicas, inclusive as do campus inteiro (`bloco_slug` nulo).
+- Com `status`, só as pautas naquele status; combina com `bloco` (as duas condições valem juntas).
 - Com `bloco`, só as daquele bloco; as do campus inteiro ficam de fora.
 - `bloco` com formato válido que não existe devolve lista vazia (`200`), não `404`.
 
@@ -380,11 +382,11 @@ tolerar isso.
 
 ## Status e erros
 
-| Status | Quando                                                                                                                                                      | Corpo                      |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `200`  | sucesso, inclusive lista vazia (por exemplo, `bloco` que não existe)                                                                                        | o da rota                  |
-| `400`  | `slug` ou `bloco` fora do formato; `limit` fora de 1–100 ou não inteiro; `offset` negativo ou não inteiro; parâmetro de query repetido (`?bloco=a&bloco=b`) | `{ "erro": "<mensagem>" }` |
-| `404`  | `/pautas/:slug` de pauta inexistente **ou** não pública, sem diferenciar                                                                                    | `{ "erro": "<mensagem>" }` |
+| Status | Quando                                                                                                                                                                                               | Corpo                      |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `200`  | sucesso, inclusive lista vazia (por exemplo, `bloco` que não existe)                                                                                                                                 | o da rota                  |
+| `400`  | `slug` ou `bloco` fora do formato; `status` que não é um dos sete públicos; `limit` fora de 1–100 ou não inteiro; `offset` negativo ou não inteiro; parâmetro de query repetido (`?bloco=a&bloco=b`) | `{ "erro": "<mensagem>" }` |
+| `404`  | `/pautas/:slug` de pauta inexistente **ou** não pública, sem diferenciar                                                                                                                             | `{ "erro": "<mensagem>" }` |
 
 Só o formato `{ "erro": string }` faz parte do contrato; o texto da mensagem pode mudar. Na versão
 atual o 404 tem sempre o mesmo texto, seja qual for o motivo. Uma falha inesperada (banco fora do

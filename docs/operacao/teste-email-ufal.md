@@ -3,7 +3,7 @@
 Continuação da SCRUM-139. O código sai pelo SMTP do Google da conta `@ic.ufal.br` da equipe
 (`smtp.gmail.com:587`, senha de app; veja `.env.producao.example`). Na SCRUM-139 ele chegou na
 caixa de entrada, mas só foi testado da conta para ela mesma
-([TESTS.md da SCRUM-99](../sdd/SCRUM-99-verificacao-email/TESTS.md)). Aqui o teste é com contas
+(a SDD da SCRUM-99 saiu do repositório; fica no histórico do Git). Aqui o teste é com contas
 de outras pessoas.
 
 ## O que o DNS diz (consultado em 2026-11-16)

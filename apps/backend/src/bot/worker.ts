@@ -24,6 +24,7 @@ import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
+import { apagarFilasDoTelefone } from './filas-do-telefone';
 import { conteudoDoJob, type ConteudoMensagem, type IncomingMessageJob } from './webhook/process';
 
 /** Respostas a entregar para uma conversa (fila JOBS.outgoingReplies). */
@@ -188,6 +189,7 @@ export async function processIncomingJob(
     throw new MensagemIlegivelError(erro);
   }
   const lido = inputOf(conteudo);
+  let saiu = false;
   return deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
@@ -215,6 +217,9 @@ export async function processIncomingJob(
               ...(deps.email ? { email: deps.email } : {}),
               ...(deps.respostas ? { respostas: deps.respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
+              aoSair: () => {
+                saiu = true;
+              },
             },
           );
     const replies = deps.menusEmTexto
@@ -239,7 +244,17 @@ export async function processIncomingJob(
     };
     // SCRUM-307: a chave da conversa ordena as respostas como a entrada. Sem ela, uma resposta que
     // falhasse de forma passageira saía depois da seguinte ("lista de blocos" antes do "Qual o título?").
-    await deps.queue.send(JOBS.outgoingReplies, outgoing, tx, { chave: data.phoneHmac });
+    const idDaResposta = await deps.queue.send(JOBS.outgoingReplies, outgoing, tx, {
+      chave: data.phoneHmac,
+    });
+    // 5.7: quem saiu não deixa cópia das mensagens nas filas. Fica só o que ainda precisa
+    // terminar (esta mensagem e a resposta de saída), marcado para sumir logo depois.
+    if (saiu) {
+      await apagarFilasDoTelefone(tx, {
+        phoneHmac: data.phoneHmac,
+        manter: idDaResposta === null ? [job.id] : [job.id, idDaResposta],
+      });
+    }
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });

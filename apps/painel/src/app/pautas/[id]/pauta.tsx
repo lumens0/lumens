@@ -11,6 +11,7 @@ import { dataHora } from '../../prazo';
 import { SeloDePrazo, SeloDeStatus, SeloUrgente } from '../selos';
 import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
+import { PREFIXO_FOTO_VISTA } from './decisoes';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
@@ -25,6 +26,8 @@ const ERRO: Record<string, string> = {
   categoria_invalida: 'Escolha uma categoria válida para esta pauta.',
   relato_com_dado_pessoal:
     'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
+  relato_mudou:
+    'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova ou relato novo). Confira e aprove de novo.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
@@ -319,6 +322,16 @@ export function Pauta({
           </p>
           <form action={aprovar} className={estilos.barraDeAcoes}>
             <input type="hidden" name="pautaId" value={pauta.id} />
+            {pauta.relatos
+              .filter((relato) => relato.moderacao === 'pendente')
+              .map((relato) => (
+                <input
+                  key={relato.id}
+                  type="hidden"
+                  name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
+                  value={relato.fotoChave ?? ''}
+                />
+              ))}
             <label className={estilos.campo}>
               Categoria
               <select id="categoria" name="categoria" required defaultValue="">
