@@ -171,9 +171,9 @@ export default function Privacidade() {
         </p>
       </section>
 
-      {/* RN08: conferirAnonimato roda dentro de montarTextoFalaBr (texto-falabr.ts), mas nenhum
-          fluxo do bot chama esse gerador ainda. Por isso o parágrafo final. */}
-      <section className={estilos.secao}>
+      {/* RN08: conferirAnonimato roda dentro de montarTextoFalaBr (texto-falabr.ts), chamado pelo
+          bot ao abrir o caminho Fala.BR (minhas-pautas.ts). */}
+      <section className={estilos.secao} id="fala-br">
         <h2 className={estilos.secaoTitulo}>Quando a pauta vai para o Fala.BR</h2>
         <p>
           Pautas que atingem a meta poderão ser levadas ao Fala.BR, o sistema federal de
@@ -187,7 +187,8 @@ export default function Privacidade() {
           revisa decidir.
         </p>
         <p>
-          Nenhuma pauta foi levada ao Fala.BR até hoje: esse fluxo ainda não está em funcionamento.
+          O bot já entrega esse texto pronto a quem cuida da pauta, que o protocola no site do
+          Fala.BR e informa o número do protocolo ao bot. O protocolo fica público na pauta.
         </p>
       </section>
 

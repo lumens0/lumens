@@ -12,6 +12,24 @@ const TIPOS: Record<Caminho['tipo'], string> = {
   proposta: 'Proposta da comunidade',
 };
 
+/**
+ * Uma frase por tipo, para quem chega pelo QR Code sem conhecer os termos (SCRUM-382). O texto do
+ * Fala.BR acompanha o do bot (`OPENED_TEXT.falabr`, SCRUM-370).
+ *
+ * PROVISÓRIO: o texto de `representante` ainda não foi validado pela equipe (o significado exato
+ * não está documentado no site). Não publicar sem a validação.
+ */
+const EXPLICACAO: Record<Caminho['tipo'], string> = {
+  falabr:
+    'Sistema do governo federal para registrar manifestações. A resposta tem prazo em lei e o protocolo fica público.',
+  comunidade:
+    'Estudantes resolvendo o problema por conta própria. Nunca fecha a pauta: a cobrança continua até a universidade resolver.',
+  representante:
+    'Alguém que representa os estudantes leva a pauta à universidade e cobra uma resposta.',
+  proposta:
+    'Ideia de solução publicada por quem cuida da pauta. Precisa de voluntários: toque em Vou ajudar.',
+};
+
 // `caminho.status` é texto livre no esquema; hoje o domínio só grava `aberto`. As propostas vêm do
 // enum `status_proposta` (`aberta`, `executada`). Valor fora da lista vira texto legível.
 const STATUS: Record<string, string> = {
@@ -92,6 +110,15 @@ export function Caminhos({
               <strong className={[estilos.chip, estilos[corDoChip(caminho.status)]].join(' ')}>
                 {rotuloStatusCaminho(caminho.status)}
               </strong>
+              <span className={estilos.vazio}>
+                {EXPLICACAO[caminho.tipo]}
+                {caminho.tipo === 'falabr' && (
+                  <>
+                    {' '}
+                    <a href="/privacidade#fala-br">Saiba mais</a>
+                  </>
+                )}
+              </span>
               {detalhes(caminho, agora, conquistada).map((linha) => (
                 <span key={linha} className={estilos.vazio}>
                   {linha}
