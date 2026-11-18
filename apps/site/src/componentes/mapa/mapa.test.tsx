@@ -12,6 +12,7 @@ const pauta = (status: StatusPauta, apoios: number, bloco: string | null = 'bloc
     titulo: `Pauta ${String(n)}`,
     categoria: 'infraestrutura',
     status,
+    urgente: false,
     apoios,
     meta: 300,
     bloco_slug: bloco,
@@ -34,6 +35,11 @@ describe('pauta mais urgente', () => {
     const b = pauta('prometido', 120);
     expect(maisUrgente([a, b])).toBe(b);
     expect(maisUrgente([pauta('conquistada', 900)])).toBeUndefined();
+  });
+
+  it('pauta marcada como urgente vence qualquer peso de status', () => {
+    const urgente = { ...pauta('juntando_apoios', 1), urgente: true };
+    expect(maisUrgente([pauta('descumprida', 500), urgente])).toBe(urgente);
   });
 });
 
@@ -71,6 +77,13 @@ describe('marcadores do mapa', () => {
     const cobrando = pauta('cobrando', 5);
     const [m] = marcadoresDoMapa([bloco('bloco-18')], [conquista, juntando, cobrando]);
     expect(m?.pautas).toEqual([cobrando, juntando, conquista]);
+  });
+
+  it('o marcador informa que o bloco tem pauta urgente', () => {
+    const urgente = { ...pauta('juntando_apoios', 1), urgente: true };
+    const [m] = marcadoresDoMapa([bloco('bloco-18')], [pauta('descumprida', 500), urgente]);
+    expect(m?.urgente).toBe(true);
+    expect(m?.pautas[0]).toBe(urgente);
   });
 });
 

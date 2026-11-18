@@ -21,6 +21,7 @@
   --luz-forte: #ffa41b;
   --luz-tinta: #8f4c00;
   --luz-fundo: #fff1cc;
+  --urgente: #a61b1b;
 
   /* Compatibilidade com nomes antigos ainda usados por alguns componentes. */
   --primaria: var(--tinta);

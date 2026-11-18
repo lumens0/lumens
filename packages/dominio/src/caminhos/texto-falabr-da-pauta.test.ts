@@ -16,7 +16,7 @@ describe('textoFalaBrDaPauta (SCRUM-213)', () => {
     const pauta = await criarPauta(db, {
       titulo: 'Bebedouro quebrado',
       descricao: 'O bebedouro do térreo está sem água há duas semanas.',
-      categoria: 'Infraestrutura',
+      categoria: 'infraestrutura',
       blocoId: bloco.id,
       meta: 30,
     });
