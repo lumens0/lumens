@@ -178,15 +178,17 @@ export function Pauta({
 
       <section aria-labelledby="numeros-pauta">
         <h2 id="numeros-pauta">Apoios e meta</h2>
-        <p>
-          {pauta.apoios} de {pauta.meta} apoios
+        <p className={estilos.numeros}>
+          <strong>{pauta.apoios}</strong> de {pauta.meta} apoios
         </p>
         <progress
           aria-label="Progresso até a meta de apoios"
           max={pauta.meta}
           value={Math.min(pauta.apoios, pauta.meta)}
         />
-        {pauta.metaBatidaEm && <p>Meta batida em {dataHora(pauta.metaBatidaEm)}</p>}
+        {pauta.metaBatidaEm && (
+          <p className={estilos.detalhes}>Meta batida em {dataHora(pauta.metaBatidaEm)}</p>
+        )}
       </section>
 
       {['em_curadoria', 'juntando_apoios'].includes(pauta.status) && (
@@ -209,8 +211,11 @@ export function Pauta({
         ) : (
           <ul className={estilos.lista}>
             {pauta.relatos.map((relato, indice) => (
-              <li className={estilos.cartao} key={`${String(indice)}-${relato.texto}`}>
-                <p>{relato.texto}</p>
+              <li
+                className={[estilos.cartao, estilos.relato].join(' ')}
+                key={`${String(indice)}-${relato.texto}`}
+              >
+                <p className={estilos.textoDoRelato}>{relato.texto}</p>
                 {relato.achados.length > 0 && (
                   <ul className={estilos.aviso}>
                     {relato.achados.map((achado) => (
@@ -221,10 +226,13 @@ export function Pauta({
                     ))}
                   </ul>
                 )}
-                <p>Curso: {relato.curso ?? 'Não informado'}</p>
-                <p>Situação da moderação: {MODERACAO[relato.moderacao]}</p>
-                <p>Data registrada: {relato.data ? dataHora(relato.data) : 'Não registrada'}</p>
-                {relato.fotoChave ? <Foto chave={relato.fotoChave} /> : <p>Sem foto</p>}
+                <ul className={estilos.meta}>
+                  <li>Curso: {relato.curso ?? 'Não informado'}</li>
+                  <li>Situação da moderação: {MODERACAO[relato.moderacao]}</li>
+                  <li>Data registrada: {relato.data ? dataHora(relato.data) : 'Não registrada'}</li>
+                  {!relato.fotoChave && <li>Sem foto</li>}
+                </ul>
+                {relato.fotoChave && <Foto chave={relato.fotoChave} />}
               </li>
             ))}
           </ul>
@@ -264,14 +272,20 @@ export function Pauta({
       {pauta.promessa && (
         <section aria-labelledby="promessa-pauta">
           <h2 id="promessa-pauta">Promessa registrada</h2>
-          <p>{pauta.promessa.resumo}</p>
-          <p>Quem respondeu: {pauta.promessa.fonte}</p>
-          <p>Data prometida: {pauta.promessa.dataEntrega}</p>
-          <p>Conferência aberta até {dataHora(pauta.promessa.conferenciaFechaEm)}</p>
-          <p>
-            Votos: {pauta.promessa.votos.sim} sim, {pauta.promessa.votos.em_parte} em parte,{' '}
-            {pauta.promessa.votos.nao} não
-          </p>
+          <p className={estilos.textoDoRelato}>{pauta.promessa.resumo}</p>
+          <dl className={estilos.ficha}>
+            <dt>Quem respondeu</dt>
+            <dd>{pauta.promessa.fonte}</dd>
+            <dt>Data prometida</dt>
+            <dd>{pauta.promessa.dataEntrega}</dd>
+            <dt>Conferência aberta até</dt>
+            <dd>{dataHora(pauta.promessa.conferenciaFechaEm)}</dd>
+            <dt>Votos</dt>
+            <dd>
+              {pauta.promessa.votos.sim} sim, {pauta.promessa.votos.em_parte} em parte,{' '}
+              {pauta.promessa.votos.nao} não
+            </dd>
+          </dl>
         </section>
       )}
 
@@ -319,7 +333,7 @@ export function Pauta({
             juntar apoios. Confira antes o texto, a foto e os achados: nada de nome de pessoa,
             ofensa ou dado pessoal.
           </p>
-          <form action={aprovar} className={estilos.barraDeAcoes}>
+          <form action={aprovar} className={estilos.aprovacao}>
             <input type="hidden" name="pautaId" value={pauta.id} />
             {pauta.relatos
               .filter((relato) => relato.moderacao === 'pendente')
@@ -364,7 +378,7 @@ export function Pauta({
         </section>
       )}
       {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
-        <form action={atualizarUrgencia} className={estilos.cartao}>
+        <form action={atualizarUrgencia} className={estilos.formulario}>
           <h2>Urgência</h2>
           <input type="hidden" name="pautaId" value={pauta.id} />
           <label>
@@ -381,11 +395,11 @@ export function Pauta({
           <p className={estilos.detalhes}>
             O motivo fica só no painel. No site aparece apenas que a pauta é urgente.
           </p>
-          <Enviar className={estilos.botao}>Salvar urgência</Enviar>
+          <Enviar className={estilos.botaoSecundario}>Salvar urgência</Enviar>
         </form>
       )}
       {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
-        <form action={definirCategoria} className={estilos.cartao}>
+        <form action={definirCategoria} className={estilos.formulario}>
           <h2>Trocar categoria</h2>
           <input type="hidden" name="pautaId" value={pauta.id} />
           <label htmlFor="nova-categoria">Categoria</label>
@@ -399,7 +413,7 @@ export function Pauta({
               </option>
             ))}
           </select>
-          <Enviar className={estilos.botao}>Salvar categoria</Enviar>
+          <Enviar className={estilos.botaoSecundario}>Salvar categoria</Enviar>
         </form>
       )}
     </>

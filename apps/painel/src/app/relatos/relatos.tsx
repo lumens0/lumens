@@ -69,11 +69,13 @@ export function Relatos({
             <h2>
               <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
             </h2>
-            <p className={estilos.detalhes}>{pauta.bloco ?? 'Campus inteiro'}</p>
+            <p className={[estilos.detalhes, estilos.blocoDaSecao].join(' ')}>
+              {pauta.bloco ?? 'Campus inteiro'}
+            </p>
             <ul className={estilos.lista}>
               {pauta.relatos.map((relato) => (
-                <li key={relato.id} className={estilos.cartao}>
-                  <p className={estilos.descricaoDaPauta}>{relato.texto}</p>
+                <li key={relato.id} className={[estilos.cartao, estilos.relato].join(' ')}>
+                  <p className={estilos.textoDoRelato}>{relato.texto}</p>
                   {relato.fotoChave === null ? (
                     <p className={estilos.detalhes}>Sem foto</p>
                   ) : (
@@ -89,7 +91,7 @@ export function Relatos({
                       ))}
                     </ul>
                   )}
-                  <div className={estilos.decisoes}>
+                  <div className={estilos.acoesDoRelato}>
                     <form action={aprovar}>
                       <input type="hidden" name="relatoId" value={relato.id} />
                       <input type="hidden" name="fotoVista" value={relato.fotoChave ?? ''} />
