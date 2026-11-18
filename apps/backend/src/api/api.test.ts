@@ -145,28 +145,74 @@ describe('API de leitura pública com o seed', () => {
       expect((await get('/apoios-por-semana?bloco=a&bloco=b')).statusCode).toBe(400);
     });
 
-    it('conta os apoios do seed na semana certa e zera as outras', async () => {
-      const semanas = await listarApoiosPorSemana(db, {}, new Date('2026-03-01T12:00:00Z'));
+    describe('contra os apoios do seed, contados por fora da view', () => {
+      interface Apoio {
+        bloco: string | null;
+        criado: Date;
+      }
+      let apoios: Apoio[];
+      let agora: Date;
 
-      expect(semanas).toHaveLength(8);
-      const resultado: unknown = await db.execute(
-        sql`SELECT coalesce(sum(apoios), 0)::int AS total FROM v_apoio_semana`,
-      );
-      const resumo = (resultado as { rows: { total: number }[] }).rows[0];
-      const naJanela = semanas.reduce((soma, s) => soma + s.apoios, 0);
-      expect(naJanela).toBeGreaterThan(0);
-      expect(naJanela).toBeLessThanOrEqual(resumo?.total ?? 0);
-      expect(semanas.some((s) => s.apoios === 0)).toBe(true);
-    });
+      beforeAll(async () => {
+        // O dono do banco lê as tabelas, que `lumens_site` não enxerga: o esperado sai delas, não
+        // da view que o teste confere.
+        await db.execute(sql`RESET ROLE`);
+        try {
+          const resultado: unknown = await db.execute(
+            sql`SELECT b.slug AS bloco, a.criado_em AS criado
+                FROM apoio a JOIN pauta p ON p.id = a.pauta_id
+                LEFT JOIN bloco b ON b.id = p.bloco_id
+                WHERE p.status NOT IN ('em_curadoria', 'recusada')`,
+          );
+          apoios = (
+            resultado as { rows: { bloco: string | null; criado: Date | string }[] }
+          ).rows.map((l) => ({ bloco: l.bloco, criado: new Date(l.criado) }));
+        } finally {
+          await db.execute(sql.raw('SET ROLE "lumens_site"'));
+        }
+        agora = new Date(Math.max(...apoios.map((a) => a.criado.getTime())));
+      });
 
-    it('o filtro por bloco nunca devolve mais que o total', async () => {
-      const agora = new Date('2026-03-01T12:00:00Z');
-      const todos = await listarApoiosPorSemana(db, {}, agora);
-      const doBloco = await listarApoiosPorSemana(db, { bloco: 'bloco-18-ficticio' }, agora);
+      function esperado(bloco?: string) {
+        const semanas = ultimasSemanas(agora, 8);
+        return semanas.map((semana) => ({
+          semana,
+          apoios: apoios.filter(
+            (a) =>
+              (bloco === undefined || a.bloco === bloco) &&
+              ultimasSemanas(a.criado, 1)[0] === semana,
+          ).length,
+        }));
+      }
 
-      expect(doBloco.map((s) => s.semana)).toEqual(todos.map((s) => s.semana));
-      doBloco.forEach((s, i) => {
-        expect(s.apoios).toBeLessThanOrEqual(todos[i]?.apoios ?? 0);
+      it('o total semanal é o de apoios por segunda-feira, e as semanas vazias vêm com zero', async () => {
+        const semanas = await listarApoiosPorSemana(db, {}, agora);
+
+        expect(semanas).toEqual(esperado());
+        expect(semanas.reduce((soma, s) => soma + s.apoios, 0)).toBeGreaterThan(0);
+      });
+
+      it('o filtro devolve só os apoios do bloco, semana a semana', async () => {
+        const blocosComApoio = [...new Set(apoios.flatMap((a) => (a.bloco ? [a.bloco] : [])))];
+        expect(blocosComApoio.length).toBeGreaterThan(1);
+
+        const todos = await listarApoiosPorSemana(db, {}, agora);
+        for (const bloco of blocosComApoio) {
+          const doBloco = await listarApoiosPorSemana(db, { bloco }, agora);
+          expect(doBloco, bloco).toEqual(esperado(bloco));
+        }
+        // Há semana em que o filtro tira apoios de outro bloco: sem o filtro, o teste falharia.
+        const algumaMenor = blocosComApoio.some((bloco) =>
+          esperado(bloco).some((s, i) => s.apoios > 0 && s.apoios < (todos[i]?.apoios ?? 0)),
+        );
+        expect(algumaMenor).toBe(true);
+      });
+
+      it('bloco sem apoio ou que não existe devolve as 8 semanas zeradas', async () => {
+        const semanas = await listarApoiosPorSemana(db, { bloco: 'bloco-que-nao-existe' }, agora);
+
+        expect(semanas).toHaveLength(8);
+        expect(semanas.every((s) => s.apoios === 0)).toBe(true);
       });
     });
   });
