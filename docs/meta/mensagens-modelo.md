@@ -2,8 +2,8 @@
 
 SCRUM-193 · RNF04 · Parte 3.
 
-> **Histórico.** A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution
-> ([decisão](../decisoes/SCRUM-275-canal-evolution.md)). Esta página fica como registro do que foi
+> **Histórico.** A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution.
+> Esta página fica como registro do que foi
 > feito com a Meta e vale se o canal voltar a ser ela.
 
 Fora da janela de atendimento de 24h, o bot só escreve primeiro com uma mensagem modelo aprovada pela
@@ -89,7 +89,7 @@ pnpm --filter @lumens/backend modelos --site https://<dominio-do-site>
       permissão `whatsapp_business_management`) e `META_WABA_ID` (id da conta do WhatsApp Business,
       no WhatsApp Manager). Nenhuma das duas entra no repositório.
 - [ ] **Cobrança resolvida por quem é dono do portfólio.** A Meta cobra mensagens utilitárias
-      (veja a [SCRUM-191](../decisoes/SCRUM-191-verificacao-meta.md)). Criar o modelo não envia
+      (veja a SCRUM-191). Criar o modelo não envia
       mensagem, mas os avisos só saem com isso resolvido.
 - [x] **Dry-run conferido** com o domínio definitivo: os seis pedidos, textos iguais aos da tabela
       acima.

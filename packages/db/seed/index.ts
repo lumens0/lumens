@@ -17,7 +17,7 @@ import {
 import { dadosSeed } from './data';
 
 /**
- * Inserções diretas, de propósito (SCRUM-257, docs/decisoes/SCRUM-257-seed-pelo-dominio.md): o
+ * Inserções diretas, de propósito (SCRUM-257): o
  * seed precisa de ids, slugs e datas fixos e de reaplicar sem duplicar, e este pacote não pode
  * importar o `dominio`. Quem garante que o resultado é um estado que o domínio produziria é o
  * `packages/dominio/src/seed-coerente.test.ts`: dado novo aqui tem de passar nele.

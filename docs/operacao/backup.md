@@ -48,7 +48,7 @@ novo já tenha recebido fotos (`scripts/minio/espelhar-fotos.sh`).
 > **Por que só a cópia de fora é cifrada:** o diário na VM fica no mesmo disco do próprio banco,
 > que está em claro; cifrá-lo ali não protegeria nada e obrigaria a chave privada a morar na VM
 > para o teste semanal. O que sai da VM vai cifrado, e a VM não consegue decifrar
-> ([decisão SCRUM-309](../decisoes/SCRUM-309-backup-fora-da-vm.md)).
+> (SCRUM-309).
 
 ## Instalar na VM
 

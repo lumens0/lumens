@@ -135,7 +135,7 @@ export default function Privacidade() {
         </p>
       </section>
 
-      {/* Decisão e texto do aviso: docs/decisoes/SCRUM-174-aviso-de-privacidade.md */}
+      {/* SCRUM-174: texto do aviso */}
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>Base legal</h2>
         <p>

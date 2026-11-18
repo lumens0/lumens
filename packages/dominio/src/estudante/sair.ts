@@ -3,7 +3,7 @@
  * fez continua valendo: apoios, respostas de conferência e inscrições como voluntária seguem
  * contando, ligados a uma linha de `estudante` que não diz mais de quem é.
  *
- * Relatos (SCRUM-314, docs/decisoes/SCRUM-314-sair-relatos-e-fotos.md): os que não foram publicados
+ * Relatos (SCRUM-314): os que não foram publicados
  * (pendentes ou recusados) são apagados, e as fotos deles também. Os aprovados, que já estão no site
  * sem nome, ficam, assim como os PDFs de resposta oficial, que são o registro da cobrança da pauta.
  */
@@ -53,7 +53,7 @@ export type ResultadoSaida =
  * aleatória (`saiu:<uuid>`): não deriva do telefone, não tem volta e nunca coincide com um HMAC de
  * verdade, que é hexadecimal. Buscar pelo HMAC do telefone não acha mais ninguém.
  *
- * O HMAC do e-mail fica (SCRUM-331, docs/decisoes/SCRUM-331-sair-e-voltar.md). Ele não revela o
+ * O HMAC do e-mail fica (SCRUM-331). Ele não revela o
  * e-mail e serve só para, na volta, `vincularEmail` reativar esta mesma linha em vez de criar
  * outra: sem isso, sair e voltar com o mesmo e-mail permitia apoiar, se voluntariar e responder à
  * conferência de novo, e uma pessoa sozinha batia a meta de uma pauta.
