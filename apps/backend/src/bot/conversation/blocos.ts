@@ -97,6 +97,7 @@ export function blocoEscolhido(
  */
 export const BLOCOS_EM_DESTAQUE = [
   'ru',
+  'residencia-universitaria',
   'biblioteca-central',
   'ic',
   'im',

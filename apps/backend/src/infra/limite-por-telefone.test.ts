@@ -5,7 +5,7 @@ const LIMITE = { max: 3, janelaMs: 1000 };
 
 describe('limite de mensagens por pessoa', () => {
   it('aceita até o máximo na janela e recusa o excesso, avisando só na primeira recusa', () => {
-    let t = 0;
+    const t = 0;
     const limitador = criarLimitadorPorTelefone(LIMITE, () => t);
     expect([1, 2, 3].map(() => limitador.registrar('ana').permitida)).toEqual([true, true, true]);
     expect(limitador.registrar('ana')).toEqual({ permitida: false, primeiraRecusa: true });

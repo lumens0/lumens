@@ -51,7 +51,8 @@ export const ASK_ATTACH_REPORT_TEXT =
 export const ASK_WRITE_REPORT_TEXT =
   'Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda *pular*. O relato só aparece no site depois da moderação, sem o seu nome.';
 export const SUPPORT_PHOTO_ASK_TEXT =
-  'Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*.';
+  'Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*.' +
+  ' A foto aparece no site, sem o seu nome, depois de aprovada pela curadoria. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
 export const PHOTO_NOT_ATTACHED_TEXT =
   'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado ✅';

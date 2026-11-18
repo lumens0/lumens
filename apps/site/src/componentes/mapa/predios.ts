@@ -31,6 +31,7 @@ export interface Predio {
 // aqui aparece só na lista (hoje, todo bloco do catálogo tem prédio).
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
+  405147302: ['residencia-universitaria'], // RUA, em frente ao RU
   157086398: ['im'], // IM (Bloco 12); o OSM o chama de "IC e IM"
   64975419: ['if'], // Instituto de Física
   1338403227: ['icbs'],
@@ -77,6 +78,10 @@ const NOMES_LOCAIS: Record<number, { nome: string; sigla: string }> = {
   493988335: { nome: 'Comunicação Social - Bloco A', sigla: 'COS A' },
   466361733: { nome: 'Colégio de Aplicação Telma Vitória', sigla: 'CAp' }, // pino a 3 m, dentro do prédio
   263722474: { nome: 'Farmácia Escola', sigla: 'Farmácia Escola' }, // pino dentro do prédio
+  // O pino "Residência Universitária Alagoana - RUA" do Google Maps, do outro lado da Av. Principal
+  // em frente ao RU, cai dentro deste prédio. Os cinco blocos iguais ao lado (405147304 a 307) são
+  // da mesma residência, mas só este leva o nome e acende com as pautas.
+  405147302: { nome: 'Residência Universitária Alagoana (RUA)', sigla: 'RUA' },
 };
 
 const SIGLAS: Record<string, string> = {

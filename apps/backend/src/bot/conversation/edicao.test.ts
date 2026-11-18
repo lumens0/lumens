@@ -91,8 +91,10 @@ describe('o menu entende o que a pessoa quer fazer, escrito do jeito dela', () =
     expect(JSON.stringify(respostas)).not.toContain('Não entendi');
   });
 
-  it('frase longa ou sem pedido claro continua sendo "Não entendi"', async () => {
+  it('frase negada, longa ou sem pedido claro continua sendo "Não entendi"', async () => {
     await send('menu');
+    expect(JSON.stringify(await send('não tenho problema'))).toContain('Não entendi');
+    expect(JSON.stringify(await send('nunca criei pauta'))).toContain('Não entendi');
     expect(JSON.stringify(await send('bom dia, tudo bem com vocês?'))).toContain('Não entendi');
     expect(await passo()).toBe('MENU');
   });

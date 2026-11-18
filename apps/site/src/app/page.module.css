@@ -225,13 +225,24 @@
   --fundo-cor: rgb(53 111 194 / 9%);
 
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: 4px;
   padding: 18px 20px;
   background: linear-gradient(135deg, var(--fundo-cor), var(--superficie) 70%);
   border: 1px solid var(--borda);
   border-top: 4px solid var(--cor);
   border-radius: var(--raio);
+  transition:
+    transform var(--rapido) var(--curva),
+    box-shadow var(--rapido) var(--curva);
+}
+
+/* O cartão sobe de leve ao passar o mouse; sem mouse (celular) nada muda. */
+@media (hover: hover) {
+  .totais dl div:hover {
+    box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--cor) 70%, transparent);
+    transform: translateY(-2px);
+  }
 }
 
 .totais dl div:nth-child(2) {
@@ -251,6 +262,9 @@
 }
 
 .totais dd {
+  /* O número vem primeiro na tela e o rótulo (dt) primeiro na leitura; `order` mantém os números
+     alinhados pelo topo mesmo quando um rótulo quebra em duas linhas. */
+  order: -1;
   margin: 0;
   font:
     700 44px/1 var(--fonte-titulo),
@@ -261,7 +275,7 @@
 
 /* O número leva a cor do cartão; o âmbar puro não lê sobre branco, então usa o tom escuro dele. */
 .totais dl div:nth-child(1) dd {
-  color: var(--status-apoios);
+  color: #2b5fae; /* o azul do status, um tom mais fundo: 5,4:1 sobre o cartão */
 }
 
 .totais dl div:nth-child(2) dd {
@@ -269,7 +283,7 @@
 }
 
 .totais dl div:nth-child(3) dd {
-  color: var(--status-conquistada);
+  color: #2a7040; /* o verde do status, um tom mais fundo: 5,2:1 sobre o cartão */
 }
 
 .dashboard {

@@ -227,6 +227,8 @@ const INTENCOES: readonly (readonly [RegExp, string])[] = [
 function intencaoDoTexto(t: string): string | undefined {
   // Texto longo é um relato ou uma conversa, não um pedido ao menu.
   if (t === '' || t.length > 80) return undefined;
+  // "não tenho problema", "nunca criei pauta": quem nega não está pedindo a opção.
+  if (/\b(nao|nunca|jamais|nenhum|nenhuma|sem)\b/.test(t)) return undefined;
   return INTENCOES.find(([regra]) => regra.test(t))?.[1];
 }
 

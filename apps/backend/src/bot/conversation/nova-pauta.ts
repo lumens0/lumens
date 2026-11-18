@@ -62,7 +62,8 @@ export const NEW_SIMILAR_LIST_TEXT =
   'Já existem pautas abertas parecidas com a sua. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const FROM_REPORT_DESCRIPTION_TEXT = 'Vou usar o seu relato como descrição da pauta.';
 export const PHOTO_ASK_TEXT =
-  'Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda *pular*.';
+  'Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda *pular*.' +
+  ' A foto aparece no site, sem o seu nome, depois de aprovada pela curadoria. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
