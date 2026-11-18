@@ -483,7 +483,7 @@ progress + .detalhes {
 }
 
 /* Blocos soltos no fim da tela da pauta e da de curadores: o mesmo respiro entre um e outro. */
-.conteudo > :is(form, .decisoes, .lista) {
+.conteudo > :is(form, .decisoes, .lista):not(.filtros, .filtros + *) {
   margin-top: var(--esp-5);
 }
 
@@ -691,8 +691,8 @@ div.cartao > h3 {
   display: contents;
 }
 
-.decisoes button,
-.decisoes summary {
+.aprovacao > button,
+.decisoes > .recusa > summary {
   width: 100%;
 }
 
@@ -702,8 +702,8 @@ div.cartao > h3 {
     padding: var(--esp-4);
   }
 
-  .decisoes button,
-  .decisoes summary {
+  .aprovacao > button,
+  .decisoes > .recusa > summary {
     padding: 0 var(--esp-2);
   }
 }
@@ -719,8 +719,8 @@ div.cartao > h3 {
     grid-column: auto;
   }
 
-  .decisoes button,
-  .decisoes summary {
+  .aprovacao > button,
+  .decisoes > .recusa > summary {
     width: auto;
   }
 }
@@ -779,11 +779,7 @@ div.cartao > h3 {
 
 @media (min-width: 640px) {
   .acoesDoRelato {
-    display: flex;
-  }
-
-  .acoesDoRelato button {
-    width: auto;
+    grid-template-columns: repeat(2, max-content);
   }
 }
 
@@ -968,7 +964,7 @@ div.cartao > h3 {
 
 @media (min-width: 640px) {
   .curador {
-    grid-template-columns: minmax(0, 1fr) 12rem 9rem 7.5rem;
+    grid-template-columns: minmax(0, 1fr) 12rem minmax(9rem, max-content) 7.5rem;
     align-items: center;
     gap: var(--esp-5);
   }
