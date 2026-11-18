@@ -55,11 +55,11 @@
 /* Hero: texto de um lado, o campus aceso do outro. */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
-  gap: 48px;
-  margin: -40px 0 48px;
-  padding: 64px 0 72px;
+  gap: 40px;
+  margin: -40px 0 32px;
+  padding: 40px 0 44px;
 }
 
 /* Faixa de noite no topo das outras páginas: só o título e a introdução. */
@@ -213,25 +213,41 @@
 .totais dl {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
+  gap: 12px;
+  margin: 16px 0 0;
 }
 
-/* Número em cima, rótulo embaixo, sem inverter a ordem de leitura (dt antes de dd). */
+/* Três cartões, cada um com a sua cor: azul das pautas abertas, âmbar dos apoios e verde das
+   conquistas (as mesmas cores das etapas). Número em cima, rótulo embaixo, sem inverter a ordem de
+   leitura (dt antes de dd). */
 .totais dl div {
+  --cor: var(--status-apoios);
+  --fundo-cor: rgb(53 111 194 / 9%);
+
   display: flex;
   flex-direction: column-reverse;
   gap: 4px;
-  padding: 20px 0;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, var(--fundo-cor), var(--superficie) 70%);
+  border: 1px solid var(--borda);
+  border-top: 4px solid var(--cor);
+  border-radius: var(--raio);
 }
 
-.totais dl div + div {
-  padding-left: 24px;
-  border-left: 1px solid var(--borda);
+.totais dl div:nth-child(2) {
+  --cor: var(--luz-forte);
+  --fundo-cor: rgb(255 194 61 / 16%);
+}
+
+.totais dl div:nth-child(3) {
+  --cor: var(--status-conquistada);
+  --fundo-cor: rgb(54 134 79 / 10%);
 }
 
 .totais dt {
   font-size: 14px;
-  color: var(--tinta-3);
+  font-weight: 500;
+  color: var(--tinta-2);
 }
 
 .totais dd {
@@ -241,6 +257,19 @@
     sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+}
+
+/* O número leva a cor do cartão; o âmbar puro não lê sobre branco, então usa o tom escuro dele. */
+.totais dl div:nth-child(1) dd {
+  color: var(--status-apoios);
+}
+
+.totais dl div:nth-child(2) dd {
+  color: var(--luz-tinta);
+}
+
+.totais dl div:nth-child(3) dd {
+  color: var(--status-conquistada);
 }
 
 .dashboard {
@@ -465,6 +494,11 @@
     margin-bottom: 40px;
   }
 
+  /* No celular o mapa empurraria os números para baixo; o botão "Ver no mapa" cobre o caminho. */
+  .heroMapa {
+    display: none;
+  }
+
   .titulo {
     font-size: 40px;
   }
@@ -487,8 +521,12 @@
     font-size: 16px;
   }
 
-  .totais dl div + div {
-    padding-left: 12px;
+  .totais dl {
+    gap: 8px;
+  }
+
+  .totais dl div {
+    padding: 12px;
   }
 
   .totais dd {

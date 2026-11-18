@@ -22,10 +22,29 @@ export function Relatos({
           {relatos.map((relato, i) => {
             const foto = relato.foto_chave ? urlFoto(relato.foto_chave) : null;
             return (
-              <li key={i} className={estilos.relato}>
-                {foto && <img src={foto} alt={altDaFoto(relato.texto)} className={estilos.foto} />}
-                <p className={estilos.texto}>{relato.texto}</p>
-                {relato.curso && <p className={estilos.curso}>{relato.curso}</p>}
+              <li key={i} className={[estilos.relato, foto ? estilos.comFoto : ''].join(' ')}>
+                {/* Só uma miniatura: a foto inteira abre ao clicar, numa aba nova. */}
+                {foto && (
+                  <a
+                    href={foto}
+                    target="_blank"
+                    rel="noopener"
+                    className={estilos.fotoLink}
+                    title="Ver a foto inteira"
+                  >
+                    <img
+                      src={foto}
+                      alt={altDaFoto(relato.texto)}
+                      className={estilos.foto}
+                      loading="lazy"
+                    />
+                    <span className={estilos.somenteLeitor}>(abre em nova aba)</span>
+                  </a>
+                )}
+                <div className={estilos.relatoCorpo}>
+                  <p className={estilos.texto}>{relato.texto}</p>
+                  {relato.curso && <p className={estilos.curso}>{relato.curso}</p>}
+                </div>
               </li>
             );
           })}

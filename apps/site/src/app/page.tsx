@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import componentes from '../componentes/componentes.module.css';
 import { MapaResumo } from '../componentes/mapa/MapaResumo';
 import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
@@ -68,8 +67,8 @@ export default async function Home({
             cobrada até a universidade responder. Tudo fica público, sem login.
           </p>
           <div className={estilos.heroAcoes}>
-            {/* Com a lista vazia, o botão aparece na própria ListaVazia. */}
-            {lista.length > 0 && <BotaoRelatar />}
+            {/* O "Relatar um problema" já está no cabeçalho, em todas as páginas; repetir aqui só
+                disputava o olhar com os números. */}
             <Link href="/mapa" className={componentes.botaoSecundario}>
               Ver no mapa
             </Link>
