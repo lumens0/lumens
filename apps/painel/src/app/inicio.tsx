@@ -8,7 +8,7 @@ export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
     <>
       <h1>Painel de curadoria</h1>
       <ul className={estilos.lista}>
-        <li className={estilos.cartao}>
+        <li className={[estilos.cartao, estilos.cartaoClicavel].join(' ')}>
           <h2>
             <Link href="/pautas?status=em_curadoria">Pautas a decidir</Link>
           </h2>
@@ -17,13 +17,13 @@ export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
             {resumo.pautasAtrasadas === 1 ? 'pauta atrasada' : 'pautas atrasadas'} no prazo de 24 h.
           </p>
         </li>
-        <li className={estilos.cartao}>
+        <li className={[estilos.cartao, estilos.cartaoClicavel].join(' ')}>
           <h2>
             <Link href="/relatos">Relatos a moderar</Link>
           </h2>
           <p className={estilos.detalhes}>{resumo.relatosAModerar} relatos em pautas publicadas.</p>
         </li>
-        <li className={estilos.cartao}>
+        <li className={[estilos.cartao, estilos.cartaoClicavel].join(' ')}>
           <h2>
             <Link href="/pautas?status=cobrando&pendencia=sem_resposta_oficial">
               Pautas em cobrança sem resposta oficial
@@ -34,7 +34,7 @@ export function Inicio({ resumo }: { resumo: ResumoDaCuradoria }) {
             {resumo.pautasSemRespostaOficial === 1 ? 'pauta' : 'pautas'}.
           </p>
         </li>
-        <li className={estilos.cartao}>
+        <li className={[estilos.cartao, estilos.cartaoClicavel].join(' ')}>
           <h2>
             <Link href="/pautas?status=todas&pendencia=conferencia_aberta">
               Conferências abertas

@@ -1,0 +1,10 @@
+# Avisa o time por e-mail que a unidade %i falhou (SCRUM-309). Não se instala sozinha: é chamada
+# pelo OnFailure= do lumens-backup.service e do lumens-restauracao.service.
+[Unit]
+Description=Aviso por e-mail da falha de %i
+
+[Service]
+Type=oneshot
+User=azureuser
+Environment=REPO_DIR=/opt/lumens
+ExecStart=/opt/lumens/scripts/alertar-falha.sh %i

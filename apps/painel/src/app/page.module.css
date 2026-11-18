@@ -3,6 +3,7 @@
   min-height: 100vh;
   place-items: center;
   padding: 24px;
+  background: var(--noite);
 }
 
 .cartao {
@@ -11,16 +12,31 @@
   border: 1px solid var(--borda);
   border-radius: 20px;
   background: var(--superficie);
-  box-shadow: 0 20px 60px rgb(30 20 51 / 12%);
+  box-shadow: 0 20px 60px rgb(20 25 54 / 12%);
 }
 
 .marca {
-  margin: 0 0 12px;
-  color: var(--primaria);
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  font:
+    700 20px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.marca span {
+  color: var(--luz-tinta);
+  font-weight: 600;
+}
+
+/* O arquivo traz o brilho em volta do círculo; a margem negativa devolve o espaço (como no site). */
+.logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: -10px -6px -10px -10px;
 }
 
 .cartao h1 {
@@ -31,7 +47,7 @@
 
 .descricao {
   margin: 20px 0 0;
-  color: var(--tinta-secundaria);
+  color: var(--tinta-2);
   font-size: 1.125rem;
   line-height: 1.6;
 }
@@ -40,7 +56,7 @@
   margin: 32px 0 0;
   padding: 16px;
   border-radius: 12px;
-  background: var(--destaque-suave);
+  background: var(--luz-fundo);
   color: var(--tinta);
   line-height: 1.5;
 }
@@ -54,7 +70,7 @@
 .formulario input {
   padding: 12px 14px;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   font: inherit;
 }
 
@@ -63,9 +79,9 @@
   margin-top: 16px;
   padding: 12px 20px;
   border: 0;
-  border-radius: 10px;
-  background: var(--primaria);
-  color: #fff;
+  border-radius: var(--raio-controle);
+  background: var(--luz);
+  color: #161a2e;
   font: inherit;
   font-weight: 600;
   text-decoration: none;

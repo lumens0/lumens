@@ -5,7 +5,10 @@ export default function Erro() {
   return (
     <main className={estilos.pagina}>
       <section className={estilos.cartao} aria-labelledby="titulo-erro">
-        <p className={estilos.marca}>Lumens</p>
+        <p className={estilos.marca}>
+          <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
+          Lumens <span>Curadoria</span>
+        </p>
         <h1 id="titulo-erro">Este link não vale mais</h1>
         <p className={estilos.descricao}>
           O link de acesso vale uma vez só e por 15 minutos: ele pode ter vencido ou já ter sido

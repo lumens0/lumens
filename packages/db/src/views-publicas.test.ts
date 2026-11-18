@@ -275,8 +275,8 @@ describe('views públicas com o seed', () => {
       expect(Object.fromEntries(linhas.map((l) => [l.slug, l.proxima_etapa]))).toEqual({
         'bebedouros-no-bloco-18': 'Faltam 48 apoios',
         'biblioteca-aberta-aos-sabados': 'Aguardando o encaminhamento',
-        'iluminacao-no-bloco-de-artes': 'Prazo do Fala.BR em 20/03',
-        'sala-de-descanso-na-saude': 'Entrega prometida para 30/04',
+        'iluminacao-no-bloco-de-artes': 'Prazo do Fala.BR venceu em 20/03/2026',
+        'sala-de-descanso-na-saude': 'Prazo da entrega venceu em 30/04/2026',
         'acessibilidade-no-bloco-18': 'Cobrar o restante',
         'internet-na-residencia': 'Retomar a cobrança',
         'laboratorios-abertos-nas-engenharias': null,
@@ -582,7 +582,7 @@ describe('views públicas com dados além do seed', () => {
       );
       return linha?.proxima_etapa;
     };
-    // O seed já tem um Fala.BR aberto em 10/02/2026 com prazo 20/03.
+    // O seed já tem um Fala.BR aberto em 10/02/2026 com prazo 20/03/2026.
     await db.execute(
       sql`INSERT INTO caminho (pauta_id, tipo, status, aberto_em)
           VALUES (${pautaId}, 'falabr', 'aberto', '2026-04-01T12:00:00Z')`,
@@ -593,7 +593,66 @@ describe('views públicas com dados além do seed', () => {
       sql`INSERT INTO caminho (pauta_id, tipo, status, protocolo, prazo, aberto_em)
           VALUES (${pautaId}, 'falabr', 'em análise', 'NOVO-1', '2026-06-15', '2026-05-01T12:00:00Z')`,
     );
-    expect(await etapa()).toBe('Prazo do Fala.BR em 15/06');
+    expect(await etapa()).toBe('Prazo do Fala.BR venceu em 15/06/2026');
+  });
+
+  // SCRUM-306: sem o ano, um prazo vencido parecia o do ano seguinte. As datas saem de "hoje" em
+  // Maceió, calculado no próprio banco, para o teste não depender do dia em que roda.
+  it('mostra a data com ano e diz quando o prazo ou a entrega já venceu', async () => {
+    const etapa = async (slug: string) => {
+      const [linha] = await comoSite<{ proxima_etapa: string }>(
+        db,
+        sql`SELECT proxima_etapa FROM v_pauta_publica WHERE slug = ${slug}`,
+      );
+      return linha?.proxima_etapa;
+    };
+    const dia = async (deslocamento: number) => {
+      const [linha] = await consultar<{ data: string; texto: string }>(
+        db,
+        sql`SELECT d::text AS data, to_char(d, 'DD/MM/YYYY') AS texto
+            FROM (SELECT (now() AT TIME ZONE 'America/Maceio')::date + ${deslocamento}::int AS d) x`,
+      );
+      if (!linha) throw new Error('sem data');
+      return linha;
+    };
+
+    const falabr = 'iluminacao-no-bloco-de-artes';
+    const falabrId = await idDaPauta(db, falabr);
+    let aberto = 0;
+    const comPrazo = async (prazo: string) => {
+      aberto += 1;
+      await db.execute(
+        sql`INSERT INTO caminho (pauta_id, tipo, status, protocolo, prazo, aberto_em)
+            VALUES (${falabrId}, 'falabr', 'em análise', ${`SCRUM-306-${String(aberto)}`}, ${prazo},
+                    '2030-01-01T00:00:00Z'::timestamptz + ${aberto}::int * interval '1 day')`,
+      );
+    };
+    const promessa = 'sala-de-descanso-na-saude';
+    const promessaId = await idDaPauta(db, promessa);
+    const comEntrega = async (data: string) => {
+      await db.execute(
+        sql`UPDATE promessa SET data_entrega = ${data}
+            WHERE pauta_id = ${promessaId} AND resultado IS NULL`,
+      );
+    };
+
+    const ontem = await dia(-1);
+    const hoje = await dia(0);
+    const ano = await dia(365);
+
+    await comPrazo(ontem.data);
+    expect(await etapa(falabr)).toBe(`Prazo do Fala.BR venceu em ${ontem.texto}`);
+    await comPrazo(hoje.data);
+    expect(await etapa(falabr)).toBe(`Prazo do Fala.BR em ${hoje.texto}`);
+    await comPrazo(ano.data);
+    expect(await etapa(falabr)).toBe(`Prazo do Fala.BR em ${ano.texto}`);
+
+    await comEntrega(ontem.data);
+    expect(await etapa(promessa)).toBe(`Prazo da entrega venceu em ${ontem.texto}`);
+    await comEntrega(hoje.data);
+    expect(await etapa(promessa)).toBe(`Entrega prometida para ${hoje.texto}`);
+    await comEntrega(ano.data);
+    expect(await etapa(promessa)).toBe(`Entrega prometida para ${ano.texto}`);
   });
 
   it('mostra o curso só de quem tem mandato ativo', async () => {
