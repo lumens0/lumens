@@ -35,6 +35,7 @@ import {
   DIGITOS_DO_CODIGO,
   MAX_TENTATIVAS,
   apagarCodigo,
+  buscarCurso,
   concluirVerificacao,
   conferirCodigo,
   emailInstitucional,
@@ -45,6 +46,12 @@ import {
   type ResultadoEmail,
 } from '@lumens/dominio';
 import { z } from 'zod';
+// SCRUM-298: limites acumulados de 24 h.
+import {
+  bloqueioDaVerificacao,
+  registrarNaVerificacao,
+  type BloqueioDaVerificacao,
+} from '@lumens/dominio';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { estudanteVerificado } from './estudante';
 import type { Segredo, StepContext, StepHandler, StepResult } from './handlers';
@@ -52,7 +59,7 @@ import { entrarNoApoio } from './apoio';
 import { cuidarDaPauta } from './co-owner';
 import { entrarNaPautaNova } from './nova-pauta';
 import { vouAjudar } from './proposta';
-import { lista, type MensagemDeLista } from './resposta';
+import { LIMITES_DA_LISTA, lista, type MensagemDeLista } from './resposta';
 import { normalize } from './texto';
 
 export const EMAIL_QUESTION_TEXT =
@@ -73,7 +80,9 @@ export const CODE_HELP_TEXT = `Digite o código de ${String(DIGITOS_DO_CODIGO)} 
 export const CODE_LENGTH_TEXT = `O código tem ${String(DIGITOS_DO_CODIGO)} dígitos. Confira no e-mail e digite de novo.`;
 export const CODE_OK_TEXT = 'Código certo ✅';
 export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
-export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
+export const COURSE_NOT_FOUND_TEXT =
+  'Não achei esse curso. Escolha na lista ou escreva o nome completo, ex.: Engenharia Química.';
+export const COURSE_MANY_TEXT = 'Achei mais de um curso com esse nome. Qual é o seu?';
 export const VERIFIED_TEXT =
   'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
 export const ALREADY_VERIFIED_TEXT =
@@ -84,32 +93,40 @@ const CURSO_ROW_PREFIX = 'curso:';
 /** Cabem 10 linhas na lista do WhatsApp; com mais cursos, 9 e um aviso para digitar o nome. */
 const LINHAS_DE_CURSO = 10;
 
+/** O `id` da linha do curso na lista. Cabe no `callback_data` do Telegram (64 bytes). */
+export function idDoCurso(curso: string): string {
+  return `${CURSO_ROW_PREFIX}${curso}`;
+}
+
 /**
- * A lista de cursos. Com mais de 10, mostra 9 e pede para digitar o nome dos outros. Recebe a
- * lista para o caso de mais de 10 poder ser testado: a `CURSOS` de hoje tem 8.
+ * A lista de cursos. Com mais de 10, mostra 9 (os primeiros em ordem alfabética) e pede para
+ * digitar o nome dos outros. Nome maior que o título da linha (24) vai inteiro na descrição.
  */
-export function listaDeCursos(cursos: readonly string[] = CURSOS): MensagemDeLista {
+export function listaDeCursos(
+  cursos: readonly string[] = CURSOS,
+  corpo = COURSE_QUESTION_TEXT,
+): MensagemDeLista {
   const cabem = cursos.length <= LINHAS_DE_CURSO ? cursos : cursos.slice(0, LINHAS_DE_CURSO - 1);
-  const corpo =
-    cabem.length < cursos.length
-      ? `${COURSE_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
-      : COURSE_QUESTION_TEXT;
   return lista({
-    corpo,
+    corpo:
+      cabem.length < cursos.length
+        ? `${corpo} Se o seu não está na lista, escreva o nome dele (ex.: Medicina, Engenharia Química).`
+        : corpo,
     botao: 'Escolher curso',
-    linhas: cabem.map((curso) => ({ id: `${CURSO_ROW_PREFIX}${curso}`, titulo: curso })),
+    linhas: cabem.map((curso) =>
+      Array.from(curso).length > LIMITES_DA_LISTA.titulo
+        ? { id: idDoCurso(curso), titulo: curso, descricao: curso }
+        : { id: idDoCurso(curso), titulo: curso },
+    ),
   });
 }
 
-/** O curso escolhido: a linha da lista ou o nome digitado (sem diferença de acento e maiúscula). */
-export function cursoEscolhido(resposta: string): string | undefined {
+/** A linha da lista que a pessoa tocou, se for de curso. */
+function cursoDaLinha(resposta: string): string | undefined {
   const bruta = resposta.trim();
-  if (bruta.startsWith(CURSO_ROW_PREFIX)) {
-    const curso = bruta.slice(CURSO_ROW_PREFIX.length);
-    return CURSOS.find((c) => c === curso);
-  }
-  const texto = normalize(bruta);
-  return CURSOS.find((c) => normalize(c) === texto);
+  if (!bruta.startsWith(CURSO_ROW_PREFIX)) return undefined;
+  const curso = bruta.slice(CURSO_ROW_PREFIX.length);
+  return CURSOS.find((c) => c === curso);
 }
 export const CODE_EXPIRED_TEXT = `Esse código venceu: ele vale ${String(CODIGO_EXPIRA_MS / 60_000)} minutos. ${RESEND_HINT_TEXT}`;
 export const NO_ATTEMPTS_TEXT = `Você errou o código ${String(MAX_TENTATIVAS)} vezes, então ele não vale mais. ${RESEND_HINT_TEXT}`;
@@ -126,6 +143,28 @@ export function wrongCodeText(restantes: number): string {
   if (restantes === 0) return NO_ATTEMPTS_TEXT;
   const plural = restantes === 1 ? 'tentativa' : 'tentativas';
   return `Código errado. Você ainda tem ${String(restantes)} ${plural}.`;
+}
+
+const horaBR = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const diaBR = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  day: '2-digit',
+  month: '2-digit',
+});
+
+/**
+ * SCRUM-298: limite acumulado de 24 h. Diz até quando, e não se foi pelo e-mail ou pelo número,
+ * para não ajudar quem testa e-mails de outras pessoas.
+ */
+export function blockedText(bloqueio: NonNullable<BloqueioDaVerificacao>): string {
+  const quando = `${horaBR.format(bloqueio.liberaEm)} de ${diaBR.format(bloqueio.liberaEm)}`;
+  return bloqueio.motivo === 'envios'
+    ? `Por segurança, já saíram códigos demais para este e-mail ou este número nas últimas 24 horas. Você pode pedir outro a partir das ${quando}.`
+    : `Por segurança, a verificação deste e-mail ou deste número ficou bloqueada depois de muitos códigos errados. Você pode tentar de novo a partir das ${quando}.`;
 }
 
 export function waitText(espera: number): string {
@@ -160,23 +199,34 @@ function emailDaConversa(segredo: Segredo, data: unknown): string | undefined {
   }
 }
 
+type Envio = { enviado: true } | { enviado: false; bloqueio?: NonNullable<BloqueioDaVerificacao> };
+
 /**
- * Gera, guarda (só o hash) e envia um código novo. Guarda antes de enviar: se gravar falhar,
- * nenhum código sai. Se o envio falhar, apaga o código que ninguém recebeu, para a pessoa poder
- * pedir outro na hora, sem esperar os 60 s.
+ * Gera, guarda (só o hash) e envia um código novo. Antes, confere os limites de 24 h (SCRUM-298):
+ * bloqueado, nenhum e-mail sai. Guarda antes de enviar: se gravar falhar, nenhum código sai. Se o
+ * envio falhar, apaga o código que ninguém recebeu (dá para pedir outro na hora) e não conta o
+ * envio no limite. Sem o HMAC, não há como contar o limite do e-mail: não envia.
  */
 async function enviarCodigoNovo(
   db: Db,
   phoneHmac: string,
   email: ServicoDeEmail | undefined,
+  hmac: ((valor: string) => string) | undefined,
   endereco: string,
-): Promise<boolean> {
-  if (email === undefined) return false;
+): Promise<Envio> {
+  if (email === undefined || hmac === undefined) return { enviado: false };
+  const chaves = { telefoneHmac: phoneHmac, emailHmac: hmac(endereco) };
+  const bloqueio = await bloqueioDaVerificacao(db, chaves);
+  if (bloqueio !== undefined) return { enviado: false, bloqueio };
+
   const codigo = gerarCodigo();
   await guardarCodigo(db, { telefoneHmac: phoneHmac, codigo });
-  if (await email.enviarCodigo(endereco, codigo)) return true;
+  if (await email.enviarCodigo(endereco, codigo)) {
+    await registrarNaVerificacao(db, 'envio', chaves);
+    return { enviado: true };
+  }
   await apagarCodigo(db, phoneHmac);
-  return false;
+  return { enviado: false };
 }
 
 const RECUSA: Record<Exclude<ResultadoEmail, { valido: true }>['motivo'], string> = {
@@ -186,7 +236,14 @@ const RECUSA: Record<Exclude<ResultadoEmail, { valido: true }>['motivo'], string
   fora_da_ufal: EMAIL_NOT_UFAL_TEXT,
 };
 
-export const verifyAskEmail: StepHandler = async ({ input, segredo, db, phoneHmac, email }) => {
+export const verifyAskEmail: StepHandler = async ({
+  input,
+  segredo,
+  db,
+  phoneHmac,
+  email,
+  hmac,
+}) => {
   const resultado = emailInstitucional(input.text);
   if (!resultado.valido) return { next: 'VERIFY_ASK_EMAIL', replies: [RECUSA[resultado.motivo]] };
 
@@ -194,8 +251,11 @@ export const verifyAskEmail: StepHandler = async ({ input, segredo, db, phoneHma
   const espera = await esperaParaReenviar(db, { telefoneHmac: phoneHmac });
   if (espera > 0) return { next: 'VERIFY_ASK_EMAIL', replies: [waitText(espera)] };
 
-  if (!(await enviarCodigoNovo(db, phoneHmac, email, resultado.email))) {
-    return { next: 'VERIFY_ASK_EMAIL', replies: [CODE_NOT_SENT_TEXT] };
+  const envio = await enviarCodigoNovo(db, phoneHmac, email, hmac, resultado.email);
+  if (!envio.enviado) {
+    const resposta =
+      envio.bloqueio === undefined ? CODE_NOT_SENT_TEXT : blockedText(envio.bloqueio);
+    return { next: 'VERIFY_ASK_EMAIL', replies: [resposta] };
   }
   return {
     next: 'VERIFY_ASK_CODE',
@@ -208,12 +268,14 @@ async function reenviar({
   db,
   phoneHmac,
   email,
+  hmac,
   segredo,
   data,
 }: {
   db: Db;
   phoneHmac: string;
   email: ServicoDeEmail | undefined;
+  hmac: ((valor: string) => string) | undefined;
   segredo: Segredo;
   data: unknown;
 }): Promise<StepResult> {
@@ -228,8 +290,10 @@ async function reenviar({
       replies: [EMAIL_LOST_TEXT],
     };
   }
-  const enviado = await enviarCodigoNovo(db, phoneHmac, email, endereco);
-  return { next: 'VERIFY_ASK_CODE', replies: [enviado ? CODE_RESENT_TEXT : RESEND_FAILED_TEXT] };
+  const envio = await enviarCodigoNovo(db, phoneHmac, email, hmac, endereco);
+  if (envio.enviado) return { next: 'VERIFY_ASK_CODE', replies: [CODE_RESENT_TEXT] };
+  const resposta = envio.bloqueio === undefined ? RESEND_FAILED_TEXT : blockedText(envio.bloqueio);
+  return { next: 'VERIFY_ASK_CODE', replies: [resposta] };
 }
 
 export const verifyAskCode: StepHandler = async ({
@@ -243,7 +307,7 @@ export const verifyAskCode: StepHandler = async ({
   email,
 }) => {
   if (RESEND.has(normalize(input.text))) {
-    return reenviar({ db, phoneHmac, email, segredo, data: state.data });
+    return reenviar({ db, phoneHmac, email, hmac, segredo, data: state.data });
   }
 
   // "123 456" e "123-456" também valem: o WhatsApp às vezes separa os dígitos ao copiar.
@@ -267,13 +331,18 @@ export const verifyAskCode: StepHandler = async ({
     return { next: 'VERIFY_ASK_CODE', replies: [LINK_UNAVAILABLE_TEXT] };
   }
 
-  const resultado = await conferirCodigo(db, { telefoneHmac: phoneHmac, codigo: digitos });
+  const emailHmac = hmac(endereco);
+  const resultado = await conferirCodigo(db, {
+    telefoneHmac: phoneHmac,
+    emailHmac,
+    codigo: digitos,
+  });
   if (resultado.certo) {
     // Mesma transação da mensagem: se o vínculo falhar, o código volta a valer.
     const vinculo = await vincularEmail(db, {
       telefoneHmac: phoneHmac,
       telefoneCifrado: phoneCifrado,
-      emailHmac: hmac(endereco),
+      emailHmac,
       emailCifrado: segredo.cifrar(endereco),
     });
     if (!vinculo.vinculado) {
@@ -283,6 +352,9 @@ export const verifyAskCode: StepHandler = async ({
         replies: [EMAIL_IN_USE_TEXT],
       };
     }
+    // SCRUM-298: o cadastro veio de outra identidade. Avisa o dono no e-mail: se não foi ele,
+    // alguém acertou o código e tomou o cadastro. Falha no envio não desfaz a verificação.
+    if (vinculo.transferido === true) await email?.avisarTransferencia?.(endereco, new Date());
     // O e-mail já está no cadastro: a conversa não precisa mais dele.
     return {
       next: 'VERIFY_ASK_COURSE',
@@ -299,6 +371,11 @@ export const verifyAskCode: StepHandler = async ({
       return { next: 'VERIFY_ASK_CODE', replies: [CODE_EXPIRED_TEXT] };
     case 'sem_codigo':
       return { next: 'VERIFY_ASK_CODE', replies: [NO_CODE_TEXT] };
+    case 'bloqueado':
+      return {
+        next: 'VERIFY_ASK_CODE',
+        replies: [blockedText({ motivo: 'erros', liberaEm: resultado.liberaEm })],
+      };
   }
 };
 
@@ -319,7 +396,16 @@ const pendenteSchema = z.object({
 
 export const verifyAskCourse: StepHandler = async (ctx) => {
   const { input, db, phoneHmac, state } = ctx;
-  const curso = cursoEscolhido(input.text);
+  // A linha tocada, ou o nome digitado (SCRUM-296: sem acento, começo de palavra, siglas).
+  const linha = cursoDaLinha(input.text);
+  const busca = linha === undefined ? buscarCurso(input.text) : undefined;
+  if (busca?.tipo === 'nenhum') {
+    return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
+  }
+  if (busca?.tipo === 'varios') {
+    return { next: 'VERIFY_ASK_COURSE', replies: [listaDeCursos(busca.cursos, COURSE_MANY_TEXT)] };
+  }
+  const curso = linha ?? busca?.curso;
   if (curso === undefined) {
     return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
   }

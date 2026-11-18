@@ -31,6 +31,8 @@ export interface DadosPorTipo {
   owner_entrou: { papel: PapelPauta['papel'] };
   owner_removido: { papel: PapelPauta['papel'] };
   relato_aprovado: { relato_id: string };
+  pauta_urgente: { urgente: boolean };
+  categoria_alterada: { de: string; para: string };
 }
 
 export type TipoEvento = keyof DadosPorTipo;
@@ -54,6 +56,8 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   owner_entrou: true,
   owner_removido: true,
   relato_aprovado: true,
+  pauta_urgente: true,
+  categoria_alterada: true,
 };
 
 export const TIPOS_EVENTO = Object.keys(PUBLICO) as TipoEvento[];

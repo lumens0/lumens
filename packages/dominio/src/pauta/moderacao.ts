@@ -29,7 +29,8 @@ export interface PautaComRelatosPendentes {
 
 /**
  * Relatos pendentes agrupados por pauta, da pauta mais antiga para a mais nova. Pauta recusada
- * fica de fora: nada dela vai ao site.
+ * fica de fora, assim como as pautas ainda em curadoria, cujo relato de origem é decidido junto
+ * com a pauta.
  */
 export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPendentes[]> {
   const linhas = await db
@@ -44,7 +45,12 @@ export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPen
     .from(relatos)
     .innerJoin(pautas, eq(pautas.id, relatos.pautaId))
     .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
-    .where(and(eq(relatos.moderacao, 'pendente'), sql`${pautas.status} <> 'recusada'`))
+    .where(
+      and(
+        eq(relatos.moderacao, 'pendente'),
+        sql`${pautas.status} not in ('em_curadoria', 'recusada')`,
+      ),
+    )
     // `relato` não guarda data: dentro da pauta a ordem é pelo id, só para não mudar entre leituras.
     .orderBy(pautas.criadaEm, pautas.id, relatos.id);
 
@@ -61,7 +67,8 @@ export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPen
 }
 
 export type ResultadoModeracao =
-  { moderado: true } | { moderado: false; motivo: 'relato_inexistente' | 'ja_moderado' };
+  | { moderado: true }
+  | { moderado: false; motivo: 'relato_inexistente' | 'ja_moderado' | 'relato_mudou' };
 
 export interface DecisaoDeModeracao {
   relatoId: string;
@@ -70,20 +77,35 @@ export interface DecisaoDeModeracao {
   agora?: Date;
 }
 
+/** Aprovar vale para o que a curadoria viu: a foto da fila, ou `null` se o relato estava sem foto. */
+export interface AprovacaoDeRelato extends DecisaoDeModeracao {
+  fotoVista: string | null;
+}
+
 async function moderar(
   tx: Tx,
   { relatoId, curadorId, agora = new Date() }: DecisaoDeModeracao,
   para: 'aprovado' | 'recusado',
+  fotoVista?: string | null,
 ): Promise<ResultadoModeracao> {
   // FOR UPDATE: duas pessoas da curadoria clicando ao mesmo tempo; a segunda vê o relato já moderado.
   const [relato] = await tx
-    .select({ pautaId: relatos.pautaId, moderacao: relatos.moderacao })
+    .select({
+      pautaId: relatos.pautaId,
+      moderacao: relatos.moderacao,
+      fotoChave: relatos.fotoChave,
+    })
     .from(relatos)
     .where(eq(relatos.id, relatoId))
     .for('update');
 
   if (relato === undefined) return { moderado: false, motivo: 'relato_inexistente' };
   if (relato.moderacao !== 'pendente') return { moderado: false, motivo: 'ja_moderado' };
+  // A foto pode ser juntada depois de a fila abrir (SCRUM-301): aprovar o que ninguém viu publicaria
+  // uma imagem sem revisão. Mudou, a curadoria vê de novo.
+  if (fotoVista !== undefined && fotoVista !== relato.fotoChave) {
+    return { moderado: false, motivo: 'relato_mudou' };
+  }
 
   await tx
     .update(relatos)
@@ -102,8 +124,8 @@ async function moderar(
 }
 
 /** Aprova: o relato (com a foto) passa a aparecer no site, se a pauta dele for pública. */
-export function aprovarRelato(tx: Tx, decisao: DecisaoDeModeracao): Promise<ResultadoModeracao> {
-  return moderar(tx, decisao, 'aprovado');
+export function aprovarRelato(tx: Tx, decisao: AprovacaoDeRelato): Promise<ResultadoModeracao> {
+  return moderar(tx, decisao, 'aprovado', decisao.fotoVista);
 }
 
 /** Recusa: o relato nunca vai ao site. Não há aviso a quem relatou nem evento na linha do tempo. */

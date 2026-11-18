@@ -133,6 +133,8 @@ describe('rótulo e detalhe do evento', () => {
     ['owner_entrou', { papel: 'owner' }, 'Papel: owner.'],
     ['pauta_criada', { status: 'em_curadoria' }, undefined],
     ['pauta_aprovada', {}, undefined],
+    ['pauta_urgente', { urgente: true }, 'Marcada como urgente pela curadoria.'],
+    ['pauta_urgente', { urgente: false }, 'Deixou de ser urgente.'],
   ])('%s', (tipo, dados, esperado) => {
     expect(detalheDoEvento(tipo, dados)).toEqual(esperado);
   });

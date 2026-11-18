@@ -68,6 +68,64 @@
   background: var(--superficie);
 }
 
+.cartaoClicavel {
+  position: relative;
+}
+
+.cartaoClicavel h2 a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.cartaoClicavel h2 a:focus-visible::after {
+  outline: 3px solid var(--primaria);
+  outline-offset: 3px;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filtros input,
+.filtros select {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.filtros label:nth-of-type(2) {
+  grid-column: 1;
+}
+
+.filtros input {
+  grid-column: 2;
+}
+
+.filtros button {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+@media (max-width: 560px) {
+  .filtros {
+    grid-template-columns: 1fr;
+  }
+
+  .filtros label:nth-of-type(2),
+  .filtros input,
+  .filtros button {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
 .cartao h2 {
   margin: 0 0 6px;
   font-size: 1.125rem;
@@ -246,6 +304,16 @@
 .documentos {
   display: grid;
   gap: 12px;
+}
+
+.seloUrgente {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: #a61b1b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .documentos h2 {
