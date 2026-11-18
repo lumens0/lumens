@@ -38,7 +38,7 @@ export function ListaDePautas({
         </select>
         <label htmlFor="busca-pautas">Buscar pelo título</label>
         <input id="busca-pautas" name="q" type="search" defaultValue={q} />
-        <Enviar className={estilos.botao}>Filtrar</Enviar>
+        <Enviar className={estilos.botaoSecundario}>Filtrar</Enviar>
       </form>
       {pautas.length === 0 ? (
         <p className={estilos.aviso}>Nenhuma pauta encontrada.</p>

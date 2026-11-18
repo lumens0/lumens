@@ -86,24 +86,31 @@ export function AjustesDePrazo({
         return (
           <div className={estilos.cartao} key={caminho.id}>
             <h3>Fala.BR · {caminho.protocolo}</h3>
-            <form action={prorrogar}>
-              <input type="hidden" name="pautaId" value={pauta.id} />
-              <input type="hidden" name="caminhoId" value={caminho.id} />
-              <CamposDeAuditoria />
-              <Enviar className={estilos.botao} desabilitado={prorrogado || caminho.prazo === null}>
-                {prorrogado ? 'Prazo já prorrogado' : 'Registrar prorrogação'}
-              </Enviar>
-            </form>
-            <form action={corrigir}>
-              <input type="hidden" name="pautaId" value={pauta.id} />
-              <input type="hidden" name="caminhoId" value={caminho.id} />
-              <label>
-                Data correta do protocolo
-                <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
-              </label>
-              <CamposDeAuditoria />
-              <Enviar className={estilos.botao}>Corrigir data do protocolo</Enviar>
-            </form>
+            <div className={estilos.dupla}>
+              <form action={prorrogar} className={estilos.pilha}>
+                <h4>Prorrogação do prazo</h4>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                <input type="hidden" name="caminhoId" value={caminho.id} />
+                <CamposDeAuditoria />
+                <Enviar
+                  className={estilos.botaoSecundario}
+                  desabilitado={prorrogado || caminho.prazo === null}
+                >
+                  {prorrogado ? 'Prazo já prorrogado' : 'Registrar prorrogação'}
+                </Enviar>
+              </form>
+              <form action={corrigir} className={estilos.pilha}>
+                <h4>Data do protocolo</h4>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                <input type="hidden" name="caminhoId" value={caminho.id} />
+                <label>
+                  Data correta do protocolo
+                  <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
+                </label>
+                <CamposDeAuditoria />
+                <Enviar className={estilos.botaoSecundario}>Corrigir data do protocolo</Enviar>
+              </form>
+            </div>
           </div>
         );
       })}
@@ -113,7 +120,7 @@ export function AjustesDePrazo({
         </p>
       )}
       {promessa && !conferenciaAberta && (
-        <form action={remarcar} className={estilos.cartao}>
+        <form action={remarcar} className={[estilos.cartao, estilos.pilha].join(' ')}>
           <input type="hidden" name="pautaId" value={pauta.id} />
           <h3>Promessa de {promessa.dataEntrega}</h3>
           <input type="hidden" name="promessaId" value={promessa.id} />
@@ -128,7 +135,7 @@ export function AjustesDePrazo({
             />
           </label>
           <CamposDeAuditoria />
-          <Enviar className={estilos.botao}>Remarcar data prometida</Enviar>
+          <Enviar className={estilos.botaoSecundario}>Remarcar data prometida</Enviar>
         </form>
       )}
     </section>
