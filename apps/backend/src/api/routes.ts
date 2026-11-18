@@ -13,6 +13,7 @@ import {
 import type { Db } from '@lumens/db';
 import type { FastifyPluginCallback, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import { MUITAS_REQUISICOES } from '../infra/limite';
 import { resumoDoErro } from '../infra/logger';
 import {
   buscarPauta,
@@ -95,6 +96,12 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
 
   // A mensagem padrão do Fastify repassaria o texto do erro do banco ao cliente.
   app.setErrorHandler((err, req, reply) => {
+    // O 429 do limite de requisições (SCRUM-310) é resposta, não falha: vai como veio, com o
+    // Retry-After que o limitador já pôs.
+    if ((err as { statusCode?: number }).statusCode === 429) {
+      void reply.code(429).send({ erro: MUITAS_REQUISICOES });
+      return;
+    }
     req.log.error({ erro: resumoDoErro(err) }, 'falha na API de leitura');
     void reply.code(500).send({ erro: 'Erro interno.' });
   });
