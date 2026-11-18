@@ -31,7 +31,7 @@ import type { Resposta } from './resposta';
 import { NEW_TITLE_TEXT, normalize } from './texto';
 
 export const VERIFY_FIRST_TEXT =
-  'Para criar uma pauta, você precisa ser estudante verificado. Vamos verificar o seu e-mail institucional: qual é ele?';
+  'Para criar uma pauta, você precisa verificar o seu e-mail institucional. Qual é ele?';
 export const TITLE_EMPTY_TEXT = `O título não pode ficar em branco. ${NEW_TITLE_TEXT}`;
 export const DESCRIPTION_QUESTION_TEXT =
   'Agora descreva o problema: o que acontece, onde (sala, andar) e desde quando.';
@@ -42,7 +42,7 @@ export const PHOTO_ASK_TEXT =
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
-  'Não consegui criar a pauta: o seu cadastro de estudante não está verificado. Escolha 3 no menu para verificar o e-mail.';
+  'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Escolha 3 no menu para verificar.';
 export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Escolha 2 no menu para começar de novo.';
 export const DATA_LOST_TEXT =
