@@ -1,7 +1,7 @@
 # SCRUM-174 · Texto do aviso de privacidade e base legal
 
 Decisão · Parte 5 · 2026-11-10 · @sthefanyblima
-**Situação:** proposta. A equipe aprova (ou ajusta) na revisão da PR; aprovada, vira decidida.
+**Situação:** decidida. Aprovada em 17/11/2026 na PR da SCRUM-342 (ver "O que a equipe precisa confirmar na PR").
 
 > Não é parecer jurídico. É a leitura da equipe sobre o que a LGPD pede para um projeto acadêmico
 > deste tamanho. Se a disciplina ou a UFAL indicar um encarregado de dados, ele tem a última
@@ -32,8 +32,12 @@ não foi processado — inclusive na fila de mortas — em até **14 dias** (`re
 limpeza do Lumens (de hora em hora, SCRUM-332) cuida da conversa, do dedup e dos códigos vencidos, não desses jobs.
 
 Quem sai (`sair`) tem telefone, e-mail, conversa e código apagados na hora; os apoios seguem
-contando sem ligação com a pessoa (SCRUM-91). **Limitação conhecida:** o `sair` não apaga os jobs
-das filas, que saem sozinhos nos prazos acima. A página `/privacidade` diz isso.
+contando sem ligação com a pessoa (SCRUM-91). O `sair` também tira o telefone das filas
+(`apps/backend/src/bot/filas-do-telefone.ts`): os jobs do telefone nas filas do bot são apagados na
+mesma transação, menos os que precisam terminar — a mensagem "sim" e a resposta de saída —, que
+ficam com `deletion_seconds = 1` e somem na manutenção do pg-boss logo depois de concluídos.
+**Resto conhecido:** se o envio da resposta de saída falhar até ir para a fila de mortas, essa
+cópia segue a retenção padrão (até 14 dias).
 
 ## Decisão proposta
 
@@ -46,7 +50,7 @@ das filas, que saem sozinhos nos prazos acima. A página `/privacidade` diz isso
    isso com todas as letras.
 3. **Antes de se verificar, o mínimo.** Quem só conversa não tem cadastro: o passo da conversa dura
    24 h e as cópias nas filas, até 7 dias (14 se falhar), porque sem isso o bot não consegue
-   responder a quem o procurou. Sem cadastro, `sair` apaga a conversa e o código na hora.
+   responder a quem o procurou. Sem cadastro, `sair` apaga a conversa, o código e as filas na hora.
 4. **Revogar é tão fácil quanto consentir** (art. 8º, § 5º): `sair`, no mesmo canal, a qualquer
    momento. Ver e corrigir dados continua por pedido manual à equipe (art. 18).
 
@@ -75,9 +79,19 @@ remoção de metadados não existem — as duas já estão no ar.
 
 ## O que a equipe precisa confirmar na PR
 
-- [ ] Se 7 dias de cópia nas filas é aceitável, ou se o `sair` deve apagar também os jobs do
-      telefone (seria uma mudança no `sairDoLumens`/no bot, fora desta task).
+A aprovação não foi registrada quando a SCRUM-174 fechou. A SCRUM-342 retoma: quem aprovar marca o
+item na PR da SCRUM-342, com o nome e a data; quem discordar abre a mudança ali mesmo.
 
-- [ ] Consentimento como base legal, manifestado na verificação.
-- [ ] O texto do aviso, como está acima.
-- [ ] Se há encarregado de dados indicado pela disciplina; se houver, o contato entra na página.
+- [x] Consentimento como base legal, manifestado na verificação.
+- [x] O texto do aviso, como está acima (com os ajustes de hora da limpeza e prazo do hash do código
+      da SCRUM-332).
+- [x] Encarregado de dados: Sthefany Lima, sbl2@ic.ufal.br; o contato entra na página `/privacidade`.
+
+Aprovado em 17/11/2026 pela responsável pelo repositório, Sthefany Lima (nome e data, como esta
+seção pede), que também autorizou aprovar a decisão do `sair` apagar as filas, abaixo.
+
+### Decidido na SCRUM-342
+
+- **Filas do pg-boss:** o `sair` também apaga os jobs do telefone, em vez de esperar os 7 dias (14 se
+  falhar). É o commit 553240a da branch `feat/SCRUM-174-texto-aviso`, que tinha ficado fora da `main`
+  e entrou pela SCRUM-342. O resto conhecido está em "O que o sistema trata", acima.
