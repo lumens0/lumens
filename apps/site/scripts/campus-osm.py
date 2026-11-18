@@ -100,6 +100,11 @@ def tipo_aberto(t):
 # para corrigir é o próprio OSM; quando entrarem lá, saem daqui.
 LOCAIS_EXTRAS = {
     'EDGE Academy': (-9.5535183, -35.779648),  # junto à pista de atletismo, na Av. Longitudinal
+    # Observatório da Rede de Inovação para a Educação Híbrida (RIEH), sede do NEES: o prédio à
+    # esquerda do IC, na Av. Longitudinal 1. O OSM ainda não o desenha.
+    'NEES (RIEH)': (-9.553674, -35.7771764),
+    # CRAD/UFAL: no Google Maps o pino cai em terreno sem prédio desenhado no OSM.
+    'CRAD': (-9.5546314, -35.7710587),
 }
 
 # Unidades que o OSM desenha como área `amenity=university` (sem `building`), e não como prédio. O
