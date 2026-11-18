@@ -15,6 +15,7 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
       <h1 className={estilos.titulo}>{pauta.titulo}</h1>
       <div className={estilos.linha}>
         <StatusPill status={pauta.status} />
+        {pauta.urgente && <span className={comuns.seloUrgente}>Urgente</span>}
         {pauta.cursos_responsaveis.length > 0 && (
           <ul className={estilos.owners} aria-label="Responsáveis pela pauta">
             {pauta.cursos_responsaveis.map((curso) => (

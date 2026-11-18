@@ -20,7 +20,14 @@ import {
   blocoEscolhido,
   listaDeBlocos,
 } from './relato';
-import { cortar, lista, textoDaResposta, type MensagemDeLista, type Resposta } from './resposta';
+import {
+  cortar,
+  dentroDosLimitesDaMeta,
+  lista,
+  textoDaResposta,
+  type MensagemDeLista,
+  type Resposta,
+} from './resposta';
 import { handleIncoming } from './router';
 import { ConversationStore } from './store';
 import { NEW_TITLE_TEXT } from './texto';
@@ -114,12 +121,18 @@ describe('relatar (2.5)', () => {
     expect(await dados()).toMatchObject({ blocoId: ids.bloco18 });
   });
 
-  it('linha da pauta respeita os limites da lista: título até 24, descrição até 72', async () => {
-    const [linha] = listaEm(await send('o bebedouro do bloco 18 ta quebrado')).linhas;
-    expect(linha?.titulo).toBe('Bebedouros funcionando…');
-    expect(Array.from(linha?.titulo ?? '').length).toBeLessThanOrEqual(24);
-    expect(Array.from(linha?.descricao ?? '').length).toBeLessThanOrEqual(72);
-    expect(linha?.descricao).toMatch(/…$/);
+  it('a linha da pauta leva o título inteiro; só o envio pela Meta corta (SCRUM-323)', async () => {
+    const parecidas = listaEm(await send('o bebedouro do bloco 18 ta quebrado'));
+    const [linha] = parecidas.linhas;
+    expect(linha?.titulo).toMatch(/^Bebedouros funcionando/);
+    expect(Array.from(linha?.titulo ?? '').length).toBeGreaterThan(24);
+    expect(linha?.titulo).not.toMatch(/…$/);
+
+    // No WhatsApp (Cloud API), o corte continua igual: título até 24, descrição até 72.
+    const [naMeta] = (dentroDosLimitesDaMeta(parecidas) as MensagemDeLista).linhas;
+    expect(naMeta?.titulo).toBe('Bebedouros funcionando…');
+    expect(Array.from(naMeta?.descricao ?? '').length).toBeLessThanOrEqual(72);
+    expect(naMeta?.descricao).toMatch(/…$/);
   });
 
   it('relato sem bloco pede o bloco numa lista, com a opção do campus inteiro', async () => {
@@ -278,12 +291,16 @@ describe('blocos', () => {
 });
 
 describe('mensagem de lista', () => {
-  it('corta título, descrição e botão nos limites da Meta', () => {
-    const m = lista({
+  it('lista() guarda o texto inteiro; dentroDosLimitesDaMeta corta título, descrição e botão', () => {
+    const inteira = lista({
       corpo: 'Escolha',
       botao: 'Um botão com texto longo demais',
       linhas: [{ id: 'a', titulo: 'x'.repeat(30), descricao: 'y'.repeat(100) }],
     });
+    expect(inteira.botao).toBe('Um botão com texto longo demais');
+    expect(inteira.linhas[0]?.titulo).toBe('x'.repeat(30));
+
+    const m = dentroDosLimitesDaMeta(inteira) as MensagemDeLista;
     expect(Array.from(m.botao).length).toBeLessThanOrEqual(20);
     expect(m.botao).toMatch(/…$/);
     expect(Array.from(m.linhas[0]?.titulo ?? '').length).toBe(24);

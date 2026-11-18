@@ -128,6 +128,11 @@ export const pautas = pgTable(
     motivoRecusa: text('motivo_recusa'),
     /** Curador que aprovou ou recusou a pauta (SCRUM-165). Nunca sai nas views públicas. */
     decididaPor: uuid('decidida_por').references(() => curadores.id, { onDelete: 'restrict' }),
+    urgente: boolean('urgente').notNull().default(false),
+    urgenteDesde: instante('urgente_desde'),
+    urgentePor: uuid('urgente_por').references(() => curadores.id, { onDelete: 'restrict' }),
+    /** Por que a curadoria marcou; só o painel lê, nunca vai à view pública nem ao evento. */
+    urgenteMotivo: text('urgente_motivo'),
     /**
      * Português sem acento (`portugues_sem_acento`, migração 0007): "iluminacao" acha
      * "Iluminação". O título pesa mais (A) que a descrição (B) na busca de pautas parecidas.
@@ -143,6 +148,11 @@ export const pautas = pgTable(
     index('pauta_status_idx').on(t.status),
     index('pauta_busca_idx').using('gin', t.busca),
     check('pauta_meta_positiva', sql`${t.meta} > 0`),
+    check(
+      'pauta_urgencia_consistente',
+      sql`(${t.urgente} AND ${t.urgenteDesde} IS NOT NULL AND ${t.urgentePor} IS NOT NULL)
+        OR (NOT ${t.urgente} AND ${t.urgenteDesde} IS NULL AND ${t.urgentePor} IS NULL)`,
+    ),
   ],
 );
 
