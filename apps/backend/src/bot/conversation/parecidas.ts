@@ -30,7 +30,7 @@ export const parecidaSchema = z.object({
 });
 export type Parecida = z.infer<typeof parecidaSchema>;
 
-/** Até 3 pautas e "É outro problema". Título e descrição já cortados por `lista()`. */
+/** Até 3 pautas e "É outro problema", com o texto inteiro: o canal corta (SCRUM-323). */
 export function listaDeParecidas(
   parecidas: readonly Parecida[],
   corpo: string = SIMILAR_LIST_TEXT,

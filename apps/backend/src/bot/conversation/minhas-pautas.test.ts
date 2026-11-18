@@ -40,6 +40,7 @@ import {
   PEOPLE_ASK_TEXT,
   PEOPLE_INVALID_TEXT,
   PROPOSAL_ASK_TEXT,
+  PROPOSAL_LOST_TEXT,
   PROPOSAL_CLOSED_TEXT,
   PUBLISHED_TEXT,
   confirmVolunteerText,
@@ -48,6 +49,7 @@ import {
 import {
   LIMITES_DOS_BOTOES,
   botoes,
+  dentroDosLimitesDaMeta,
   textoDaResposta,
   type MensagemDeBotoes,
   type MensagemDeLista,
@@ -482,6 +484,20 @@ describe('proposta da comunidade (3.5)', () => {
     ]);
   });
 
+  it('proposta que não decifra responde que se perdeu, em vez de deixar a conversa muda (SCRUM-307)', async () => {
+    await send('4');
+    await send('caminho:comunidade');
+    await send('proposta:nova');
+    await send('Mutirão');
+    // Chave trocada ou dado corrompido: o texto guardado não decifra mais.
+    await store.save(H, 'PROPOSAL_ASK_PEOPLE', { ...(await dados()), propostaCifrada: 'lixo' });
+
+    expect(await send('2')).toEqual([PROPOSAL_LOST_TEXT, MENU_TEXT]);
+    expect(await passo()).toBe('MENU');
+    expect(await dados()).not.toHaveProperty('propostaCifrada');
+    expect(await propostasDe()).toHaveLength(0);
+  });
+
   it('quantidade fora de 1 a 50 pergunta de novo', async () => {
     await send('4');
     await send('caminho:comunidade');
@@ -655,9 +671,11 @@ describe('proposta da comunidade (3.5)', () => {
 });
 
 describe('botoes()', () => {
-  it('corta o título em 20 caracteres e recusa mais de 3 botões', () => {
+  it('guarda o título inteiro, a Meta corta em 20, e recusa mais de 3 botões', () => {
     const m = botoes({ corpo: 'Escolha', botoes: [{ id: 'a', titulo: 'x'.repeat(30) }] });
-    expect(Array.from(m.botoes[0]?.titulo ?? '')).toHaveLength(LIMITES_DOS_BOTOES.titulo);
+    expect(m.botoes[0]?.titulo).toBe('x'.repeat(30));
+    const naMeta = dentroDosLimitesDaMeta(m) as MensagemDeBotoes;
+    expect(Array.from(naMeta.botoes[0]?.titulo ?? '')).toHaveLength(LIMITES_DOS_BOTOES.titulo);
     const quatro = ['a', 'b', 'c', 'd'].map((id) => ({ id, titulo: id }));
     expect(() => botoes({ corpo: 'Escolha', botoes: quatro })).toThrow();
     expect(() => botoes({ corpo: 'Escolha', botoes: [] })).toThrow();

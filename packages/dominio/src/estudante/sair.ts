@@ -2,6 +2,10 @@
  * Direito de sair (LGPD, RNF03): a pessoa deixa o Lumens e o que a identifica é apagado. O que ela
  * fez continua valendo: apoios, respostas de conferência e inscrições como voluntária seguem
  * contando, ligados a uma linha de `estudante` que não diz mais de quem é.
+ *
+ * Relatos (SCRUM-314, docs/decisoes/SCRUM-314-sair-relatos-e-fotos.md): os que não foram publicados
+ * (pendentes ou recusados) são apagados, e as fotos deles também. Os aprovados, que já estão no site
+ * sem nome, ficam, assim como os PDFs de resposta oficial, que são o registro da cobrança da pauta.
  */
 import { randomUUID } from 'node:crypto';
 import {
@@ -11,17 +15,27 @@ import {
   disparos,
   eq,
   estudantes,
+  inArray,
   isNull,
   papeisPauta,
+  relatos,
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+
+/** Começa a lápide do telefone; um HMAC de verdade é hexadecimal e nunca começa assim. */
+const PREFIXO_LAPIDE = 'saiu:';
 
 export type ResultadoSaida =
   | {
       saiu: true;
       /** Pautas em que a pessoa era owner ou co-owner: a vaga abriu e a parte 3 pode oferecê-la. */
       pautasComVaga: string[];
+      /**
+       * Fotos dos relatos não publicados que foram apagados (SCRUM-314). O arquivo está no storage,
+       * fora do banco: quem chama o remove.
+       */
+      fotosParaApagar: string[];
     }
   /** `ja_saiu`: sair de novo não muda nada nem repete evento. */
   | { saiu: false; motivo: 'estudante_inexistente' | 'ja_saiu' };
@@ -29,18 +43,20 @@ export type ResultadoSaida =
 /**
  * Tira a pessoa do Lumens na transação de quem chama. Recusas voltam como resultado, sem exceção.
  *
- * Apaga telefone e e-mail (cifrado e HMAC), a conversa em andamento e o código de verificação;
+ * Apaga o telefone, o e-mail cifrado, a conversa em andamento e o código de verificação;
  * preenche `saiu_em`; encerra os papéis de owner/co-owner com um `owner_removido` por pauta (o
  * evento leva só o papel, nunca quem saiu). `curso` e `verificado_em` ficam: o curso aparece nos
- * apoios e relatos públicos. `apoio`, `resposta_conferencia`, `voluntario` e `relato` não são
- * tocados.
+ * apoios e relatos públicos. Apaga os relatos não publicados e devolve as fotos deles. `apoio`,
+ * `resposta_conferencia`, `voluntario`, os relatos aprovados e os PDFs de resposta não são tocados.
  *
  * `telefone_hmac` e `telefone_cifrado` são NOT NULL (e o HMAC é UNIQUE), então recebem uma lápide
  * aleatória (`saiu:<uuid>`): não deriva do telefone, não tem volta e nunca coincide com um HMAC de
  * verdade, que é hexadecimal. Buscar pelo HMAC do telefone não acha mais ninguém.
  *
- * Limitação conhecida: quem volta com o mesmo telefone se verifica como estudante novo e pode
- * apoiar de novo as pautas que já apoiou (o apoio antigo segue contando na linha sem identidade).
+ * O HMAC do e-mail fica (SCRUM-331, docs/decisoes/SCRUM-331-sair-e-voltar.md). Ele não revela o
+ * e-mail e serve só para, na volta, `vincularEmail` reativar esta mesma linha em vez de criar
+ * outra: sem isso, sair e voltar com o mesmo e-mail permitia apoiar, se voluntariar e responder à
+ * conferência de novo, e uma pessoa sozinha batia a meta de uma pauta.
  */
 export async function sairDoLumens(
   tx: Tx,
@@ -55,7 +71,12 @@ export async function sairDoLumens(
     .for('update');
 
   if (estudante === undefined) return { saiu: false, motivo: 'estudante_inexistente' };
-  if (estudante.saiuEm !== null) return { saiu: false, motivo: 'ja_saiu' };
+  // Quem saiu tem a lápide no lugar do telefone. `saiu_em` preenchido com o telefone de verdade é
+  // quem voltou (`vincularEmail`) e ainda não escolheu o curso (`concluirVerificacao`): o vínculo
+  // está restaurado, então o `sair` vale e apaga de novo (SCRUM-331).
+  if (estudante.saiuEm !== null && estudante.telefoneHmac.startsWith(PREFIXO_LAPIDE)) {
+    return { saiu: false, motivo: 'ja_saiu' };
+  }
 
   // Conversa e código são chaveados pelo HMAC do telefone: saem antes de ele ser trocado.
   await tx.delete(conversas).where(eq(conversas.telefoneHmac, estudante.telefoneHmac));
@@ -76,15 +97,28 @@ export async function sairDoLumens(
       ),
     );
 
+  // SCRUM-314: relato que não foi publicado (pendente ou recusado) só existe para a curadoria; sem a
+  // pessoa, não tem por que ficar. O aprovado já está no site, sem nome, e continua.
+  const apagados = await tx
+    .delete(relatos)
+    .where(
+      and(
+        eq(relatos.estudanteId, estudanteId),
+        inArray(relatos.moderacao, ['pendente', 'recusado']),
+      ),
+    )
+    .returning({ fotoChave: relatos.fotoChave });
+  const fotosParaApagar = apagados.flatMap((r) => (r.fotoChave === null ? [] : [r.fotoChave]));
+
   // ponytail: lápide no lugar de NULL porque as colunas do telefone são NOT NULL; gravar NULL
   // depende de uma migração que as torne anuláveis.
-  const lapide = `saiu:${randomUUID()}`;
+  const lapide = `${PREFIXO_LAPIDE}${randomUUID()}`;
   await tx
     .update(estudantes)
     .set({
       telefoneHmac: lapide,
       telefoneCifrado: lapide,
-      emailHmac: null,
+      // SCRUM-331: o `email_hmac` fica (veja o comentário da função); o e-mail cifrado sai.
       emailCifrado: null,
       ultimaMensagemEm: null,
       saiuEm: agora,
@@ -96,11 +130,18 @@ export async function sairDoLumens(
     .update(papeisPauta)
     .set({ ate: agora })
     .where(and(eq(papeisPauta.estudanteId, estudanteId), isNull(papeisPauta.ate)))
-    .returning({ pautaId: papeisPauta.pautaId, papel: papeisPauta.papel });
+    .returning({
+      pautaId: papeisPauta.pautaId,
+      papel: papeisPauta.papel,
+      desde: papeisPauta.desde,
+    });
+  // SCRUM-315: o UPDATE não garante a ordem das linhas (com o índice único de papel ativo, o plano
+  // mudou). Ordena pela data em que a pessoa assumiu cada pauta: resultado e eventos estáveis.
+  encerrados.sort((a, b) => a.desde.localeCompare(b.desde));
 
   for (const { pautaId, papel } of encerrados) {
     await registrarEvento(tx, { pautaId, tipo: 'owner_removido', dados: { papel }, origem: 'bot' });
   }
 
-  return { saiu: true, pautasComVaga: encerrados.map((e) => e.pautaId) };
+  return { saiu: true, pautasComVaga: encerrados.map((e) => e.pautaId), fotosParaApagar };
 }

@@ -12,8 +12,10 @@ import {
   type StepContext,
 } from './handlers';
 import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
+import { entradaDeConferencia, responderConferencia } from './conferencia';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
+import { temCadastro } from './estudante';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
 
@@ -31,15 +33,35 @@ export interface RouterDeps {
 }
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
+/** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
+export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
-/** Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. */
-const STEPS_WITH_PHOTO: readonly Step[] = ['GREETING', 'NEW_ASK_PHOTO', 'SUPPORT_ASK_PHOTO'];
+/**
+ * Passos que sabem o que fazer com uma foto. Nos outros ela não responde à pergunta feita. O do
+ * PDF da resposta oficial recebe a foto só para explicar que precisa do arquivo (SCRUM-307).
+ */
+const STEPS_WITH_PHOTO: readonly Step[] = [
+  'GREETING',
+  'NEW_ASK_PHOTO',
+  'SUPPORT_ASK_PHOTO',
+  'OWNER_SEND_RESPONSE',
+];
 
 export const NEED_TEXT_FOR_FILE = 'Recebi o arquivo, mas agora preciso de uma resposta em texto.';
 
-/** O único passo que recebe arquivo: o PDF da resposta oficial (3.6). */
-const STEPS_WITH_DOCUMENT: readonly Step[] = ['OWNER_SEND_RESPONSE'];
+/** Passos que pedem uma foto: um arquivo neles recebe `PHOTO_AS_FILE_TEXT` (SCRUM-307). */
+const PHOTO_AS_FILE_STEPS: readonly Step[] = ['NEW_ASK_PHOTO', 'SUPPORT_ASK_PHOTO'];
+
+export const PHOTO_AS_FILE_TEXT =
+  "Recebi um arquivo, mas aqui preciso de uma foto. Mande a imagem como foto (não como documento), ou responda 'pular'.";
+
+/** O único passo que recebe arquivo é o do PDF da resposta oficial (3.6). */
+const STEPS_WITH_DOCUMENT: readonly Step[] = [
+  'OWNER_SEND_RESPONSE',
+  // SCRUM-307: nos passos da foto, o arquivo é quase sempre a foto mandada como documento.
+  ...PHOTO_AS_FILE_STEPS,
+];
 
 type GlobalCommand = 'menu' | 'cancelar' | 'sair';
 
@@ -69,7 +91,8 @@ export async function handleIncoming(
   const { phoneHmac } = msg;
   await store.lock(phoneHmac);
   const current = await store.get(phoneHmac);
-  const primeiroContato = current === null;
+  // SCRUM-333: conversa expirada de quem tem cadastro não é primeiro contato (já viu o aviso).
+  const primeiroContato = current === null && !(await temCadastro(deps.db, phoneHmac));
   return comAviso(primeiroContato, await responder(msg, deps, current));
 }
 
@@ -86,7 +109,8 @@ async function responder(
   if (cmd === 'cancelar') {
     // 'cancelar' limpa tudo, inclusive pendingCommand.
     await store.save(phoneHmac, 'MENU', {});
-    return [CANCEL_TEXT, MENU_TEXT];
+    const relatoJaEnviado = current?.step === 'SUPPORT_ASK_PHOTO';
+    return [relatoJaEnviado ? CANCEL_PHOTO_TEXT : CANCEL_TEXT, MENU_TEXT];
   }
   if (cmd === 'menu') {
     // 'menu' recomeça mas preserva o comando pendente.
@@ -107,9 +131,24 @@ async function responder(
     ? { step: current.step, data: current.data }
     : { step: 'GREETING', data: {} };
 
+  // SCRUM-293: a resposta à conferência vale em qualquer passo e não mexe na conversa. O payload de
+  // um botão de aviso nunca segue para o passo atual.
+  const conferencia = msg.image || msg.document ? null : entradaDeConferencia(msg.text, state.step);
+  if (conferencia !== null) {
+    const resposta = await responderConferencia(db, phoneHmac, conferencia);
+    if (resposta !== null) {
+      // Sem conversa guardada, o aviso de privacidade vai junto (5.7). Guardar a saudação faz ele
+      // sair uma vez só, e não a cada toque. Quem não tem cadastro não deixa conversa guardada.
+      if (current === null && resposta.cadastrado) await store.save(phoneHmac, 'GREETING', {});
+      return resposta.respostas;
+    }
+  }
+
   if (msg.image && !STEPS_WITH_PHOTO.includes(state.step)) return [NEED_TEXT];
 
   if (msg.document && !STEPS_WITH_DOCUMENT.includes(state.step)) return [NEED_TEXT_FOR_FILE];
+
+  if (msg.document && PHOTO_AS_FILE_STEPS.includes(state.step)) return [PHOTO_AS_FILE_TEXT];
 
   const input: IncomingMessage = msg.image
     ? { text: msg.text, image: msg.image }
@@ -129,7 +168,10 @@ async function responder(
   // 2.8 e 3.5: os comandos dos botões do site ("apoiar", "ajudar", "nova pauta", "cuidar") valem em
   // qualquer passo e largam o fluxo atual, como os comandos globais.
   const comando = msg.image || msg.document ? null : parseComandoDoSite(msg.text);
-  const doSite = comando === null ? null : await executarComandoDoSite(ctx, comando);
+  const executado = comando === null ? null : await executarComandoDoSite(ctx, comando);
+  // SCRUM-307: só um aviso; o passo e os dados ficam como estavam.
+  if (executado !== null && 'avisoNoPasso' in executado) return [executado.avisoNoPasso];
+  const doSite = executado;
   const global = doSite !== null;
   const result = doSite ?? (await handlers[state.step](ctx));
   if (!global) assertTransition(state.step, result.next);

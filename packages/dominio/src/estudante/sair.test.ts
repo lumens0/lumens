@@ -87,6 +87,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     expect(resultado).toEqual({
       saiu: true,
       pautasComVaga: [pauta1.id, pauta2.id],
+      fotosParaApagar: [],
     });
 
     // 1. Telefone vira lápide 'saiu:<uuid>', e-mail vira null, saiuEm é preenchido, curso e verificadoEm ficam
@@ -100,7 +101,8 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       /^saiu:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
     expect(estudanteApos.telefoneCifrado).toBe(estudanteApos.telefoneHmac);
-    expect(estudanteApos.emailHmac).toBeNull();
+    // SCRUM-331: o HMAC do e-mail fica, só para reativar esta linha na volta.
+    expect(estudanteApos.emailHmac).not.toBeNull();
     expect(estudanteApos.emailCifrado).toBeNull();
     // SCRUM-275: o instante da última mensagem também sai.
     expect(estudanteApos.ultimaMensagemEm).toBeNull();
@@ -236,7 +238,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
 
     // Executa a saída
     const resultado = await executarSaida(estudante.id, AGORA);
-    expect(resultado).toEqual({ saiu: true, pautasComVaga: [] });
+    expect(resultado).toEqual({ saiu: true, pautasComVaga: [], fotosParaApagar: [] });
 
     // Verifica que tudo continua existindo associado à linha do estudante
     const apoiosDoEstudante = await db
@@ -270,13 +272,53 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     expect(respostasDoEstudante[0]?.resposta).toBe('sim');
   });
 
+  it('relatos não publicados saem com as fotos; o aprovado e o de outra pessoa ficam (SCRUM-314)', async () => {
+    const estudante = await criarEstudanteVerificado(db);
+    const outra = await criarEstudanteVerificado(db);
+    const pauta = await criarPauta(db);
+    const relato = (
+      estudanteId: string,
+      moderacao: 'pendente' | 'aprovado' | 'recusado',
+      fotoChave: string | null,
+    ) =>
+      db
+        .insert(relatos)
+        .values({
+          pautaId: pauta.id,
+          estudanteId,
+          texto: `relato ${moderacao}`,
+          moderacao,
+          fotoChave,
+        })
+        .returning({ id: relatos.id });
+    await relato(estudante.id, 'pendente', 'fotos/2026/11/pendente.jpg');
+    await relato(estudante.id, 'recusado', 'fotos/2026/11/recusado.jpg');
+    await relato(estudante.id, 'pendente', null);
+    const [aprovado] = await relato(estudante.id, 'aprovado', 'fotos/2026/11/aprovado.jpg');
+    const [daOutra] = await relato(outra.id, 'pendente', 'fotos/2026/11/outra.jpg');
+
+    const resultado = await executarSaida(estudante.id, AGORA);
+
+    if (!resultado.saiu) throw new Error('não saiu');
+    expect([...resultado.fotosParaApagar].sort()).toEqual([
+      'fotos/2026/11/pendente.jpg',
+      'fotos/2026/11/recusado.jpg',
+    ]);
+    // O banco é o mesmo do arquivo todo: olha só os relatos da pauta deste teste.
+    const restantes = await db
+      .select({ id: relatos.id })
+      .from(relatos)
+      .where(eq(relatos.pautaId, pauta.id));
+    expect(restantes.map((r) => r.id).sort()).toEqual([aprovado?.id, daOutra?.id].sort());
+  });
+
   it('idempotência: tentar chamar sairDoLumens para alguém que já saiu não altera dados nem repete eventos', async () => {
     const estudante = await criarEstudanteVerificado(db);
     const pauta = await criarPauta(db);
     await tornarOwner(db, pauta.id, estudante.id);
 
     const primeiraSaida = await executarSaida(estudante.id, AGORA);
-    expect(primeiraSaida).toEqual({ saiu: true, pautasComVaga: [pauta.id] });
+    expect(primeiraSaida).toEqual({ saiu: true, pautasComVaga: [pauta.id], fotosParaApagar: [] });
 
     const [estudanteAposPrimeira] = await db
       .select()
@@ -323,7 +365,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     const resultado = await db.transaction((tx) => sairDoLumens(tx, { estudanteId: estudante.id }));
     const depois = new Date();
 
-    expect(resultado).toEqual({ saiu: true, pautasComVaga: [] });
+    expect(resultado).toEqual({ saiu: true, pautasComVaga: [], fotosParaApagar: [] });
 
     const [atualizado] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
     if (!atualizado) throw new Error('Estudante não encontrado');
@@ -351,7 +393,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     expect(antes).toEqual([1, 1, 1]);
   });
 
-  it('depois de sair nenhuma coluna guarda telefone ou e-mail, e o HMAC antigo não acha ninguém', async () => {
+  it('depois de sair nenhuma coluna guarda telefone ou e-mail; o HMAC do telefone não acha ninguém', async () => {
     const estudante = await criarEstudanteVerificado(db);
     await db
       .update(estudantes)
@@ -362,24 +404,16 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       .where(eq(estudantes.id, estudante.id));
     const [antes] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
     if (!antes) throw new Error('estudante não encontrado');
-    const identidade = [
-      antes.telefoneHmac,
-      antes.telefoneCifrado,
-      antes.emailHmac,
-      antes.emailCifrado,
-    ] as string[];
+    // O HMAC do e-mail fica de fora: ele não revela o e-mail e fica para a volta (SCRUM-331).
+    const identidade = [antes.telefoneHmac, antes.telefoneCifrado, antes.emailCifrado] as string[];
 
     await executarSaida(estudante.id);
 
     const [depois] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
     if (!depois) throw new Error('estudante não encontrado');
-    const valores = [
-      depois.telefoneHmac,
-      depois.telefoneCifrado,
-      depois.emailHmac,
-      depois.emailCifrado,
-    ];
+    const valores = [depois.telefoneHmac, depois.telefoneCifrado, depois.emailCifrado];
     for (const antigo of identidade) expect(valores).not.toContain(antigo);
+    expect(depois.emailHmac).toBe(antes.emailHmac);
 
     const achados = await db
       .select()
@@ -519,7 +553,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     if (!pendente || !reservado) throw new Error('disparos não criados');
 
     const res = await executarSaida(estudante.id);
-    expect(res).toEqual({ saiu: true, pautasComVaga: [] });
+    expect(res).toEqual({ saiu: true, pautasComVaga: [], fotosParaApagar: [] });
 
     const [pendenteAtualizado] = await db
       .select()

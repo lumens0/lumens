@@ -15,7 +15,8 @@
  */
 import { decifrar, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
-import type { Resposta } from '../conversation/resposta';
+import { MENU_PERGUNTA, MENU_TEXT, OPCOES_DO_MENU } from '../conversation/handlers';
+import { cortar, type Resposta } from '../conversation/resposta';
 import { respostasDoJob, type ReplySender } from '../worker';
 import { classificarErro, destinoPerdido, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
 import { cortes, dividirFormatado, negritoDoWhatsapp, type Entidade } from './formatacao';
@@ -26,6 +27,12 @@ export const LIMITE_DO_TEXTO = 4096;
 export const LIMITE_DA_LEGENDA = 1024;
 /** Limite do `callback_data` de um botão inline, em bytes UTF-8. */
 export const LIMITE_DO_CALLBACK_BYTES = 64;
+/**
+ * Descrição de cada linha da lista, no corpo da mensagem (SCRUM-323). O Telegram aceita mais, mas a
+ * descrição da pauta pode ser longa e três delas encheriam a tela. Os títulos vão inteiros: não há
+ * limite da Meta aqui (o `dentroDosLimitesDaMeta` é só do WhatsApp).
+ */
+export const LIMITE_DA_DESCRICAO = 200;
 
 export interface BotaoInline {
   text: string;
@@ -96,7 +103,12 @@ function botao(id: string, titulo: string): BotaoInline[] {
 export function paraTelegram(resposta: Resposta, chatId: number): EnvioDeMensagem[] {
   let texto: string;
   let teclado: BotaoInline[][] | undefined;
-  if (typeof resposta === 'string') {
+  if (resposta === MENU_TEXT) {
+    // SCRUM-324: no Telegram o menu principal tem botões, como as outras listas. O número fica no
+    // botão: quem digita "1" a "4" continua sendo entendido.
+    texto = MENU_PERGUNTA;
+    teclado = OPCOES_DO_MENU.map((o) => botao(o.id, `${o.id} ${o.titulo}`));
+  } else if (typeof resposta === 'string') {
     texto = resposta;
   } else if (resposta.tipo === 'imagem') {
     texto = resposta.legenda;
@@ -106,7 +118,7 @@ export function paraTelegram(resposta: Resposta, chatId: number): EnvioDeMensage
   } else {
     const descricoes = resposta.linhas
       .filter((l) => l.descricao !== undefined)
-      .map((l) => `• ${l.titulo}: ${l.descricao ?? ''}`);
+      .map((l) => `• ${l.titulo}: ${cortar(l.descricao ?? '', LIMITE_DA_DESCRICAO)}`);
     texto =
       descricoes.length === 0 ? resposta.corpo : [resposta.corpo, '', ...descricoes].join('\n');
     teclado = resposta.linhas.map((l) => botao(l.id, l.titulo));

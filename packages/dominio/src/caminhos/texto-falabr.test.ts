@@ -11,7 +11,7 @@ const PAUTA: PautaParaTexto = {
   descricao:
     'A fila do almoço passa de quarenta minutos porque não há mesas livres. ' +
     'Estudantes com aula às 13h desistem de almoçar.',
-  categoria: 'Infraestrutura',
+  categoria: 'infraestrutura',
   bloco: 'Bloco 12',
   apoios: 184,
   meta: 300,
@@ -23,6 +23,25 @@ const pauta = (mudanca: Partial<PautaParaTexto> = {}): PautaParaTexto => ({
 });
 
 describe('gerarTextoFalaBr (SCRUM-213)', () => {
+  describe('categoria (SCRUM-291)', () => {
+    it('mostra o rótulo da lista oficial, não o valor gravado', () => {
+      const { texto } = gerarTextoFalaBr(pauta({ categoria: 'seguranca' }));
+
+      expect(texto).toContain('Categoria: Segurança');
+      expect(texto).not.toContain('seguranca');
+    });
+
+    it.each(['a_classificar', 'desconhecida', ' '])(
+      'com %j, a linha "Categoria" fica de fora e o texto sai mesmo assim',
+      (categoria) => {
+        const { texto } = gerarTextoFalaBr(pauta({ categoria }));
+
+        expect(texto).not.toMatch(/categoria/i);
+        expect(texto).toContain('Local: Bloco 12');
+      },
+    );
+  });
+
   describe('o texto', () => {
     it('traz assunto, categoria, local, descrição, apoio e pedido', () => {
       const { texto } = gerarTextoFalaBr(pauta());
@@ -159,7 +178,6 @@ describe('gerarTextoFalaBr (SCRUM-213)', () => {
       ['título vazio', { titulo: '' }],
       ['título só com espaço', { titulo: '   \n  ' }],
       ['descrição vazia', { descricao: '' }],
-      ['categoria vazia', { categoria: ' ' }],
       ['apoios negativo', { apoios: -1 }],
       ['apoios fracionário', { apoios: 1.5 }],
       ['meta zero', { meta: 0 }],

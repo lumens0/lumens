@@ -227,16 +227,45 @@ describe('fecho da conferência', () => {
     expect(resposta).toMatchObject({ registrada: true });
   });
 
-  it('sem quórum na segunda rodada, fecha como sem_quorum e a pauta fica em prometido', async () => {
+  it('sem quórum na segunda rodada, fecha como sem_quorum e a pauta volta a cobrando (SCRUM-308)', async () => {
     const { pautaId, promessaId } = await cenario(20);
     await abrir(promessaId, depois(0));
     await fechar(promessaId, depois(7 * DIA));
+    // Na primeira rodada a volta a `cobrando` foi desfeita junto com o savepoint.
+    expect(await statusDa(pautaId)).toBe('prometido');
 
     const resultado = await fechar(promessaId, depois(14 * DIA));
 
     expect(resultado).toMatchObject({ apurada: true, resultado: 'sem_quorum' });
     expect((await promessa(promessaId))?.resultado).toBe('sem_quorum');
+    expect(await statusDa(pautaId)).toBe('cobrando');
+    expect((await eventosDa(pautaId, 'status_alterado')).map((e) => e.dados)).toContainEqual({
+      de: 'prometido',
+      para: 'cobrando',
+    });
+  });
+
+  it('depois das duas rodadas sem quórum, a curadoria registra uma promessa nova', async () => {
+    const { pautaId, promessaId } = await cenario(20);
+    await abrir(promessaId, depois(0));
+    await fechar(promessaId, depois(7 * DIA));
+    await fechar(promessaId, depois(14 * DIA));
+    const curador = await criarCurador(db);
+
+    const nova = await db.transaction((tx) =>
+      registrarPromessa(tx, {
+        pautaId,
+        resumo: 'abrir mais 40 lugares, agora em janeiro',
+        dataEntrega: '2027-01-20',
+        fonte: 'ofício 3/2027',
+        registradaPor: curador.id,
+      }),
+    );
+
+    expect(nova.promessaId).not.toBe(promessaId);
     expect(await statusDa(pautaId)).toBe('prometido');
+    // A promessa antiga continua com o resultado da apuração, não vira `substituida`.
+    expect((await promessa(promessaId))?.resultado).toBe('sem_quorum');
   });
 
   it('sem apoiadores: não lança, reabre sem avisos e a segunda rodada fecha sem_quorum', async () => {
@@ -258,8 +287,8 @@ describe('fecho da conferência', () => {
     });
     expect((await promessa(promessaId))?.resultado).toBe('sem_quorum');
     expect(await eventosDa(pautaId, 'conferencia_apurada')).toHaveLength(1);
-    // Mesmo caminho de qualquer sem_quorum na segunda rodada (o destino da pauta é a SCRUM-308).
-    expect(await statusDa(pautaId)).toBe('prometido');
+    // Mesmo caminho de qualquer sem_quorum na segunda rodada: a pauta volta a ser cobrada (SCRUM-308).
+    expect(await statusDa(pautaId)).toBe('cobrando');
   });
 
   it('não fecha conferência que nunca abriu', async () => {

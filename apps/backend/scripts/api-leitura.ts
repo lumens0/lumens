@@ -8,7 +8,7 @@
 import Fastify from 'fastify';
 import { SLUG_MAX } from '@lumens/contratos';
 import { criarDb, criarPool } from '@lumens/db';
-import { apiPlugin } from '../src/api';
+import { registrarApiDeLeitura } from '../src/app';
 
 const { DATABASE_URL_LEITURA, PORT = '3101' } = process.env;
 
@@ -22,7 +22,8 @@ const pool = criarPool(DATABASE_URL_LEITURA, { conexaoMs: 5_000, consultaMs: 15_
 });
 // Mesmo limite de parâmetro do `buildApp`: sem ele, slug longo cai no 404 genérico do Fastify.
 const app = Fastify({ routerOptions: { maxParamLength: SLUG_MAX * 2 } });
-await app.register(apiPlugin, { db: criarDb(pool), origensCors: [] });
+// Com o limite de requisições de produção (SCRUM-310): o e2e mostra que o site funciona com ele.
+await registrarApiDeLeitura(app, { db: criarDb(pool), origensCors: [] });
 await app.listen({ port: Number(PORT), host: '127.0.0.1' });
 console.log(`API de leitura em http://127.0.0.1:${PORT}`);
 

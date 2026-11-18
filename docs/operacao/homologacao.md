@@ -8,6 +8,14 @@ Ele responde em `https://painel.<DOMINIO>`: com DuckDNS o nome já resolve para 
 outro DNS, crie o registro antes do deploy. Precisa do `AUTH_SECRET` no `.env.producao`
 (`openssl rand -base64 32`); o deploy recusa publicar sem ele.
 
+Quem entra no painel: o script `curador` só cria o **primeiro administrador**, pelo contêiner do
+back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
+"<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
+para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
+`CHAVE_CIFRA_PAINEL` do `.env.producao`, só dele, para mostrar o e-mail de quem já foi cadastrado.
+Ao criar essa chave, rode uma vez `... run --rm -T backend pnpm --filter @lumens/backend curador
+--recifrar`, que passa o e-mail dos curadores existentes da `CHAVE_CIFRA` para ela.
+
 ## Onde roda, e por que não é a AWS
 
 A decisão original era AWS. Ela não se sustentou, e o motivo fica aqui para ninguém repetir
@@ -111,6 +119,33 @@ Saia e entre de novo no SSH para o grupo `docker` valer. Confira:
 docker compose version
 ```
 
+Limite o tamanho dos logs dos contêineres. Sem isto o Docker usa o driver `json-file` sem
+limite, e o log do back-end cresce até encher o disco, onde também está o Postgres.
+
+O comando só grava o arquivo se ele ainda não existir. Se já existir, junte as duas chaves
+(`log-driver` e `log-opts`) ao que está lá, à mão, para não apagar outra configuração:
+
+```bash
+[ -e /etc/docker/daemon.json ] && echo "daemon.json já existe: edite à mão" || { echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' | sudo tee /etc/docker/daemon.json && sudo systemctl restart docker; }
+```
+
+**Só numa VM que já tem o Lumens no ar** (na VM nova, siga para o clone abaixo): o
+`systemctl restart docker` acima **derruba todos os contêineres**, inclusive o Postgres e a
+Evolution, e o limite só vale para contêiner criado depois dele. Faça fora do horário do backup
+(12:00) e de demonstração, e recrie os contêineres em seguida:
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate
+```
+
+Se o perfil da Evolution estiver ligado, acrescente `--profile evolution` antes do `up`. Para
+conferir, `docker inspect --format '{{.HostConfig.LogConfig}}' <contêiner>` mostra o `max-size`.
+
+O cache de build e as imagens antigas o próprio deploy limpa (`scripts/deploy-homologacao.sh`):
+imagem sem tag sai na hora; imagem sem contêiner criada há mais de 72 h também sai; o cache de
+mais de 72 h sai e o resto fica em no máximo 3 GB. O log de cada deploy mostra o
+`docker system df` e o uso do disco, e avisa quando o disco passa de 85%.
+
 Clone em `/opt/lumens` — é o caminho que o `scripts/deploy-homologacao.sh` espera:
 
 ```bash
@@ -150,6 +185,109 @@ Se o Node não estiver na instância, use o contêiner:
 docker run --rm node:24-slim node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
+### Endurecer o sistema da VM
+
+A porta 22 continua aberta para qualquer origem (veja a seção 1): o que protege a máquina é o que
+roda nela. Faça uma vez, na VM nova ou na que já está no ar. Deixe **outra sessão SSH aberta**
+enquanto mexe no SSH: se a configuração quebrar, é por ela que se desfaz.
+
+**Root não entra pelo SSH.** O deploy entra como `azureuser`; root não precisa. O `sshd` usa o
+primeiro valor que lê, e os arquivos de `sshd_config.d/` entram em ordem alfabética, então o
+nosso começa com `01-`:
+
+```bash
+echo 'PermitRootLogin no' | sudo tee /etc/ssh/sshd_config.d/01-lumens.conf && sudo sshd -t && sudo systemctl reload ssh
+```
+
+Confira (esperado: `permitrootlogin no`):
+
+```bash
+sudo sshd -T | grep -i '^permitrootlogin'
+```
+
+Se vier outro valor, algum arquivo lido antes define a diretiva:
+`sudo grep -ri permitrootlogin /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`.
+
+**fail2ban no SSH.** Bane por um tempo o IP que erra a autenticação várias vezes (no padrão, 5
+erros em 10 minutos). No Ubuntu, o pacote já vem com o jail do `sshd` ligado:
+
+```bash
+sudo apt-get update && sudo apt-get install -y fail2ban && sudo systemctl enable --now fail2ban
+```
+
+```bash
+sudo fail2ban-client status sshd
+```
+
+Esperado: o jail listado, com `Currently banned`, sem erro. Se o serviço não subir, veja
+`journalctl -u fail2ban -n 30`.
+
+O deploy do CI entra com a chave e não erra, então não é banido. Se a chave do secret
+`HOMOLOG_SSH_CHAVE` estiver errada, o runner pode ser banido, e o banimento recusa a conexão na
+porta 22: o job sai com o aviso de **VM desligada** mesmo com ela ligada. Nesse caso, confira o
+`fail2ban-client status sshd` antes de procurar outra causa.
+
+**Nenhum `.env` antigo em `/opt/lumens`.** Os arquivos em uso são **só** o `.env.producao` e o
+`.env.producao.admin`; os `.example` vêm do Git e também ficam. Qualquer outro
+`.env.producao.*` (ex.: `.bak-*`, `.antes-*`) é cópia antiga, com segredos que podem continuar
+valendo (senha de SMTP antiga, chaves). Liste:
+
+```bash
+ls -la /opt/lumens/.env.producao*
+```
+
+Para cada cópia, compare com o atual e, para cada segredo que mudou, revogue o antigo na origem
+(senha de app do Google, chave da Brevo, token do BotFather). **Exceção:** se a cópia tem
+`CHAVE_CIFRA` ou `CHAVE_HMAC` diferente da atual, guarde essa chave no lugar compartilhado e
+seguro do time antes de apagar: os backups feitos antes da troca só decifram com ela (veja
+[Backup do banco](backup.md)). Depois apague a cópia (`sudo` se ela for do root):
+
+```bash
+sudo shred -u /opt/lumens/<cópia antiga>
+```
+
+**Alerta de indisponibilidade.** Hoje ninguém fica sabendo se o `/saude` cai, se o chip da
+Evolution desconecta ou se o crédito do Azure acaba: descobre na hora de usar.
+
+- O workflow **Monitor da homologação** (`.github/workflows/monitor-homologacao.yml`) confere de
+  fora, de 10 em 10 minutos, se o `https://<DOMINIO>/saude` responde e se o chip está conectado
+  (`/saude/whatsapp`; enquanto a rota não estiver publicada, o chip fica sem conferência e a
+  conferência é o `./scripts/evolution.sh estado`, veja [canal da Evolution](evolution.md)). Cada
+  item tem três tentativas, para um deploy em andamento não contar como queda. O GitHub atrasa o
+  agendamento em horário de pico, às vezes 10 a 15 minutos.
+- Quando uma checagem falha, o GitHub manda o e-mail de "workflow falhou" para quem mexeu por
+  último no `cron` do arquivo. Confira em **Settings → Notifications → Actions** (no perfil do
+  GitHub) que o e-mail de falha está ligado. Para avisar mais gente, cada pessoa do time pode rodar
+  o workflow uma vez à mão e seguir o repositório, ou trocar quem recebe mexendo no `cron`.
+- Como a VM fica **desligada por padrão** (veja [Ligar e desligar](#ligar-e-desligar)), um monitor
+  ligado o tempo todo falharia durante todo o tempo em que ela está parada. Por isso ele vem
+  **desligado** e só roda com a variável do repositório `MONITOR_HOMOLOGACAO=ligado`. Ligue na
+  semana da demo, junto com o auto-shutdown desligado, e desligue depois:
+
+  ```bash
+  gh variable set MONITOR_HOMOLOGACAO --body ligado
+  ```
+
+  ```bash
+  gh variable delete MONITOR_HOMOLOGACAO
+  ```
+
+  **Fora da semana da demo, não há monitoramento**: a queda continua sendo descoberta na hora de
+  usar. Para conferir na hora, rode o workflow à mão em Actions (funciona com ele desligado).
+
+- Crédito: no portal, **Cost Management → Budgets**, um orçamento **anual** (ou de período
+  personalizado até o fim do crédito) de $100, com alerta por e-mail em 50% e 80%. O padrão do
+  portal é mensal, e um orçamento mensal mede o gasto do mês, não o crédito. Os dados chegam com
+  atraso de algumas horas. Se a assinatura de estudante não deixar criar orçamento, o painel
+  _Education_ mostra o saldo, e vale olhar toda semana. O crédito também vence em 365 dias,
+  independentemente do saldo: anote a data. Na homologação já existe o `lumens-credito-anual`
+  (assinatura Azure for Students, R$ 440 a partir de 01/11/2026, alertas em 50% e 80%), ao lado
+  do mensal `lumens-homologacao`. Em 17/11/2026 a previsão do portal era de R$ 1.837 por ano: com
+  a VM ligada, o crédito acaba antes dos 365 dias.
+
+Para conferir com a VM parada: com o monitor ligado, pare a VM pelo portal e confira que o
+e-mail de falha chega em até uns 20 minutos.
+
 ## 5. Primeiro deploy
 
 ```bash
@@ -163,11 +301,16 @@ para e nada é publicado. Confira:
 curl -s https://<DOMINIO>/saude
 ```
 
-Esperado: `{"ok":true}`. Para a demo, com o banco vazio:
+Esperado: `{"ok":true,"versao":"<SHA>"}`, com o SHA do commit publicado (SCRUM-322).
+Para a demo, com o banco vazio:
 
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
 ```
+
+Com o banco no ar, instale o backup diário e rode o teste de restauração uma vez, como em
+[Backup do banco](backup.md#instalar-na-vm). O deploy não instala o backup: só avisa no log do CI,
+a cada deploy, enquanto o timer `lumens-backup.timer` não estiver ativo.
 
 ## 6. Deploy automático
 
@@ -183,7 +326,14 @@ Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 
 A partir daí, todo push na `main` com o `check` e o `e2e` verdes roda o job `deploy-backend`, que migra
 e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
-`/resumo`.
+`/resumo`. O `/saude` precisa devolver o SHA do run: um back-end antigo que tenha ficado no
+ar não passa.
+
+Se o `check` ou um deploy de um push na `main` for cancelado (timeout, cancelamento manual),
+o job `deploy-perdido` falha e pinta a `main` de vermelho: aquele merge não está na
+homologação. Reexecute o run ou use **Actions → CI → Run workflow** na `main`. Quando vários
+merges entram seguidos, o run que esperava na fila é substituído pelo mais novo e nem começa;
+isso é normal, porque o mais novo publica tudo.
 
 ## 7. Webhook da Meta
 
@@ -220,6 +370,10 @@ Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
 
+Dispare o Run workflow **da `main`**. De outra branch o deploy é pulado com o aviso "Deploy
+ignorado" e nada é publicado; e o `scripts/deploy-homologacao.sh` também recusa qualquer SHA que
+não esteja na `main` (SCRUM-336), porque o banco da homologação não tem backup.
+
 ### O que o site mostra quando ela está desligada
 
 O site continua no ar na Vercel, mas as páginas que leem a API (`/`, `/conquistas`, `/atividade`
@@ -253,5 +407,10 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
   liberada no NSG — a validação do Let's Encrypt passa por ela. Se o erro falar em _rate
   limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
 - **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
+  Se for disco, `docker system df` mostra quanto é cache de build e imagem; o
+  `docker builder prune --force` e o `docker image prune --all --force` liberam na hora. O
+  segundo apaga toda imagem sem contêiner, inclusive a da Evolution se os contêineres dela
+  tiverem sido removidos (o `up` baixa de novo); não rode durante um deploy.
 - **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
-  cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
+  cobrança. O aviso antes disso é o orçamento da seção 4 (ou, sem ele, o painel _Education_), e o
+  crédito vence em 365 dias mesmo com saldo.
