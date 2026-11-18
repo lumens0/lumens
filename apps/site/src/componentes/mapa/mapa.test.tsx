@@ -159,7 +159,8 @@ describe('prédios do OpenStreetMap', () => {
       'ginasio',
     ];
     const ligados = PREDIOS.flatMap((p) => p.blocos);
-    expect(ligados.length).toBeGreaterThan(15);
+    // Todo bloco real cadastrado tem prédio no mapa (critério do SCRUM-284).
+    for (const slug of catalogo) expect(ligados, slug).toContain(slug);
     for (const slug of ligados) expect(catalogo, slug).toContain(slug);
     expect(new Set(ligados).size).toBe(ligados.length);
   });

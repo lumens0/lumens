@@ -102,6 +102,10 @@ LOCAIS_EXTRAS = {
     'EDGE Academy': (-9.5535183, -35.779648),  # junto à pista de atletismo, na Av. Longitudinal
 }
 
+# Unidades que o OSM desenha como área `amenity=university` (sem `building`), e não como prédio. O
+# pino de cada uma no Google Maps cai dentro do polígono (SCRUM-284): IEFE, IQB e FAU.
+AREAS_DE_UNIDADE = {156943706, 157086397, 288826604}
+
 predios, linhas, abertas = [], [], []
 for id_, w in vias.items():
     t = tags(w)
@@ -109,7 +113,7 @@ for id_, w in vias.items():
     if len(pts) < 2:
         continue
     em_metros = [metros(p) for p in pts]
-    if 'building' in t and len(pts) >= 4:
+    if ('building' in t or int(id_) in AREAS_DE_UNIDADE) and len(pts) >= 4:
         cx = sum(x for x, _ in em_metros) / len(em_metros)
         cy = sum(y for _, y in em_metros) / len(em_metros)
         if not dentro((cx, cy), borda):
