@@ -146,6 +146,13 @@ export const PREDIOS_OSM: readonly (readonly [
   string,
 ])[] = [
   [
+    3542070,
+    'Reitoria Universitária',
+    'M494 1158.1L529.4 1225.2L554.4 1212.2L560.5 1209L600.2 1188.4L583 1155.8L564.7 1121.3L522 1143.6ZM532.8 1204.3L511.6 1163.3L560.5 1139.8L581.5 1179.7L552.9 1194.6L546.8 1197.8Z',
+    [494, 1121.3, 106.2, 103.9],
+    'Reitoria',
+  ],
+  [
     64962904,
     'Instituto de Geografia, Desenvolvimento e Meio Ambiente',
     'M685.4 919.2L703.5 908.8L724.7 951.4L707.7 961.4Z',

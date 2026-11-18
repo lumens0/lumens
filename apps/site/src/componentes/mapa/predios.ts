@@ -43,7 +43,7 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64962904: ['igdema'],
   493988328: ['ip'],
   64974358: ['cedu'],
-  64974284: ['csau', 'saude', 'fanut', 'foufal', 'eenf'], // CSAU abriga FANUT, FOUFAL e EENF; `saude` é do seed
+  64974284: ['csau', 'saude', 'fanut', 'foufal'], // CSAU abriga FANUT e FOUFAL; `saude` é do seed
   156943706: ['iefe'], // IEFE, área `amenity=university` do OSM
   157086397: ['iqb'], // Instituto de Química e Biotecnologia, idem
   288826604: ['fau'], // FAU, idem
@@ -55,6 +55,7 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64963507: ['bloco-13'],
   64963326: ['ginasio'], // Ginásio da UFAL
   404593999: ['icf'],
+  404594001: ['eenf'], // no Google Maps a EENF fica no prédio ao norte da FANUT, junto do ICF
   404593997: ['fda'],
   493988324: ['fale'],
   493988321: ['ics'],
@@ -69,6 +70,7 @@ const NOMES_LOCAIS: Record<number, { nome: string; sigla: string }> = {
   404591641: { nome: 'Centro de Interesse Comunitário', sigla: 'CIC' }, // `description` e `ref` no OSM
   // Conferidos no Google Maps: o pino de cada unidade cai dentro (ou a poucos metros) do prédio.
   404593999: { nome: 'Instituto de Ciências Farmacêuticas', sigla: 'ICF' },
+  404594001: { nome: 'Escola de Enfermagem', sigla: 'EENF' },
   404593997: { nome: 'Faculdade de Direito de Alagoas', sigla: 'FDA' },
   493988324: { nome: 'Faculdade de Letras', sigla: 'FALE' },
   493988321: { nome: 'Instituto de Ciências Sociais', sigla: 'ICS' },
