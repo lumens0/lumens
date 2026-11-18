@@ -859,7 +859,13 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
       .values({ emailHmac: `c-${String(contador)}`, emailCifrado: 'x', nome: 'Curadoria' })
       .returning({ id: curadores.id });
     if (!estudante || !pauta || !curador) throw new Error('cenário incompleto');
-    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    // Apoio de antes da abertura da conferência (que é de um dia atrás), o único que vale voto.
+    await db.insert(apoios).values({
+      pautaId: pauta.id,
+      estudanteId: estudante.id,
+      origem: 'bot',
+      criadoEm: new Date(Date.now() - 2 * 86_400_000),
+    });
     const [promessa] = await db
       .insert(promessas)
       .values({
@@ -903,6 +909,21 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
     expect(await votos()).toEqual(['sim']);
     expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
     expect(await passo()).toBe('NEW_ASK_TITLE');
+  });
+
+  it('Evolution (menu em texto): o "sim" digitado no menu grava o voto e o menu segue valendo', async () => {
+    const { votos } = await conferenciaApoiadaPor(PHONE_HMAC);
+    const processar = (t: string) =>
+      processIncomingJob(job({ text: { body: t } }), { ...deps, menusEmTexto: true });
+
+    await processar('oi');
+    await processar('sim');
+
+    expect(await votos()).toEqual(['sim']);
+    expect(await passo()).toBe('MENU');
+    // Número com pontuação é opção do menu, não voto.
+    await processar('2)');
+    expect(await votos()).toEqual(['sim']);
   });
 
   it('Telegram: o callback do botão vira o mesmo job, grava o voto e confirma', async () => {
