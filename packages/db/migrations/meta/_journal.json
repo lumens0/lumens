@@ -145,8 +145,15 @@
     {
       "idx": 20,
       "version": "7",
-      "when": 1794949970185,
-      "tag": "0020_promessa_tetos_de_texto",
+      "when": 1794950418762,
+      "tag": "0020_pauta_urgente",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794960584280,
+      "tag": "0021_promessa_tetos_de_texto",
       "breakpoints": true
     }
   ]

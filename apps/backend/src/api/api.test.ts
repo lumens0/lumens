@@ -8,7 +8,7 @@ import {
   resumo,
   SLUG_MAX,
 } from '@lumens/contratos';
-import { sql, type Db } from '@lumens/db';
+import { eq, eventos, pautas as tabelaDePautas, sql, type Db } from '@lumens/db';
 import { executarSeed } from '@lumens/db/seed';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -25,15 +25,15 @@ import { apiPlugin, CACHE_PUBLICO } from './routes';
 const SITE = 'https://lumens-ufal.vercel.app';
 const PAUTA_EM_CURADORIA = 'mais-arvores-no-campus';
 const PAUTA_RECUSADA = 'tomadas-nas-mesas-da-biblioteca';
-/** As sete pautas públicas na ordem da lista: mais apoios; no empate, a criada por último. */
+/** As sete pautas públicas: urgentes primeiro; depois, mais apoios e data de criação. */
 const PAUTAS_EM_ORDEM = [
+  'biblioteca-aberta-aos-sabados', // urgente, apesar de ter menos apoios
   'laboratorios-abertos-nas-engenharias', // 300 apoios, criada em 10/02
   'internet-na-residencia', // 300 apoios, criada em 09/02
   'acessibilidade-no-bloco-18', // 124
   'iluminacao-no-bloco-de-artes', // 84
   'bebedouros-no-bloco-18', // 72
   'sala-de-descanso-na-saude', // 68
-  'biblioteca-aberta-aos-sabados', // 30
 ];
 /** PGlite com as migrações e o seed, consultado como `lumens_site`: só as views são legíveis. */
 async function bancoDoSite(antesDoPapel?: (db: Db) => Promise<void>): Promise<Db> {
@@ -101,7 +101,11 @@ describe('API de leitura pública com o seed', () => {
   };
 
   beforeAll(async () => {
-    db = await bancoDoSite();
+    db = await bancoDoSite(async (dono) => {
+      await dono.execute(sql`UPDATE pauta
+        SET urgente = true, urgente_desde = now(), urgente_por = (SELECT id FROM curador LIMIT 1)
+        WHERE slug = 'biblioteca-aberta-aos-sabados'`);
+    });
     app = await montarApp(db);
   }, 60_000);
   afterAll(async () => {
@@ -150,7 +154,7 @@ describe('API de leitura pública com o seed', () => {
     const slugs = (body: unknown) =>
       (body as { itens: { slug: string }[] }).itens.map((p) => p.slug);
 
-    it('sem filtro, devolve as sete pautas públicas por apoios e data de criação', async () => {
+    it('sem filtro, devolve urgentes primeiro e depois por apoios e data de criação', async () => {
       const body = await corpo('/pautas');
 
       expect(slugs(body)).toEqual(PAUTAS_EM_ORDEM);
@@ -169,6 +173,7 @@ describe('API de leitura pública com o seed', () => {
           descricao: 'Ampliar o horário da biblioteca durante o período letivo e de provas.',
           categoria: 'servicos',
           status: 'meta_batida',
+          urgente: true,
           meta: 30,
           apoios: 30,
           bloco_slug: 'biblioteca-central',
@@ -216,9 +221,45 @@ describe('API de leitura pública com o seed', () => {
     it('aceita limit 100, o máximo', async () => {
       expect(slugs(await corpo('/pautas?limit=100'))).toEqual(PAUTAS_EM_ORDEM);
     });
+
+    it('devolve urgente no detalhe', async () => {
+      const body = await corpo('/pautas/biblioteca-aberta-aos-sabados');
+      expect(body).toMatchObject({ urgente: true });
+      conferirContrato(pautaDetalhe, body);
+    });
   });
 
   describe('GET /pautas/:slug', () => {
+    it('eventos do mesmo instante saem sempre na mesma ordem', async () => {
+      const instante = new Date('2026-02-07T12:00:00.000Z');
+      const banco = await bancoDoSite(async (db) => {
+        const [pauta] = await db
+          .select({ id: tabelaDePautas.id })
+          .from(tabelaDePautas)
+          .where(eq(tabelaDePautas.slug, 'iluminacao-no-bloco-de-artes'));
+        if (!pauta) throw new Error('pauta do seed não encontrada');
+        // Inseridos ao contrário: a urgência antes da aprovação, no mesmo instante.
+        for (const tipo of ['pauta_urgente', 'pauta_aprovada'] as const) {
+          await db.insert(eventos).values({
+            pautaId: pauta.id,
+            tipo,
+            dados: tipo === 'pauta_urgente' ? { urgente: true } : {},
+            origem: 'curadoria',
+            publico: true,
+            criadoEm: instante,
+          });
+        }
+      });
+      const app = await montarApp(banco);
+      const res = await app.inject({ method: 'GET', url: '/pautas/iluminacao-no-bloco-de-artes' });
+      const tipos = res
+        .json<{ linha_do_tempo: { tipo: string }[] }>()
+        .linha_do_tempo.map((e) => e.tipo)
+        .filter((t) => t === 'pauta_aprovada' || t === 'pauta_urgente');
+      expect(tipos).toEqual(['pauta_aprovada', 'pauta_urgente']);
+      await app.close();
+    });
+
     it('junta pauta, relatos, caminhos e linha do tempo', async () => {
       const body = await corpo('/pautas/iluminacao-no-bloco-de-artes');
 
@@ -228,6 +269,7 @@ describe('API de leitura pública com o seed', () => {
         descricao: 'Trocar luminárias apagadas e iluminar o trajeto até o ponto de ônibus.',
         categoria: 'seguranca',
         status: 'cobrando',
+        urgente: false,
         meta: 80,
         apoios: 84,
         bloco_slug: 'artes',
@@ -571,6 +613,9 @@ describe('API de leitura pública com pauta do campus inteiro', () => {
 
   beforeAll(async () => {
     const db = await bancoDoSite(async (dono) => {
+      await dono.execute(sql`UPDATE pauta
+        SET urgente = true, urgente_desde = now(), urgente_por = (SELECT id FROM curador LIMIT 1)
+        WHERE slug = 'biblioteca-aberta-aos-sabados'`);
       await dono.execute(
         sql`INSERT INTO pauta (slug, titulo, descricao, categoria, meta, status)
             VALUES ('wifi-no-campus', 'Wi-Fi no campus', 'Cobertura nas áreas abertas.',
@@ -613,6 +658,7 @@ describe('API de leitura pública: serialização e rotas', () => {
       descricao: 'Descrição',
       categoria: 'teste',
       status: 'juntando_apoios',
+      urgente: false,
       meta: 10,
       apoios: 1,
       bloco_slug: null,

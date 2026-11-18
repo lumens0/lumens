@@ -517,7 +517,7 @@ describe('migração inicial em Postgres real', () => {
   it('a migração 0020 corta no teto a promessa já gravada acima dele, sem travar', async () => {
     const id = await promessa(await pauta(), await curador());
     const sqlDaMigracao = await readFile(
-      new URL('../migrations/0020_promessa_tetos_de_texto.sql', import.meta.url),
+      new URL('../migrations/0021_promessa_tetos_de_texto.sql', import.meta.url),
       'utf8',
     );
     const cliente = await pool.connect();
@@ -578,7 +578,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(25);
+    expect(rows).toHaveLength(26);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 
@@ -612,6 +612,19 @@ describe('migração inicial em Postgres real', () => {
     );
     expect(criacoes).toHaveLength(11);
     expect(criacoes.every((r) => r.column_default === 'now()')).toBe(true);
+  });
+
+  it('inicia sem urgência e impede combinar urgente com campos ausentes', async () => {
+    const id = await pauta();
+    const { rows } = await pool.query<{
+      urgente: boolean;
+      urgente_desde: Date | null;
+      urgente_por: string | null;
+    }>('SELECT urgente, urgente_desde, urgente_por FROM pauta WHERE id = $1', [id]);
+    expect(rows[0]).toEqual({ urgente: false, urgente_desde: null, urgente_por: null });
+    await expect(
+      pool.query('UPDATE pauta SET urgente = true WHERE id = $1', [id]),
+    ).rejects.toMatchObject({ code: '23514', constraint: 'pauta_urgencia_consistente' });
   });
 
   it('busca título/descrição em português e atualiza o vetor automaticamente', async () => {

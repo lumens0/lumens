@@ -42,6 +42,11 @@
   transition: opacity var(--rapido) var(--curva);
 }
 
+.predioUrgente > path:last-of-type {
+  stroke: var(--urgente);
+  stroke-width: calc(var(--k) * 3px);
+}
+
 /* Prédio com pauta: aceso e com um halo da própria cor. */
 .predio[role='button'],
 .escolhido[role='button'] {
