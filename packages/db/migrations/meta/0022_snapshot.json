@@ -1,5 +1,5 @@
 {
-  "id": "3e812351-299d-4c66-8aa9-0a6b361879d5",
+  "id": "590c034c-7e37-48d1-898d-85e29681ce54",
   "prevId": "829a9a51-87ce-4830-b87c-32d9f3cdd8b6",
   "version": "7",
   "dialect": "postgresql",
@@ -47,29 +47,29 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "apoio_pauta_id_pauta_id_fk": {
           "name": "apoio_pauta_id_pauta_id_fk",
           "tableFrom": "apoio",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "apoio_estudante_id_estudante_id_fk": {
           "name": "apoio_estudante_id_estudante_id_fk",
           "tableFrom": "apoio",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -119,8 +119,8 @@
       "uniqueConstraints": {
         "bloco_slug_unique": {
           "name": "bloco_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": ["slug"],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -207,20 +207,20 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "caminho_pauta_id_pauta_id_fk": {
           "name": "caminho_pauta_id_pauta_id_fk",
           "tableFrom": "caminho",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -322,9 +322,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -377,20 +377,20 @@
         "curador_auditoria_autor_id_curador_id_fk": {
           "name": "curador_auditoria_autor_id_curador_id_fk",
           "tableFrom": "curador_auditoria",
-          "tableTo": "curador",
           "columnsFrom": ["autor_id"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "curador_auditoria_alvo_id_curador_id_fk": {
           "name": "curador_auditoria_alvo_id_curador_id_fk",
           "tableFrom": "curador_auditoria",
-          "tableTo": "curador",
           "columnsFrom": ["alvo_id"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -457,8 +457,8 @@
       "uniqueConstraints": {
         "curador_email_hmac_unique": {
           "name": "curador_email_hmac_unique",
-          "nullsNotDistinct": false,
-          "columns": ["email_hmac"]
+          "columns": ["email_hmac"],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -576,9 +576,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "disparo_wamid_hmac_unique": {
           "name": "disparo_wamid_hmac_unique",
@@ -591,9 +591,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "disparo_estudante_id_idx": {
           "name": "disparo_estudante_id_idx",
@@ -606,9 +606,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "disparo_pendente_idx": {
           "name": "disparo_pendente_idx",
@@ -621,10 +621,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"disparo\".\"enviado_em\" IS NULL AND \"disparo\".\"falhou_em\" IS NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"disparo\".\"enviado_em\" IS NULL AND \"disparo\".\"falhou_em\" IS NULL",
+          "concurrently": false
         },
         "disparo_reservado_em_idx": {
           "name": "disparo_reservado_em_idx",
@@ -637,20 +637,20 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "disparo_estudante_id_estudante_id_fk": {
           "name": "disparo_estudante_id_estudante_id_fk",
           "tableFrom": "disparo",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -720,9 +720,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "documento_resposta_caminho_id_idx": {
           "name": "documento_resposta_caminho_id_idx",
@@ -735,9 +735,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "documento_resposta_enviado_por_idx": {
           "name": "documento_resposta_enviado_por_idx",
@@ -750,9 +750,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "documento_resposta_promessa_id_idx": {
           "name": "documento_resposta_promessa_id_idx",
@@ -765,55 +765,55 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "documento_resposta_pauta_id_pauta_id_fk": {
           "name": "documento_resposta_pauta_id_pauta_id_fk",
           "tableFrom": "documento_resposta",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "documento_resposta_caminho_id_caminho_id_fk": {
           "name": "documento_resposta_caminho_id_caminho_id_fk",
           "tableFrom": "documento_resposta",
-          "tableTo": "caminho",
           "columnsFrom": ["caminho_id"],
+          "tableTo": "caminho",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "documento_resposta_enviado_por_estudante_id_fk": {
           "name": "documento_resposta_enviado_por_estudante_id_fk",
           "tableFrom": "documento_resposta",
-          "tableTo": "estudante",
           "columnsFrom": ["enviado_por"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "documento_resposta_promessa_id_promessa_id_fk": {
           "name": "documento_resposta_promessa_id_promessa_id_fk",
           "tableFrom": "documento_resposta",
-          "tableTo": "promessa",
           "columnsFrom": ["promessa_id"],
+          "tableTo": "promessa",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "documento_resposta_arquivo_chave_unique": {
           "name": "documento_resposta_arquivo_chave_unique",
-          "nullsNotDistinct": false,
-          "columns": ["arquivo_chave"]
+          "columns": ["arquivo_chave"],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -886,13 +886,13 @@
       "uniqueConstraints": {
         "estudante_telefone_hmac_unique": {
           "name": "estudante_telefone_hmac_unique",
-          "nullsNotDistinct": false,
-          "columns": ["telefone_hmac"]
+          "columns": ["telefone_hmac"],
+          "nullsNotDistinct": false
         },
         "estudante_email_hmac_unique": {
           "name": "estudante_email_hmac_unique",
-          "nullsNotDistinct": false,
-          "columns": ["email_hmac"]
+          "columns": ["email_hmac"],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -956,15 +956,15 @@
           "primaryKey": false,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "evento_seq_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "9223372036854775807",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         }
       },
@@ -986,9 +986,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "evento_publico_criado_em_idx": {
           "name": "evento_publico_criado_em_idx",
@@ -1001,21 +1001,21 @@
             }
           ],
           "isUnique": false,
-          "where": "\"evento\".\"publico\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"evento\".\"publico\"",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "evento_pauta_id_pauta_id_fk": {
           "name": "evento_pauta_id_pauta_id_fk",
           "tableFrom": "evento",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -1106,9 +1106,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "papel_pauta_ativo_unico": {
           "name": "papel_pauta_ativo_unico",
@@ -1127,30 +1127,30 @@
             }
           ],
           "isUnique": true,
-          "where": "\"papel_pauta\".\"ate\" IS NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"papel_pauta\".\"ate\" IS NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "papel_pauta_pauta_id_pauta_id_fk": {
           "name": "papel_pauta_pauta_id_pauta_id_fk",
           "tableFrom": "papel_pauta",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "papel_pauta_estudante_id_estudante_id_fk": {
           "name": "papel_pauta_estudante_id_estudante_id_fk",
           "tableFrom": "papel_pauta",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1281,8 +1281,8 @@
           "primaryKey": false,
           "notNull": true,
           "generated": {
-            "as": "setweight(to_tsvector('public.portugues_sem_acento'::regconfig, \"titulo\"), 'A') || setweight(to_tsvector('public.portugues_sem_acento'::regconfig, \"descricao\"), 'B')",
-            "type": "stored"
+            "type": "stored",
+            "as": "setweight(to_tsvector('public.portugues_sem_acento'::regconfig, \"titulo\"), 'A') || setweight(to_tsvector('public.portugues_sem_acento'::regconfig, \"descricao\"), 'B')"
           }
         }
       },
@@ -1298,9 +1298,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pauta_status_idx": {
           "name": "pauta_status_idx",
@@ -1313,9 +1313,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pauta_busca_idx": {
           "name": "pauta_busca_idx",
@@ -1328,46 +1328,46 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "pauta_bloco_id_bloco_id_fk": {
           "name": "pauta_bloco_id_bloco_id_fk",
           "tableFrom": "pauta",
-          "tableTo": "bloco",
           "columnsFrom": ["bloco_id"],
+          "tableTo": "bloco",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "pauta_decidida_por_curador_id_fk": {
           "name": "pauta_decidida_por_curador_id_fk",
           "tableFrom": "pauta",
-          "tableTo": "curador",
           "columnsFrom": ["decidida_por"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "pauta_urgente_por_curador_id_fk": {
           "name": "pauta_urgente_por_curador_id_fk",
           "tableFrom": "pauta",
-          "tableTo": "curador",
           "columnsFrom": ["urgente_por"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "pauta_slug_unique": {
           "name": "pauta_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": ["slug"]
+          "columns": ["slug"],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1455,9 +1455,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "promessa_registrada_por_idx": {
           "name": "promessa_registrada_por_idx",
@@ -1470,9 +1470,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "promessa_ativa_por_pauta_unique": {
           "name": "promessa_ativa_por_pauta_unique",
@@ -1485,45 +1485,36 @@
             }
           ],
           "isUnique": true,
-          "where": "\"promessa\".\"resultado\" IS NULL",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"promessa\".\"resultado\" IS NULL",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "promessa_pauta_id_pauta_id_fk": {
           "name": "promessa_pauta_id_pauta_id_fk",
           "tableFrom": "promessa",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "promessa_registrada_por_curador_id_fk": {
           "name": "promessa_registrada_por_curador_id_fk",
           "tableFrom": "promessa",
-          "tableTo": "curador",
           "columnsFrom": ["registrada_por"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "promessa_resumo_ate_500": {
-          "name": "promessa_resumo_ate_500",
-          "value": "char_length(\"promessa\".\"resumo\") <= 500"
-        },
-        "promessa_fonte_ate_120": {
-          "name": "promessa_fonte_ate_120",
-          "value": "char_length(\"promessa\".\"fonte\") <= 120"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.proposta": {
@@ -1582,20 +1573,20 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "proposta_pauta_id_pauta_id_fk": {
           "name": "proposta_pauta_id_pauta_id_fk",
           "tableFrom": "proposta",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -1664,9 +1655,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "registro_verificacao_telefone_idx": {
           "name": "registro_verificacao_telefone_idx",
@@ -1685,9 +1676,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "registro_verificacao_em_idx": {
           "name": "registro_verificacao_em_idx",
@@ -1700,9 +1691,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1785,9 +1776,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "relato_estudante_id_idx": {
           "name": "relato_estudante_id_idx",
@@ -1800,38 +1791,38 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "relato_pauta_id_pauta_id_fk": {
           "name": "relato_pauta_id_pauta_id_fk",
           "tableFrom": "relato",
-          "tableTo": "pauta",
           "columnsFrom": ["pauta_id"],
+          "tableTo": "pauta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "relato_estudante_id_estudante_id_fk": {
           "name": "relato_estudante_id_estudante_id_fk",
           "tableFrom": "relato",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "relato_moderado_por_curador_id_fk": {
           "name": "relato_moderado_por_curador_id_fk",
           "tableFrom": "relato",
-          "tableTo": "curador",
           "columnsFrom": ["moderado_por"],
+          "tableTo": "curador",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
@@ -1883,29 +1874,29 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "resposta_conferencia_promessa_id_promessa_id_fk": {
           "name": "resposta_conferencia_promessa_id_promessa_id_fk",
           "tableFrom": "resposta_conferencia",
-          "tableTo": "promessa",
           "columnsFrom": ["promessa_id"],
+          "tableTo": "promessa",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "resposta_conferencia_estudante_id_estudante_id_fk": {
           "name": "resposta_conferencia_estudante_id_estudante_id_fk",
           "tableFrom": "resposta_conferencia",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -1991,29 +1982,29 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "voluntario_proposta_id_proposta_id_fk": {
           "name": "voluntario_proposta_id_proposta_id_fk",
           "tableFrom": "voluntario",
-          "tableTo": "proposta",
           "columnsFrom": ["proposta_id"],
+          "tableTo": "proposta",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         },
         "voluntario_estudante_id_estudante_id_fk": {
           "name": "voluntario_estudante_id_estudante_id_fk",
           "tableFrom": "voluntario",
-          "tableTo": "estudante",
           "columnsFrom": ["estudante_id"],
+          "tableTo": "estudante",
           "columnsTo": ["id"],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {
@@ -2105,10 +2096,10 @@
     }
   },
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

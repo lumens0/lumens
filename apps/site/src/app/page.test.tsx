@@ -21,6 +21,12 @@ const render = async (bloco?: string, status?: string) =>
     }),
   );
 
+/** Um total da faixa: o número animado, escondido do leitor de tela, e o valor final oculto. */
+const total = (rotulo: string, n: string) =>
+  new RegExp(
+    `<dt>${rotulo}</dt><dd><span aria-hidden="true">${n}</span><span class="[^"]*somenteLeitor[^"]*">${n}</span></dd>`,
+  );
+
 describe('home', () => {
   beforeEach(() => {
     vi.mocked(buscarBlocos).mockResolvedValue(exemplo.blocos);
@@ -46,8 +52,8 @@ describe('home', () => {
     expect(html).toContain('Bloco A</h2>');
     for (const p of doBlocoA) expect(html).toContain(p.titulo);
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
-    expect(html).toContain('<dt>Apoios</dt><dd>499</dd>');
-    expect(html).toContain('<dt>Pautas abertas</dt><dd>0</dd>');
+    expect(html).toMatch(total('Apoios', '499'));
+    expect(html).toMatch(total('Pautas abertas', '0'));
   });
 
   it('o leitor de tela ouve os totais uma vez, sem os quadros da animação (SCRUM-58)', async () => {
@@ -74,7 +80,7 @@ describe('home', () => {
     const html = await render('bloco-a', 'prometido');
     expect(buscarPautas).toHaveBeenCalledTimes(1);
     expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
-    expect(html).toContain('<dt>Apoios</dt><dd>0</dd>');
+    expect(html).toMatch(total('Apoios', '0'));
     expect(html).toContain('Nenhuma pauta prometida neste bloco');
   });
 

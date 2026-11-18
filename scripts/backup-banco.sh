@@ -61,15 +61,31 @@ echo "--> Backup pronto: $(du -h "$destino" | cut -f1)"
 # ele não bater com o do espelho o espelho para com erro em vez de apagar o único backup das fotos
 # (scripts/minio/espelhar-fotos.sh).
 #
-# Depois do dump de propósito: se o MinIO estiver fora, o banco já está salvo, e o script ainda
-# termina com erro para o systemd marcar a falha.
-if grep -qsE '^[[:space:]]*S3_ENDPOINT=["'\'']?http://minio:9000/?["'\'']?[[:space:]]*$' .env.producao; then
-  mkdir -p "$BACKUP_DIR/arquivos"
+# Depois do dump de propósito: se o MinIO estiver fora, o banco já está salvo. A falha do espelho
+# não pode impedir que o dump vá para fora da VM (o envio é o ExecStart seguinte do systemd, que só
+# roda se este sair com sucesso): o script a registra em $BACKUP_DIR/.espelho-falhou, que o
+# enviar-backup.sh lê, e sai com sucesso se ESPELHO_NAO_ABORTA=1 (o serviço define). O envio manda o
+# dump e então termina com erro, para o alerta sair. Sem ESPELHO_NAO_ABORTA, como numa rodada na
+# mão, o script termina com erro aqui mesmo.
+marcador="$BACKUP_DIR/.espelho-falhou"
+espelhar_fotos() {
+  mkdir -p "$BACKUP_DIR/arquivos" || return 1
   echo "--> Espelhando o bucket das fotos em $BACKUP_DIR/arquivos"
   # Roda como o dono do $BACKUP_DIR, para os arquivos não ficarem de root. --no-deps: o MinIO
   # parado tem de virar falha do backup, não ser ligado por ele.
   "${COMPOSE[@]}" --profile minio run --rm --no-deps -T --user "$(id -u):$(id -g)" \
     -e ADOTAR_BUCKET="${ADOTAR_BUCKET:-}" -v "$BACKUP_DIR/arquivos:/backup" \
-    --entrypoint bash minio-preparar /scripts/espelhar-fotos.sh
+    --entrypoint bash minio-preparar /scripts/espelhar-fotos.sh || return 1
   echo "--> Arquivos espelhados: $(du -sh "$BACKUP_DIR/arquivos" | cut -f1)"
+}
+if grep -qsE '^[[:space:]]*S3_ENDPOINT=["'\'']?http://minio:9000/?["'\'']?[[:space:]]*$' .env.producao; then
+  if espelhar_fotos; then
+    rm -f "$marcador"
+  else
+    echo "ERRO: o espelho das fotos falhou; o dump está salvo e segue para fora da VM." >&2
+    : >"$marcador"
+    [[ ${ESPELHO_NAO_ABORTA:-} == 1 ]] || exit 1
+  fi
+else
+  rm -f "$marcador"
 fi

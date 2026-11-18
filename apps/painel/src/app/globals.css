@@ -1,15 +1,10 @@
-:root {
-  --fundo: #e7e1f2;
-  --superficie: #fff;
-  --tinta: #1e1433;
-  --tinta-secundaria: #5b4e75;
-  --borda: #d9d0ea;
-  --primaria: #5a22c8;
-  --destaque-suave: #f1ecf9;
-}
-
+/* Os tokens (cores, raio, ritmo) vêm de `@lumens/marca/tokens.css`, os mesmos do site. */
 * {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -17,9 +12,39 @@ body {
   background: var(--fundo);
   color: var(--tinta);
   font-family: var(--fonte-corpo), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--fonte-titulo), system-ui, sans-serif;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+a {
+  color: var(--luz-tinta);
+  text-underline-offset: 3px;
 }
 
 :focus-visible {
-  outline: 3px solid var(--primaria);
-  outline-offset: 2px;
+  outline: 2px solid var(--luz-forte);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--luz-fundo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
