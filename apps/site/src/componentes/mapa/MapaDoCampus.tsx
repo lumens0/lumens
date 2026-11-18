@@ -128,15 +128,15 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     return [
       ...(aberto?.sigla ? [nomeDoPredio(aberto)] : []),
       ...comBloco.map(nomeDoPredio),
-      ...(comNomes
-        ? PONTOS.map((p): Nome => ({
-            id: `n${p.nome}`,
-            texto: p.nome,
-            x: p.x,
-            y: p.y,
-            lado: 'acima',
-          }))
-        : []),
+      // Os lugares fora do OSM (a bolinha da EDGE Academy) levam o nome em qualquer zoom: sem ele a
+      // bolinha não diz o que é.
+      ...PONTOS.map((p): Nome => ({
+        id: `n${p.nome}`,
+        texto: p.nome,
+        x: p.x,
+        y: p.y,
+        lado: 'acima',
+      })),
       ...(comNomes ? AREAS.filter((a) => a.nome).map(nomeDaArea) : []),
       ...semBloco.map(nomeDoPredio),
     ];
