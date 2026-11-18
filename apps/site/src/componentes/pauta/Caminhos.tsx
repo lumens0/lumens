@@ -58,7 +58,7 @@ export function Caminhos({ caminhos, slug }: { caminhos: readonly Caminho[]; slu
       </h2>
       {caminhos.length === 0 ? (
         <p className={estilos.vazio}>
-          O owner ainda vai escolher os caminhos para levar esta pauta adiante.
+          Quem cuida da pauta ainda vai escolher os caminhos para levá-la adiante.
         </p>
       ) : (
         <ul className={estilos.caminhos}>

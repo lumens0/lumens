@@ -87,3 +87,40 @@ export function criarCliente(opcoes: OpcoesDoCliente): ClienteEvolution {
     throw new ErroDaEvolution(resposta.status, `HTTP ${String(resposta.status)} em ${caminho}`);
   };
 }
+
+/**
+ * Estado da sessão do chip na Evolution (SCRUM-341): `open` quando conectada, ou o que impede saber.
+ *
+ * Usa `GET /instance/connectionState/{instância}`, que lê a sessão em memória. O `fetchInstances`
+ * do `scripts/evolution.sh estado` lê o banco da Evolution, que só muda num evento de conexão: uma
+ * sessão que não voltou depois do boot, sem evento de queda, ainda apareceria `open` ali.
+ *
+ * Nunca lança, e nunca devolve o corpo da resposta: o retorno vai para o log do healthcheck.
+ * - `open`, `close`, `connecting`: o estado que a Evolution informou;
+ * - `http_<status>`: a Evolution recusou (401 = chave errada, 404 = instância inexistente);
+ * - `sem_resposta`: fora do ar, rede ou passou do tempo;
+ * - `resposta_inesperada`: respondeu 200 num formato que não traz o estado.
+ */
+export function criarConsultaDaConexao(opcoes: OpcoesDoCliente): () => Promise<string> {
+  const buscar = opcoes.fetch ?? fetch;
+  const base = opcoes.url.replace(/\/+$/, '');
+  const url = `${base}/instance/connectionState/${encodeURIComponent(opcoes.instancia)}`;
+  // Curto: quem pergunta é um healthcheck, que não pode ficar pendurado na Evolution.
+  const timeoutMs = opcoes.timeoutMs ?? 5_000;
+
+  return async () => {
+    let resposta: Response;
+    try {
+      resposta = await buscar(url, {
+        headers: { apikey: opcoes.apiKey },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch {
+      return 'sem_resposta';
+    }
+    if (!resposta.ok) return `http_${String(resposta.status)}`;
+    const dados: unknown = await resposta.json().catch(() => null);
+    const estado = (dados as { instance?: { state?: unknown } } | null)?.instance?.state;
+    return typeof estado === 'string' ? estado : 'resposta_inesperada';
+  };
+}

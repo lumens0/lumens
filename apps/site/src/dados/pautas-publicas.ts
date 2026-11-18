@@ -1,3 +1,4 @@
+import { rotuloDaCategoria } from '@lumens/contratos';
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 // Pautas em curadoria ou recusadas nunca aparecem no site.
@@ -18,9 +19,15 @@ export function aceitaApoio(status: StatusPauta): boolean {
   return !SEM_APOIO.has(status);
 }
 
-/** Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus. */
+/**
+ * Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus.
+ * A categoria sai pelo rótulo da lista oficial (SCRUM-291); `a_classificar` ou valor fora da lista
+ * mostra só o bloco, nunca o valor gravado.
+ */
 export function contextoDaPauta(categoria: string, blocoNome: string | null | undefined): string {
-  return `${categoria} · ${blocoNome ?? 'Todo o campus'}`;
+  const onde = blocoNome ?? 'Todo o campus';
+  const rotulo = rotuloDaCategoria(categoria);
+  return rotulo === undefined ? onde : `${rotulo} · ${onde}`;
 }
 
 /**

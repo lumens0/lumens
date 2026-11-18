@@ -182,6 +182,21 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
 A homologação fica desligada por padrão. Ao ligar, a Evolution reconecta sozinha com a sessão do
 volume; confira com `./scripts/evolution.sh estado`. Se voltar `close`, rode o `parear` de novo.
 
+Sem entrar na VM, `https://<DOMINIO>/saude/whatsapp` responde 200 com o chip conectado e 503 com a
+sessão caída, a Evolution fora do ar ou a chave errada. O motivo fica só no log do back-end
+(`healthcheck: WhatsApp da Evolution não está conectado`, com o `estado`: `close`, `connecting`,
+`http_401`, `sem_resposta`...). A resposta vale por 10 s. Com o WhatsApp pela Meta ou pelo
+Telegram, a rota não existe (404).
+
+A rota pergunta à Evolution o estado da sessão em memória (`/instance/connectionState`), não o do
+banco dela, que o `./scripts/evolution.sh estado` mostra e que pode continuar `open` com a sessão
+morta depois do boot.
+
+O smoke test do CI confere a rota depois de cada deploy (até 2 min, para dar tempo de
+reconectar) e anota um erro no resumo da execução se o chip não estiver conectado, sem reprovar o
+job. Ele só roda no deploy: depois de religar a VM sem deploy, confira a rota à mão. A reconexão
+sozinha depois de religar a VM ainda precisa ser conferida com o chip (SCRUM-341).
+
 O que acontece com as mensagens mandadas enquanto a VM estava desligada ainda precisa ser
 conferido no spike (veja a decisão).
 

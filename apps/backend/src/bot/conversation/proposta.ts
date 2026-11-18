@@ -9,10 +9,11 @@
  * O bot deixa uma proposta aberta por vez em cada pauta: o botão do owner é "Propor solução" sem
  * nenhuma aberta e "Proposta feita" com uma.
  */
-import { eq, pautas, propostas, type Db } from '@lumens/db';
+import { eq, propostas, type Db } from '@lumens/db';
 import { propostasAbertas, registrarVoluntario } from '@lumens/dominio';
 import { z } from 'zod';
 import { estudanteVerificado } from './estudante';
+import { pautaDoLink } from './pauta-do-link';
 import type { DataPatch, StepContext, StepHandler, StepResult } from './handlers';
 import { botoes, lista, type Resposta } from './resposta';
 import { normalize } from './texto';
@@ -125,10 +126,8 @@ async function propostaDoAlvo(
     const [p] = await db.select({ id: propostas.id }).from(propostas).where(eq(propostas.id, alvo));
     return p ?? { texto: NO_PROPOSAL_TEXT };
   }
-  const [pauta] = await db
-    .select({ id: pautas.id })
-    .from(pautas)
-    .where(eq(pautas.slug, alvo.toLowerCase()));
+  // Pelo link do site: slug, ou id curto da pauta quando o slug não cabe no Telegram (SCRUM-293).
+  const pauta = await pautaDoLink(db, alvo);
   const abertas = pauta === undefined ? [] : await propostasAbertas(db, pauta.id);
   const [unica] = abertas;
   if (unica === undefined) return { texto: NO_PROPOSAL_TEXT };
