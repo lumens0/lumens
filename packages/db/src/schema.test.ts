@@ -321,6 +321,7 @@ describe('migração inicial em Postgres real', () => {
         'recusa',
         'vitoria',
         'aprovacao',
+        'remarcacao',
       ],
     });
   });
@@ -517,7 +518,7 @@ describe('migração inicial em Postgres real', () => {
   it('a migração 0020 corta no teto a promessa já gravada acima dele, sem travar', async () => {
     const id = await promessa(await pauta(), await curador());
     const sqlDaMigracao = await readFile(
-      new URL('../migrations/0021_promessa_tetos_de_texto.sql', import.meta.url),
+      new URL('../migrations/0022_promessa_tetos_de_texto.sql', import.meta.url),
       'utf8',
     );
     const cliente = await pool.connect();

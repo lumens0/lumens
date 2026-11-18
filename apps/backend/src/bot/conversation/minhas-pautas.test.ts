@@ -49,6 +49,7 @@ import {
 import {
   LIMITES_DOS_BOTOES,
   botoes,
+  dentroDosLimitesDaMeta,
   textoDaResposta,
   type MensagemDeBotoes,
   type MensagemDeLista,
@@ -670,9 +671,11 @@ describe('proposta da comunidade (3.5)', () => {
 });
 
 describe('botoes()', () => {
-  it('corta o título em 20 caracteres e recusa mais de 3 botões', () => {
+  it('guarda o título inteiro, a Meta corta em 20, e recusa mais de 3 botões', () => {
     const m = botoes({ corpo: 'Escolha', botoes: [{ id: 'a', titulo: 'x'.repeat(30) }] });
-    expect(Array.from(m.botoes[0]?.titulo ?? '')).toHaveLength(LIMITES_DOS_BOTOES.titulo);
+    expect(m.botoes[0]?.titulo).toBe('x'.repeat(30));
+    const naMeta = dentroDosLimitesDaMeta(m) as MensagemDeBotoes;
+    expect(Array.from(naMeta.botoes[0]?.titulo ?? '')).toHaveLength(LIMITES_DOS_BOTOES.titulo);
     const quatro = ['a', 'b', 'c', 'd'].map((id) => ({ id, titulo: id }));
     expect(() => botoes({ corpo: 'Escolha', botoes: quatro })).toThrow();
     expect(() => botoes({ corpo: 'Escolha', botoes: [] })).toThrow();

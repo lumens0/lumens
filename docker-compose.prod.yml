@@ -71,8 +71,12 @@ services:
       start_period: 30s
 
   # Painel de curadoria. Fica aqui, e não na Vercel, porque precisa do banco e o banco não tem
-  # porta publicada. Usa o mesmo .env.producao do back-end (DATABASE_URL de lumens_app,
-  # CHAVE_HMAC, EMAIL_*) mais o AUTH_SECRET, que só ele lê.
+  # porta publicada.
+  #
+  # SCRUM-303: só as variáveis que o painel lê, tiradas do .env.producao (o deploy passa
+  # `--env-file .env.producao`). Antes ele recebia o arquivo inteiro, com CHAVE_CIFRA (que decifra
+  # telefones e e-mails), META_* e TELEGRAM_BOT_TOKEN: uma falha no Next, que atende a internet,
+  # entregaria tudo isso. Variável nova no painel tem de entrar aqui.
   painel:
     build:
       context: .
@@ -81,9 +85,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    env_file:
-      - .env.producao
     environment:
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no .env.producao}
+      CHAVE_HMAC: ${CHAVE_HMAC:?defina CHAVE_HMAC no .env.producao}
+      AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET no .env.producao}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-}
+      EMAIL_USUARIO: ${EMAIL_USUARIO:-}
+      EMAIL_SENHA: ${EMAIL_SENHA:-}
+      EMAIL_REMETENTE: ${EMAIL_REMETENTE:-}
+      # Foto do relato e PDF da resposta (SCRUM-262). Credencial só se não houver papel na máquina.
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET_FOTOS: ${S3_BUCKET_FOTOS:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       # O link do e-mail é montado a partir desta URL. Atrás do Caddy o Auth.js só confia no
       # Host repassado com AUTH_TRUST_HOST; fixar a URL evita depender do cabeçalho.
       AUTH_URL: https://painel.${DOMINIO:?defina DOMINIO no .env.producao}
@@ -121,6 +137,53 @@ services:
     depends_on:
       - backend
       - painel
+
+  # Storage das fotos do relato e dos PDFs da resposta oficial (SCRUM-330), num MinIO na própria
+  # VM. Só sobe com o perfil `minio`, que o deploy liga quando o .env.producao tem
+  # S3_ENDPOINT=http://minio:9000. O back-end grava e o painel lê pela rede interna; sem `ports`,
+  # nada disso é alcançável de fora, e o console web fica desligado.
+  #
+  # Imagem da comunidade (Pigsty): a MinIO parou de publicar as oficiais (minio/minio sumiu do
+  # Docker Hub). É o mesmo servidor, de código AGPL, fixado por tag E digest.
+  minio:
+    profiles: ['minio']
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    restart: unless-stopped
+    command: server /data
+    # Só o root do MinIO, num arquivo próprio: o back-end e o painel não o recebem, e o MinIO não
+    # recebe as credenciais do banco.
+    env_file:
+      - .env.producao.minio
+    environment:
+      MINIO_BROWSER: 'off'
+    volumes:
+      - lumens-arquivos:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Cria o bucket e o usuário restrito do Lumens; o backup diário também o usa para espelhar o
+  # bucket. Como a `migracao`: tarefa de uma vez só, chamada com `run --rm`. Recebe o root do MinIO
+  # e só as três variáveis do .env.producao de que precisa, não o arquivo inteiro: as chaves de
+  # cifra, o banco e os tokens não entram numa imagem da comunidade.
+  minio-preparar:
+    profiles: ['ferramentas']
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    restart: 'no'
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env.producao.minio
+    environment:
+      S3_BUCKET_FOTOS: ${S3_BUCKET_FOTOS:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - ./scripts/minio:/scripts:ro
+    entrypoint: ['bash', '/scripts/preparar-bucket.sh']
 
   # WhatsApp não oficial pela Evolution API (SCRUM-275). Só sobe com o perfil `evolution`, que o
   # deploy liga quando o .env.producao tem CANAL_WHATSAPP=evolution. Passo a passo, pareamento por QR
@@ -195,6 +258,8 @@ volumes:
   lumens-pgdata:
   caddy-data:
   caddy-config:
+  # Fotos e PDFs (SCRUM-330). Entra no backup diário: docs/operacao/backup.md
+  lumens-arquivos:
   # Sessão do WhatsApp. Perder estes volumes só obriga a parear o chip de novo.
   evolution-pgdata:
   evolution-instances:

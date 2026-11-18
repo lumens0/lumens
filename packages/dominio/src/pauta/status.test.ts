@@ -29,6 +29,8 @@ const VALIDAS: [StatusPauta, StatusPauta, OrigemEvento][] = [
   ['prometido', 'conquistada', 'agendador'],
   ['prometido', 'entregue_em_parte', 'agendador'],
   ['prometido', 'descumprida', 'agendador'],
+  // SCRUM-308: duas conferências sem quórum devolvem a pauta à cobrança.
+  ['prometido', 'cobrando', 'agendador'],
   ['entregue_em_parte', 'prometido', 'curadoria'],
   ['descumprida', 'prometido', 'curadoria'],
   ['descumprida', 'cobrando', 'bot'],
@@ -101,6 +103,21 @@ describe('transicionarStatus', () => {
       await expect(
         db.transaction((tx) =>
           transicionarStatus(tx, { pautaId: pauta.id, para: 'conquistada', origem }),
+        ),
+      ).rejects.toMatchObject({ codigo: 'transicao_invalida' });
+
+      expect((await lerPauta(pauta.id))?.status).toBe('prometido');
+    },
+  );
+
+  it.each(['bot', 'curadoria'] as const)(
+    'nem o %s desfaz a promessa: prometido → cobrando é só da apuração (SCRUM-308)',
+    async (origem) => {
+      const pauta = await criarPauta(db, { status: 'prometido' });
+
+      await expect(
+        db.transaction((tx) =>
+          transicionarStatus(tx, { pautaId: pauta.id, para: 'cobrando', origem }),
         ),
       ).rejects.toMatchObject({ codigo: 'transicao_invalida' });
 

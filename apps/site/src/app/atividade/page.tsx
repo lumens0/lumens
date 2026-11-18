@@ -29,10 +29,10 @@ function paginaDaUrl(valor: string | string[] | undefined): number {
 
 /**
  * Tom de cada tipo de evento, nas cores de status do site: azul para o que entra na pauta,
- * turquesa para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
+ * roxo para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
  * fica neutro.
  */
-type Tom = 'azul' | 'turquesa' | 'ambar' | 'vermelho' | 'verde';
+type Tom = 'azul' | 'roxo' | 'turquesa' | 'ambar' | 'amarelo' | 'vermelho' | 'verde';
 
 const TOM: Record<string, Tom> = {
   pauta_aprovada: 'azul',
@@ -40,9 +40,12 @@ const TOM: Record<string, Tom> = {
   caminho_aberto: 'azul',
   proposta_publicada: 'azul',
   owner_entrou: 'azul',
-  meta_batida: 'turquesa',
+  meta_batida: 'roxo',
   protocolo_registrado: 'ambar',
+  prazo_prorrogado: 'ambar',
+  protocolo_corrigido: 'ambar',
   promessa_registrada: 'ambar',
+  promessa_remarcada: 'ambar',
   conferencia_aberta: 'ambar',
   resposta_oficial_recebida: 'verde',
   proposta_executada: 'verde',
@@ -52,10 +55,10 @@ const TOM: Record<string, Tom> = {
 /** Mudança de status ganha o tom do status novo, o mesmo dos cards e do mapa. */
 const TOM_DO_STATUS: Partial<Record<StatusPauta, Tom>> = {
   juntando_apoios: 'azul',
-  meta_batida: 'turquesa',
+  meta_batida: 'roxo',
   cobrando: 'ambar',
-  prometido: 'ambar',
-  entregue_em_parte: 'ambar',
+  prometido: 'turquesa',
+  entregue_em_parte: 'amarelo',
   descumprida: 'vermelho',
   conquistada: 'verde',
 };
@@ -69,10 +72,34 @@ function statusNovo(item: AtividadeItem): StatusPauta | undefined {
 
 /** "Status alterado para Conquistada" em vez de só "Status alterado"; os outros tipos, o rótulo. */
 function textoDoEvento(item: AtividadeItem): string {
+  if (item.tipo === 'meta_ajustada') {
+    const antes = item.dados.metaAntes;
+    const depois = item.dados.metaDepois;
+    const motivo = item.dados.motivo;
+    const valorAntes = typeof antes === 'number' ? String(antes) : '?';
+    const valorDepois = typeof depois === 'number' ? String(depois) : '?';
+    return `Meta ajustada pela curadoria de ${valorAntes} para ${valorDepois}: ${typeof motivo === 'string' ? motivo : '?'}`;
+  }
+  if (item.tipo === 'bloco_corrigido') {
+    const antes = item.dados.blocoAntes;
+    const depois = item.dados.blocoDepois;
+    const blocoAntes = typeof antes === 'string' ? antes : 'Todo o campus';
+    const blocoDepois = typeof depois === 'string' ? depois : 'Todo o campus';
+    return `Bloco corrigido pela curadoria: ${blocoAntes} → ${blocoDepois}`;
+  }
   if (item.tipo === 'pauta_urgente') {
     return item.dados.urgente === true
       ? 'Marcada como urgente pela curadoria'
       : 'Deixou de ser urgente';
+  }
+  if (['prazo_prorrogado', 'protocolo_corrigido', 'promessa_remarcada'].includes(item.tipo)) {
+    const data = (valor: unknown) => {
+      if (typeof valor !== 'string') return '?';
+      return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor.split('-').reverse().join('/') : valor;
+    };
+    const motivo = typeof item.dados.motivo === 'string' ? ` · Motivo: ${item.dados.motivo}` : '';
+    const fonte = typeof item.dados.fonte === 'string' ? ` · Fonte: ${item.dados.fonte}` : '';
+    return `${rotuloEvento(item.tipo)}: ${data(item.dados.data_antiga)} → ${data(item.dados.data_nova)}${motivo}${fonte}`;
   }
   const novo = statusNovo(item);
   return novo ? `${rotuloEvento(item.tipo)} para ${STATUS[novo].rotulo}` : rotuloEvento(item.tipo);

@@ -1,5 +1,5 @@
 {
-  "id": "abb5b2af-416e-421d-a626-e9d6ec2cc2be",
+  "id": "829a9a51-87ce-4830-b87c-32d9f3cdd8b6",
   "prevId": "df7bb67d-07a2-468f-bea7-ec396c08530e",
   "version": "7",
   "dialect": "postgresql",
@@ -173,6 +173,19 @@
           "type": "date",
           "primaryKey": false,
           "notNull": false
+        },
+        "protocolo_em": {
+          "name": "protocolo_em",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prorrogado": {
+          "name": "prorrogado",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "aberto_em": {
           "name": "aberto_em",
@@ -1501,16 +1514,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "promessa_resumo_ate_500": {
-          "name": "promessa_resumo_ate_500",
-          "value": "char_length(\"promessa\".\"resumo\") <= 500"
-        },
-        "promessa_fonte_ate_120": {
-          "name": "promessa_fonte_ate_120",
-          "value": "char_length(\"promessa\".\"fonte\") <= 120"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.proposta": {
@@ -2086,7 +2090,8 @@
         "lembrete",
         "recusa",
         "vitoria",
-        "aprovacao"
+        "aprovacao",
+        "remarcacao"
       ]
     }
   },
