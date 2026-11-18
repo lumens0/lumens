@@ -149,7 +149,6 @@ letras com a instância criada já com o número; os três códigos do dia anter
 - [ ] **Sessão que não volta** continua sem conferência: derrubar a sessão de propósito exigiria
       repareamento, que o chip não pode sofrer.
 
-
 ## O risco que esta decisão aceita
 
 - **Banimento do número.** O uso é fora dos termos do WhatsApp. Mitigações: as regras de ritmo
