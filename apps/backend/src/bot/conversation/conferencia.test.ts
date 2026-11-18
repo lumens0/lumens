@@ -64,6 +64,10 @@ describe('entradaDeConferencia', () => {
     expect(entradaDeConferencia('não', 'GREETING')).toEqual({ tipo: 'digitada', resposta: 'nao' });
     expect(entradaDeConferencia('sim', 'NEW_ASK_TITLE')).toBeNull();
     expect(entradaDeConferencia('1', 'MENU')).toBeNull();
+    // Regressão (Codex na #154): o menu aceita o número com pontuação, e ele não pode virar voto.
+    for (const opcao of ['1.', '2)', '3.', ' 3 ', '1!', '(1)', '#2']) {
+      expect(entradaDeConferencia(opcao, 'MENU')).toBeNull();
+    }
     expect(entradaDeConferencia('oi', 'MENU')).toBeNull();
     // Id de botão da conversa parecido com payload não é aviso.
     expect(entradaDeConferencia('caminho:falabr', 'OWNER_PATHS')).toBeNull();
@@ -82,7 +86,13 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
 
   /** Pauta com uma promessa em conferência; `apoiou` diz se a pessoa do telefone a apoia. */
   async function cenario(
-    opcoes: { apoiou?: boolean; abreEm?: Date; fechaEm?: Date; resultado?: string } = {},
+    opcoes: {
+      apoiou?: boolean;
+      apoioEm?: Date;
+      abreEm?: Date;
+      fechaEm?: Date;
+      resultado?: string;
+    } = {},
   ) {
     const n = String(++seq);
     const agora = Date.now();
@@ -111,7 +121,13 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     if (opcoes.apoiou ?? true) {
       await db
         .insert(apoios)
-        .values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+        // Por padrão o apoio é de antes da abertura (que fica um dia atrás): só esses valem.
+        .values({
+          pautaId: pauta.id,
+          estudanteId: estudante.id,
+          origem: 'bot',
+          criadoEm: opcoes.apoioEm ?? new Date(agora - 2 * DIA),
+        });
     }
     const [promessa] = await db
       .insert(promessas)
@@ -228,6 +244,24 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
 
     expect(await c.send('em parte')).toEqual([CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Em parte')]);
     expect(await c.votos()).toEqual([{ resposta: 'em_parte' }]);
+  });
+
+  it('com a conferência aberta, "2)" no menu escolhe a opção 2 e não vota', async () => {
+    const c = await cenario();
+    await store.save(c.phoneHmac, 'MENU', {});
+
+    const respostas = await c.send('2)');
+
+    expect(await c.votos()).toEqual([]);
+    expect(respostas).not.toContainEqual(expect.stringContaining('Anotei sua resposta'));
+  });
+
+  it('"sim" digitado por quem apoiou depois da abertura segue para a conversa', async () => {
+    const c = await cenario({ apoioEm: new Date() });
+    await store.save(c.phoneHmac, 'MENU', {});
+
+    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_TEXT]);
+    expect(await c.votos()).toEqual([]);
   });
 
   it('"sim" digitado por quem não tem conferência aberta segue para a conversa', async () => {

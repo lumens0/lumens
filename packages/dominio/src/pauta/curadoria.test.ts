@@ -1,4 +1,5 @@
 import {
+  apoios,
   documentosResposta,
   disparos,
   eq,
@@ -26,13 +27,17 @@ import {
 } from './curadoria';
 import { detalharPautaDaCuradoria } from './detalhe-curadoria';
 import { reservarLote } from '../avisos/fila';
+import { registrarPromessa } from '../caminhos/promessa';
+import { abrirConferencia } from '../conferencia/conferencia-agenda';
 import {
   criarBloco,
   criarCurador,
   criarEstudanteVerificado,
   criarPauta,
   criarRelato,
+  tornarOwner,
 } from '../teste/fabricas';
+import { transicionarStatus } from './status';
 
 let db: Db;
 let curadorId: string;
@@ -808,6 +813,104 @@ describe('definirCategoria', () => {
     // A troca fica na linha do tempo, uma vez só.
     const trocas = (await eventosDa(aprovada.id)).filter((e) => e.tipo === 'categoria_alterada');
     expect(trocas).toHaveLength(1);
+  });
+});
+
+describe('quem cria a pauta conta como apoio (SCRUM-344)', () => {
+  const apoiosDa = (pautaId: string) =>
+    db.select({ estudanteId: apoios.estudanteId }).from(apoios).where(eq(apoios.pautaId, pautaId));
+
+  /** Pauta em curadoria com quem a criou como owner, como o `criarPauta` do bot deixa. */
+  async function criadaPor() {
+    const pauta = await novaEmCuradoria();
+    const autor = await criarEstudanteVerificado(db);
+    await tornarOwner(db, pauta.id, autor.id);
+    return { pauta, autor };
+  }
+
+  it('pauta recém-aprovada mostra 1 apoio, o de quem criou', async () => {
+    const { pauta, autor } = await criadaPor();
+
+    await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'ensino', fotosVistas: {} }),
+    );
+
+    expect(await apoiosDa(pauta.id)).toEqual([{ estudanteId: autor.id }]);
+  });
+
+  it('quem saiu do Lumens antes da aprovação não vira apoio, e a aprovação segue', async () => {
+    const { pauta, autor } = await criadaPor();
+    await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, autor.id));
+
+    const r = await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'ensino', fotosVistas: {} }),
+    );
+
+    expect(r).toEqual({ decidida: true });
+    expect(await apoiosDa(pauta.id)).toEqual([]);
+  });
+
+  it('com meta 1, o apoio de quem criou já bate a meta e a pauta nasce em meta_batida', async () => {
+    const { pauta, autor } = await criadaPor();
+    await db.update(pautas).set({ meta: 1 }).where(eq(pautas.id, pauta.id));
+
+    const r = await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'ensino', fotosVistas: {} }),
+    );
+
+    expect(r).toEqual({ decidida: true });
+    expect(await apoiosDa(pauta.id)).toEqual([{ estudanteId: autor.id }]);
+    const depois = await pautaDa(pauta.id);
+    expect(depois?.status).toBe('meta_batida');
+    expect(depois?.metaBatidaEm).not.toBeNull();
+    const batidas = (await eventosDa(pauta.id)).filter((e) => e.tipo === 'meta_batida');
+    expect(batidas).toHaveLength(1);
+  });
+
+  it('recusar não registra apoio', async () => {
+    const { pauta } = await criadaPor();
+
+    await db.transaction((tx) =>
+      recusarPauta(tx, { pautaId: pauta.id, curadorId, motivo: 'Duplicada.' }),
+    );
+
+    expect(await apoiosDa(pauta.id)).toEqual([]);
+  });
+
+  it('o owner recebe o aviso da promessa e o "Foi feito?" sem ter apoiado à parte', async () => {
+    const { pauta, autor } = await criadaPor();
+    await db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'ensino', fotosVistas: {} }),
+    );
+    // Protocolo cedo no Fala.BR: a pauta vai a `cobrando` sem nenhum outro apoio (RN05).
+    await db.transaction((tx) =>
+      transicionarStatus(tx, { pautaId: pauta.id, para: 'cobrando', origem: 'bot' }),
+    );
+
+    const { promessaId, avisados } = await db.transaction((tx) =>
+      registrarPromessa(tx, {
+        pautaId: pauta.id,
+        resumo: 'instalar 20 mesas',
+        dataEntrega: '2030-03-01',
+        fonte: 'ofício 1/2030',
+        registradaPor: curadorId,
+      }),
+    );
+    await db.transaction((tx) =>
+      abrirConferencia(tx, { promessaId, agora: new Date('2030-03-01T12:00:00Z') }),
+    );
+
+    expect(avisados).toBe(1);
+    const avisos = await db
+      .select({ tipo: disparos.tipo, estudanteId: disparos.estudanteId })
+      .from(disparos)
+      .where(eq(disparos.aviso, promessaId));
+    expect(avisos).toEqual(
+      expect.arrayContaining([
+        { tipo: 'resposta_oficial', estudanteId: autor.id },
+        { tipo: 'conferencia', estudanteId: autor.id },
+      ]),
+    );
   });
 });
 

@@ -29,10 +29,10 @@ function paginaDaUrl(valor: string | string[] | undefined): number {
 
 /**
  * Tom de cada tipo de evento, nas cores de status do site: azul para o que entra na pauta,
- * turquesa para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
+ * roxo para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
  * fica neutro.
  */
-type Tom = 'azul' | 'turquesa' | 'ambar' | 'vermelho' | 'verde';
+type Tom = 'azul' | 'roxo' | 'turquesa' | 'ambar' | 'amarelo' | 'vermelho' | 'verde';
 
 const TOM: Record<string, Tom> = {
   pauta_aprovada: 'azul',
@@ -40,7 +40,7 @@ const TOM: Record<string, Tom> = {
   caminho_aberto: 'azul',
   proposta_publicada: 'azul',
   owner_entrou: 'azul',
-  meta_batida: 'turquesa',
+  meta_batida: 'roxo',
   protocolo_registrado: 'ambar',
   promessa_registrada: 'ambar',
   conferencia_aberta: 'ambar',
@@ -52,10 +52,10 @@ const TOM: Record<string, Tom> = {
 /** Mudança de status ganha o tom do status novo, o mesmo dos cards e do mapa. */
 const TOM_DO_STATUS: Partial<Record<StatusPauta, Tom>> = {
   juntando_apoios: 'azul',
-  meta_batida: 'turquesa',
+  meta_batida: 'roxo',
   cobrando: 'ambar',
-  prometido: 'ambar',
-  entregue_em_parte: 'ambar',
+  prometido: 'turquesa',
+  entregue_em_parte: 'amarelo',
   descumprida: 'vermelho',
   conquistada: 'verde',
 };
