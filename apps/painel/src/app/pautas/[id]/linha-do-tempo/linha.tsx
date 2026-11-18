@@ -134,9 +134,9 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
 /** O rótulo de um grupo de eventos iguais: "3 responsáveis saíram" no lugar de três linhas idênticas. */
 export function rotuloDoGrupo(tipo: string, quantidade: number): string {
   if (quantidade === 1) return rotuloEvento(tipo);
-  if (tipo === 'owner_removido') return `${quantidade} responsáveis saíram`;
-  if (tipo === 'owner_entrou') return `${quantidade} novos responsáveis`;
-  return `${rotuloEvento(tipo)} (${quantidade} vezes)`;
+  if (tipo === 'owner_removido') return `${String(quantidade)} responsáveis saíram`;
+  if (tipo === 'owner_entrou') return `${String(quantidade)} novos responsáveis`;
+  return `${rotuloEvento(tipo)} (${String(quantidade)} vezes)`;
 }
 
 function Evento({ evento, quantidade }: { evento: EventoDaLinha; quantidade: number }) {

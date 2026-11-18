@@ -84,7 +84,7 @@ export function Curadores({
       )}
       <ul className={estilos.lista}>
         {visiveis.map((c) => (
-          <li key={c.id} className={`${estilos.cartao} ${estilos.curador}`}>
+          <li key={c.id} className={[estilos.cartao, estilos.curador].join(' ')}>
             <div className={estilos.curadorQuem}>
               <h2>{c.nome}</h2>
               <p className={estilos.detalhes}>{c.email}</p>
