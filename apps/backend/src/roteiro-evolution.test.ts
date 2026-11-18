@@ -129,9 +129,9 @@ describe('roteiro 1 pela entrada da Evolution', () => {
 
     const aposCodigo = await escrever(codigo ?? '');
     expect(aposCodigo[0]).toBe(CODE_OK_TEXT);
-    // A lista de cursos sai como menu numerado; a pessoa responde com o número do curso.
+    // A lista de cursos sai como menu numerado, só com os primeiros; a pessoa responde com o número.
     const menuDeCursos = aposCodigo.at(-1) ?? '';
-    const numeroDoCurso = /\*(\d+)\.\* Direito/.exec(menuDeCursos)?.[1];
+    const numeroDoCurso = /\*(\d+)\.\* Administração/.exec(menuDeCursos)?.[1];
     expect(numeroDoCurso).toBeDefined();
     expect(await escrever(numeroDoCurso ?? '')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
 
