@@ -8,8 +8,8 @@ import { hashPhone } from '../conversation/phone';
 import { conteudoDoJob } from '../webhook/process';
 import { inputOf } from '../worker';
 import {
-  AVISO_SEM_RESPOSTA_TEXT,
   chaveDoChat,
+  ESCOLHA_TEXT,
   comandoDoStart,
   jobDoTelegram,
   mensagemDoUpdate,
@@ -64,6 +64,8 @@ describe('mensagemDoUpdate', () => {
   it.each([
     ['/start apoiar_bebedouro-quebrado-bloco-b', 'apoiar bebedouro-quebrado-bloco-b'],
     ['/start ajudar_luz-do-corredor', 'ajudar luz-do-corredor'],
+    // SCRUM-293: slug longo demais chega como o id curto.
+    ['/start apoiar_1a2b3c4d', 'apoiar 1a2b3c4d'],
     ['/start nova', 'nova pauta'],
     ['/start@LumensBot nova', 'nova pauta'],
   ])('%s vira o comando do link do WhatsApp (%s)', (texto, esperado) => {
@@ -189,13 +191,14 @@ describe('jobDoTelegram', () => {
 describe('processarUpdate', () => {
   let db: Db;
   let queue: FakeQueue;
-  const chamar = vi.fn(() => Promise.resolve(true));
+  const chamar = vi.fn((_metodo: string, _corpo?: unknown) => Promise.resolve(true));
 
   beforeEach(async () => {
     db = await criarBancoEmMemoria();
     await prepararFilaFalsa(db);
     queue = new FakeQueue();
-    chamar.mockClear();
+    chamar.mockReset();
+    chamar.mockImplementation(() => Promise.resolve(true));
   }, 20_000);
 
   const deps = () => ({ db, queue, logger: silencioso, chaves, api: { chamar: chamar as never } });
@@ -226,6 +229,87 @@ describe('processarUpdate', () => {
     expect(await processarUpdate(mensagem({ text: 'oi' }), deps())).toBe('enfileirada');
   });
 
+  describe('a escolha aparece na conversa e o teclado some (SCRUM-324)', () => {
+    const teclado = {
+      inline_keyboard: [
+        [{ text: 'Direito', callback_data: 'curso:Direito' }],
+        [{ text: 'Medicina', callback_data: 'curso:Medicina' }],
+      ],
+    };
+    const toque = (updateId: number, text = 'Qual é o seu *curso*?') => ({
+      update_id: updateId,
+      callback_query: {
+        id: `cb-${String(updateId)}`,
+        data: 'curso:Medicina',
+        message: {
+          chat: chatPrivado,
+          message_id: 77,
+          text,
+          entities: [{ type: 'bold', offset: 0, length: 4 }],
+          reply_markup: teclado,
+        },
+      },
+    });
+
+    it('edita a mensagem com a escolha no fim, mantém o negrito e não manda teclado', async () => {
+      await processarUpdate(toque(30), deps());
+
+      expect(chamar).toHaveBeenCalledWith('editMessageText', {
+        chat_id: CHAT,
+        message_id: 77,
+        text: `Qual é o seu *curso*?\n\n${ESCOLHA_TEXT('Medicina')}`,
+        entities: [{ type: 'bold', offset: 0, length: 4 }],
+      });
+    });
+
+    it('o mesmo update de novo (reenvio) não edita outra vez', async () => {
+      await processarUpdate(toque(31), deps());
+      chamar.mockReset();
+      chamar.mockImplementation(() => Promise.resolve(true));
+
+      expect(await processarUpdate(toque(31), deps())).toBe('duplicada');
+      expect(chamar).not.toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
+
+    it('texto que passaria do limite só perde o teclado', async () => {
+      await processarUpdate(toque(32, 'x'.repeat(4090)), deps());
+
+      expect(chamar).toHaveBeenCalledWith('editMessageReplyMarkup', {
+        chat_id: CHAT,
+        message_id: 77,
+      });
+      expect(chamar).not.toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
+
+    it('botão que não está no teclado da mensagem não edita nada', () => {
+      const r = mapear({
+        ...toque(33),
+        callback_query: { ...toque(33).callback_query, data: 'outra-coisa' },
+      });
+
+      expect(r.tipo === 'mensagem' ? r.mensagem.escolha : 'ignorado').toBeUndefined();
+    });
+
+    it('a edição que falha é registrada e não derruba o update', async () => {
+      // `answerCallbackQuery` sai antes: a rejeição tem de ser só da edição da mensagem.
+      chamar.mockImplementation((metodo: string) =>
+        metodo === 'editMessageText'
+          ? Promise.reject(new Error('400 message is not modified'))
+          : Promise.resolve(true),
+      );
+      const avisos: string[] = [];
+      const logger = pino({ level: 'warn' }, { write: (linha: string) => avisos.push(linha) });
+
+      const r = await processarUpdate(toque(34), { ...deps(), logger });
+      await vi.waitFor(() => {
+        expect(avisos.join('')).toContain('mostrar a escolha');
+      });
+
+      expect(r).toBe('enfileirada');
+      expect(chamar).toHaveBeenCalledWith('editMessageText', expect.anything());
+    });
+  });
+
   it('responde o botão tocado com answerCallbackQuery', async () => {
     await processarUpdate(
       {
@@ -237,27 +321,24 @@ describe('processarUpdate', () => {
     expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', { callback_query_id: 'cb-1' });
   });
 
-  it('resposta rápida de um aviso não vai para a conversa: o botão é respondido com um aviso', async () => {
-    // Nenhum fluxo lê `tipo:aviso:i` ainda; como texto, viraria resposta à pergunta em aberto.
-    const data = 'conferencia:0b9c1f9e-8d2e-4c39-9a51-2f6f3a1d7c10:0';
-    const update = {
-      update_id: 3,
-      callback_query: { id: 'cb-2', data, message: { chat: chatPrivado } },
-    };
-
-    expect(await processarUpdate(update, deps())).toBe('ignorada');
-    expect(await mensagensNaFila(db)).toHaveLength(0);
-    expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', {
-      callback_query_id: 'cb-2',
-      text: AVISO_SEM_RESPOSTA_TEXT,
-    });
-    // O id de um botão da conversa que só se parece com o payload continua indo para a conversa.
-    expect(
-      textoDaConversa({
-        ...update,
-        callback_query: { ...update.callback_query, data: 'caminho:falabr' },
-      }),
-    ).toBe('caminho:falabr');
+  it('resposta rápida de um aviso vai para a fila como o payload, também na segunda rodada', async () => {
+    // A conversa reconhece o payload antes do passo atual (SCRUM-293, `conversation/conferencia.ts`).
+    const promessa = '0b9c1f9e-8d2e-4c39-9a51-2f6f3a1d7c10';
+    for (const [n, data] of [
+      [3, `conferencia:${promessa}:0`],
+      [4, `conferencia:${promessa}:reaberta:2`],
+    ] as const) {
+      const update = {
+        update_id: n,
+        callback_query: { id: `cb-${String(n)}`, data, message: { chat: chatPrivado } },
+      };
+      expect(textoDaConversa(update)).toBe(data);
+      expect(await processarUpdate(update, deps())).toBe('enfileirada');
+      expect(chamar).toHaveBeenCalledWith('answerCallbackQuery', {
+        callback_query_id: `cb-${String(n)}`,
+      });
+    }
+    expect(await mensagensNaFila(db)).toHaveLength(2);
   });
 
   it('update fora do formato e chat de grupo não enfileiram nada', async () => {

@@ -1,4 +1,16 @@
-import { apoios, blocos, eq, estudantes, eventos, papeisPauta, pautas, type Db } from '@lumens/db';
+import { randomUUID } from 'node:crypto';
+import {
+  apoios,
+  blocos,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  propostas,
+  type Db,
+} from '@lumens/db';
+import { gerarSlug } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
@@ -19,13 +31,21 @@ import {
   supportFirstText,
 } from './co-owner';
 import { PAUTA_NOT_FOUND_TEXT, parseComandoDoSite } from './comandos-do-site';
-import { MENU_TEXT } from './handlers';
+import { AVISO_SEM_RESPOSTA_TEXT } from './conferencia';
+import {
+  MENU_TEXT,
+  defaultHandlers,
+  type HandlerRegistry,
+  type StepContext,
+  type StepResult,
+} from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
 import { hashPhone } from './phone';
 import { PRIVACY_NOTICE_TEXT } from './privacidade';
 import { NO_PROPOSAL_TEXT } from './proposta';
 import type { Resposta } from './resposta';
 import { handleIncoming } from './router';
+import { TRANSITIONS, type Step } from './steps';
 import { ConversationStore } from './store';
 import { NEW_TITLE_TEXT } from './texto';
 import { VERIFIED_TEXT } from './verificacao';
@@ -195,6 +215,38 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     expect(await p.dados()).not.toHaveProperty('tituloCifrado');
   });
 
+  it('slug longo pelo id curto do link do Telegram apoia a pauta certa (SCRUM-293)', async () => {
+    // O maior slug que o gerarSlug produz: 60 caracteres do título, hífen e 8 do id.
+    const titulo = 'Reforma completa dos banheiros do bloco de engenharia e do anexo';
+    const id = '9f8e7d6c-0000-4000-8000-000000000001';
+    const slugLongo = gerarSlug(titulo, id);
+    expect(slugLongo).toHaveLength(69);
+    await db.insert(pautas).values({
+      id,
+      slug: slugLongo,
+      titulo,
+      descricao: 'Os banheiros estão sem porta.',
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      meta: 30,
+    });
+    const p = pessoa('5582999990009');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    expect((await p.send(`apoiar ${id.slice(0, 8)}`))[0]).toBe(supportedText(titulo, 1, 30));
+    expect(await db.select().from(apoios).where(eq(apoios.pautaId, id))).toHaveLength(1);
+    // A outra pauta não ganhou apoio por engano.
+    expect(await apoiosDaPauta()).toHaveLength(0);
+  });
+
+  it('id curto que não casa com nenhuma pauta avisa que não achou', async () => {
+    const p = pessoa('5582999990010');
+    await p.send('oi');
+
+    expect(await p.send('apoiar 0000aaaa')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_TEXT]);
+  });
+
   it('pauta que não existe, no menu, avisa sem mandar verificar', async () => {
     const p = pessoa('5582999990004');
     await p.send('oi');
@@ -261,6 +313,35 @@ describe('"ajudar <slug>" sem proposta aberta (2.8)', () => {
     expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
     expect(await p.passo()).toBe('MENU');
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
+  });
+});
+
+describe('"ajudar" com o id curto do link do Telegram (SCRUM-293)', () => {
+  it('slug longo: acha a pauta pelo id curto e oferece a proposta aberta', async () => {
+    const titulo = 'Reforma completa dos banheiros do bloco de engenharia e do anexo';
+    const id = '9f8e7d6c-0000-4000-8000-000000000002';
+    await db.insert(pautas).values({
+      id,
+      slug: gerarSlug(titulo, id),
+      titulo,
+      descricao: 'Os banheiros estão sem porta.',
+      categoria: 'infraestrutura',
+      status: 'cobrando',
+      meta: 30,
+    });
+    const [proposta] = await db
+      .insert(propostas)
+      .values({ pautaId: id, descricao: 'Mutirão de pintura', pessoasNecessarias: 5 })
+      .returning({ id: propostas.id });
+    if (!proposta) throw new Error('proposta não inserida');
+    const p = pessoa('5582999990021');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    const respostas = await p.send(`ajudar ${id.slice(0, 8)}`);
+
+    expect(ids(respostas)).toContain(`ajudar ${proposta.id}`);
+    expect(respostas).not.toContain(NO_PROPOSAL_TEXT);
   });
 });
 
@@ -339,5 +420,115 @@ describe('virar co-owner (2.8, RN06)', () => {
     // Ainda não apoia: o pedido retomado oferece o apoio primeiro.
     expect(ids(r)).toEqual([`apoiar ${pautaId}`]);
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
+  });
+});
+
+describe('comandos e botões de aviso no meio de um fluxo (SCRUM-299)', () => {
+  const PASSOS_DE_TEXTO: Step[] = [
+    'REPORT_ASK_TEXT',
+    'NEW_ASK_TITLE',
+    'NEW_ASK_DESCRIPTION',
+    'PROPOSAL_ASK_TEXT',
+    'SUPPORT_ASK_REPORT',
+  ];
+  // Botão de um aviso que ainda não tem resposta gravada (a da conferência é gravada, SCRUM-288).
+  const AVISO = `lembrete:${randomUUID()}:1`;
+
+  /**
+   * Uma pessoa parada no `passo`, com dados já escritos, e o handler do passo trocado por um
+   * espião: mostra se a mensagem chegou ao passo e não mexe nos dados.
+   */
+  async function noPasso(passo: Step) {
+    const telefone = '5582999990900';
+    const phoneHmac = hashPhone(telefone, CHAVE);
+    await store.save(phoneHmac, passo, { escrito: 'o que a pessoa já tinha escrito' });
+    const recebidos: string[] = [];
+    const handlers: HandlerRegistry = {
+      ...defaultHandlers,
+      // Fica no mesmo passo (todo passo de texto livre pode se repetir, para pedir de novo).
+      [passo]: (ctx: StepContext): StepResult => {
+        recebidos.push(ctx.input.text);
+        return { next: passo, replies: ['passo atendeu'] };
+      },
+    };
+    const send = (text: string) =>
+      handleIncoming(
+        { phoneHmac, text, phoneCifrado: segredo.cifrar(telefone) },
+        { store, db, segredo, email, hmac, handlers },
+      );
+    const conversa = () => store.get(phoneHmac);
+    return { send, recebidos, conversa };
+  }
+
+  it.each(PASSOS_DE_TEXTO)('%s pode se repetir (o espião fica nele)', (passo) => {
+    expect(TRANSITIONS[passo]).toContain(passo);
+  });
+
+  it.each(PASSOS_DE_TEXTO)(
+    '"ajudar <palavra>" em %s é a resposta da pessoa, e a conversa continua',
+    async (passo) => {
+      const p = await noPasso(passo);
+      expect(await p.send('Ajudar calouros')).toEqual(['passo atendeu']);
+      expect(p.recebidos).toEqual(['Ajudar calouros']);
+      expect(await p.conversa()).toMatchObject({
+        step: passo,
+        data: { escrito: 'o que a pessoa já tinha escrito' },
+      });
+    },
+  );
+
+  it.each(PASSOS_DE_TEXTO)(
+    'botão de aviso em %s não vira texto: avisa e a conversa fica como estava',
+    async (passo) => {
+      const p = await noPasso(passo);
+      expect(await p.send(AVISO)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+      expect(p.recebidos).toEqual([]);
+      expect(await p.conversa()).toMatchObject({
+        step: passo,
+        data: { escrito: 'o que a pessoa já tinha escrito' },
+      });
+    },
+  );
+
+  it('"ajudar <endereço de pauta>" continua sendo o comando do site, mesmo no meio de um fluxo', async () => {
+    const p = await noPasso('NEW_ASK_TITLE');
+    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(p.recebidos).toEqual([]);
+  });
+
+  it('texto parecido com aviso, mas de um tipo que não existe, segue para o passo', async () => {
+    const p = await noPasso('NEW_ASK_TITLE');
+    await p.send('reuniao:sala-3:2');
+    expect(p.recebidos).toEqual(['reuniao:sala-3:2']);
+  });
+
+  it('o caso do bug: "Ajudar calouros" como título de pauta nova', async () => {
+    const p = pessoa('5582999990901');
+    await p.jaVerificado();
+    await p.send('oi');
+    expect(await p.send('2')).toEqual([NEW_TITLE_TEXT]);
+
+    const respostas = await p.send('Ajudar calouros');
+    expect(respostas).not.toContain(NO_PROPOSAL_TEXT);
+    expect(await p.passo()).toBe('NEW_ASK_PLACE');
+    expect(Object.keys(await p.dados()).some((k) => k.startsWith('titulo'))).toBe(true);
+  });
+
+  it('o caso do bug: botão de aviso no título da pauta nova não vira o título', async () => {
+    const p = pessoa('5582999990902');
+    await p.jaVerificado();
+    await p.send('oi');
+    await p.send('2');
+
+    expect(await p.send(AVISO)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+    expect(await p.passo()).toBe('NEW_ASK_TITLE');
+    expect(Object.keys(await p.dados()).some((k) => k.startsWith('titulo'))).toBe(false);
+  });
+
+  it('botão do lembrete ao owner, no menu, avisa em vez de "Não entendi"', async () => {
+    const p = pessoa('5582999990903');
+    await p.send('oi');
+    expect(await p.send(`lembrete:${randomUUID()}:1`)).toEqual([AVISO_SEM_RESPOSTA_TEXT]);
+    expect(await p.passo()).toBe('MENU');
   });
 });

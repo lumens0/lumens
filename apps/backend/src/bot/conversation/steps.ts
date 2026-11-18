@@ -60,7 +60,15 @@ export const Step = {
 
 /** Próximos passos permitidos a partir de cada passo (fora os globais). */
 export const TRANSITIONS: Record<Step, readonly Step[]> = {
-  GREETING: ['MENU'],
+  // SCRUM-333: sem conversa guardada, uma opção do menu é atendida direto.
+  GREETING: [
+    'MENU',
+    'VERIFY_ASK_EMAIL',
+    'REPORT_ASK_TEXT',
+    'NEW_ASK_TITLE',
+    'OWNER_PICK_PAUTA',
+    'OWNER_PATHS',
+  ],
   MENU: ['VERIFY_ASK_EMAIL', 'REPORT_ASK_TEXT', 'NEW_ASK_TITLE', 'OWNER_PICK_PAUTA', 'OWNER_PATHS'],
   // 2.4: e-mail recusado pergunta de novo no mesmo passo.
   VERIFY_ASK_EMAIL: ['VERIFY_ASK_CODE', 'VERIFY_ASK_EMAIL'],

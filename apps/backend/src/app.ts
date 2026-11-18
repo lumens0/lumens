@@ -1,3 +1,4 @@
+import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { SLUG_MAX } from '@lumens/contratos';
 import { sql } from '@lumens/db';
@@ -6,6 +7,7 @@ import { webhookDaEvolution } from './bot/canais/evolution/webhook';
 import type { ApiDoTelegram } from './bot/telegram/api';
 import { telegramPlugin } from './bot/telegram/routes';
 import { webhookPlugin, type WebhookConfig, type WebhookPluginOptions } from './bot/webhook/routes';
+import { LIMITE_DA_API, LIMITE_DOS_WEBHOOKS, opcoesDoLimite, type Limite } from './infra/limite';
 import { resumoDoErro } from './infra/logger';
 
 export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
@@ -23,6 +25,10 @@ export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
   evolution?: { segredo: string };
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
   leitura: ApiPluginOptions;
+  /** Limite de requisições por IP (SCRUM-310). O padrão é o de produção; os testes baixam. */
+  limites?: { api: Limite; webhooks: Limite };
+  /** SHA publicado, devolvido pelo /saude (SCRUM-322). Sem ele, o /saude não diz a versão. */
+  versao?: string;
 };
 
 /**
@@ -53,26 +59,51 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   // banco fora do ar continua respondendo 200 num check que só olha o próprio processo, e o
   // deploy quebrado passa despercebido. Substituiu o /health, que devolvia ok sem checar nada.
   //
-  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou.
+  // O corpo é genérico nos dois casos: healthcheck é público e não diz por que falhou. A versão
+  // (o SHA do commit, que o repositório já mostra) é o que deixa o deploy conferir o que subiu.
   app.get('/saude', async (_req, reply) => {
     try {
       await deps.db.execute(sql`select 1`);
-      return { ok: true };
+      return deps.versao === undefined ? { ok: true } : { ok: true, versao: deps.versao };
     } catch (erro) {
       deps.logger.error({ erro: resumoDoErro(erro) }, 'healthcheck: banco indisponível');
       return reply.code(503).send({ ok: false });
     }
   });
-  const { leitura, config, telegram, evolution, ...bot } = deps;
-  if (config) await app.register(webhookPlugin, { ...bot, config });
-  if (evolution) await app.register(webhookDaEvolution(evolution.segredo), bot);
-  if (telegram) {
-    await app.register(telegramPlugin, {
-      ...bot,
-      segredo: telegram.segredo,
-      ...(telegram.api ? { api: telegram.api } : {}),
-    });
-  }
-  await app.register(apiPlugin, leitura);
+  const { leitura, config, telegram, evolution, limites, versao: _versao, ...bot } = deps;
+  // SCRUM-310: um limite por escopo, com contagem própria. O /saude fica de fora: é o healthcheck
+  // do compose e o smoke test do deploy.
+  const { api: limiteDaApi, webhooks: limiteDosWebhooks } = limites ?? {
+    api: LIMITE_DA_API,
+    webhooks: LIMITE_DOS_WEBHOOKS,
+  };
+  await app.register(async (webhooks) => {
+    await webhooks.register(rateLimit, opcoesDoLimite(limiteDosWebhooks));
+    if (config) await webhooks.register(webhookPlugin, { ...bot, config });
+    if (evolution) await webhooks.register(webhookDaEvolution(evolution.segredo), bot);
+    if (telegram) {
+      await webhooks.register(telegramPlugin, {
+        ...bot,
+        segredo: telegram.segredo,
+        ...(telegram.api ? { api: telegram.api } : {}),
+      });
+    }
+  });
+  await registrarApiDeLeitura(app, leitura, limiteDaApi);
   return app;
+}
+
+/**
+ * A API de leitura com o limite de requisições, num escopo próprio. É também o que o
+ * `scripts/api-leitura.ts` sobe para o e2e do site: o site é testado com o limite ligado.
+ */
+export async function registrarApiDeLeitura(
+  app: FastifyInstance,
+  leitura: ApiPluginOptions,
+  limite: Limite = LIMITE_DA_API,
+): Promise<void> {
+  await app.register(async (api) => {
+    await api.register(rateLimit, opcoesDoLimite(limite));
+    await api.register(apiPlugin, leitura);
+  });
 }

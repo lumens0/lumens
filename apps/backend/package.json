@@ -23,11 +23,12 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@lumens/contratos": "workspace:*",
     "@lumens/db": "workspace:*",
     "@lumens/dominio": "workspace:*",
     "fastify": "^5.12.7",
-    "nodemailer": "8.0.5",
+    "nodemailer": "10.6.0",
     "pg-boss": "^12.38.0",
     "pino": "^10.4.0",
     "sharp": "^0.35.5",

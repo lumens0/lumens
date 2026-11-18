@@ -1,9 +1,19 @@
-import { apoios, codigosVerificacao, conversas, eq, estudantes, pautas, type Db } from '@lumens/db';
+import {
+  apoios,
+  codigosVerificacao,
+  conversas,
+  eq,
+  estudantes,
+  pautas,
+  relatos,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { registrarApoio } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
+import type { ServicoDeFotos } from '../../fotos/servico';
 import { estudanteVerificado } from './estudante';
 import { GREETING_TEXT, MENU_TEXT } from './handlers';
 import { hashPhone } from './phone';
@@ -167,5 +177,64 @@ describe("comando 'sair' (SCRUM-176)", () => {
     expect(await send('sair')).toEqual([LEAVE_CONFIRM_TEXT]);
     expect(await send('sim')).toEqual([LEFT_TEXT]);
     expect(await estudanteVerificado(db, H)).toBeUndefined();
+  });
+
+  it('quem voltou e sai antes de escolher o curso tem o vínculo restaurado apagado', async () => {
+    const { estudanteId } = await estudanteComApoio();
+    // Já saiu e voltou: telefone e e-mail restaurados, `saiu_em` ainda preenchido.
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date(), emailHmac: 'hmac-email', emailCifrado: 'cifrado-email' })
+      .where(eq(estudantes.id, estudanteId));
+    await send('oi');
+
+    expect(await send('sair')).toEqual([LEAVE_CONFIRM_TEXT]);
+    expect(await send('sim')).toEqual([LEFT_TEXT]);
+
+    const [linha] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteId));
+    expect(linha?.telefoneHmac).not.toBe(H);
+    expect(linha?.telefoneCifrado).not.toBe('x');
+    expect(linha?.emailCifrado).toBeNull();
+    expect(linha?.emailHmac).toBe('hmac-email');
+    expect(await conversa()).toBeUndefined();
+  });
+
+  it('apaga os relatos não publicados e as fotos deles; o publicado fica (SCRUM-314)', async () => {
+    const { estudanteId, pautaId } = await estudanteComApoio();
+    await db.insert(relatos).values([
+      { pautaId, estudanteId, texto: 'ainda na curadoria', fotoChave: 'fotos/2026/11/p.jpg' },
+      { pautaId, estudanteId, texto: 'publicado', moderacao: 'aprovado', fotoChave: 'fotos/a.jpg' },
+    ]);
+    const removidas: string[] = [];
+    const fotos: ServicoDeFotos = {
+      guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        return Promise.resolve();
+      },
+    };
+    const sendComFotos = (text: string) =>
+      db.transaction((tx) =>
+        handleIncoming(
+          { phoneHmac: H, text },
+          { store: store.withDb(tx), db: tx, segredo, email, hmac, fotos },
+        ),
+      );
+    await sendComFotos('oi');
+    await sendComFotos('sair');
+
+    expect(await sendComFotos('sim')).toEqual([LEFT_TEXT]);
+    expect(removidas).toEqual(['fotos/2026/11/p.jpg']);
+    const restantes = await db.select().from(relatos);
+    expect(restantes.map((r) => r.texto)).toEqual(['publicado']);
+  });
+
+  it('a confirmação diz o que sai e o que fica (SCRUM-314)', () => {
+    expect(LEAVE_CONFIRM_TEXT).toContain(
+      'relatos que ainda não foram publicados também são apagados',
+    );
+    expect(LEAVE_CONFIRM_TEXT).toContain('os relatos já publicados no site e os PDFs de resposta');
+    expect(LEAVE_CONFIRM_TEXT).toContain('/privacidade');
+    expect(PRIVACY_NOTICE_TEXT).not.toContain('apagar seu vínculo');
   });
 });

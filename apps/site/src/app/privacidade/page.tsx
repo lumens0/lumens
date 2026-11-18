@@ -93,7 +93,8 @@ export default function Privacidade() {
         <ul>
           <li>
             <strong>O passo em que sua conversa está</strong> (o que o bot já perguntou e o que você
-            respondeu) dura 24 horas. Depois expira, e uma rotina diária apaga o que expirou.
+            respondeu) dura 24 horas. Depois expira, e uma rotina que roda de hora em hora apaga o
+            que expirou.
           </li>
           <li>
             <strong>Cada mensagem passa por uma fila de processamento</strong>, que guarda uma cópia
@@ -192,8 +193,12 @@ export default function Privacidade() {
         {/* Comando 'sair': apps/backend/src/bot/conversation/privacidade.ts → sairDoLumens */}
         <p>
           Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
-          hora, apagamos seu telefone e seu e-mail (inclusive as versões cifradas), sua conversa e o
-          código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
+          hora, apagamos seu telefone e seu e-mail, sua conversa e o código de verificação, e você
+          deixa de ser responsável pelas pautas que cuidava. Do e-mail fica só uma marca (um HMAC)
+          que não permite recuperá-lo. Ela serve para uma coisa: se você voltar com o mesmo e-mail,
+          o Lumens reconhece o mesmo cadastro e não conta seus apoios, votos na conferência e
+          inscrições como voluntário duas vezes (prevenção de fraude). Ela não é usada para mais
+          nada.
         </p>
         <p>
           As cópias cifradas das suas mensagens recentes na fila de processamento não são apagadas
@@ -203,6 +208,15 @@ export default function Privacidade() {
         <p>
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
           publicadas, que não carregam seus dados pessoais, permanecem no site.
+        </p>
+        {/* SCRUM-314: sairDoLumens apaga os relatos não publicados e as fotos deles. */}
+        <p>
+          Os relatos que você enviou e que ainda não tinham sido publicados (em análise ou
+          recusados) são apagados na hora, com as fotos. Os relatos já publicados continuam no site,
+          sem o seu nome, e os PDFs de resposta oficial que você enviou ficam com a pauta, porque
+          são o registro da cobrança. Para pedir que algum deles seja retirado, fale com a equipe
+          pelo mesmo canal do {nomeDoCanal()}, de preferência antes de sair: depois, não temos mais
+          como saber que foi você quem enviou.
         </p>
         <p>
           Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do{' '}

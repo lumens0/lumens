@@ -1,8 +1,8 @@
-import { curadores, eq, estudantes, type Db } from '@lumens/db';
+import { conversas, curadores, eq, estudantes, sql, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cifrar, decifrar } from './cifra';
-import { rotacionarCifra } from './rotacao';
+import { FilaComJobsPendentesError, rotacionarCifra } from './rotacao';
 
 const CHAVE_A = Buffer.alloc(32, 1);
 const CHAVE_B = Buffer.alloc(32, 2);
@@ -27,7 +27,7 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     );
   });
 
-  it('rotaciona os dados de curadores e estudantes com sucesso', async () => {
+  it('rotaciona os dados dos estudantes e não mexe no e-mail dos curadores', async () => {
     const [curador1, curador2] = await db
       .insert(curadores)
       .values([
@@ -67,20 +67,18 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     expect(estudante2).toBeDefined();
 
     const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
-    expect(contagens).toEqual({ curadores: 2, estudantes: 2 });
+    expect(contagens).toEqual({ estudantes: 2, conversas: 0, jobsApagados: 0 });
 
     if (!curador1 || !curador2 || !estudante1 || !estudante2) throw new Error('dados não criados');
 
-    // Curadores: decifráveis com CHAVE_B, falham com CHAVE_A
+    // Curadores: ficam como estavam. O e-mail deles usa a CHAVE_CIFRA_PAINEL, que tem a sua própria
+    // recifragem (`recifrarEmailsDeCuradores`).
     const [c1Atualizado] = await db.select().from(curadores).where(eq(curadores.id, curador1.id));
     const [c2Atualizado] = await db.select().from(curadores).where(eq(curadores.id, curador2.id));
     if (!c1Atualizado || !c2Atualizado) throw new Error('curadores não atualizados');
 
-    expect(decifrar(c1Atualizado.emailCifrado, CHAVE_B)).toBe('curador1@ufal.br');
-    expect(() => decifrar(c1Atualizado.emailCifrado, CHAVE_A)).toThrow();
-
-    expect(decifrar(c2Atualizado.emailCifrado, CHAVE_B)).toBe('curador2@ufal.br');
-    expect(() => decifrar(c2Atualizado.emailCifrado, CHAVE_A)).toThrow();
+    expect(c1Atualizado.emailCifrado).toBe(curador1.emailCifrado);
+    expect(c2Atualizado.emailCifrado).toBe(curador2.emailCifrado);
 
     // Estudantes: decifráveis com CHAVE_B, falham com CHAVE_A
     const [e1Atualizado] = await db
@@ -138,7 +136,7 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
 
     const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
     // estudanteAmbosSaiu não foi alterado; estudanteEmailSaiu e estudanteTelSaiu tiveram 1 campo recifrado cada.
-    expect(contagens).toEqual({ curadores: 0, estudantes: 2 });
+    expect(contagens).toEqual({ estudantes: 2, conversas: 0, jobsApagados: 0 });
 
     const [e1] = await db.select().from(estudantes).where(eq(estudantes.id, estudanteAmbosSaiu.id));
     if (!e1) throw new Error('e1 não encontrado');
@@ -210,31 +208,124 @@ describe('rotacao de chaves de cifra (SCRUM-90)', () => {
     expect(() => decifrar(e.telefoneCifrado, CHAVE_B)).toThrow();
   });
 
-  it('faz rollback e não altera nenhum registro se a decifragem falhar no curador', async () => {
-    const curadorOriginal = cifrar('curador1@ufal.br', CHAVE_A);
-    const [curador1] = await db
+  it('não lê o e-mail dos curadores: um cifrado com outra chave não atrapalha a rotação', async () => {
+    const curadorOriginal = cifrar('curador@ufal.br', CHAVE_C);
+    const [curador] = await db
       .insert(curadores)
-      .values({
-        emailHmac: 'hmac_c1',
-        emailCifrado: curadorOriginal,
-        nome: 'Curador 1',
-      })
+      .values({ emailHmac: 'hmac_curador_painel', emailCifrado: curadorOriginal, nome: 'Painel' })
       .returning();
-    if (!curador1) throw new Error('curador1 não criado');
+    if (!curador) throw new Error('curador não criado');
 
-    // Curador com payload inválido/corrompido
-    await db.insert(curadores).values({
-      emailHmac: 'hmac_c2',
-      emailCifrado: 'dados-invalidos',
-      nome: 'Curador 2',
+    await expect(rotacionarCifra(db, CHAVE_A, CHAVE_B)).resolves.toBeDefined();
+
+    const [c] = await db.select().from(curadores).where(eq(curadores.id, curador.id));
+    expect(c?.emailCifrado).toBe(curadorOriginal);
+  });
+
+  describe('conversas em andamento e filas do bot (SCRUM-311)', () => {
+    /** As colunas do pg-boss que a rotação usa; o PGlite dos testes não tem o pg-boss. */
+    async function criarFilaDoPgBoss() {
+      await db.execute(sql`create schema pgboss`);
+      await db.execute(
+        sql`create table pgboss.job (id serial primary key, name text not null, state text not null, data jsonb)`,
+      );
+    }
+    const job = (name: string, state: string, conteudo = 'oi') =>
+      db.execute(
+        sql`insert into pgboss.job (name, state, data)
+            values (${name}, ${state}, ${JSON.stringify({ contentCifrado: cifrar(conteudo, CHAVE_A) })}::jsonb)`,
+      );
+    interface Linhas {
+      rows: { name: string; state: string }[];
+    }
+    const jobs = async () => {
+      const resultado = (await db.execute(
+        sql`select name, state from pgboss.job order by id`,
+      )) as Linhas;
+      return resultado.rows;
+    };
+
+    it('recifra os campos cifrados de conversa.dados, de qualquer nome, e deixa o resto igual', async () => {
+      await db.insert(conversas).values([
+        {
+          telefoneHmac: 'pauta-nova',
+          passo: 'NEW_ASK_PHOTO',
+          dados: {
+            tituloCifrado: cifrar('Bebedouro quebrado', CHAVE_A),
+            descricaoCifrada: cifrar('Sem água desde segunda', CHAVE_A),
+            blocoId: 'bloco-18',
+            pendingCommand: { kind: 'apoiar', alvo: 'x' },
+          },
+        },
+        {
+          telefoneHmac: 'verificacao',
+          passo: 'VERIFY_ASK_CODE',
+          dados: { emailCifrado: cifrar('aluno@ufal.br', CHAVE_A) },
+        },
+        { telefoneHmac: 'no-menu', passo: 'MENU', dados: {} },
+      ]);
+
+      const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
+      expect(contagens).toMatchObject({ conversas: 2 });
+
+      const linhas = Object.fromEntries(
+        (await db.select().from(conversas)).map((c) => [c.telefoneHmac, c.dados]),
+      );
+      const pauta = linhas['pauta-nova'] as Record<string, string>;
+      expect(decifrar(pauta.tituloCifrado ?? '', CHAVE_B)).toBe('Bebedouro quebrado');
+      expect(decifrar(pauta.descricaoCifrada ?? '', CHAVE_B)).toBe('Sem água desde segunda');
+      expect(pauta).toMatchObject({ blocoId: 'bloco-18', pendingCommand: { kind: 'apoiar' } });
+      const email = (linhas.verificacao as Record<string, string>).emailCifrado ?? '';
+      expect(decifrar(email, CHAVE_B)).toBe('aluno@ufal.br');
+      expect(() => decifrar(email, CHAVE_A)).toThrow();
+      expect(linhas['no-menu']).toEqual({});
     });
 
-    await expect(rotacionarCifra(db, CHAVE_A, CHAVE_B)).rejects.toThrow();
+    it('depois da rotação, nenhuma conversa guarda dado que decifre com a chave antiga', async () => {
+      await db.insert(conversas).values({
+        telefoneHmac: 'relato',
+        passo: 'SUPPORT_ASK_PHOTO',
+        dados: {
+          relatoCifrado: cifrar('vazando', CHAVE_A),
+          menuEmTexto: cifrar('{"opcoes":[]}', CHAVE_A),
+        },
+      });
 
-    const [c1] = await db.select().from(curadores).where(eq(curadores.id, curador1.id));
-    if (!c1) throw new Error('c1 não encontrado');
-    expect(c1.emailCifrado).toBe(curadorOriginal);
-    expect(decifrar(c1.emailCifrado, CHAVE_A)).toBe('curador1@ufal.br');
-    expect(() => decifrar(c1.emailCifrado, CHAVE_B)).toThrow();
+      await rotacionarCifra(db, CHAVE_A, CHAVE_B);
+
+      for (const { dados } of await db.select().from(conversas)) {
+        for (const valor of Object.values(dados)) {
+          if (typeof valor === 'string') expect(() => decifrar(valor, CHAVE_A)).toThrow();
+        }
+      }
+    });
+
+    it('com job do bot pendente na fila, recusa e não muda nada', async () => {
+      await criarFilaDoPgBoss();
+      await job('incoming-message', 'created');
+      const telefone = cifrar('+5582999990001', CHAVE_A);
+      await db.insert(estudantes).values({ telefoneHmac: 'h', telefoneCifrado: telefone });
+
+      await expect(rotacionarCifra(db, CHAVE_A, CHAVE_B)).rejects.toBeInstanceOf(
+        FilaComJobsPendentesError,
+      );
+      const [e] = await db.select().from(estudantes);
+      expect(e?.telefoneCifrado).toBe(telefone);
+      expect(await jobs()).toHaveLength(1);
+    });
+
+    it('apaga os jobs encerrados e os das filas de mortas; jobs de outras filas ficam', async () => {
+      await criarFilaDoPgBoss();
+      await job('incoming-message', 'completed');
+      await job('outgoing-replies', 'failed');
+      await job('incoming-message-dead', 'created');
+      await job('outgoing-replies-dead', 'created');
+      await job('agendador-gatilhos', 'created');
+
+      const contagens = await rotacionarCifra(db, CHAVE_A, CHAVE_B);
+
+      expect(contagens.jobsApagados).toBe(4);
+      expect(await jobs()).toEqual([{ name: 'agendador-gatilhos', state: 'created' }]);
+    });
   });
 });

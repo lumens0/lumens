@@ -1,7 +1,7 @@
 import type { EventoDaLinha, OrigemEvento, TipoEvento } from '@lumens/dominio';
 import Link from 'next/link';
 import { dataHora } from '../../../prazo';
-import { STATUS } from '../pauta';
+import { STATUS } from '../../status';
 import estilos from './linha.module.css';
 
 // Tela da linha do tempo da pauta para a curadoria (5.5, SCRUM-181, RF-C05, RN11). Só leitura:
@@ -25,6 +25,8 @@ const ROTULOS: Record<TipoEvento, string> = {
   owner_entrou: 'Novo owner',
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
+  pauta_urgente: 'Urgência da pauta alterada',
+  categoria_alterada: 'Categoria alterada',
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
@@ -77,6 +79,10 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
   switch (tipo) {
     case 'status_alterado':
       return `De “${nomeado(STATUS, dados.de)}” para “${nomeado(STATUS, dados.para)}”.`;
+    case 'pauta_urgente':
+      return dados.urgente === true
+        ? 'Marcada como urgente pela curadoria.'
+        : 'Deixou de ser urgente.';
     case 'meta_batida':
       return `${texto(dados.apoios)} apoios, para uma meta de ${texto(dados.meta)}.`;
     case 'caminho_aberto':
@@ -107,11 +113,53 @@ export function LinhaDoTempo({
   pautaId,
   titulo,
   eventos,
+  recolhivel = false,
+  aberta = false,
 }: {
   pautaId: string;
   titulo: string;
   eventos: EventoDaLinha[];
+  recolhivel?: boolean;
+  /** Vem aberta quando se chega pelo endereço antigo da linha do tempo. */
+  aberta?: boolean;
 }) {
+  if (recolhivel) {
+    return (
+      <details id="linha-do-tempo" className={estilos.detalhesRecolhiveis} open={aberta}>
+        <summary>Linha do tempo</summary>
+        <p className={estilos.apoio}>
+          Tudo o que aconteceu com a pauta, do mais antigo para o mais novo, inclusive o que não
+          aparece no site.
+        </p>
+        {eventos.length === 0 ? (
+          <p className={estilos.vazio}>Esta pauta ainda não tem nenhum evento registrado.</p>
+        ) : (
+          <ol className={estilos.lista}>
+            {eventos.map((evento) => {
+              const detalhe = detalheDoEvento(evento.tipo, evento.dados);
+              return (
+                <li key={evento.id} className={estilos.evento}>
+                  <time dateTime={evento.criadoEm.toISOString()} className={estilos.data}>
+                    {dataHora(evento.criadoEm)}
+                  </time>
+                  <div>
+                    <h2 className={estilos.rotulo}>{rotuloEvento(evento.tipo)}</h2>
+                    {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
+                    <p className={estilos.marcas}>
+                      <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>
+                      <span className={evento.publico ? estilos.marca : estilos.marcaInterna}>
+                        {evento.publico ? 'Aparece no site' : 'Só a curadoria vê'}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </details>
+    );
+  }
   return (
     <>
       <Link className={estilos.voltar} href={`/pautas/${pautaId}`}>

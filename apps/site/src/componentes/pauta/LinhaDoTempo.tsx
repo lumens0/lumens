@@ -18,11 +18,19 @@ const ROTULOS: Record<string, string> = {
   owner_entrou: 'Novo owner',
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
+  categoria_alterada: 'Categoria alterada pela curadoria',
 };
 
 /** Tipo fora do catálogo não quebra a página: vira texto legível. */
 export function rotuloEvento(tipo: string): string {
   return ROTULOS[tipo] ?? tipo.replaceAll('_', ' ');
+}
+
+function textoDoEvento(tipo: string, dados: Record<string, unknown>): string {
+  if (tipo === 'pauta_urgente') {
+    return dados.urgente === true ? 'Marcada como urgente pela curadoria' : 'Deixou de ser urgente';
+  }
+  return rotuloEvento(tipo);
 }
 
 const data = new Intl.DateTimeFormat('pt-BR', {
@@ -58,7 +66,7 @@ export function LinhaDoTempo({ eventos }: { eventos: PautaDetalhe['linha_do_temp
                 {i === eventos.length - 1 ? '•' : '✓'}
               </span>
               <div>
-                <p className={estilos.texto}>{rotuloEvento(evento.tipo)}</p>
+                <p className={estilos.texto}>{textoDoEvento(evento.tipo, evento.dados)}</p>
                 <time dateTime={evento.criado_em} className={estilos.data}>
                   {formatarData(evento.criado_em)}
                 </time>
