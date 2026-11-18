@@ -48,7 +48,7 @@ import {
   supportedText,
 } from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT, coOwnerText } from './bot/conversation/co-owner';
-import { GREETING_TEXT, MENU_DICA_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { FALABR_TEXT_INTRO, OPENED_TEXT } from './bot/conversation/minhas-pautas';
 import {
   DESCRIPTION_QUESTION_TEXT,
@@ -411,8 +411,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(resumo).toContain(`*Local:* ${BLOCO.nome}`);
       expect(resumo).toContain('*Categoria:* Infraestrutura');
       expect(resumo).toContain(`*Meta:* ${String(META)} apoios`);
-      // SCRUM-340: o resumo é longo, então o fim do fluxo manda só a dica do menu.
-      expect(menu).toBe(MENU_DICA_TEXT);
+      // SCRUM-340: com o resumo abaixo do limite de resposta longa, o menu vai inteiro ao fim do fluxo.
+      expect(menu).toEqual(MENU_PRINCIPAL);
 
       const [pauta] = await admin
         .select({ id: pautas.id, slug: pautas.slug, status: pautas.status })
