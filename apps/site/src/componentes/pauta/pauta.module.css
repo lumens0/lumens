@@ -173,27 +173,6 @@
   color: var(--tinta-3);
 }
 
-.trilho {
-  height: 10px;
-  border-radius: 5px;
-  background: var(--superficie-2);
-  overflow: hidden;
-}
-
-.preenchimento {
-  height: 100%;
-  border-radius: 5px;
-  background: linear-gradient(90deg, var(--luz), var(--luz-forte));
-  transform-origin: left;
-  animation: encher-placar 1100ms var(--curva) 200ms both;
-}
-
-@keyframes encher-placar {
-  from {
-    transform: scaleX(0);
-  }
-}
-
 .proxima {
   padding: 14px 16px;
   border-radius: 10px;
@@ -217,8 +196,22 @@
   display: inline;
 }
 
-.proxima > .vazio {
+.proxima > .vazio,
+.proxima > .vencido {
   margin-top: 4px;
+}
+
+/* Prazo vencido: o texto diz "venceu em", e a cor reforça (nunca é o único sinal). */
+.vencido,
+.vencidoTexto {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vencido-tinta, #a4302a);
+}
+
+.vencidoTexto {
+  font-size: inherit;
 }
 
 /* Resposta oficial recebida: o card fica verde. */
@@ -403,4 +396,66 @@
   .secao {
     padding: 20px;
   }
+}
+
+/* Visão de conquista (SCRUM-352): o verde do status "conquistada", no tom do memorial. */
+.conquista {
+  background: #eef6f0;
+  border-color: rgb(46 125 79 / 30%);
+  border-left: 6px solid var(--status-conquistada);
+}
+
+.seloConquista,
+.seloSolucao {
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--status-conquistada);
+  color: #fff;
+}
+
+.seloSolucao {
+  background: transparent;
+  border: 1px solid var(--status-conquistada);
+  color: #1f5c39;
+}
+
+.conquistaTitulo {
+  margin: 0;
+  font:
+    700 24px/1.15 var(--fonte-titulo),
+    sans-serif;
+  color: #1f5c39;
+  text-wrap: balance;
+}
+
+.fatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+  margin: 0;
+}
+
+.fatos div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fatos dt {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.fatos dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Marcos da conquista na linha do tempo: resposta, promessa e a virada de status. */
+.tempoMarco .texto {
+  font-weight: 600;
 }

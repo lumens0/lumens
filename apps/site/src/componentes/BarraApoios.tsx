@@ -15,12 +15,15 @@ export function BarraApoios({
   meta,
   rotulo,
   cor,
+  semLegenda = false,
 }: {
   apoios: number;
   meta: number;
   rotulo: string;
   /** Cor da barra; a do status da pauta, nos cards. */
   cor?: string;
+  /** Sem o texto "N de M apoios" embaixo, quando a página já o mostra em destaque. */
+  semLegenda?: boolean;
 }) {
   const legenda = `${formatarNumero(apoios)} de ${formatarNumero(meta)} apoios`;
   return (
@@ -39,7 +42,7 @@ export function BarraApoios({
           style={{ width: `${String(percentual(apoios, meta))}%`, background: cor }}
         />
       </div>
-      <span className={estilos.legenda}>{legenda}</span>
+      {!semLegenda && <span className={estilos.legenda}>{legenda}</span>}
     </div>
   );
 }
