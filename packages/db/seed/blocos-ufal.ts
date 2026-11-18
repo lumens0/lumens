@@ -3,9 +3,10 @@
  * produção, que não rodam o seed de desenvolvimento (ele cria blocos "(fictício)").
  *
  * ATENÇÃO: `baseEstudantes` é ESTIMATIVA (vagas do SiSU × duração do curso, nos espaços
- * compartilhados uma fração dos cerca de 14 mil do campus), não conferida com a PROGRAD nem com o
- * edital. A meta de cada pauta congela na criação (decisão 3 do SCRUM-80): confira estes números
- * antes de abrir o bot para o público e corrija com UPDATE em `bloco` enquanto não houver pauta.
+ * compartilhados uma fração dos cerca de 14 mil do campus). A equipe é de estudantes e não tem
+ * acesso à PROGRAD: as estimativas são assumidas (SCRUM-292). A meta de cada pauta congela na
+ * criação (decisão 3 do SCRUM-80); se surgir número oficial, corrija com UPDATE em `bloco`
+ * enquanto não houver pauta no bloco.
  */
 import { blocos, type Db } from '../src/index';
 
