@@ -83,6 +83,27 @@ pnpm --filter @lumens/site dev     # http://localhost:3000
 pnpm --filter @lumens/painel dev   # http://localhost:3002
 ```
 
+## Bot pelo Telegram, na sua máquina
+
+O Telegram é o canal reserva do bot ([decisão](../decisoes/SCRUM-267-canal-telegram.md)) e o único
+que dá para testar no celular sem a Meta nem a Evolution.
+
+1. No Telegram, abra o `@BotFather`, mande `/newbot` e crie um bot **só seu**, de
+   desenvolvimento. Dois back-ends com o mesmo token brigam pelas mensagens (erro 409), e no modo
+   `polling` o back-end chama `deleteWebhook`: o token de um bot com webhook em produção derruba o
+   webhook dele. O token é segredo.
+2. No `.env`: `CANAL_BOT=telegram`, `TELEGRAM_BOT_TOKEN=<token>` e `TELEGRAM_MODO=polling`. As
+   `META_*` são ignoradas. Confira sem subir nada com
+   `pnpm --filter @lumens/backend env:check`.
+3. `pnpm dev` e converse com o bot. No log, 401 no `getUpdates` é token errado e 409 é outro
+   processo com o mesmo token. Sem SMTP, o código de verificação aparece no log do back-end.
+4. Para o simulador no formato do Telegram (`pnpm sim ... --canal telegram`), troque para
+   `TELEGRAM_MODO=webhook` com um `TELEGRAM_WEBHOOK_SECRET`: a rota `/telegram/webhook` só existe
+   nesse modo. Veja o [simulador](../../apps/backend/SIMULADOR.md) e volte para `polling` no fim.
+
+O mesmo estudante continua o mesmo ao trocar de canal: verificar o mesmo e-mail pelo Telegram liga
+o telefone novo ao cadastro que já existe, com os apoios dele.
+
 ## Rodar os testes
 
 ```bash

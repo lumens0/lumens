@@ -5,7 +5,7 @@ import type { Logger } from '../../../infra/logger';
 import { logModeloSender, whatsappAvisoSender, type AvisoSender } from '../../envio/sender';
 import { logSender, type ReplySender } from '../../worker';
 import { avisosPelaEvolution } from './avisos';
-import { criarCliente } from './cliente';
+import { criarCliente, criarConsultaDaConexao } from './cliente';
 import { baixarMidiaDaEvolution } from './midia';
 import { respostasPelaEvolution } from './respostas';
 
@@ -20,6 +20,11 @@ export interface CanalEvolution {
   baixarMidia(referencia: string, opcoes?: { tamanhoMaximo?: number }): Promise<MidiaBaixada>;
   /** Ritmo dos avisos (fila de disparos). */
   envio: { limite: number; maximoPorLote: number; somenteQuemEscreveuNosUltimosMs: number };
+  /**
+   * Estado da sessão do chip, para o `/saude/whatsapp` (SCRUM-341). Ausente no dev sem
+   * `EVOLUTION_URL`, onde não há chip para conferir.
+   */
+  estadoDaConexao?: () => Promise<string>;
 }
 
 /**
@@ -58,14 +63,16 @@ export function criarCanalEvolution(opcoes: {
     };
   }
 
-  const chamar = criarCliente({
+  const opcoesDoCliente = {
     url: config.url,
     apiKey: config.apiKey,
     instancia: config.instancia,
     ...(opcoes.fetch ? { fetch: opcoes.fetch } : {}),
-  });
+  };
+  const chamar = criarCliente(opcoesDoCliente);
   return {
     envio,
+    estadoDaConexao: criarConsultaDaConexao(opcoesDoCliente),
     respostas: respostasPelaEvolution(chamar, chaves, logger),
     avisos: avisosPelaEvolution(chamar, {
       intervaloMinMs: config.intervaloMinMs,

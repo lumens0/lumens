@@ -19,7 +19,12 @@ const TIPOS_ACEITOS: Record<string, { formato: 'jpeg' | 'png'; extensao: string 
   'image/png': { formato: 'png', extensao: 'png' },
 };
 
-export type MotivoFotoRecusada = 'formato' | 'tamanho' | 'invalida' | 'indisponivel';
+/**
+ * `indisponivel` é o download que falhou (vale tentar de novo); `armazenamento` é o storage, que
+ * não volta com outra foto (SCRUM-330): o bot precisa dizer qual dos dois, ou a pessoa insiste.
+ */
+export type MotivoFotoRecusada =
+  'formato' | 'tamanho' | 'invalida' | 'indisponivel' | 'armazenamento';
 
 export type ResultadoFoto = { ok: true; chave: string } | { ok: false; motivo: MotivoFotoRecusada };
 
@@ -98,7 +103,7 @@ export function criarServicoDeFotos({
         await storage.guardar(chave, limpa, `image/${tipo.formato}`);
       } catch (erro) {
         avisar(`foto: storage falhou (${erro instanceof Error ? erro.name : 'erro'})`);
-        return { ok: false, motivo: 'indisponivel' };
+        return { ok: false, motivo: 'armazenamento' };
       }
       return { ok: true, chave };
     },

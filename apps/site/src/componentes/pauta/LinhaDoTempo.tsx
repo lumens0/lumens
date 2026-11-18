@@ -15,8 +15,8 @@ const ROTULOS: Record<string, string> = {
   conferencia_aberta: 'Conferência aberta',
   conferencia_apurada: 'Conferência apurada',
   status_alterado: 'Status alterado',
-  owner_entrou: 'Novo owner',
-  owner_removido: 'Owner saiu',
+  owner_entrou: 'Novo responsável',
+  owner_removido: 'Responsável saiu',
   relato_aprovado: 'Relato publicado',
   categoria_alterada: 'Categoria alterada pela curadoria',
 };
