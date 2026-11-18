@@ -193,11 +193,12 @@
     padding-left: 16px;
   }
   .filtros {
+    flex-direction: column;
     width: 100%;
   }
   .filtros > * {
     min-width: 0;
-    flex: 1 1 140px;
+    width: 100%;
   }
 }
 
