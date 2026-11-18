@@ -222,25 +222,44 @@ sudo shred -u /opt/lumens/<cópia antiga>
 **Alerta de indisponibilidade.** Hoje ninguém fica sabendo se o `/saude` cai, se o chip da
 Evolution desconecta ou se o crédito do Azure acaba: descobre na hora de usar.
 
-- Monitor HTTP externo gratuito (UptimeRobot, por exemplo) em `https://<DOMINIO>/saude`, com o
-  alerta indo para o e-mail de mais de uma pessoa do time. O monitor precisa buscar a URL: serviço
-  que só recebe ping (como o Healthchecks.io) não serve aqui.
-- O chip da Evolution só tem checagem de fora quando existir uma rota de saúde do WhatsApp no
-  back-end; até lá, a conferência é o `./scripts/evolution.sh estado` dentro da VM
-  ([canal da Evolution](evolution.md)). Quando a rota existir, monitore-a também.
+- O workflow **Monitor da homologação** (`.github/workflows/monitor-homologacao.yml`) confere de
+  fora, de 10 em 10 minutos, se o `https://<DOMINIO>/saude` responde e se o chip está conectado
+  (`/saude/whatsapp`; enquanto a rota não estiver publicada, o chip fica sem conferência e a
+  conferência é o `./scripts/evolution.sh estado`, veja [canal da Evolution](evolution.md)). Cada
+  item tem três tentativas, para um deploy em andamento não contar como queda. O GitHub atrasa o
+  agendamento em horário de pico, às vezes 10 a 15 minutos.
+- Quando uma checagem falha, o GitHub manda o e-mail de "workflow falhou" para quem mexeu por
+  último no `cron` do arquivo. Confira em **Settings → Notifications → Actions** (no perfil do
+  GitHub) que o e-mail de falha está ligado. Para avisar mais gente, cada pessoa do time pode rodar
+  o workflow uma vez à mão e seguir o repositório, ou trocar quem recebe mexendo no `cron`.
 - Como a VM fica **desligada por padrão** (veja [Ligar e desligar](#ligar-e-desligar)), um monitor
-  ligado o tempo todo alertaria durante todo o tempo em que ela está parada. Ligue-o na semana da
-  demo, junto com o auto-shutdown desligado, e pause-o depois. **Fora da semana da demo, não há
-  monitoramento**: a queda continua sendo descoberta na hora de usar.
+  ligado o tempo todo falharia durante todo o tempo em que ela está parada. Por isso ele vem
+  **desligado** e só roda com a variável do repositório `MONITOR_HOMOLOGACAO=ligado`. Ligue na
+  semana da demo, junto com o auto-shutdown desligado, e desligue depois:
+
+  ```bash
+  gh variable set MONITOR_HOMOLOGACAO --body ligado
+  ```
+
+  ```bash
+  gh variable delete MONITOR_HOMOLOGACAO
+  ```
+
+  **Fora da semana da demo, não há monitoramento**: a queda continua sendo descoberta na hora de
+  usar. Para conferir na hora, rode o workflow à mão em Actions (funciona com ele desligado).
+
 - Crédito: no portal, **Cost Management → Budgets**, um orçamento **anual** (ou de período
   personalizado até o fim do crédito) de $100, com alerta por e-mail em 50% e 80%. O padrão do
   portal é mensal, e um orçamento mensal mede o gasto do mês, não o crédito. Os dados chegam com
   atraso de algumas horas. Se a assinatura de estudante não deixar criar orçamento, o painel
   _Education_ mostra o saldo, e vale olhar toda semana. O crédito também vence em 365 dias,
-  independentemente do saldo: anote a data.
+  independentemente do saldo: anote a data. Na homologação já existe o `lumens-credito-anual`
+  (assinatura Azure for Students, R$ 440 a partir de 01/11/2026, alertas em 50% e 80%), ao lado
+  do mensal `lumens-homologacao`. Em 17/11/2026 a previsão do portal era de R$ 1.837 por ano: com
+  a VM ligada, o crédito acaba antes dos 365 dias.
 
 Para conferir com a VM parada: com o monitor ligado, pare a VM pelo portal e confira que o
-alerta chega ao time.
+e-mail de falha chega em até uns 20 minutos.
 
 ## 5. Primeiro deploy
 
