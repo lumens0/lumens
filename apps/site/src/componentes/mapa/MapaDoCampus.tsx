@@ -12,6 +12,7 @@ import {
   CONTORNO,
   LARGURA_DO_CAMPUS,
   AREAS,
+  PONTOS,
   PREDIOS,
   type Area,
   type Predio,
@@ -259,6 +260,13 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 </g>
               );
             })}
+            {/* Lugares que o OSM não tem (EDGE Academy): um ponto, com o nome ao aproximar. */}
+            {PONTOS.map((p) => (
+              <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
+                <title>{p.nome}</title>
+                <circle className={estilos.pontoLocal} />
+              </g>
+            ))}
             {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
             <g aria-hidden="true">
               {PREDIOS.filter(
@@ -266,6 +274,14 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
               ).map((p) => (
                 <Sigla key={p.id} predio={p} />
               ))}
+              {comNomes &&
+                PONTOS.map((p) => (
+                  <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
+                    <text dy="-0.9em" className={estilos.sigla}>
+                      {p.nome}
+                    </text>
+                  </g>
+                ))}
               {comNomes &&
                 AREAS.filter((a) => a.nome).map((a) => <SiglaDaArea key={a.id} area={a} />)}
             </g>

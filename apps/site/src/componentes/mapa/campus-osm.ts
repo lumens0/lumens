@@ -843,6 +843,11 @@ export const PREDIOS_OSM: readonly (readonly [
   ],
 ];
 
+/** Lugares fora do OSM: `[nome, x, y]` em metros, no mesmo desenho. */
+export const PONTOS_LOCAIS: readonly (readonly [string, number, number])[] = [
+  ['EDGE Academy', 415.1, 801.4],
+];
+
 /** Áreas abertas: `[id do OSM, tipo, nome, contorno, caixa]`. Nome vazio: sem rótulo. */
 export const AREAS_OSM: readonly (readonly [number, string, string, string, readonly number[]])[] =
   [

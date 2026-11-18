@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
-import { AREAS, PREDIOS, siglaDe } from './predios';
+import { AREAS, PONTOS, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
@@ -166,6 +166,21 @@ describe('prédios do OpenStreetMap', () => {
 });
 
 describe('lugares que faltavam no mapa (SCRUM-284)', () => {
+  it('a EDGE Academy é um ponto junto à pista de atletismo (posição do Google Maps)', () => {
+    const edge = PONTOS.find((p) => p.nome === 'EDGE Academy');
+    expect(edge).toBeDefined();
+    const pista = AREAS.filter((a) => a.tipo === 'pista').map((a) => a.caixa);
+    const perto = pista.some(([x = 0, y = 0, w = 0, h = 0]) => {
+      const dx = Math.max(x - (edge?.x ?? 0), 0, (edge?.x ?? 0) - (x + w));
+      const dy = Math.max(y - (edge?.y ?? 0), 0, (edge?.y ?? 0) - (y + h));
+      return Math.hypot(dx, dy) < 40;
+    });
+    expect(perto).toBe(true);
+    expect(renderToStaticMarkup(<MapaDoCampus marcadores={[]} />)).toContain(
+      '<title>EDGE Academy</title>',
+    );
+  });
+
   it('o COS aparece com nome e sigla', () => {
     const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
     expect(cos?.sigla).toBe('COS');
