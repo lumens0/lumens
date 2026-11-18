@@ -36,6 +36,7 @@ export async function prorrogarPrazo(formulario: FormData): Promise<void> {
   const resultado = await servidor().db.transaction((tx) =>
     registrarProrrogacao(tx, {
       caminhoId,
+      pautaId,
       curadorId,
       motivo: texto(formulario, 'motivo'),
       fonte: texto(formulario, 'fonte'),
@@ -51,6 +52,7 @@ export async function corrigirProtocolo(formulario: FormData): Promise<void> {
   const resultado = await servidor().db.transaction((tx) =>
     corrigirDataDoProtocolo(tx, {
       caminhoId,
+      pautaId,
       curadorId,
       data: texto(formulario, 'data'),
       motivo: texto(formulario, 'motivo'),
@@ -67,6 +69,7 @@ export async function remarcarPromessa(formulario: FormData): Promise<void> {
   const resultado = await servidor().db.transaction((tx) =>
     remarcarDataPrometida(tx, {
       promessaId,
+      pautaId,
       curadorId,
       dataEntrega: texto(formulario, 'dataEntrega'),
       motivo: texto(formulario, 'motivo'),

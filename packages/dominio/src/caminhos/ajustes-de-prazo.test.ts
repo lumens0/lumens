@@ -206,4 +206,73 @@ describe('ajustes de prazo (SCRUM-321)', () => {
       ),
     ).toEqual({ feito: false, motivo: 'conferencia_aberta' });
   });
+
+  it('não mexe em caminho nem em promessa de outra pauta (o servidor confere a pauta do formulário)', async () => {
+    const { caminhoId } = await protocolo('2026-10-15');
+    const outra = await criarPauta(db, { status: 'cobrando' });
+    const curador = await criarCurador(db);
+    const agora = new Date('2026-11-10T12:00:00Z');
+    expect(
+      await db.transaction((tx) =>
+        registrarProrrogacao(tx, {
+          caminhoId,
+          pautaId: outra.id,
+          curadorId: curador.id,
+          motivo: 'Prazo solicitado',
+          fonte: 'Ofício 1',
+          agora,
+        }),
+      ),
+    ).toEqual({ feito: false, motivo: 'caminho_inexistente' });
+    expect(
+      await db.transaction((tx) =>
+        corrigirDataDoProtocolo(tx, {
+          caminhoId,
+          pautaId: outra.id,
+          curadorId: curador.id,
+          data: '2026-10-10',
+          motivo: 'Erro de digitação',
+          fonte: 'Protocolo',
+          agora,
+        }),
+      ),
+    ).toEqual({ feito: false, motivo: 'caminho_inexistente' });
+    const [caminho] = await db
+      .select({ prazo: caminhos.prazo, prorrogado: caminhos.prorrogado })
+      .from(caminhos)
+      .where(eq(caminhos.id, caminhoId));
+    expect(caminho?.prorrogado).toBe(false);
+
+    const promessa = await db.transaction((tx) =>
+      registrarPromessa(tx, {
+        pautaId: outra.id,
+        registradaPor: curador.id,
+        resumo: 'Troca do equipamento',
+        fonte: 'UFAL',
+        dataEntrega: '2026-12-01',
+      }),
+    );
+    const [pautaDoCaminho] = await db
+      .select({ pautaId: caminhos.pautaId })
+      .from(caminhos)
+      .where(eq(caminhos.id, caminhoId));
+    expect(
+      await db.transaction((tx) =>
+        remarcarDataPrometida(tx, {
+          promessaId: promessa.promessaId,
+          pautaId: pautaDoCaminho?.pautaId ?? '',
+          curadorId: curador.id,
+          dataEntrega: '2026-12-10',
+          motivo: 'A entrega foi adiada',
+          fonte: 'Comunicado',
+          agora,
+        }),
+      ),
+    ).toEqual({ feito: false, motivo: 'promessa_inexistente' });
+    const [intacta] = await db
+      .select({ dataEntrega: promessas.dataEntrega })
+      .from(promessas)
+      .where(eq(promessas.id, promessa.promessaId));
+    expect(intacta?.dataEntrega).toBe('2026-12-01');
+  });
 });
