@@ -128,7 +128,8 @@ describe('owner encaminha o PDF da resposta oficial (3.6)', () => {
   it.each([
     ['não é PDF', 'formato' as const],
     ['grande demais', 'tamanho' as const],
-    ['storage fora do ar', 'indisponivel' as const],
+    ['download fora do ar', 'indisponivel' as const],
+    ['storage fora do ar', 'armazenamento' as const],
   ])('arquivo recusado (%s): explica, não registra e espera outro', async (_caso, motivo) => {
     resultadoDoPdf = { ok: false, motivo };
     await send('resposta:falabr');

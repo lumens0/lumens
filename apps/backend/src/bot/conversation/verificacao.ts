@@ -35,6 +35,7 @@ import {
   DIGITOS_DO_CODIGO,
   MAX_TENTATIVAS,
   apagarCodigo,
+  buscarCurso,
   concluirVerificacao,
   conferirCodigo,
   emailInstitucional,
@@ -58,7 +59,7 @@ import { entrarNoApoio } from './apoio';
 import { cuidarDaPauta } from './co-owner';
 import { entrarNaPautaNova } from './nova-pauta';
 import { vouAjudar } from './proposta';
-import { lista, type MensagemDeLista } from './resposta';
+import { LIMITES_DA_LISTA, lista, type MensagemDeLista } from './resposta';
 import { normalize } from './texto';
 
 export const EMAIL_QUESTION_TEXT =
@@ -79,43 +80,53 @@ export const CODE_HELP_TEXT = `Digite o código de ${String(DIGITOS_DO_CODIGO)} 
 export const CODE_LENGTH_TEXT = `O código tem ${String(DIGITOS_DO_CODIGO)} dígitos. Confira no e-mail e digite de novo.`;
 export const CODE_OK_TEXT = 'Código certo ✅';
 export const COURSE_QUESTION_TEXT = 'Por último: qual é o seu curso?';
-export const COURSE_NOT_FOUND_TEXT = 'Não achei esse curso. Escolha um na lista.';
+export const COURSE_NOT_FOUND_TEXT =
+  'Não achei esse curso. Escolha na lista ou escreva o nome completo, ex.: Engenharia Química.';
+export const COURSE_MANY_TEXT = 'Achei mais de um curso com esse nome. Qual é o seu?';
 export const VERIFIED_TEXT =
-  'Pronto, você é estudante verificado ✅ Agora pode criar pautas e apoiar as que já existem. A verificação vale para este número: não precisa fazer de novo.';
+  'Pronto, sua verificação está feita ✅ Agora você pode criar pautas e apoiar as que já existem. A verificação vale para esta conversa: não precisa fazer de novo.';
 export const ALREADY_VERIFIED_TEXT =
-  'Você já é estudante verificado ✅ Não precisa verificar de novo.';
+  'Sua verificação já está feita ✅ Não precisa verificar de novo.';
 export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
 
 const CURSO_ROW_PREFIX = 'curso:';
 /** Cabem 10 linhas na lista do WhatsApp; com mais cursos, 9 e um aviso para digitar o nome. */
 const LINHAS_DE_CURSO = 10;
 
+/** O `id` da linha do curso na lista. Cabe no `callback_data` do Telegram (64 bytes). */
+export function idDoCurso(curso: string): string {
+  return `${CURSO_ROW_PREFIX}${curso}`;
+}
+
 /**
- * A lista de cursos. Com mais de 10, mostra 9 e pede para digitar o nome dos outros. Recebe a
- * lista para o caso de mais de 10 poder ser testado: a `CURSOS` de hoje tem 8.
+ * A lista de cursos. Com mais de 10, mostra 9 (os primeiros em ordem alfabética) e pede para
+ * digitar o nome dos outros. Nome maior que o título da linha (24) vai inteiro na descrição.
  */
-export function listaDeCursos(cursos: readonly string[] = CURSOS): MensagemDeLista {
+export function listaDeCursos(
+  cursos: readonly string[] = CURSOS,
+  corpo = COURSE_QUESTION_TEXT,
+): MensagemDeLista {
   const cabem = cursos.length <= LINHAS_DE_CURSO ? cursos : cursos.slice(0, LINHAS_DE_CURSO - 1);
-  const corpo =
-    cabem.length < cursos.length
-      ? `${COURSE_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
-      : COURSE_QUESTION_TEXT;
   return lista({
-    corpo,
+    corpo:
+      cabem.length < cursos.length
+        ? `${corpo} Se o seu não está na lista, escreva o nome dele (ex.: Medicina, Engenharia Química).`
+        : corpo,
     botao: 'Escolher curso',
-    linhas: cabem.map((curso) => ({ id: `${CURSO_ROW_PREFIX}${curso}`, titulo: curso })),
+    linhas: cabem.map((curso) =>
+      Array.from(curso).length > LIMITES_DA_LISTA.titulo
+        ? { id: idDoCurso(curso), titulo: curso, descricao: curso }
+        : { id: idDoCurso(curso), titulo: curso },
+    ),
   });
 }
 
-/** O curso escolhido: a linha da lista ou o nome digitado (sem diferença de acento e maiúscula). */
-export function cursoEscolhido(resposta: string): string | undefined {
+/** A linha da lista que a pessoa tocou, se for de curso. */
+function cursoDaLinha(resposta: string): string | undefined {
   const bruta = resposta.trim();
-  if (bruta.startsWith(CURSO_ROW_PREFIX)) {
-    const curso = bruta.slice(CURSO_ROW_PREFIX.length);
-    return CURSOS.find((c) => c === curso);
-  }
-  const texto = normalize(bruta);
-  return CURSOS.find((c) => normalize(c) === texto);
+  if (!bruta.startsWith(CURSO_ROW_PREFIX)) return undefined;
+  const curso = bruta.slice(CURSO_ROW_PREFIX.length);
+  return CURSOS.find((c) => c === curso);
 }
 export const CODE_EXPIRED_TEXT = `Esse código venceu: ele vale ${String(CODIGO_EXPIRA_MS / 60_000)} minutos. ${RESEND_HINT_TEXT}`;
 export const NO_ATTEMPTS_TEXT = `Você errou o código ${String(MAX_TENTATIVAS)} vezes, então ele não vale mais. ${RESEND_HINT_TEXT}`;
@@ -124,7 +135,7 @@ export const CODE_RESENT_TEXT = `Enviei um código novo para o seu e-mail da UFA
 export const RESEND_FAILED_TEXT =
   'Não consegui enviar o código agora. Tente daqui a pouco: responda *reenviar*.';
 export const EMAIL_LOST_TEXT = `Não consegui recuperar o seu e-mail. ${EMAIL_QUESTION_TEXT}`;
-export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outro número de WhatsApp no Lumens. Cada e-mail vale para um número só: é assim que cada estudante apoia uma pauta uma vez. Se o número antigo era seu, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
+export const EMAIL_IN_USE_TEXT = `Esse e-mail da UFAL já está ligado a outra conversa no Lumens. Cada e-mail vale para uma conversa só: é assim que cada estudante apoia uma pauta uma vez. Se a outra conversa era sua, fale com a equipe do Lumens. Para continuar com outro e-mail, ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
 export const LINK_UNAVAILABLE_TEXT =
   'Não consegui concluir a verificação agora. Digite o código de novo daqui a pouco.';
 
@@ -146,14 +157,14 @@ const diaBR = new Intl.DateTimeFormat('pt-BR', {
 });
 
 /**
- * SCRUM-298: limite acumulado de 24 h. Diz até quando, e não se foi pelo e-mail ou pelo número,
+ * SCRUM-298: limite acumulado de 24 h. Diz até quando, e não se foi pelo e-mail ou pela conversa,
  * para não ajudar quem testa e-mails de outras pessoas.
  */
 export function blockedText(bloqueio: NonNullable<BloqueioDaVerificacao>): string {
   const quando = `${horaBR.format(bloqueio.liberaEm)} de ${diaBR.format(bloqueio.liberaEm)}`;
   return bloqueio.motivo === 'envios'
-    ? `Por segurança, já saíram códigos demais para este e-mail ou este número nas últimas 24 horas. Você pode pedir outro a partir das ${quando}.`
-    : `Por segurança, a verificação deste e-mail ou deste número ficou bloqueada depois de muitos códigos errados. Você pode tentar de novo a partir das ${quando}.`;
+    ? `Por segurança, já saíram códigos demais para este e-mail ou esta conversa nas últimas 24 horas. Você pode pedir outro a partir das ${quando}.`
+    : `Por segurança, a verificação deste e-mail ou desta conversa ficou bloqueada depois de muitos códigos errados. Você pode tentar de novo a partir das ${quando}.`;
 }
 
 export function waitText(espera: number): string {
@@ -385,7 +396,16 @@ const pendenteSchema = z.object({
 
 export const verifyAskCourse: StepHandler = async (ctx) => {
   const { input, db, phoneHmac, state } = ctx;
-  const curso = cursoEscolhido(input.text);
+  // A linha tocada, ou o nome digitado (SCRUM-296: sem acento, começo de palavra, siglas).
+  const linha = cursoDaLinha(input.text);
+  const busca = linha === undefined ? buscarCurso(input.text) : undefined;
+  if (busca?.tipo === 'nenhum') {
+    return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
+  }
+  if (busca?.tipo === 'varios') {
+    return { next: 'VERIFY_ASK_COURSE', replies: [listaDeCursos(busca.cursos, COURSE_MANY_TEXT)] };
+  }
+  const curso = linha ?? busca?.curso;
   if (curso === undefined) {
     return { next: 'VERIFY_ASK_COURSE', replies: [COURSE_NOT_FOUND_TEXT, listaDeCursos()] };
   }

@@ -15,6 +15,7 @@ import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
 import { entradaDeConferencia, responderConferencia } from './conferencia';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
+import { temCadastro } from './estudante';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
 
@@ -90,7 +91,8 @@ export async function handleIncoming(
   const { phoneHmac } = msg;
   await store.lock(phoneHmac);
   const current = await store.get(phoneHmac);
-  const primeiroContato = current === null;
+  // SCRUM-333: conversa expirada de quem tem cadastro não é primeiro contato (já viu o aviso).
+  const primeiroContato = current === null && !(await temCadastro(deps.db, phoneHmac));
   return comAviso(primeiroContato, await responder(msg, deps, current));
 }
 
@@ -117,7 +119,8 @@ async function responder(
     return [MENU_TEXT];
   }
   const ctxBase = { input: { text: msg.text }, db, segredo, phoneHmac };
-  if (cmd === 'sair') {
+  // SCRUM-334: na confirmação, o 'sair' repetido é a resposta, e não um pedido novo de saída.
+  if (cmd === 'sair' && current?.step !== 'LEAVE_CONFIRM') {
     // 5.7: 'sair' larga o fluxo atual. Sem cadastro, a conversa já é apagada aqui.
     const result = await pedirSaida({ ...ctxBase, state: { step: 'GREETING', data: {} } });
     if (result.apagarConversa) await store.delete(phoneHmac);

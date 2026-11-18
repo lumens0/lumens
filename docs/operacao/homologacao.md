@@ -119,6 +119,33 @@ Saia e entre de novo no SSH para o grupo `docker` valer. Confira:
 docker compose version
 ```
 
+Limite o tamanho dos logs dos contêineres. Sem isto o Docker usa o driver `json-file` sem
+limite, e o log do back-end cresce até encher o disco, onde também está o Postgres.
+
+O comando só grava o arquivo se ele ainda não existir. Se já existir, junte as duas chaves
+(`log-driver` e `log-opts`) ao que está lá, à mão, para não apagar outra configuração:
+
+```bash
+[ -e /etc/docker/daemon.json ] && echo "daemon.json já existe: edite à mão" || { echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' | sudo tee /etc/docker/daemon.json && sudo systemctl restart docker; }
+```
+
+**Só numa VM que já tem o Lumens no ar** (na VM nova, siga para o clone abaixo): o
+`systemctl restart docker` acima **derruba todos os contêineres**, inclusive o Postgres e a
+Evolution, e o limite só vale para contêiner criado depois dele. Faça fora do horário do backup
+(12:00) e de demonstração, e recrie os contêineres em seguida:
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate
+```
+
+Se o perfil da Evolution estiver ligado, acrescente `--profile evolution` antes do `up`. Para
+conferir, `docker inspect --format '{{.HostConfig.LogConfig}}' <contêiner>` mostra o `max-size`.
+
+O cache de build e as imagens antigas o próprio deploy limpa (`scripts/deploy-homologacao.sh`):
+imagem sem tag sai na hora; imagem sem contêiner criada há mais de 72 h também sai; o cache de
+mais de 72 h sai e o resto fica em no máximo 3 GB. O log de cada deploy mostra o
+`docker system df` e o uso do disco, e avisa quando o disco passa de 85%.
+
 Clone em `/opt/lumens` — é o caminho que o `scripts/deploy-homologacao.sh` espera:
 
 ```bash
@@ -126,15 +153,16 @@ sudo mkdir -p /opt/lumens && sudo chown azureuser:azureuser /opt/lumens && git c
 ```
 
 ```bash
-cd /opt/lumens && cp .env.producao.example .env.producao && cp .env.producao.admin.example .env.producao.admin && chmod 600 .env.producao .env.producao.admin
+cd /opt/lumens && cp .env.producao.example .env.producao && cp .env.producao.admin.example .env.producao.admin && cp .env.producao.minio.example .env.producao.minio && chmod 600 .env.producao .env.producao.admin .env.producao.minio
 ```
 
-São **dois** arquivos de ambiente, e a divisão não é organizacional:
+São **três** arquivos de ambiente, e a divisão não é organizacional:
 
-| Arquivo               | Quem recebe            | O que tem                              |
-| --------------------- | ---------------------- | -------------------------------------- |
-| `.env.producao`       | `backend`, `migracao`  | logins restritos, chaves, Meta, e-mail |
-| `.env.producao.admin` | `postgres`, `migracao` | owner do banco e senhas dos papéis     |
+| Arquivo               | Quem recebe                                       | O que tem                                                |
+| --------------------- | ------------------------------------------------- | -------------------------------------------------------- |
+| `.env.producao`       | `backend`, `painel`, `migracao`, `minio-preparar` | logins restritos, chaves, Meta, e-mail, usuário do MinIO |
+| `.env.producao.admin` | `postgres`, `migracao`                            | owner do banco e senhas dos papéis                       |
+| `.env.producao.minio` | `minio`, `minio-preparar`                         | root do MinIO                                            |
 
 O serviço `backend` **não** recebe o arquivo admin. Se o processo que atende a internet
 tivesse `DATABASE_URL_MIGRACAO`, um comprometimento dele daria acesso de owner: apagar
@@ -158,6 +186,144 @@ Se o Node não estiver na instância, use o contêiner:
 docker run --rm node:24-slim node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
+### Storage das fotos e dos PDFs (MinIO)
+
+As fotos do relato e os PDFs da resposta oficial ficam num MinIO dentro do próprio compose
+(serviço `minio`, perfil `minio`, [decisão SCRUM-330](../decisoes/SCRUM-330-storage-minio.md)).
+Ele não tem porta publicada: só o back-end e o painel falam com ele, pela rede interna.
+
+No `.env.producao`, deixe como no modelo `S3_ENDPOINT=http://minio:9000`,
+`S3_BUCKET_FOTOS=lumens-arquivos` e `AWS_ACCESS_KEY_ID=lumens-app`, e gere a senha desse usuário
+em `AWS_SECRET_ACCESS_KEY`. No `.env.producao.minio`, gere a senha do root em
+`MINIO_ROOT_PASSWORD`. As duas senhas são diferentes:
+
+```bash
+openssl rand -hex 32
+```
+
+O deploy liga o perfil, sobe o MinIO e roda o `minio-preparar`, que cria o bucket (privado) e o
+usuário `lumens-app` com acesso só a ele. Isso roda em todo deploy e não muda o que já está certo.
+Se faltar uma dessas variáveis, o deploy para antes de publicar e diz qual.
+
+**Na VM que já está no ar com o bucket de fachada** (`lumens-fotos-pendente`), espere o deploy
+automático publicar esta mudança. Só depois crie o `.env.producao.minio` a partir do modelo,
+troque as quatro variáveis do storage no `.env.producao` e rode o deploy na mão
+(`./scripts/deploy-homologacao.sh origin/main`). A ordem importa: o bash segue executando o
+`deploy-homologacao.sh` que estava no disco quando começou. Um deploy que comece antes de o script
+novo chegar sobe o back-end apontando para o MinIO sem ligar o perfil nem criar o bucket. Se o
+nome em `AWS_ACCESS_KEY_ID` mudar um dia, o usuário antigo continua no MinIO: remova-o com
+`mc admin user rm`. Para conferir,
+mande uma foto numa pauta nova pelo bot e abra a pauta na moderação do painel; depois, mande o PDF
+de uma resposta oficial (Minhas pautas) e abra no painel. Se a foto falhar, o bot diz que o envio
+de fotos está fora do ar, e o log do back-end tem `foto: storage falhou`:
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao --profile minio logs --tail 50 minio backend
+```
+
+### Endurecer o sistema da VM
+
+A porta 22 continua aberta para qualquer origem (veja a seção 1): o que protege a máquina é o que
+roda nela. Faça uma vez, na VM nova ou na que já está no ar. Deixe **outra sessão SSH aberta**
+enquanto mexe no SSH: se a configuração quebrar, é por ela que se desfaz.
+
+**Root não entra pelo SSH.** O deploy entra como `azureuser`; root não precisa. O `sshd` usa o
+primeiro valor que lê, e os arquivos de `sshd_config.d/` entram em ordem alfabética, então o
+nosso começa com `01-`:
+
+```bash
+echo 'PermitRootLogin no' | sudo tee /etc/ssh/sshd_config.d/01-lumens.conf && sudo sshd -t && sudo systemctl reload ssh
+```
+
+Confira (esperado: `permitrootlogin no`):
+
+```bash
+sudo sshd -T | grep -i '^permitrootlogin'
+```
+
+Se vier outro valor, algum arquivo lido antes define a diretiva:
+`sudo grep -ri permitrootlogin /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`.
+
+**fail2ban no SSH.** Bane por um tempo o IP que erra a autenticação várias vezes (no padrão, 5
+erros em 10 minutos). No Ubuntu, o pacote já vem com o jail do `sshd` ligado:
+
+```bash
+sudo apt-get update && sudo apt-get install -y fail2ban && sudo systemctl enable --now fail2ban
+```
+
+```bash
+sudo fail2ban-client status sshd
+```
+
+Esperado: o jail listado, com `Currently banned`, sem erro. Se o serviço não subir, veja
+`journalctl -u fail2ban -n 30`.
+
+O deploy do CI entra com a chave e não erra, então não é banido. Se a chave do secret
+`HOMOLOG_SSH_CHAVE` estiver errada, o runner pode ser banido, e o banimento recusa a conexão na
+porta 22: o job sai com o aviso de **VM desligada** mesmo com ela ligada. Nesse caso, confira o
+`fail2ban-client status sshd` antes de procurar outra causa.
+
+**Nenhum `.env` antigo em `/opt/lumens`.** Os arquivos em uso são **só** o `.env.producao` e o
+`.env.producao.admin`; os `.example` vêm do Git e também ficam. Qualquer outro
+`.env.producao.*` (ex.: `.bak-*`, `.antes-*`) é cópia antiga, com segredos que podem continuar
+valendo (senha de SMTP antiga, chaves). Liste:
+
+```bash
+ls -la /opt/lumens/.env.producao*
+```
+
+Para cada cópia, compare com o atual e, para cada segredo que mudou, revogue o antigo na origem
+(senha de app do Google, chave da Brevo, token do BotFather). **Exceção:** se a cópia tem
+`CHAVE_CIFRA` ou `CHAVE_HMAC` diferente da atual, guarde essa chave no lugar compartilhado e
+seguro do time antes de apagar: os backups feitos antes da troca só decifram com ela (veja
+[Backup do banco](backup.md)). Depois apague a cópia (`sudo` se ela for do root):
+
+```bash
+sudo shred -u /opt/lumens/<cópia antiga>
+```
+
+**Alerta de indisponibilidade.** Hoje ninguém fica sabendo se o `/saude` cai, se o chip da
+Evolution desconecta ou se o crédito do Azure acaba: descobre na hora de usar.
+
+- O workflow **Monitor da homologação** (`.github/workflows/monitor-homologacao.yml`) confere de
+  fora, de 10 em 10 minutos, se o `https://<DOMINIO>/saude` responde e se o chip está conectado
+  (`/saude/whatsapp`; enquanto a rota não estiver publicada, o chip fica sem conferência e a
+  conferência é o `./scripts/evolution.sh estado`, veja [canal da Evolution](evolution.md)). Cada
+  item tem três tentativas, para um deploy em andamento não contar como queda. O GitHub atrasa o
+  agendamento em horário de pico, às vezes 10 a 15 minutos.
+- Quando uma checagem falha, o GitHub manda o e-mail de "workflow falhou" para quem mexeu por
+  último no `cron` do arquivo. Confira em **Settings → Notifications → Actions** (no perfil do
+  GitHub) que o e-mail de falha está ligado. Para avisar mais gente, cada pessoa do time pode rodar
+  o workflow uma vez à mão e seguir o repositório, ou trocar quem recebe mexendo no `cron`.
+- Como a VM fica **desligada por padrão** (veja [Ligar e desligar](#ligar-e-desligar)), um monitor
+  ligado o tempo todo falharia durante todo o tempo em que ela está parada. Por isso ele vem
+  **desligado** e só roda com a variável do repositório `MONITOR_HOMOLOGACAO=ligado`. Ligue na
+  semana da demo, junto com o auto-shutdown desligado, e desligue depois:
+
+  ```bash
+  gh variable set MONITOR_HOMOLOGACAO --body ligado
+  ```
+
+  ```bash
+  gh variable delete MONITOR_HOMOLOGACAO
+  ```
+
+  **Fora da semana da demo, não há monitoramento**: a queda continua sendo descoberta na hora de
+  usar. Para conferir na hora, rode o workflow à mão em Actions (funciona com ele desligado).
+
+- Crédito: no portal, **Cost Management → Budgets**, um orçamento **anual** (ou de período
+  personalizado até o fim do crédito) de $100, com alerta por e-mail em 50% e 80%. O padrão do
+  portal é mensal, e um orçamento mensal mede o gasto do mês, não o crédito. Os dados chegam com
+  atraso de algumas horas. Se a assinatura de estudante não deixar criar orçamento, o painel
+  _Education_ mostra o saldo, e vale olhar toda semana. O crédito também vence em 365 dias,
+  independentemente do saldo: anote a data. Na homologação já existe o `lumens-credito-anual`
+  (assinatura Azure for Students, R$ 440 a partir de 01/11/2026, alertas em 50% e 80%), ao lado
+  do mensal `lumens-homologacao`. Em 17/11/2026 a previsão do portal era de R$ 1.837 por ano: com
+  a VM ligada, o crédito acaba antes dos 365 dias.
+
+Para conferir com a VM parada: com o monitor ligado, pare a VM pelo portal e confira que o
+e-mail de falha chega em até uns 20 minutos.
+
 ## 5. Primeiro deploy
 
 ```bash
@@ -177,6 +343,10 @@ Para a demo, com o banco vazio:
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
 ```
+
+Com o banco no ar, instale o backup diário e rode o teste de restauração uma vez, como em
+[Backup do banco](backup.md#instalar-na-vm). O deploy não instala o backup: só avisa no log do CI,
+a cada deploy, enquanto o timer `lumens-backup.timer` não estiver ativo.
 
 ## 6. Deploy automático
 
@@ -273,5 +443,10 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
   liberada no NSG — a validação do Let's Encrypt passa por ela. Se o erro falar em _rate
   limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
 - **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
+  Se for disco, `docker system df` mostra quanto é cache de build e imagem; o
+  `docker builder prune --force` e o `docker image prune --all --force` liberam na hora. O
+  segundo apaga toda imagem sem contêiner, inclusive a da Evolution se os contêineres dela
+  tiverem sido removidos (o `up` baixa de novo); não rode durante um deploy.
 - **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
-  cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
+  cobrança. O aviso antes disso é o orçamento da seção 4 (ou, sem ele, o painel _Education_), e o
+  crédito vence em 365 dias mesmo com saldo.

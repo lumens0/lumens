@@ -59,7 +59,7 @@ describe('página da pauta: seções', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');
     expect(html).toContain('Iluminação no entorno do Bloco de Artes');
-    expect(html).toContain('seguranca · Bloco de Artes');
+    expect(html).toContain('Segurança · Bloco de Artes');
     expect(html).toContain('Cobrando');
     expect(html).toContain('Owner · Enfermagem');
     expect(html).toContain('Owner · Jornalismo');
@@ -69,7 +69,7 @@ describe('página da pauta: seções', () => {
     const html = renderToStaticMarkup(
       <CabecalhoPauta pauta={{ ...fixture, bloco_nome: null, bloco_slug: null }} />,
     );
-    expect(html).toContain('seguranca · Todo o campus');
+    expect(html).toContain('Segurança · Todo o campus');
   });
 
   it('"Apoiar" abre o bot com o slug, e some em pauta conquistada', () => {
@@ -187,10 +187,10 @@ describe('página da pauta: seções', () => {
     expect(html).toMatch(/<a[^>]*href="\/"[^>]*>.*Voltar<\/a>/);
   });
 
-  it('sem caminhos, explica que o owner ainda vai escolher', () => {
+  it('sem caminhos, explica que quem cuida da pauta ainda vai escolher', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, caminhos: [] }} />);
     expect(html).toContain('Caminhos</h2>');
-    expect(html).toContain('O owner ainda vai escolher os caminhos');
+    expect(html).toContain('Quem cuida da pauta ainda vai escolher os caminhos');
   });
 
   it('próxima etapa mostra o texto da API e o prazo do Fala.BR', () => {

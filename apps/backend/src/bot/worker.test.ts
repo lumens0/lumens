@@ -238,6 +238,8 @@ describe('última mensagem do estudante (SCRUM-275)', () => {
 
 describe('processIncomingJob', () => {
   it('anda a conversa, põe as respostas na fila de saída e conclui o job, tudo junto', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     const entrada = texto('oi');
     expect(await processIncomingJob(entrada, deps)).toEqual([
       GREETING_TEXT,
@@ -278,7 +280,7 @@ describe('processIncomingJob', () => {
   });
 
   it('tipo sem texto responde que ainda não entende e não mexe na conversa', async () => {
-    await processIncomingJob(job({}, 'audio'), deps);
+    await processIncomingJob(job({}, 'location'), deps);
     expect(await respostas()).toEqual([[UNSUPPORTED_TEXT]]);
     expect(await passo()).toBeUndefined();
   });
@@ -857,7 +859,13 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
       .values({ emailHmac: `c-${String(contador)}`, emailCifrado: 'x', nome: 'Curadoria' })
       .returning({ id: curadores.id });
     if (!estudante || !pauta || !curador) throw new Error('cenário incompleto');
-    await db.insert(apoios).values({ pautaId: pauta.id, estudanteId: estudante.id, origem: 'bot' });
+    // Apoio de antes da abertura da conferência (que é de um dia atrás), o único que vale voto.
+    await db.insert(apoios).values({
+      pautaId: pauta.id,
+      estudanteId: estudante.id,
+      origem: 'bot',
+      criadoEm: new Date(Date.now() - 2 * 86_400_000),
+    });
     const [promessa] = await db
       .insert(promessas)
       .values({
@@ -903,6 +911,21 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
     expect(await passo()).toBe('NEW_ASK_TITLE');
   });
 
+  it('Evolution (menu em texto): o "sim" digitado no menu grava o voto e o menu segue valendo', async () => {
+    const { votos } = await conferenciaApoiadaPor(PHONE_HMAC);
+    const processar = (t: string) =>
+      processIncomingJob(job({ text: { body: t } }), { ...deps, menusEmTexto: true });
+
+    await processar('oi');
+    await processar('sim');
+
+    expect(await votos()).toEqual(['sim']);
+    expect(await passo()).toBe('MENU');
+    // Número com pontuação é opção do menu, não voto.
+    await processar('2)');
+    expect(await votos()).toEqual(['sim']);
+  });
+
   it('Telegram: o callback do botão vira o mesmo job, grava o voto e confirma', async () => {
     const chatId = 4242;
     const { sim, votos } = await conferenciaApoiadaPor(chaveDoChat(chatId, chaves));
@@ -920,9 +943,7 @@ describe('resposta à conferência de ponta a ponta (SCRUM-293)', () => {
     await processIncomingJob({ ...job({ text: { body: '' } }), data: dados }, deps);
 
     expect(await votos()).toEqual(['sim']);
-    // Primeiro contato pelo Telegram: o aviso de privacidade vai junto (5.7).
-    expect(await respostas()).toEqual([
-      [PRIVACY_NOTICE_TEXT, CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')],
-    ]);
+    // Sem conversa guardada, mas com cadastro: o aviso de privacidade não vai de novo (SCRUM-333).
+    expect(await respostas()).toEqual([[CONFERENCIA_REGISTRADA_TEXT(TITULO, 'Sim')]]);
   });
 });
