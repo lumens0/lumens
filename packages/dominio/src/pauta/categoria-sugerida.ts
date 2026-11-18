@@ -51,6 +51,8 @@ export const PALAVRAS_DA_CATEGORIA: Record<Categoria, readonly string[]> = {
     'ralo',
     'esgoto',
     'lixeira',
+    'arvore',
+    'sombra',
   ],
   servicos: [
     'restaurante',
@@ -111,6 +113,7 @@ export const PALAVRAS_DA_CATEGORIA: Record<Categoria, readonly string[]> = {
     'assistencia estudantil',
     'desistir',
     'trancar',
+    'sala de descanso',
   ],
   acessibilidade: [
     'rampa',
@@ -152,6 +155,7 @@ export const PALAVRAS_DA_CATEGORIA: Record<Categoria, readonly string[]> = {
     'login',
     'senha',
     'laboratorio de informatica',
+    'laboratorios de informatica',
   ],
   ensino: [
     'professor',
