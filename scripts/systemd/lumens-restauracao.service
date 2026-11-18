@@ -1,0 +1,20 @@
+# Teste de restauração semanal (SCRUM-309): restaura o diário mais novo num banco temporário e
+# confere. Instalação: docs/operacao/backup.md.
+[Unit]
+Description=Teste de restauração do backup do Lumens
+Requires=docker.service
+# Só ordena quando os dois já estão na fila juntos. Depois de um boot na quarta, cada timer sorteia o
+# próprio atraso, e o teste pode rodar antes do backup do dia e restaurar o de ontem: continua sendo
+# um teste válido.
+After=docker.service lumens-backup.service
+OnFailure=lumens-alerta@%n.service
+
+[Service]
+Type=oneshot
+# Num oneshot o padrão é esperar para sempre: um envio ou um `docker exec` travado nunca falharia
+# nem avisaria.
+TimeoutStartSec=1h
+User=azureuser
+Environment=REPO_DIR=/opt/lumens
+Environment=BACKUP_DIR=/var/backups/lumens
+ExecStart=/opt/lumens/scripts/restaurar-backup.sh
