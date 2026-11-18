@@ -209,17 +209,26 @@ describe('página da pauta: seções', () => {
           { ...CAMINHO, tipo: 'falabr' },
           { ...CAMINHO, tipo: 'comunidade' },
           { ...CAMINHO, tipo: 'representante' },
-          { ...CAMINHO, tipo: 'proposta', status: 'executada' },
+          { ...CAMINHO, tipo: 'proposta', status: 'aberta' },
         ]}
         slug="x"
       />,
     );
-    expect(html).toContain('Sistema do governo federal para registrar manifestações.');
+    expect(html).toContain('Canal oficial do governo federal para registrar manifestações.');
     expect(html).toContain('Estudantes resolvendo o problema por conta própria.');
     expect(html).toContain('Alguém que representa os estudantes');
-    expect(html).toContain('Ideia de solução publicada por quem cuida da pauta.');
-    // O Fala.BR leva à seção da política de privacidade, e só ele.
+    expect(html).toContain('Precisa de voluntários: toque em Vou ajudar.');
+    // O Fala.BR leva à seção da política de privacidade, e só ele; o link diz para onde vai.
     expect(html.match(/href="\/privacidade#fala-br"/g)).toHaveLength(1);
+    expect(html).toContain('aria-label="Saiba mais sobre o Fala.BR"');
+  });
+
+  it('proposta já executada não pede voluntários nem cita o "Vou ajudar"', () => {
+    const html = renderToStaticMarkup(
+      <Caminhos caminhos={[{ ...CAMINHO, tipo: 'proposta', status: 'executada' }]} slug="x" />,
+    );
+    expect(html).toContain('Ideia de solução publicada por quem cuida da pauta.');
+    expect(html).not.toContain('Vou ajudar');
   });
 
   it('caminhos mostram o tipo e o status escrito, não só cor', () => {
