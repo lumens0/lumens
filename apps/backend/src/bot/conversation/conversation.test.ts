@@ -88,6 +88,8 @@ describe('steps', () => {
 
 describe('router', () => {
   it('usuário novo recebe saudação + menu e fica em MENU', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
@@ -153,6 +155,8 @@ describe('router', () => {
   });
 
   it('estado expirado (25h) é tratado como novo', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     await store.save(H, 'NEW_ASK_PLACE', { title: 'x' });
     advance(25 * HOUR);
     expect(await store.get(H)).toBeNull();
@@ -201,7 +205,7 @@ describe('store', () => {
 });
 
 describe('limpeza agendada das conversas', () => {
-  it('cria fila, agenda diário em Maceió e o worker chama deleteExpired', async () => {
+  it('cria fila, agenda de hora em hora, roda uma vez na subida e o worker limpa tudo', async () => {
     const calls: unknown[][] = [];
     let worker: (() => Promise<unknown>) | undefined;
     const boss = {
@@ -218,6 +222,10 @@ describe('limpeza agendada das conversas', () => {
         worker = h;
         return Promise.resolve('w1');
       },
+      send: (...a: unknown[]) => {
+        calls.push(['send', ...a]);
+        return Promise.resolve('j1');
+      },
     };
     await store.save('old', 'MENU', {});
     advance(25 * HOUR);
@@ -228,9 +236,17 @@ describe('limpeza agendada das conversas', () => {
     expect(calls).toEqual([
       ['createQueue', JOBS.cleanupConversations],
       ['schedule', JOBS.cleanupConversations, CLEANUP_CRON, null, { tz: CLEANUP_TZ }],
+      // SCRUM-332: a VM liga depois de horas desligada; a limpeza não espera a hora cheia.
+      ['send', JOBS.cleanupConversations, null],
     ]);
+    expect(CLEANUP_CRON).toBe('0 * * * *');
     if (!worker) throw new Error('registerCleanupJob não registrou o worker');
-    expect(await worker()).toEqual({ deleted: 1, dedupDeleted: 0 });
+    expect(await worker()).toEqual({
+      deleted: 1,
+      dedupDeleted: 0,
+      codigosDeleted: 0,
+      registrosDeleted: 0,
+    });
   });
 });
 
@@ -311,6 +327,8 @@ describe('experiência da pessoa', () => {
   });
 
   it('foto como primeira mensagem recebe a saudação', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     expect(await sendFoto()).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
   });
 });
