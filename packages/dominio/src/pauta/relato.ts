@@ -13,9 +13,11 @@ import {
   and,
   eq,
   estudantes,
-  isNull,
+  FOTOS_POR_RELATO_MAXIMO,
   pautas,
+  relatoFotos,
   relatos,
+  sql,
   type StatusPauta,
   type Tx,
 } from '@lumens/db';
@@ -27,11 +29,14 @@ export const RELATO_MAXIMO = DESCRICAO_MAXIMA;
 /** Pauta recusada não recebe nada; as outras recebem relato, inclusive em curadoria. */
 const SEM_RELATO: ReadonlySet<StatusPauta> = new Set(['recusada']);
 
+export { FOTOS_POR_RELATO_MAXIMO };
+
 export interface NovoRelatoDoEstudante {
   pautaId: string;
   estudanteId: string;
   texto: string;
-  fotoChave?: string | null;
+  /** Até `FOTOS_POR_RELATO_MAXIMO`; a ordem da lista é a ordem de exibição. */
+  fotoChaves?: readonly string[];
 }
 
 export type ResultadoRelato =
@@ -41,6 +46,7 @@ export type ResultadoRelato =
       motivo:
         | 'texto_vazio'
         | 'texto_longo'
+        | 'fotos_demais'
         | 'pauta_inexistente'
         | 'pauta_sem_relato'
         | 'estudante_nao_verificado';
@@ -51,11 +57,14 @@ const tamanho = (texto: string) => Array.from(texto).length;
 /** Grava o relato pendente na transação de quem chama. Recusas voltam como resultado. */
 export async function adicionarRelato(
   tx: Tx,
-  { pautaId, estudanteId, texto, fotoChave = null }: NovoRelatoDoEstudante,
+  { pautaId, estudanteId, texto, fotoChaves = [] }: NovoRelatoDoEstudante,
 ): Promise<ResultadoRelato> {
   const limpo = texto.trim();
   if (limpo === '') return { registrado: false, motivo: 'texto_vazio' };
   if (tamanho(limpo) > RELATO_MAXIMO) return { registrado: false, motivo: 'texto_longo' };
+  if (fotoChaves.length > FOTOS_POR_RELATO_MAXIMO) {
+    return { registrado: false, motivo: 'fotos_demais' };
+  }
 
   const [pauta] = await tx
     .select({ status: pautas.status })
@@ -76,9 +85,14 @@ export async function adicionarRelato(
 
   const [inserido] = await tx
     .insert(relatos)
-    .values({ pautaId, estudanteId, texto: limpo, fotoChave, moderacao: 'pendente' })
+    .values({ pautaId, estudanteId, texto: limpo, moderacao: 'pendente' })
     .returning({ id: relatos.id });
   if (inserido === undefined) throw new Error('relato não inserido');
+  if (fotoChaves.length > 0) {
+    await tx
+      .insert(relatoFotos)
+      .values(fotoChaves.map((chave, i) => ({ relatoId: inserido.id, chave, ordem: i + 1 })));
+  }
   return { registrado: true, relatoId: inserido.id };
 }
 
@@ -90,31 +104,35 @@ export interface FotoDoRelato {
 }
 
 export type ResultadoFotoDoRelato =
-  | { anexada: true }
-  | { anexada: false; motivo: 'relato_inexistente' | 'ja_moderado' | 'ja_tem_foto' };
+  | { anexada: true; total: number }
+  | { anexada: false; motivo: 'relato_inexistente' | 'ja_moderado' | 'limite_de_fotos' };
 
 /**
- * Junta a foto a um relato já gravado (SCRUM-301). Só enquanto o relato está `pendente`: a
- * curadoria aprova o relato com o que ele tem, e uma foto que chegasse depois da aprovação iria
- * para o site sem ninguém ver. A condição vai no próprio UPDATE, então não corre com a moderação.
+ * Junta mais uma foto a um relato já gravado (SCRUM-301), até o limite de três. Só enquanto o
+ * relato está `pendente`: a curadoria aprova o relato com o que ele tem, e uma foto que chegasse
+ * depois da aprovação iria para o site sem ninguém ver. O relato fica travado (FOR UPDATE) durante
+ * a conferência e a inclusão, então duas fotos simultâneas não passam do limite nem repetem a
+ * ordem, e a moderação não corre com a foto.
  */
 export async function anexarFotoAoRelato(
   tx: Tx,
   { relatoId, estudanteId, fotoChave }: FotoDoRelato,
 ): Promise<ResultadoFotoDoRelato> {
-  const doEstudante = and(eq(relatos.id, relatoId), eq(relatos.estudanteId, estudanteId));
-  const [anexada] = await tx
-    .update(relatos)
-    .set({ fotoChave })
-    .where(and(doEstudante, eq(relatos.moderacao, 'pendente'), isNull(relatos.fotoChave)))
-    .returning({ id: relatos.id });
-  if (anexada !== undefined) return { anexada: true };
-
-  const [atual] = await tx
+  const [relato] = await tx
     .select({ moderacao: relatos.moderacao })
     .from(relatos)
-    .where(doEstudante);
-  if (atual === undefined) return { anexada: false, motivo: 'relato_inexistente' };
-  if (atual.moderacao !== 'pendente') return { anexada: false, motivo: 'ja_moderado' };
-  return { anexada: false, motivo: 'ja_tem_foto' };
+    .where(and(eq(relatos.id, relatoId), eq(relatos.estudanteId, estudanteId)))
+    .for('update');
+  if (relato === undefined) return { anexada: false, motivo: 'relato_inexistente' };
+  if (relato.moderacao !== 'pendente') return { anexada: false, motivo: 'ja_moderado' };
+
+  // Conta todas, inclusive as recusadas: a ordem delas não é reaproveitada.
+  const [{ total } = { total: 0 }] = await tx
+    .select({ total: sql<number>`count(*)::int` })
+    .from(relatoFotos)
+    .where(eq(relatoFotos.relatoId, relatoId));
+  if (total >= FOTOS_POR_RELATO_MAXIMO) return { anexada: false, motivo: 'limite_de_fotos' };
+
+  await tx.insert(relatoFotos).values({ relatoId, chave: fotoChave, ordem: total + 1 });
+  return { anexada: true, total: total + 1 };
 }

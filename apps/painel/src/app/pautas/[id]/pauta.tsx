@@ -4,6 +4,7 @@ import {
   type BlocoParaRelato,
   type DetalhePautaDaCuradoria,
   type EventoDaLinha,
+  type PedidoDeEdicao,
   versaoDoTexto,
 } from '@lumens/dominio';
 import Link from 'next/link';
@@ -11,8 +12,10 @@ import estilos from '../../painel.module.css';
 import { dataHora } from '../../prazo';
 import { SeloDePrazo, SeloDeStatus, SeloUrgente } from '../selos';
 import { Foto } from '../../arquivos';
+import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../../fotos-do-relato';
+import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from '../../pedidos/pedidos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
-import { PREFIXO_FOTO_VISTA } from './decisoes';
+import { CAMPO_RELATO_VISTO, PREFIXO_FOTO_VISTA } from './decisoes';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
@@ -29,12 +32,14 @@ const ERRO: Record<string, string> = {
   relato_com_dado_pessoal:
     'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
   relato_mudou:
-    'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova ou relato novo). Confira e aprove de novo.',
+    'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova, foto recusada ou relato novo). Confira e aprove de novo.',
   pauta_editada:
     'O autor editou o título ou a descrição depois que a tela abriu. Releia o texto novo (veja a linha do tempo) e aprove de novo.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
+  ...ERRO_DE_FOTO,
+  ...ERRO_DE_PEDIDO,
 };
 
 type Acao = (formulario: FormData) => Promise<void>;
@@ -75,6 +80,10 @@ export function Pauta({
   prorrogarPrazo,
   corrigirProtocolo,
   remarcarPromessa,
+  recusarFoto = acaoVazia,
+  pedidosDeEdicao = [],
+  aprovarPedido = acaoVazia,
+  recusarPedido = acaoVazia,
 }: {
   pauta: DetalhePautaDaCuradoria;
   erro?: string | undefined;
@@ -95,6 +104,11 @@ export function Pauta({
   prorrogarPrazo?: Acao;
   corrigirProtocolo?: Acao;
   remarcarPromessa?: Acao;
+  recusarFoto?: Acao;
+  /** Pedidos pendentes de mudar o título ou a descrição desta pauta (já publicada). */
+  pedidosDeEdicao?: PedidoDeEdicao[];
+  aprovarPedido?: Acao;
+  recusarPedido?: Acao;
 }) {
   const aviso = erro === undefined ? undefined : ERRO[erro];
   const categoria =
@@ -125,6 +139,16 @@ export function Pauta({
       {feito === 'relato_recusado' && (
         <p className={estilos.aviso} role="status">
           Relato recusado. A pauta continua esperando a decisão e, aprovada, vai ao site sem ele.
+        </p>
+      )}
+      {feito !== undefined && FEITO_DE_FOTO[feito] !== undefined && (
+        <p className={estilos.aviso} role="status">
+          {FEITO_DE_FOTO[feito]}
+        </p>
+      )}
+      {feito !== undefined && FEITO_DE_PEDIDO[feito] !== undefined && (
+        <p className={estilos.aviso} role="status">
+          {FEITO_DE_PEDIDO[feito]}
         </p>
       )}
       {feito === 'recusada' && (
@@ -233,14 +257,29 @@ export function Pauta({
                   <li>Curso: {relato.curso ?? 'Não informado'}</li>
                   <li>Situação da moderação: {MODERACAO[relato.moderacao]}</li>
                   <li>Data registrada: {relato.data ? dataHora(relato.data) : 'Não registrada'}</li>
-                  {!relato.fotoChave && <li>Sem foto</li>}
                 </ul>
-                {relato.fotoChave && <Foto chave={relato.fotoChave} />}
+                <FotosDoRelato
+                  fotos={relato.fotos}
+                  recusarFoto={recusarFoto}
+                  voltar={`/pautas/${pauta.id}`}
+                />
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {pedidosDeEdicao.length > 0 && (
+        <section aria-labelledby="pedidos-pauta">
+          <h2 id="pedidos-pauta">Pedidos de edição</h2>
+          <PedidosDeEdicao
+            pedidos={pedidosDeEdicao}
+            aprovar={aprovarPedido}
+            recusar={recusarPedido}
+            voltar={`/pautas/${pauta.id}`}
+          />
+        </section>
+      )}
 
       <section aria-labelledby="responsaveis-pauta">
         <h2 id="responsaveis-pauta">Responsáveis</h2>
@@ -341,12 +380,19 @@ export function Pauta({
             {pauta.relatos
               .filter((relato) => relato.moderacao === 'pendente')
               .map((relato) => (
-                <input
-                  key={relato.id}
-                  type="hidden"
-                  name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
-                  value={relato.fotoChave ?? ''}
-                />
+                <span key={relato.id}>
+                  <input type="hidden" name={CAMPO_RELATO_VISTO} value={relato.id} />
+                  {relato.fotos
+                    .filter((foto) => foto.moderacao === 'pendente')
+                    .map((foto) => (
+                      <input
+                        key={foto.id}
+                        type="hidden"
+                        name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
+                        value={foto.id}
+                      />
+                    ))}
+                </span>
               ))}
             <input
               type="hidden"

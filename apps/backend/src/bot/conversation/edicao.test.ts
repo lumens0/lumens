@@ -1,4 +1,13 @@
-import { apoios, eq, estudantes, eventos, papeisPauta, pautas, type Db } from '@lumens/db';
+import {
+  apoios,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  pedidosEdicao,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
@@ -8,6 +17,9 @@ import {
   EDIT_EMPTY_TEXT,
   EDIT_FIELD_AGAIN_TEXT,
   EDIT_NONE_TEXT,
+  EDIT_PENDING_TEXT,
+  EDIT_REQUESTED_TEXT,
+  EDIT_UNCHANGED_TEXT,
   editTooLongText,
 } from './edicao';
 import { MENU_PRINCIPAL } from './handlers';
@@ -108,10 +120,57 @@ describe('menu: 6 Editar pauta', () => {
     expect(await passo()).toBe('MENU');
   });
 
-  it('sem pauta em curadoria, explica e fica no menu', async () => {
+  it('pauta recusada não pode ser editada: explica e fica no menu', async () => {
     const id = await novoEstudante(H);
-    await pautaDe(id, 'Já publicada', 'juntando_apoios');
+    await pautaDe(id, 'Recusada', 'recusada');
     expect(await send('6')).toEqual([EDIT_NONE_TEXT]);
+  });
+
+  describe('pauta já publicada: a edição vira um pedido para a curadoria', () => {
+    it('o texto público não muda e o pedido guarda o antes e o depois', async () => {
+      const id = await novoEstudante(H);
+      const pautaId = await pautaDe(id, 'Já publicada', 'juntando_apoios');
+      await send('6');
+      expect(await passo()).toBe('OWNER_EDIT_FIELD');
+      await send('título');
+      expect(await send('Já publicada e corrigida')).toEqual([EDIT_REQUESTED_TEXT, MENU_PRINCIPAL]);
+
+      expect((await doBanco(pautaId))?.titulo).toBe('Já publicada');
+      expect(
+        await db.select().from(pedidosEdicao).where(eq(pedidosEdicao.pautaId, pautaId)),
+      ).toMatchObject([
+        {
+          campo: 'titulo',
+          antes: 'Já publicada',
+          depois: 'Já publicada e corrigida',
+          status: 'pendente',
+        },
+      ]);
+      // Nada na linha do tempo: o texto não mudou.
+      expect(await db.select().from(eventos).where(eq(eventos.pautaId, pautaId))).toEqual([]);
+    });
+
+    it('com pedido pendente, outro do mesmo campo é recusado com explicação', async () => {
+      const id = await novoEstudante(H);
+      await pautaDe(id, 'Já publicada', 'juntando_apoios');
+      await send('6');
+      await send('descrição');
+      await send('Primeira versão');
+      await send('6');
+      await send('descrição');
+      expect(await send('Segunda versão')).toEqual([EDIT_PENDING_TEXT, MENU_PRINCIPAL]);
+    });
+
+    it('texto igual ao publicado não gera pedido', async () => {
+      const id = await novoEstudante(H);
+      const pautaId = await pautaDe(id, 'Já publicada', 'juntando_apoios');
+      await send('6');
+      await send('título');
+      expect(await send('Já publicada')).toEqual([EDIT_UNCHANGED_TEXT, MENU_PRINCIPAL]);
+      expect(
+        await db.select().from(pedidosEdicao).where(eq(pedidosEdicao.pautaId, pautaId)),
+      ).toEqual([]);
+    });
   });
 
   it('corrige o título: o antes e o depois ficam na linha do tempo, só para a curadoria', async () => {
@@ -170,8 +229,8 @@ describe('menu: 6 Editar pauta', () => {
     const segunda = await pautaDe(id, 'Segunda');
     await send('6');
     expect(await passo()).toBe('OWNER_EDIT_PICK');
-    // A curadoria decide a "Segunda" enquanto a lista está na tela da pessoa.
-    await db.update(pautas).set({ status: 'juntando_apoios' }).where(eq(pautas.id, segunda));
+    // A curadoria recusa a "Segunda" enquanto a lista está na tela da pessoa.
+    await db.update(pautas).set({ status: 'recusada' }).where(eq(pautas.id, segunda));
     await send('Segunda');
     // Sobrou uma pauta: vai direto aos botões dela, sem ficar repetindo "Não achei essa pauta".
     expect(await passo()).toBe('OWNER_EDIT_FIELD');
@@ -181,12 +240,22 @@ describe('menu: 6 Editar pauta', () => {
     expect((await doBanco(primeira))?.titulo).toBe('Primeira corrigida');
   });
 
-  it('se a curadoria decidiu entre uma mensagem e outra, a edição é recusada e nada muda', async () => {
+  it('se a curadoria aprovou entre uma mensagem e outra, o texto novo vira pedido e nada muda na hora', async () => {
     const id = await novoEstudante(H);
     const pautaId = await pautaDe(id, 'Pauta');
     await send('6');
     await send('título');
     await db.update(pautas).set({ status: 'juntando_apoios' }).where(eq(pautas.id, pautaId));
+    expect(await send('Título novo')).toEqual([EDIT_REQUESTED_TEXT, MENU_PRINCIPAL]);
+    expect((await doBanco(pautaId))?.titulo).toBe('Pauta');
+  });
+
+  it('se a curadoria recusou entre uma mensagem e outra, a edição é recusada e nada muda', async () => {
+    const id = await novoEstudante(H);
+    const pautaId = await pautaDe(id, 'Pauta');
+    await send('6');
+    await send('título');
+    await db.update(pautas).set({ status: 'recusada' }).where(eq(pautas.id, pautaId));
     expect(await send('Título novo')).toEqual([EDIT_CLOSED_TEXT, MENU_PRINCIPAL]);
     expect((await doBanco(pautaId))?.titulo).toBe('Pauta');
   });

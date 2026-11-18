@@ -9,6 +9,7 @@ import {
   pautas,
   promessas,
   respostasConferencia,
+  relatoFotos,
   relatos,
   estudantes,
   sql,
@@ -18,13 +19,21 @@ import { buscarPautaDaCuradoria, type PautaDaCuradoria } from './curadoria';
 import { caminhosDaPauta as listarCaminhosDaPauta } from '../caminhos/caminhos';
 import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 
+export interface FotoDaCuradoria {
+  id: string;
+  chave: string;
+  moderacao: 'pendente' | 'aprovado' | 'recusado';
+  motivoRecusa: string | null;
+}
+
 export interface RelatoDaCuradoria {
   /** Vai no formulário de aprovação: `aprovarPauta` confere a foto de cada relato que a tela mostrou. */
   id: string;
   texto: string;
   achados: Achado[];
   curso: string | null;
-  fotoChave: string | null;
+  /** Todas as fotos do relato, na ordem de envio, com a moderação de cada uma. */
+  fotos: FotoDaCuradoria[];
   moderacao: 'pendente' | 'aprovado' | 'recusado';
   /** Relatos não guardam data de envio; para o relato inicial usa-se a criação da pauta. */
   data: Date | null;
@@ -70,6 +79,7 @@ export async function detalharPautaDaCuradoria(
     apoiosContados,
     responsaveis,
     relatosDaPauta,
+    fotosDaPauta,
     caminhosDaPauta,
     promessasAtivas,
     metaBatida,
@@ -94,7 +104,6 @@ export async function detalharPautaDaCuradoria(
         id: relatos.id,
         texto: relatos.texto,
         curso: estudantes.curso,
-        fotoChave: relatos.fotoChave,
         moderacao: relatos.moderacao,
         moderadoEm: relatos.moderadoEm,
       })
@@ -104,6 +113,18 @@ export async function detalharPautaDaCuradoria(
       // O banco não guarda quando o relato chegou: os moderados primeiro, pela data da moderação,
       // e os pendentes no fim.
       .orderBy(sql`${relatos.moderadoEm} asc nulls last`, relatos.id),
+    db
+      .select({
+        id: relatoFotos.id,
+        relatoId: relatoFotos.relatoId,
+        chave: relatoFotos.chave,
+        moderacao: relatoFotos.moderacao,
+        motivoRecusa: relatoFotos.motivoRecusa,
+      })
+      .from(relatoFotos)
+      .innerJoin(relatos, eq(relatos.id, relatoFotos.relatoId))
+      .where(eq(relatos.pautaId, pautaId))
+      .orderBy(relatoFotos.relatoId, relatoFotos.ordem),
     listarCaminhosDaPauta(db, pautaId),
     db
       .select({
@@ -153,12 +174,12 @@ export async function detalharPautaDaCuradoria(
     apoios: apoiosContados[0]?.total ?? 0,
     metaBatidaEm: metaBatida[0]?.criadoEm ?? registro[0]?.metaBatidaEm ?? null,
     responsaveis: responsaveis.map(({ curso }) => ({ curso })),
-    relatos: relatosDaPauta.map(({ id, texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+    relatos: relatosDaPauta.map(({ id, texto, curso, moderacao, moderadoEm }) => ({
       id,
       texto,
       achados: conferirAnonimato(texto).achados,
       curso,
-      fotoChave,
+      fotos: fotosDaPauta.filter((f) => f.relatoId === id).map(({ relatoId: _, ...foto }) => foto),
       moderacao,
       // O banco não guarda quando o relato chegou: sem moderação, não há data confiável. A do
       // owner não serve, porque ele pode mandar outros relatos depois de criar a pauta.

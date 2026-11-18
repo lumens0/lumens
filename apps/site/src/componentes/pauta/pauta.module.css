@@ -318,11 +318,14 @@
   min-width: 0;
 }
 
-/* Com foto: miniatura quadrada ao lado do texto; a foto inteira abre no clique. */
-.comFoto {
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 14px;
+/* Fotos do relato (até três): miniaturas quadradas em fila, quebrando linha no celular. */
+.fotos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .fotoLink {

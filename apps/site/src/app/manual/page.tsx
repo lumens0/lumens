@@ -74,9 +74,11 @@ export default function Manual() {
             volta para o bot com a pauta certa. O apoio conta na hora.
           </li>
           <li>
-            <strong>Relato e foto</strong>: depois de apoiar, você pode contar a sua experiência e
-            mandar uma foto. Eles aparecem no site depois de aprovados pela moderação, sem o seu
-            nome.
+            <strong>Relato e fotos</strong>: depois de apoiar, você pode contar a sua experiência e
+            mandar <strong>até 3 fotos</strong>, uma por mensagem. A cada foto, o bot pergunta se
+            tem mais alguma; responda <em>pronto</em> para terminar. Tudo aparece no site depois de
+            aprovado pela moderação, sem o seu nome. A curadoria pode recusar uma foto sem recusar o
+            texto: nesse caso o bot manda o motivo da recusa daquela foto para você.
           </li>
           <li>
             <strong>Verificar e-mail</strong>: apoiar, criar pauta e cuidar de pauta pedem que você
@@ -129,16 +131,18 @@ export default function Manual() {
         </p>
         <ul>
           <li>
-            Só dá para editar <strong>enquanto a curadoria ainda não decidiu</strong>. Assim o texto
-            corrigido é exatamente o que ela vai conferir, e nada vai ao ar sem essa conferência.
+            <strong>Enquanto a curadoria ainda não decidiu</strong>, o texto muda na hora. Assim o
+            texto corrigido é exatamente o que ela vai conferir.
           </li>
           <li>
-            A curadoria vê o texto de antes e o de depois. Você recebe a decisão pelo bot, como
-            sempre.
+            <strong>Depois que a pauta é publicada</strong>, o texto público não muda sozinho: quem
+            já apoiou apoiou aquele texto. O seu pedido vai para a curadoria, que vê o texto de
+            antes e o de depois e aprova ou recusa. Só quando ela aprova o texto novo vai ao site.
+            Até lá, vale o texto que já está publicado.
           </li>
           <li>
-            Depois que a pauta é publicada, o texto não muda mais: quem já apoiou apoiou aquele
-            texto. Se algo precisar mudar, escreva para a curadoria.
+            Dá para ter um pedido esperando por vez em cada campo (título e descrição). Você recebe
+            a decisão pelo bot; se for recusa, vem o motivo.
           </li>
         </ul>
       </Secao>
@@ -270,7 +274,10 @@ export default function Manual() {
           <li>O site nunca mostra nome, telefone ou e-mail de quem apoia ou relata.</li>
           <li>Os dados da conversa e o seu e-mail ficam cifrados no banco.</li>
           <li>As fotos perdem a localização antes de serem guardadas.</li>
-          <li>Relatos e fotos só aparecem depois de aprovados pela moderação.</li>
+          <li>
+            Relatos e fotos só aparecem depois de aprovados pela moderação, e cada foto é analisada
+            sozinha.
+          </li>
         </ul>
         <p>
           O Lumens é um projeto acadêmico e não fala em nome da UFAL. Para os detalhes, leia a{' '}

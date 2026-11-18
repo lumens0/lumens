@@ -17,7 +17,10 @@ import {
   estudantes,
   inArray,
   isNull,
+  or,
   papeisPauta,
+  pedidosEdicao,
+  relatoFotos,
   relatos,
   type Tx,
 } from '@lumens/db';
@@ -98,17 +101,50 @@ export async function sairDoLumens(
     );
 
   // SCRUM-314: relato que não foi publicado (pendente ou recusado) só existe para a curadoria; sem a
-  // pessoa, não tem por que ficar. O aprovado já está no site, sem nome, e continua.
-  const apagados = await tx
+  // pessoa, não tem por que ficar. O aprovado já está no site, sem nome, e continua. Das fotos do
+  // relato aprovado só ficam as aprovadas: a recusada nunca foi ao ar e sai com a pessoa.
+  const doEstudante = tx
+    .select({ id: relatos.id })
+    .from(relatos)
+    .where(
+      and(
+        eq(relatos.estudanteId, estudanteId),
+        inArray(relatos.moderacao, ['pendente', 'recusado']),
+      ),
+    );
+  const fotosApagadas = await tx
+    .delete(relatoFotos)
+    .where(
+      or(
+        inArray(relatoFotos.relatoId, doEstudante),
+        and(
+          eq(relatoFotos.moderacao, 'recusado'),
+          inArray(
+            relatoFotos.relatoId,
+            tx.select({ id: relatos.id }).from(relatos).where(eq(relatos.estudanteId, estudanteId)),
+          ),
+        ),
+      ),
+    )
+    .returning({ chave: relatoFotos.chave });
+  await tx
     .delete(relatos)
     .where(
       and(
         eq(relatos.estudanteId, estudanteId),
         inArray(relatos.moderacao, ['pendente', 'recusado']),
       ),
-    )
-    .returning({ fotoChave: relatos.fotoChave });
-  const fotosParaApagar = apagados.flatMap((r) => (r.fotoChave === null ? [] : [r.fotoChave]));
+    );
+  // Pedido de edição que a curadoria não aprovou guarda texto de quem saiu: sai junto.
+  await tx
+    .delete(pedidosEdicao)
+    .where(
+      and(
+        eq(pedidosEdicao.estudanteId, estudanteId),
+        inArray(pedidosEdicao.status, ['pendente', 'recusado']),
+      ),
+    );
+  const fotosParaApagar = fotosApagadas.map((f) => f.chave);
 
   // ponytail: lápide no lugar de NULL porque as colunas do telefone são NOT NULL; gravar NULL
   // depende de uma migração que as torne anuláveis.

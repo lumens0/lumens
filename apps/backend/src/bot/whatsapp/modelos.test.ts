@@ -1,5 +1,8 @@
 import {
   MODELO_CONFERENCIA,
+  MODELO_EDICAO_APROVADA,
+  MODELO_EDICAO_RECUSADA,
+  MODELO_FOTO_RECUSADA,
   MODELO_LEMBRETE_PRAZO,
   MODELO_META_BATIDA,
   MODELO_OWNER_INATIVO,
@@ -21,10 +24,13 @@ function variaveis(texto: string): number[] {
 }
 
 describe('MODELOS (RNF04)', () => {
-  it('tem os avisos da SCRUM-193 e os modelos de recusa, vitória, aprovação e remarcação', () => {
+  it('tem os avisos da SCRUM-193 e os modelos de recusa, vitória, aprovação, remarcação, foto recusada e pedido de edição', () => {
     expect(Object.keys(MODELOS).sort()).toEqual([
       'lumens_conferencia',
       'lumens_conquista',
+      'lumens_edicao_aprovada',
+      'lumens_edicao_recusada',
+      'lumens_foto_recusada',
       'lumens_lembrete_prazo',
       'lumens_meta_batida',
       'lumens_owner_inativo',
@@ -41,6 +47,9 @@ describe('MODELOS (RNF04)', () => {
     expect(
       [
         MODELO_CONFERENCIA,
+        MODELO_EDICAO_APROVADA,
+        MODELO_EDICAO_RECUSADA,
+        MODELO_FOTO_RECUSADA,
         MODELO_LEMBRETE_PRAZO,
         MODELO_META_BATIDA,
         MODELO_OWNER_INATIVO,

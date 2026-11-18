@@ -35,3 +35,19 @@ describe('política de privacidade: seção do Fala.BR', () => {
     expect(html).not.toContain('ainda não está em funcionamento');
   });
 });
+
+describe('política de privacidade: fotos por unidade e pedidos de edição', () => {
+  const html = renderToStaticMarkup(<Privacidade />);
+
+  it('diz que são até três fotos, que cada uma é analisada sozinha e que o motivo da recusa vai a quem enviou', () => {
+    expect(html).toContain('até três por relato');
+    expect(html).toContain('Cada foto é analisada sozinha');
+    expect(html).toContain('enviamos a quem mandou a foto');
+    expect(html).toContain('LGPD, art. 7º, I');
+  });
+
+  it('explica o que fica guardado de um pedido de edição e quando é apagado', () => {
+    expect(html).toContain('pediu para mudar o título ou a descrição');
+    expect(html).toContain('Os pedidos não aprovados são apagados');
+  });
+});

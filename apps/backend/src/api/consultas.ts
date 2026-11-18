@@ -138,7 +138,7 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
     linhas<Pauta>(db, sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica WHERE slug = ${slug}`),
     linhas<Relato>(
       db,
-      sql`SELECT texto, foto_chave, curso, ${iso('moderado_em')}
+      sql`SELECT texto, fotos, curso, ${iso('moderado_em')}
           FROM v_relato_publico WHERE pauta_slug = ${slug}
           ORDER BY v_relato_publico.moderado_em`,
     ),
@@ -195,7 +195,7 @@ export async function listarAtividade(db: Db, query: PaginacaoQuery) {
 export async function fotoEhPublica(db: Db, chave: string): Promise<boolean> {
   const achadas = await linhas<{ ok: number }>(
     db,
-    sql`SELECT 1 AS ok FROM v_relato_publico WHERE foto_chave = ${chave} LIMIT 1`,
+    sql`SELECT 1 AS ok FROM v_relato_publico WHERE ${chave} = ANY(fotos) LIMIT 1`,
   );
   return achadas.length > 0;
 }

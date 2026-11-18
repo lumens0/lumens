@@ -26,6 +26,7 @@ import { eq, pautas, type Db } from '@lumens/db';
 import {
   RELATO_MAXIMO,
   adicionarRelato,
+  FOTOS_POR_RELATO_MAXIMO,
   anexarFotoAoRelato,
   enfileirarAvisoMetaBatida,
   registrarApoio,
@@ -34,7 +35,7 @@ import { z } from 'zod';
 import { conviteCoOwner } from './co-owner';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
-import { photoRefusedText } from './nova-pauta';
+import { SKIP_WORDS as FIM_DAS_FOTOS, photoMoreText, photoRefusedText } from './nova-pauta';
 import type { MensagemDeImagem, Resposta } from './resposta';
 import { normalize } from './texto';
 
@@ -51,8 +52,8 @@ export const ASK_ATTACH_REPORT_TEXT =
 export const ASK_WRITE_REPORT_TEXT =
   'Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda *pular*. O relato só aparece no site depois da moderação, sem o seu nome.';
 export const SUPPORT_PHOTO_ASK_TEXT =
-  'Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*.' +
-  ' A foto aparece no site, sem o seu nome, depois de aprovada pela curadoria. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
+  `Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*. Dá para mandar até ${String(FOTOS_POR_RELATO_MAXIMO)} fotos, uma por mensagem.` +
+  ' As fotos aparecem no site, sem o seu nome, depois de aprovadas pela curadoria, que pode recusar cada uma. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
 export const PHOTO_NOT_ATTACHED_TEXT =
   'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado ✅';
@@ -122,6 +123,8 @@ const dadosSchema = z.object({
   relatoCifrado: z.string().optional(),
   /** SCRUM-301: o relato já gravado, à espera da foto. */
   relatoId: z.string().optional(),
+  /** Quantas fotos já foram juntadas ao relato neste passo. */
+  fotosJuntadas: z.number().int().min(0).max(FOTOS_POR_RELATO_MAXIMO).optional(),
 });
 
 function dadosDoApoio(data: unknown): z.infer<typeof dadosSchema> {
@@ -134,6 +137,7 @@ const LIMPAR: DataPatch = {
   apoioPautaId: undefined,
   relatoCifrado: undefined,
   relatoId: undefined,
+  fotosJuntadas: undefined,
   blocoId: undefined,
   parecidas: undefined,
   pendingCommand: undefined,
@@ -307,20 +311,33 @@ async function gravarRelato(ctx: StepContext, pautaId: string, texto: string): P
  */
 export const supportAskPhoto: StepHandler = async (ctx) => {
   const { image } = ctx.input;
+  const { fotosJuntadas = 0 } = dadosDoApoio(ctx.state.data);
   if (image) {
     const foto = ctx.fotos
       ? await ctx.fotos.guardarFoto(image)
       : ({ ok: false, motivo: 'indisponivel' } as const);
-    if (!foto.ok) return { next: 'SUPPORT_ASK_PHOTO', replies: [photoRefusedText(foto.motivo)] };
+    if (!foto.ok) {
+      return {
+        next: 'SUPPORT_ASK_PHOTO',
+        replies: [photoRefusedText(foto.motivo, fotosJuntadas)],
+      };
+    }
     return juntarFoto(ctx, foto.chave);
   }
-  if (SKIP.has(normalize(ctx.input.text))) return juntarFoto(ctx, null);
-  return { next: 'SUPPORT_ASK_PHOTO', replies: [SUPPORT_PHOTO_ASK_TEXT] };
+  if (FIM_DAS_FOTOS.has(normalize(ctx.input.text))) return juntarFoto(ctx, null);
+  return {
+    next: 'SUPPORT_ASK_PHOTO',
+    replies: [fotosJuntadas > 0 ? photoMoreText(fotosJuntadas) : SUPPORT_PHOTO_ASK_TEXT],
+  };
 };
 
+/**
+ * `fotoChave` é a foto que acabou de chegar (juntada ao relato na hora, uma por vez); `null` é o
+ * fim do passo (*pronto* ou *pular*). Fecha sozinho ao chegar no limite.
+ */
 async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
-  const { apoioPautaId, relatoCifrado, relatoId } = dadosDoApoio(state.data);
+  const { apoioPautaId, relatoCifrado, relatoId, fotosJuntadas = 0 } = dadosDoApoio(state.data);
   if (apoioPautaId === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
 
   if (relatoId === undefined) {
@@ -330,7 +347,12 @@ async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<S
     const estudanteId = await estudanteVerificado(db, phoneHmac);
     if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
     const r = await db.transaction((tx) =>
-      adicionarRelato(tx, { pautaId: apoioPautaId, estudanteId, texto, fotoChave }),
+      adicionarRelato(tx, {
+        pautaId: apoioPautaId,
+        estudanteId,
+        texto,
+        fotoChaves: fotoChave === null ? [] : [fotoChave],
+      }),
     );
     if (!r.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
     return fimDoApoio(ctx, apoioPautaId, [
@@ -338,15 +360,28 @@ async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<S
     ]);
   }
 
-  // 'pular': o relato já está gravado, sem foto.
-  if (fotoChave === null) return fimDoApoio(ctx, apoioPautaId, [SUPPORT_DONE_TEXT]);
+  // Fim do passo: o relato já está gravado, com as fotos que chegaram até aqui.
+  if (fotoChave === null) {
+    return fimDoApoio(ctx, apoioPautaId, [
+      fotosJuntadas > 0 ? REPORT_SENT_WITH_PHOTO_TEXT : SUPPORT_DONE_TEXT,
+    ]);
+  }
 
   const estudanteId = await estudanteVerificado(db, phoneHmac);
   if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
   const r = await db.transaction((tx) =>
     anexarFotoAoRelato(tx, { relatoId, estudanteId, fotoChave }),
   );
-  return fimDoApoio(ctx, apoioPautaId, [
-    r.anexada ? REPORT_SENT_WITH_PHOTO_TEXT : PHOTO_NOT_ATTACHED_TEXT,
-  ]);
+  if (!r.anexada) {
+    // Relato já analisado ou sem espaço: o que já foi enviado continua valendo.
+    return fimDoApoio(ctx, apoioPautaId, [PHOTO_NOT_ATTACHED_TEXT]);
+  }
+  if (r.total >= FOTOS_POR_RELATO_MAXIMO) {
+    return fimDoApoio(ctx, apoioPautaId, [REPORT_SENT_WITH_PHOTO_TEXT]);
+  }
+  return {
+    next: 'SUPPORT_ASK_PHOTO',
+    data: { fotosJuntadas: r.total },
+    replies: [photoMoreText(r.total)],
+  };
 }

@@ -30,7 +30,7 @@ const AGORA = new Date('2026-03-01T15:00:00.000Z');
 
 const RELATO_COM_FOTO = {
   texto: 'A saída das aulas noturnas fica muito escura.',
-  foto_chave: null,
+  fotos: [] as string[],
   curso: 'Pedagogia',
   moderado_em: null,
 };
@@ -111,10 +111,37 @@ describe('página da pauta: seções', () => {
 
   it('a foto do relato aprovado aponta para a rota /fotos do site, com o alt do relato', () => {
     expect(urlFoto('fotos/2026/11/abc-1.jpg')).toBe('/fotos/2026/11/abc-1.jpg');
-    const relato = { ...RELATO_COM_FOTO, foto_chave: 'fotos/2026/11/abc-1.jpg' };
+    const relato = { ...RELATO_COM_FOTO, fotos: ['fotos/2026/11/abc-1.jpg'] };
     const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
     expect(html).toContain('src="/fotos/2026/11/abc-1.jpg"');
     expect(html).toContain('alt="Foto do relato: A saída das aulas noturnas fica muito escura."');
+  });
+
+  it('relato com três fotos mostra as três miniaturas, na ordem, cada uma com o seu alt', () => {
+    const relato = {
+      ...RELATO_COM_FOTO,
+      fotos: ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.png', 'fotos/2026/11/c.jpg'],
+    };
+    const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
+    expect(html.match(/<img/g)).toHaveLength(3);
+    expect(html.indexOf('/fotos/2026/11/a.jpg')).toBeLessThan(html.indexOf('/fotos/2026/11/b.png'));
+    expect(html.indexOf('/fotos/2026/11/b.png')).toBeLessThan(html.indexOf('/fotos/2026/11/c.jpg'));
+    expect(html).toContain('alt="Foto 1 de 3 do relato: A saída');
+    expect(html).toContain('alt="Foto 3 de 3 do relato: A saída');
+    // Cada foto abre inteira numa aba nova.
+    expect(html.match(/target="_blank"/g)).toHaveLength(3);
+    expect(html.match(/\(abre em nova aba\)/g)).toHaveLength(3);
+  });
+
+  it('só a foto com chave válida vira miniatura; as outras do mesmo relato continuam', () => {
+    const relato = {
+      ...RELATO_COM_FOTO,
+      fotos: ['fotos/2026/11/a.jpg', '//evil.com/x', 'fotos/2026/11/b.jpg'],
+    };
+    const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
+    expect(html.match(/<img/g)).toHaveLength(2);
+    expect(html).toContain('alt="Foto 2 de 2 do relato');
+    expect(html).not.toContain('evil.com');
   });
 
   it('chave fora do formato do bot não vira endereço, e relato sem foto não tem <img>', () => {
@@ -127,7 +154,7 @@ describe('página da pauta: seções', () => {
     ]) {
       expect(urlFoto(chave)).toBeNull();
     }
-    const relato = { ...RELATO_COM_FOTO, foto_chave: 'relatos/1.jpg' };
+    const relato = { ...RELATO_COM_FOTO, fotos: ['relatos/1.jpg'] };
     expect(renderToStaticMarkup(<Relatos relatos={[relato]} />)).not.toContain('<img');
   });
 

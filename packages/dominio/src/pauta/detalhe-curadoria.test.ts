@@ -6,6 +6,7 @@ import {
   papeisPauta,
   promessas,
   respostasConferencia,
+  relatoFotos,
   relatos,
   estudantes,
   type Db,
@@ -52,34 +53,47 @@ describe('detalharPautaDaCuradoria', () => {
       { pautaId: pauta.id, estudanteId: apoiador1.id, origem: 'site' },
       { pautaId: pauta.id, estudanteId: apoiador2.id, origem: 'bot' },
     ]);
-    await db.insert(relatos).values([
+    const criados = await db
+      .insert(relatos)
+      .values([
+        {
+          pautaId: pauta.id,
+          estudanteId: owner.id,
+          texto: 'Relato inicial: contato@ufal.br.',
+          moderacao: 'pendente',
+        },
+        // O owner manda outro relato depois: sem moderação, nenhum dos dois tem data confiável.
+        {
+          pautaId: pauta.id,
+          estudanteId: owner.id,
+          texto: 'Relato posterior do owner.',
+          moderacao: 'pendente',
+        },
+        {
+          pautaId: pauta.id,
+          estudanteId: relator.id,
+          texto: 'Relato moderado.',
+          moderacao: 'aprovado',
+          moderadoEm: new Date('2030-01-04T12:00:00Z'),
+        },
+        {
+          pautaId: pauta.id,
+          estudanteId: relator.id,
+          texto: 'Relato recusado.',
+          moderacao: 'recusado',
+          moderadoEm: new Date('2030-01-05T12:00:00Z'),
+        },
+      ])
+      .returning({ id: relatos.id, texto: relatos.texto });
+    const moderado = criados.find((r) => r.texto === 'Relato moderado.');
+    await db.insert(relatoFotos).values([
+      { relatoId: moderado?.id ?? '', chave: 'fotos/relato.jpg', ordem: 1, moderacao: 'aprovado' },
       {
-        pautaId: pauta.id,
-        estudanteId: owner.id,
-        texto: 'Relato inicial: contato@ufal.br.',
-        moderacao: 'pendente',
-      },
-      // O owner manda outro relato depois: sem moderação, nenhum dos dois tem data confiável.
-      {
-        pautaId: pauta.id,
-        estudanteId: owner.id,
-        texto: 'Relato posterior do owner.',
-        moderacao: 'pendente',
-      },
-      {
-        pautaId: pauta.id,
-        estudanteId: relator.id,
-        texto: 'Relato moderado.',
-        fotoChave: 'fotos/relato.jpg',
-        moderacao: 'aprovado',
-        moderadoEm: new Date('2030-01-04T12:00:00Z'),
-      },
-      {
-        pautaId: pauta.id,
-        estudanteId: relator.id,
-        texto: 'Relato recusado.',
+        relatoId: moderado?.id ?? '',
+        chave: 'fotos/relato-2.jpg',
+        ordem: 2,
         moderacao: 'recusado',
-        moderadoEm: new Date('2030-01-05T12:00:00Z'),
+        motivoRecusa: 'Mostra uma pessoa.',
       },
     ]);
     await db.insert(caminhos).values([
@@ -160,7 +174,20 @@ describe('detalharPautaDaCuradoria', () => {
       },
       {
         texto: 'Relato moderado.',
-        fotoChave: 'fotos/relato.jpg',
+        fotos: [
+          {
+            id: expect.any(String) as string,
+            chave: 'fotos/relato.jpg',
+            moderacao: 'aprovado',
+            motivoRecusa: null,
+          },
+          {
+            id: expect.any(String) as string,
+            chave: 'fotos/relato-2.jpg',
+            moderacao: 'recusado',
+            motivoRecusa: 'Mostra uma pessoa.',
+          },
+        ],
         moderacao: 'aprovado',
         data: new Date('2030-01-04T12:00:00Z'),
       },

@@ -29,6 +29,7 @@ import {
   PRAZO_DE_CURADORIA_MS,
   TITULO_MAXIMO,
   buscarPautasParecidas,
+  FOTOS_POR_RELATO_MAXIMO,
   criarPauta,
   listarBlocos,
   sugerirCategoria,
@@ -62,9 +63,15 @@ export const NEW_SIMILAR_LIST_TEXT =
   'Já existem pautas abertas parecidas com a sua. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const FROM_REPORT_DESCRIPTION_TEXT = 'Vou usar o seu relato como descrição da pauta.';
 export const PHOTO_ASK_TEXT =
-  'Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda *pular*.' +
-  ' A foto aparece no site, sem o seu nome, depois de aprovada pela curadoria. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
+  `Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda *pular*. Dá para mandar até ${String(FOTOS_POR_RELATO_MAXIMO)} fotos, uma por mensagem.` +
+  ' As fotos aparecem no site, sem o seu nome, depois de aprovadas pela curadoria, que pode recusar cada uma. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
+export const PHOTOS_RECEIVED_TEXT = 'Fotos recebidas, obrigado!';
+
+/** Depois de cada foto aceita, enquanto ainda cabe outra: manda mais uma ou fecha com *pronto*. */
+export function photoMoreText(recebidas: number): string {
+  return `Foto ${String(recebidas)} de ${String(FOTOS_POR_RELATO_MAXIMO)} recebida ✅ Quer mandar mais alguma? Envie outra foto ou responda *pronto*. Para voltar ao menu, mande *menu*.`;
+}
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
   'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Mande *menu* e escolha *Verificar e-mail* para verificar.';
@@ -74,10 +81,10 @@ export const DATA_LOST_TEXT =
   'Não consegui recuperar as respostas da sua pauta. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 
 /** Foto que não deu para usar: a pessoa continua no passo da foto, para mandar outra ou pular. */
-export function photoRefusedText(motivo: MotivoFotoRecusada): string {
+export function photoRefusedText(motivo: MotivoFotoRecusada, recebidas = 0): string {
   // Storage fora do ar: outra foto falharia igual, então o texto não sugere mandar outra (SCRUM-330).
   if (motivo === 'armazenamento') {
-    return 'Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda *pular* para seguir sem foto.';
+    return `Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda *${recebidas > 0 ? 'pronto' : 'pular'}* para seguir${recebidas > 0 ? '' : ' sem foto'}.`;
   }
   const porque: Record<Exclude<MotivoFotoRecusada, 'armazenamento'>, string> = {
     formato: 'ela precisa ser JPEG ou PNG',
@@ -85,7 +92,7 @@ export function photoRefusedText(motivo: MotivoFotoRecusada): string {
     invalida: 'o arquivo não abriu como imagem',
     indisponivel: 'não consegui baixar a foto agora',
   };
-  return `Não consegui usar essa foto: ${porque[motivo]}. Envie outra foto ou responda *pular*.`;
+  return `Não consegui usar essa foto: ${porque[motivo]}. Envie outra foto ou responda *${recebidas > 0 ? 'pronto' : 'pular'}*.`;
 }
 
 export function titleTooLongText(tamanho: number): string {
@@ -102,7 +109,8 @@ export function descriptionTooLongText(tamanho: number): string {
  */
 export const CURADORIA_PRAZO_TEXT = `A curadoria responde em até ${String(PRAZO_DE_CURADORIA_MS / 3_600_000)} horas.`;
 
-const SKIP_WORDS = new Set(['pular', 'nao', 'sem foto']);
+/** "Não vou mandar foto" ou "terminei as fotos": o que fecha o passo da foto. */
+export const SKIP_WORDS = new Set(['pular', 'nao', 'n', 'sem foto', 'pronto', 'so essa', 'chega']);
 
 /** O que os passos da pauta nova guardam na conversa. Validado: o dado pode ser de outra versão. */
 const dadosSchema = z.object({
@@ -116,6 +124,8 @@ const dadosSchema = z.object({
   categoriaSugerida: z.string().optional(),
   /** Da 2.5: o relato vira a descrição e o primeiro relato da pauta. */
   relatoCifrado: z.string().optional(),
+  /** Chaves das fotos já guardadas no storage (até o limite), na ordem de envio. */
+  fotoChaves: z.array(z.string()).max(FOTOS_POR_RELATO_MAXIMO).optional(),
 });
 
 function dadosDaPauta(data: unknown): z.infer<typeof dadosSchema> {
@@ -131,6 +141,7 @@ const LIMPAR: DataPatch = {
   categoria: undefined,
   categoriaSugerida: undefined,
   relatoCifrado: undefined,
+  fotoChaves: undefined,
   parecidas: undefined,
   fotoMediaId: undefined,
   pendingCommand: undefined,
@@ -323,22 +334,42 @@ export const newAskDescription: StepHandler = ({ input, segredo }) => {
  */
 export const newAskPhoto: StepHandler = async (ctx) => {
   const { image } = ctx.input;
+  const jaRecebidas = dadosDaPauta(ctx.state.data).fotoChaves ?? [];
   if (image) {
     const foto = ctx.fotos
       ? await ctx.fotos.guardarFoto(image)
       : ({ ok: false, motivo: 'indisponivel' } as const);
-    if (!foto.ok) return { next: 'NEW_ASK_PHOTO', replies: [photoRefusedText(foto.motivo)] };
-    return finalizar(ctx, foto.chave);
+    if (!foto.ok) {
+      return {
+        next: 'NEW_ASK_PHOTO',
+        replies: [photoRefusedText(foto.motivo, jaRecebidas.length)],
+      };
+    }
+    const fotoChaves = [...jaRecebidas, foto.chave];
+    // No limite, fecha sozinho: não há o que perguntar.
+    if (fotoChaves.length >= FOTOS_POR_RELATO_MAXIMO) return finalizar(ctx, fotoChaves);
+    return {
+      next: 'NEW_ASK_PHOTO',
+      data: { fotoChaves },
+      replies: [photoMoreText(fotoChaves.length)],
+    };
   }
-  if (SKIP_WORDS.has(normalize(ctx.input.text))) return finalizar(ctx, null);
-  return { next: 'NEW_ASK_PHOTO', replies: [PHOTO_ASK_TEXT] };
+  if (SKIP_WORDS.has(normalize(ctx.input.text))) return finalizar(ctx, jaRecebidas);
+  return {
+    next: 'NEW_ASK_PHOTO',
+    replies: [jaRecebidas.length > 0 ? photoMoreText(jaRecebidas.length) : PHOTO_ASK_TEXT],
+  };
 };
 
 /** Junta as respostas, cria a pauta e responde com o resumo. Sempre volta ao menu. */
-async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
+async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
-  const comFoto = fotoChave !== null;
-  const antes = comFoto ? PHOTO_RECEIVED_TEXT : NO_PHOTO_TEXT;
+  const comFoto = fotoChaves.length > 0;
+  const antes = !comFoto
+    ? NO_PHOTO_TEXT
+    : fotoChaves.length === 1
+      ? PHOTO_RECEIVED_TEXT
+      : PHOTOS_RECEIVED_TEXT;
   const fim = (texto: string): StepResult => ({ next: 'MENU', data: LIMPAR, replies: [texto] });
 
   const dados = dadosDaPauta(state.data);
@@ -365,7 +396,7 @@ async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<St
       titulo,
       descricao,
       blocoId,
-      fotoChave,
+      fotoChaves,
       ...(categoria === undefined ? {} : { categoria }),
       ...(relato === undefined ? {} : { relato }),
     }),
@@ -393,6 +424,7 @@ function textoDaRecusa(motivo: Extract<ResultadoCriacao, { criada: false }>['mot
     case 'titulo_longo':
     case 'descricao_vazia':
     case 'descricao_longa':
+    case 'fotos_demais':
       return DATA_LOST_TEXT;
   }
 }

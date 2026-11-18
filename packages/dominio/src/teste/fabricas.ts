@@ -9,6 +9,7 @@ import {
   estudantes,
   papeisPauta,
   pautas,
+  relatoFotos,
   relatos,
   type Bloco,
   type Curador,
@@ -76,7 +77,10 @@ export async function tornarOwner(db: Db, pautaId: string, estudanteId: string):
 /** Relato de teste; por padrão pendente, sem foto e de um estudante novo. */
 export async function criarRelato(
   db: Db,
-  campos: Pick<NovoRelato, 'pautaId'> & Partial<NovoRelato>,
+  {
+    fotoChaves = [],
+    ...campos
+  }: Pick<NovoRelato, 'pautaId'> & Partial<NovoRelato> & { fotoChaves?: readonly string[] },
 ): Promise<Relato> {
   const estudanteId = campos.estudanteId ?? (await criarEstudanteVerificado(db)).id;
   const [relato] = await db
@@ -84,6 +88,11 @@ export async function criarRelato(
     .values({ texto: 'Relato de teste.', ...campos, estudanteId })
     .returning();
   if (relato === undefined) throw new Error('relato não criado');
+  if (fotoChaves.length > 0) {
+    await db
+      .insert(relatoFotos)
+      .values(fotoChaves.map((chave, i) => ({ relatoId: relato.id, chave, ordem: i + 1 })));
+  }
   return relato;
 }
 

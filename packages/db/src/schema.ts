@@ -45,6 +45,8 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'vitoria',
   'aprovacao',
   'remarcacao',
+  'foto_recusada',
+  'edicao_decidida',
 ]);
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
@@ -217,7 +219,6 @@ export const relatos = pgTable(
       .notNull()
       .references(() => estudantes.id, { onDelete: 'restrict' }),
     texto: text('texto').notNull(),
-    fotoChave: text('foto_chave'),
     moderacao: moderacaoRelato('moderacao').notNull().default('pendente'),
     moderadoEm: instante('moderado_em'),
     /** Curador que moderou o relato (SCRUM-165). */
@@ -226,6 +227,84 @@ export const relatos = pgTable(
   (t) => [
     index('relato_pauta_id_idx').on(t.pautaId),
     index('relato_estudante_id_idx').on(t.estudanteId),
+  ],
+);
+
+/** Limite de fotos por relato. O CHECK de `relato_foto.ordem` repete este número. */
+export const FOTOS_POR_RELATO_MAXIMO = 3;
+
+/**
+ * Fotos de um relato (até três). Cada foto é moderada sozinha: a curadoria recusa uma e mantém o
+ * texto e as outras. A recusa leva motivo, que o bot repete a quem enviou. `ordem` vai de 1 a 3 e é
+ * única por relato, então o banco também barra a quarta foto. A foto só vai ao site com o relato
+ * aprovado e ela própria aprovada (`v_relato_publico`).
+ */
+export const relatoFotos = pgTable(
+  'relato_foto',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    relatoId: uuid('relato_id')
+      .notNull()
+      .references(() => relatos.id, { onDelete: 'restrict' }),
+    chave: text('chave').notNull().unique(),
+    ordem: integer('ordem').notNull(),
+    moderacao: moderacaoRelato('moderacao').notNull().default('pendente'),
+    motivoRecusa: text('motivo_recusa'),
+    moderadoEm: instante('moderado_em'),
+    moderadoPor: uuid('moderado_por').references(() => curadores.id, { onDelete: 'restrict' }),
+    criadaEm: instante('criada_em').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('relato_foto_ordem_unique').on(t.relatoId, t.ordem),
+    check('relato_foto_ordem_de_1_a_3', sql`${t.ordem} BETWEEN 1 AND 3`),
+    check(
+      'relato_foto_recusa_com_motivo',
+      sql`${t.moderacao} <> 'recusado' OR char_length(btrim(coalesce(${t.motivoRecusa}, ''))) > 0`,
+    ),
+  ],
+);
+
+export const statusPedidoEdicao = pgEnum('status_pedido_edicao', [
+  'pendente',
+  'aprovado',
+  'recusado',
+]);
+
+/**
+ * Pedido do owner para mudar o título ou a descrição de uma pauta já publicada. O texto público só
+ * muda quando a curadoria aprova (com o antes e o depois na tela). No máximo um pedido pendente por
+ * pauta e campo.
+ */
+export const pedidosEdicao = pgTable(
+  'pedido_edicao',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    pautaId: uuid('pauta_id')
+      .notNull()
+      .references(() => pautas.id, { onDelete: 'restrict' }),
+    estudanteId: uuid('estudante_id')
+      .notNull()
+      .references(() => estudantes.id, { onDelete: 'restrict' }),
+    campo: text('campo').notNull(),
+    antes: text('antes').notNull(),
+    depois: text('depois').notNull(),
+    status: statusPedidoEdicao('status').notNull().default('pendente'),
+    motivoRecusa: text('motivo_recusa'),
+    criadoEm: instante('criado_em').notNull().defaultNow(),
+    decididoEm: instante('decidido_em'),
+    decididoPor: uuid('decidido_por').references(() => curadores.id, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    index('pedido_edicao_pauta_id_idx').on(t.pautaId),
+    index('pedido_edicao_estudante_id_idx').on(t.estudanteId),
+    check('pedido_edicao_campo', sql`${t.campo} IN ('titulo', 'descricao')`),
+    check(
+      'pedido_edicao_recusa_com_motivo',
+      sql`${t.status} <> 'recusado' OR char_length(btrim(coalesce(${t.motivoRecusa}, ''))) > 0`,
+    ),
+    uniqueIndex('pedido_edicao_pendente_unico')
+      .on(t.pautaId, t.campo)
+      .where(sql`${t.status} = 'pendente'`),
   ],
 );
 

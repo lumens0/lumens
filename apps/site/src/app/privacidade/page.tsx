@@ -128,15 +128,23 @@ export default function Privacidade() {
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>Fotos</h2>
         <p>
-          A foto que você manda, para uma pauta nova ou junto do seu apoio, é uma imagem que vai a
-          público. Por isso o bot avisa antes do envio e, ao mandar a foto, você concorda com a
-          publicação (LGPD, art. 7º, I). O que fazemos para proteger você e quem aparece nela:
+          As fotos que você manda, para uma pauta nova ou junto do seu apoio (até três por relato,
+          uma por mensagem), são imagens que vão a público. Por isso o bot avisa antes do envio e,
+          ao mandar a foto, você concorda com a publicação (LGPD, art. 7º, I). O que fazemos para
+          proteger você e quem aparece nelas:
         </p>
         <ul>
           <li>
             <strong>Só depois da curadoria.</strong> A foto fica guardada, sem aparecer em lugar
             nenhum, até uma pessoa da curadoria aprovar. Foto recusada ou em análise nunca é
             mostrada.
+          </li>
+          <li>
+            <strong>Cada foto é analisada sozinha.</strong> A curadoria pode recusar uma foto e
+            manter o texto e as outras. Para cada foto recusada, ela escreve um motivo, e nós o
+            enviamos a quem mandou a foto, pelo bot. O motivo é um texto livre da curadoria; nele
+            não aparece o nome de quem decidiu. Uma foto já publicada também pode ser retirada
+            assim.
           </li>
           <li>
             <strong>Sem o seu nome.</strong> O site não mostra quem mandou a foto, e o nome do
@@ -256,14 +264,23 @@ export default function Privacidade() {
           Os apoios que você deu continuam contando, mas sem nenhuma ligação com você. Pautas já
           publicadas, que não carregam seus dados pessoais, permanecem no site.
         </p>
+        {/* Pedido de edição: tabela pedido_edicao; sairDoLumens apaga os que não foram aprovados. */}
+        <p>
+          Se você pediu para mudar o título ou a descrição de uma pauta já publicada, o texto do
+          pedido (o de antes e o de depois) fica guardado, ligado à pauta e a você, só para a
+          curadoria decidir e para avisar você da decisão. O texto novo só aparece no site se for
+          aprovado, e então sem o seu nome. Os pedidos não aprovados são apagados quando você sai do
+          Lumens, como os relatos não publicados.
+        </p>
         {/* SCRUM-314: sairDoLumens apaga os relatos não publicados e as fotos deles. */}
         <p>
           Os relatos que você enviou e que ainda não tinham sido publicados (em análise ou
-          recusados) são apagados na hora, com as fotos. Os relatos já publicados continuam no site,
-          sem o seu nome, e os PDFs de resposta oficial que você enviou ficam com a pauta, porque
-          são o registro da cobrança. Para pedir que algum deles seja retirado, fale com a equipe
-          pelo mesmo canal do {nomeDoCanal()}, de preferência antes de sair: depois, não temos mais
-          como saber que foi você quem enviou.
+          recusados) são apagados na hora, com as fotos; num relato já publicado, as fotos que a
+          curadoria recusou também são apagadas. Os relatos já publicados continuam no site, sem o
+          seu nome, e os PDFs de resposta oficial que você enviou ficam com a pauta, porque são o
+          registro da cobrança. Para pedir que algum deles seja retirado, fale com a equipe pelo
+          mesmo canal do {nomeDoCanal()}, de preferência antes de sair: depois, não temos mais como
+          saber que foi você quem enviou.
         </p>
         <p>
           Para ver ou corrigir os dados que temos sobre você, peça pelo mesmo canal do{' '}

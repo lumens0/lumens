@@ -101,13 +101,16 @@ const PDF = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF', 'ascii');
 
 let db: Db;
 
-/** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */
+/** O que o formulário de aprovação manda: as fotos pendentes de cada relato pendente que a tela mostra. */
 async function fotosDaTela(banco: Db, pautaId: string) {
   const detalhe = await detalharPautaDaCuradoria(banco, pautaId);
   return Object.fromEntries(
     (detalhe?.relatos ?? [])
       .filter(({ moderacao }) => moderacao === 'pendente')
-      .map(({ id, fotoChave }) => [id, fotoChave]),
+      .map(({ id, fotos }) => [
+        id,
+        fotos.filter((f) => f.moderacao === 'pendente').map((f) => f.id),
+      ]),
   );
 }
 // Opcionais: se o beforeAll falhar no meio, o afterAll fecha só o que chegou a abrir.
@@ -431,7 +434,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       // Como o painel: uma transação por decisão, com o curador da sessão.
       expect(
         await db.transaction((tx) =>
-          aprovarRelato(tx, { relatoId: relatoParaAprovar, curadorId, fotoVista: null }),
+          aprovarRelato(tx, { relatoId: relatoParaAprovar, curadorId, fotosVistas: [] }),
         ),
       ).toEqual({ moderado: true });
       expect(
@@ -444,13 +447,13 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
         // O relato da criação sai junto com a aprovação da pauta (#144).
         {
           texto: PAUTA.descricao,
-          foto_chave: null,
+          fotos: [],
           curso: 'Agronomia',
           moderado_em: expect.any(String) as string,
         },
         {
           texto: RELATO_APROVADO,
-          foto_chave: null,
+          fotos: [],
           curso: 'Agronomia',
           moderado_em: expect.any(String) as string,
         },

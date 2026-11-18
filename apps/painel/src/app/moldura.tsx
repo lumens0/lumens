@@ -24,6 +24,7 @@ export function Moldura({
       <Link href="/">Início</Link>
       <Link href="/pautas">Pautas</Link>
       <Link href="/relatos">Relatos em pautas publicadas</Link>
+      <Link href="/pedidos">Pedidos de edição</Link>
       {administrador && <Link href="/curadores">Curadores</Link>}
     </>
   );

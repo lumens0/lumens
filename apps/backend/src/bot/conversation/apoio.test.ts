@@ -7,12 +7,13 @@ import {
   estudantes,
   eventos,
   pautas,
+  relatoFotos,
   relatos,
   sql,
   type Db,
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
-import { RELATO_MAXIMO } from '@lumens/dominio';
+import { FOTOS_POR_RELATO_MAXIMO, RELATO_MAXIMO } from '@lumens/dominio';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
@@ -34,7 +35,7 @@ import {
 } from './apoio';
 import { COOWNER_INVITE_TEXT } from './co-owner';
 import { MENU_PRINCIPAL } from './handlers';
-import { photoRefusedText } from './nova-pauta';
+import { photoMoreText, photoRefusedText } from './nova-pauta';
 import { hashPhone } from './phone';
 import { CANCEL_PHOTO_TEXT, handleIncoming } from './router';
 import { ConversationStore } from './store';
@@ -51,7 +52,19 @@ let pautaId: string;
 
 /** Serviço de fotos falso: devolve o que o teste mandar (o real é testado em `fotos/`). */
 let resultadoDaFoto: ResultadoFoto;
-const fotos: ServicoDeFotos = { guardarFoto: () => Promise.resolve(resultadoDaFoto) };
+let fotosGuardadas = 0;
+const fotos: ServicoDeFotos = {
+  // Cada foto aceita ganha uma chave própria: a chave é única no banco.
+  guardarFoto: () => {
+    if (!resultadoDaFoto.ok) return Promise.resolve(resultadoDaFoto);
+    fotosGuardadas += 1;
+    const chave =
+      fotosGuardadas === 1
+        ? resultadoDaFoto.chave
+        : `fotos/2026/11/abc-${String(fotosGuardadas)}.jpg`;
+    return Promise.resolve({ ok: true, chave });
+  },
+};
 
 const send = (text: string) =>
   handleIncoming({ phoneHmac: H, text }, { store, db, segredo, fotos });
@@ -63,7 +76,15 @@ const sendFoto = () =>
 const passo = async () => (await store.get(H))?.step;
 const dados = async () => (await store.get(H))?.data ?? {};
 const apoiosDaPauta = () => db.select().from(apoios).where(eq(apoios.pautaId, pautaId));
-const relatosDaPauta = () => db.select().from(relatos).where(eq(relatos.pautaId, pautaId));
+/** Os relatos da pauta, cada um com as chaves das fotos (em ordem), como o painel os vê. */
+const relatosDaPauta = async () => {
+  const linhas = await db.select().from(relatos).where(eq(relatos.pautaId, pautaId));
+  const todas = await db.select().from(relatoFotos).orderBy(relatoFotos.ordem);
+  return linhas.map((l) => ({
+    ...l,
+    fotos: todas.filter((f) => f.relatoId === l.id).map((f) => f.chave),
+  }));
+};
 
 async function verificar(telefoneHmac = H) {
   const [estudante] = await db
@@ -112,6 +133,7 @@ beforeEach(async () => {
   if (!pauta) throw new Error('pauta não inserida');
   pautaId = pauta.id;
   resultadoDaFoto = { ok: true, chave: 'fotos/2026/11/abc.jpg' };
+  fotosGuardadas = 0;
   await send('oi');
 }, 60_000);
 
@@ -206,23 +228,69 @@ describe('relato e foto do apoio (2.7)', () => {
   it('"sim" e foto gravam o relato pendente com a foto', async () => {
     expect(await send('sim')).toEqual([REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
+    // Cabe mais foto: o bot pergunta se tem mais alguma, em vez de fechar.
+    expect(await sendFoto()).toEqual([photoMoreText(1)]);
+    expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
+    expect(await send('pronto')).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     const [relato, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
     expect(relato).toMatchObject({
       texto: RELATO,
-      fotoChave: 'fotos/2026/11/abc.jpg',
+      fotos: ['fotos/2026/11/abc.jpg'],
       moderacao: 'pendente',
     });
     expect(await passo()).toBe('MENU');
     expect(await dados()).toEqual({});
   });
 
+  it('aceita até três fotos no mesmo relato e fecha sozinho na terceira', async () => {
+    await send('sim');
+    expect(await sendFoto()).toEqual([photoMoreText(1)]);
+    expect(await sendFoto()).toEqual([photoMoreText(2)]);
+    expect(await dados()).toMatchObject({ fotosJuntadas: 2 });
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
+    expect(FOTOS_POR_RELATO_MAXIMO).toBe(3);
+    const [relato, ...resto] = await relatosDaPauta();
+    expect(resto).toEqual([]);
+    expect(relato?.fotos).toEqual([
+      'fotos/2026/11/abc.jpg',
+      'fotos/2026/11/abc-2.jpg',
+      'fotos/2026/11/abc-3.jpg',
+    ]);
+    expect(await passo()).toBe('MENU');
+    expect(await dados()).toEqual({});
+  });
+
+  it('"pronto" depois de duas fotos fecha com as duas; a foto recusada no meio não conta', async () => {
+    await send('sim');
+    await sendFoto();
+    resultadoDaFoto = { ok: false, motivo: 'formato' };
+    // Com uma foto já recebida, a saída é *pronto*, não *pular*.
+    expect(await sendFoto()).toEqual([photoRefusedText('formato', 1)]);
+    expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
+    resultadoDaFoto = { ok: true, chave: 'fotos/2026/11/abc.jpg' };
+    await sendFoto();
+    expect(await send('pronto')).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
+    expect((await relatosDaPauta())[0]?.fotos).toHaveLength(2);
+  });
+
+  it('o pedido de foto avisa que será pública, que dá para mandar três e que cada uma é analisada', () => {
+    expect(SUPPORT_PHOTO_ASK_TEXT).toContain('LGPD');
+    expect(SUPPORT_PHOTO_ASK_TEXT).toContain('até 3 fotos');
+    expect(SUPPORT_PHOTO_ASK_TEXT).toContain('recusar cada uma');
+  });
+
+  it('com foto já enviada, texto solto lembra de mandar outra ou responder pronto', async () => {
+    await send('sim');
+    await sendFoto();
+    expect(await send('olha')).toEqual([photoMoreText(1)]);
+  });
+
   it("'pular' a foto deixa só o relato, pendente", async () => {
     await send('sim');
     expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_PRINCIPAL]);
     const [relato] = await relatosDaPauta();
-    expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
+    expect(relato).toMatchObject({ texto: RELATO, fotos: [], moderacao: 'pendente' });
   });
 
   it('"não" encerra sem relato, com o apoio contado', async () => {
@@ -243,7 +311,7 @@ describe('relato e foto do apoio (2.7)', () => {
     expect(await sendFoto()).toEqual([photoRefusedText('tamanho')]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
     // O relato já está gravado; só a foto não entrou.
-    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotos: [] }]);
   });
 
   it('texto que não é pular, no passo da foto, pede a foto de novo', async () => {
@@ -311,7 +379,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
   it('o relato já está gravado quando a foto é pedida, e o texto sai da conversa', async () => {
     const [relato, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
-    expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
+    expect(relato).toMatchObject({ texto: RELATO, fotos: [], moderacao: 'pendente' });
     expect(await dados()).toMatchObject({ apoioPautaId: pautaId, relatoId: relato?.id });
     expect(await dados()).not.toHaveProperty('relatoCifrado');
   });
@@ -320,7 +388,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
     '"%s" no passo da foto deixa o relato gravado, sem foto',
     async (comando) => {
       await send(comando);
-      expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+      expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotos: [] }]);
     },
   );
 
@@ -341,28 +409,29 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
       meta: 30,
     });
     await send('apoiar outra-pauta');
-    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotos: [] }]);
   });
 
   it('conversa expirada no passo da foto deixa o relato gravado, sem foto', async () => {
     await db.delete(conversas);
     await send('oi');
     expect(await passo()).toBe('MENU');
-    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotoChave: null }]);
+    expect(await relatosDaPauta()).toMatchObject([{ texto: RELATO, fotos: [] }]);
   });
 
   it('a foto enviada depois é juntada ao mesmo relato', async () => {
     const [antes] = await relatosDaPauta();
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
+    expect(await sendFoto()).toEqual([photoMoreText(1)]);
+    expect(await send('pronto')).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     const [depois, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
-    expect(depois).toMatchObject({ id: antes?.id, fotoChave: 'fotos/2026/11/abc.jpg' });
+    expect(depois).toMatchObject({ id: antes?.id, fotos: ['fotos/2026/11/abc.jpg'] });
   });
 
   it('relato moderado antes da foto chegar: a foto não entra e a pessoa é avisada', async () => {
     await db.update(relatos).set({ moderacao: 'aprovado', moderadoEm: new Date() });
     expect(await sendFoto()).toEqual([PHOTO_NOT_ATTACHED_TEXT, convite(), MENU_PRINCIPAL]);
-    expect(await relatosDaPauta()).toMatchObject([{ moderacao: 'aprovado', fotoChave: null }]);
+    expect(await relatosDaPauta()).toMatchObject([{ moderacao: 'aprovado', fotos: [] }]);
   });
 
   it('conversa de antes da mudança (relato ainda nos dados) grava o relato com a foto', async () => {
@@ -373,7 +442,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
     });
     expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     expect(await relatosDaPauta()).toMatchObject([
-      { texto: RELATO, fotoChave: 'fotos/2026/11/abc.jpg', moderacao: 'pendente' },
+      { texto: RELATO, fotos: ['fotos/2026/11/abc.jpg'], moderacao: 'pendente' },
     ]);
   });
 });

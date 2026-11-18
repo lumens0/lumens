@@ -42,7 +42,7 @@ export interface RouterDeps {
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
 /** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
-export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
+export const CANCEL_PHOTO_TEXT = 'Ok, parei por aqui. O seu relato já foi enviado.';
 /** Depois de três respostas seguidas que não saíram da pergunta, a pessoa ganha uma saída clara. */
 export const SAIDA_DO_PASSO_TEXT =
   'Parece que está difícil por aqui. Mande *menu* para voltar ao início ou *cancelar* para desistir.';

@@ -12,6 +12,7 @@ import {
   PHOTO_ASK_TEXT,
   PHOTO_RECEIVED_TEXT,
 } from './handlers';
+import { photoMoreText } from './nova-pauta';
 import { hashPhone } from './phone';
 import { CANCEL_TEXT, handleIncoming, NEED_TEXT } from './router';
 import { assertTransition, InvalidTransitionError, STEPS, Step, TRANSITIONS } from './steps';
@@ -302,7 +303,8 @@ describe('experiência da pessoa', () => {
       await send(t);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
 
-    const replies = await sendFoto();
+    expect(await sendFoto()).toEqual([photoMoreText(1)]);
+    const replies = await send('pronto');
     expect(replies[0]).toBe(PHOTO_RECEIVED_TEXT);
     expect(replies.at(-1)).toBe(MENU_PRINCIPAL);
     const st = await store.get(H);

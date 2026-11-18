@@ -1,8 +1,15 @@
-import { detalharPautaDaCuradoria, listarBlocos, listarLinhaDoTempo } from '@lumens/dominio';
+import {
+  detalharPautaDaCuradoria,
+  listarBlocos,
+  listarLinhaDoTempo,
+  pedidosPendentesDaPauta,
+} from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { sair } from '../../acoes';
+import { recusarFoto } from '../../fotos/acoes';
 import { Moldura } from '../../moldura';
+import { aprovarPedido, recusarPedido } from '../../pedidos/acoes';
 import {
   ajustarMeta,
   aprovar,
@@ -54,6 +61,10 @@ export default async function PaginaDaPauta({
         remarcarPromessa={remarcarPromessa}
         recusarRelatoDeOrigem={recusarRelatoDeOrigem}
         linhaAberta={linha === 'aberta'}
+        recusarFoto={recusarFoto}
+        pedidosDeEdicao={await pedidosPendentesDaPauta(servidor().db, id)}
+        aprovarPedido={aprovarPedido}
+        recusarPedido={recusarPedido}
       />
     </Moldura>
   );

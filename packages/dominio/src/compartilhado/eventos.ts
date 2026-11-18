@@ -63,7 +63,10 @@ export interface DadosPorTipo {
   meta_ajustada: { metaAntes: number; metaDepois: number; motivo: string };
   pauta_urgente: { urgente: boolean };
   categoria_alterada: { de: string; para: string };
-  /** O owner corrigiu o título ou a descrição enquanto a pauta esperava a curadoria. */
+  /**
+   * O título ou a descrição mudou: pelo owner, enquanto a pauta esperava a curadoria, ou por pedido
+   * dele que a curadoria aprovou depois da publicação.
+   */
   pauta_editada: { campo: 'titulo' | 'descricao'; antes: string; depois: string };
 }
 
@@ -95,7 +98,7 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   bloco_corrigido: true,
   meta_ajustada: true,
   categoria_alterada: true,
-  // Só a curadoria vê: a pauta ainda nem está no site, e o texto antigo não é para o público.
+  // Só a curadoria vê: o texto antigo não é para o público (e, em curadoria, a pauta nem está no site).
   pauta_editada: false,
 };
 
