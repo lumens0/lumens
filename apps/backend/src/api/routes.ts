@@ -13,10 +13,12 @@ import {
 import type { Db } from '@lumens/db';
 import type { FastifyPluginCallback, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import type { LerArquivo } from '../fotos/storage';
 import { MUITAS_REQUISICOES } from '../infra/limite';
 import { resumoDoErro } from '../infra/logger';
 import {
   buscarPauta,
+  fotoEhPublica,
   buscarResumo,
   listarAtividade,
   listarBlocos,
@@ -29,9 +31,14 @@ export interface ApiPluginOptions {
   db: Db;
   /** Origens do site que podem ler a API pelo navegador (CORS). */
   origensCors: readonly string[];
+  /** Lê um arquivo do storage das fotos. Sem ele, `/fotos` responde 404 para tudo. */
+  lerFoto?: LerArquivo;
 }
 
 export const CACHE_PUBLICO = 'public, max-age=30, stale-while-revalidate=30';
+const FOTO_NAO_ENCONTRADA = { erro: 'Foto não encontrada.' };
+const CHAVE_DE_FOTO = /^fotos\/\d{4}\/\d{2}\/[A-Za-z0-9_-]+\.[a-z0-9]{1,5}$/;
+const TIPOS_DE_IMAGEM = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PAUTA_NAO_ENCONTRADA = { erro: 'Pauta não encontrada.' };
 
 /**
@@ -135,6 +142,26 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
     const query = validar(paginacaoQuery, req.query, reply);
     if (!query) return reply;
     return listarAtividade(db, query);
+  });
+
+  // Só a foto de relato aprovado (`v_relato_publico`): a chave de relato pendente ou recusado, ou
+  // de qualquer outro arquivo do bucket (PDF da resposta, por exemplo), responde 404 igual
+  // (SCRUM-263). A chave gravada é `fotos/AAAA/MM/<uuid>.<ext>`.
+  app.get('/fotos/:ano/:mes/:arquivo', async (req, reply) => {
+    const { ano, mes, arquivo: nome } = req.params as Record<'ano' | 'mes' | 'arquivo', string>;
+    const chave = `fotos/${ano}/${mes}/${nome}`;
+    if (!opts.lerFoto || !CHAVE_DE_FOTO.test(chave)) {
+      return reply.code(404).send(FOTO_NAO_ENCONTRADA);
+    }
+    const arquivo = (await fotoEhPublica(db, chave)) ? await opts.lerFoto(chave) : null;
+    if (!arquivo) return reply.code(404).send(FOTO_NAO_ENCONTRADA);
+    const tipo = TIPOS_DE_IMAGEM.has(arquivo.contentType ?? '')
+      ? (arquivo.contentType as string)
+      : 'application/octet-stream';
+    return reply
+      .header('Content-Type', tipo)
+      .header('X-Content-Type-Options', 'nosniff')
+      .send(arquivo.bytes);
   });
 
   done();
