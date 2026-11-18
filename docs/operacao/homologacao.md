@@ -205,6 +205,10 @@ Para a demo, com o banco vazio:
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
 ```
 
+Com o banco no ar, instale o backup diário e rode o teste de restauração uma vez, como em
+[Backup do banco](backup.md#instalar-na-vm). O deploy não instala o backup: só avisa no log do CI,
+a cada deploy, enquanto o timer `lumens-backup.timer` não estiver ativo.
+
 ## 6. Deploy automático
 
 Cinco secrets no repositório (Settings → Secrets and variables → Actions):
