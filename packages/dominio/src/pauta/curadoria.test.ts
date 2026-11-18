@@ -393,6 +393,31 @@ describe('aprovarPauta', () => {
       expect(r).toEqual({ decidida: true });
       expect(await moderacaoDe(relato.id)).toBe('aprovado');
     });
+
+    it('com dois relatos de origem com foto, a foto da tela é a que a aprovação confere', async () => {
+      const { pauta, relato } = await comRelatoDeOrigem('relatos/a.jpg');
+      await criarRelato(db, {
+        pautaId: pauta.id,
+        estudanteId: relato.estudanteId,
+        fotoChave: 'relatos/b.jpg',
+      });
+      const fotoVista = (await buscarPautaDaCuradoria(db, pauta.id))?.fotoChave ?? null;
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', fotoVista }),
+      );
+      expect(r).toEqual({ decidida: true });
+    });
+
+    it('relato de origem com foto recusado: a tela fica sem foto e a pauta é aprovada', async () => {
+      const { pauta } = await comRelatoDeOrigem('relatos/recusada.jpg');
+      await db.transaction((tx) => recusarRelatoDeOrigem(tx, { pautaId: pauta.id, curadorId }));
+      const fotoVista = (await buscarPautaDaCuradoria(db, pauta.id))?.fotoChave ?? null;
+      expect(fotoVista).toBeNull();
+      const r = await db.transaction((tx) =>
+        aprovarPauta(tx, { pautaId: pauta.id, curadorId, categoria: 'infraestrutura', fotoVista }),
+      );
+      expect(r).toEqual({ decidida: true });
+    });
   });
 
   it('relato de origem com e-mail trava a aprovação; recusado só ele, a pauta sai sem o relato', async () => {
