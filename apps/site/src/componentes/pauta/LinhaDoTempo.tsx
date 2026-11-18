@@ -8,16 +8,21 @@ const ROTULOS: Record<string, string> = {
   meta_batida: 'Meta de apoios batida',
   caminho_aberto: 'Caminho aberto',
   protocolo_registrado: 'Protocolo registrado',
+  prazo_prorrogado: 'Prazo prorrogado',
+  protocolo_corrigido: 'Data do protocolo corrigida',
   proposta_publicada: 'Proposta publicada',
   proposta_executada: 'Proposta executada',
   resposta_oficial_recebida: 'Resposta oficial recebida',
   promessa_registrada: 'Promessa registrada',
+  promessa_remarcada: 'Promessa remarcada',
   conferencia_aberta: 'Conferência aberta',
   conferencia_apurada: 'Conferência apurada',
   status_alterado: 'Status alterado',
   owner_entrou: 'Novo responsável',
   owner_removido: 'Responsável saiu',
   relato_aprovado: 'Relato publicado',
+  meta_ajustada: 'Meta ajustada pela curadoria',
+  bloco_corrigido: 'Bloco corrigido pela curadoria',
   categoria_alterada: 'Categoria alterada pela curadoria',
 };
 
@@ -27,10 +32,33 @@ export function rotuloEvento(tipo: string): string {
 }
 
 function textoDoEvento(tipo: string, dados: Record<string, unknown>): string {
+  if (tipo === 'meta_ajustada') {
+    const metaAntes = typeof dados.metaAntes === 'number' ? String(dados.metaAntes) : '?';
+    const metaDepois = typeof dados.metaDepois === 'number' ? String(dados.metaDepois) : '?';
+    const motivo = typeof dados.motivo === 'string' ? dados.motivo : '?';
+    return `Meta ajustada pela curadoria de ${metaAntes} para ${metaDepois}: ${motivo}`;
+  }
+  if (tipo === 'bloco_corrigido') {
+    const antes = typeof dados.blocoAntes === 'string' ? dados.blocoAntes : 'Todo o campus';
+    const depois = typeof dados.blocoDepois === 'string' ? dados.blocoDepois : 'Todo o campus';
+    return `Bloco corrigido pela curadoria: ${antes} → ${depois}`;
+  }
   if (tipo === 'pauta_urgente') {
     return dados.urgente === true ? 'Marcada como urgente pela curadoria' : 'Deixou de ser urgente';
   }
+  if (['prazo_prorrogado', 'protocolo_corrigido', 'promessa_remarcada'].includes(tipo)) {
+    const anterior = dataCivil(dados.data_antiga);
+    const nova = dataCivil(dados.data_nova);
+    const motivo = typeof dados.motivo === 'string' ? ` Motivo: ${dados.motivo}.` : '';
+    const fonte = typeof dados.fonte === 'string' ? ` Fonte: ${dados.fonte}.` : '';
+    return `${rotuloEvento(tipo)}: ${anterior} → ${nova}.${motivo}${fonte}`;
+  }
   return rotuloEvento(tipo);
+}
+
+function dataCivil(valor: unknown): string {
+  if (typeof valor !== 'string') return '?';
+  return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor.split('-').reverse().join('/') : valor;
 }
 
 const data = new Intl.DateTimeFormat('pt-BR', {

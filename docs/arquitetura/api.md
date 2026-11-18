@@ -181,6 +181,7 @@ Todos os campos de um item de `/pautas`, mais:
 | `caminhos[].status`              | string         | texto livre do caminho; na proposta, `aberta` ou `executada`               |
 | `caminhos[].protocolo`           | string, nulo   | protocolo do Fala.BR                                                       |
 | `caminhos[].prazo`               | data, nulo     | prazo de resposta (`AAAA-MM-DD`)                                           |
+| `caminhos[].prorrogado`          | boolean        | se o prazo do Fala.BR foi prorrogado                                       |
 | `caminhos[].aberto_em`           | instante, nulo | nulo na proposta                                                           |
 | `caminhos[].descricao`           | string, nulo   | o que a proposta pede; nulo nos demais tipos                               |
 | `caminhos[].pessoas_necessarias` | int, nulo      | só na proposta                                                             |

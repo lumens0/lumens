@@ -38,6 +38,7 @@ function detalhes(caminho: Caminho): string[] {
   if (caminho.descricao) linhas.push(caminho.descricao);
   if (caminho.protocolo) linhas.push(`Protocolo ${caminho.protocolo}`);
   if (caminho.prazo) linhas.push(`Prazo de resposta: ${formatarDia(caminho.prazo)}`);
+  if (caminho.prorrogado) linhas.push('Prazo prorrogado');
   if (caminho.pessoas_necessarias !== null)
     linhas.push(
       `${String(caminho.voluntarios ?? 0)} de ${String(caminho.pessoas_necessarias)} voluntários`,
