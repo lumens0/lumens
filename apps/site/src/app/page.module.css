@@ -153,6 +153,55 @@
   border-bottom: 1px solid var(--borda);
 }
 
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.legenda {
+  margin-top: 24px;
+}
+.legenda h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.legenda ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.legenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.legenda i {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+}
+
+@media (max-width: 520px) {
+  .pagina {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .filtros {
+    flex-direction: column;
+    width: 100%;
+  }
+  .filtros > * {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .totaisTitulo {
   margin: 0;
   font:
@@ -309,37 +358,50 @@
 }
 
 /*
- * O tom do evento segue as cores de status: azul para o que entra, turquesa para a meta, âmbar
- * para a cobrança, vermelho para a promessa descumprida e verde para o que foi entregue. A cor nunca vai sozinha: o rótulo diz o que foi.
+ * O tom do evento segue as cores de status: azul para o que entra, roxo para a meta, âmbar
+ * para a cobrança, turquesa para a promessa, amarelo para a entrega parcial, vermelho para a promessa
+ * descumprida e verde para o que foi entregue. A cor nunca vai sozinha: o rótulo diz o que foi.
  */
 .evento[data-tom='azul'] {
-  --tom: #4f8cff;
-  --tom-tinta: #1d4fb8;
-  --tom-fundo: #e6eeff;
+  --tom: var(--status-apoios);
+  --tom-tinta: color-mix(in srgb, var(--status-apoios) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-apoios) 12%, white);
+}
+
+.evento[data-tom='roxo'] {
+  --tom: var(--status-meta);
+  --tom-tinta: color-mix(in srgb, var(--status-meta) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-meta) 12%, white);
 }
 
 .evento[data-tom='turquesa'] {
-  --tom: #14b8a6;
-  --tom-tinta: #0b6b61;
-  --tom-fundo: #dcf5f1;
+  --tom: var(--status-prometido);
+  --tom-tinta: color-mix(in srgb, var(--status-prometido) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-prometido) 12%, white);
+}
+
+.evento[data-tom='amarelo'] {
+  --tom: var(--status-parcial);
+  --tom-tinta: color-mix(in srgb, var(--status-parcial) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-parcial) 12%, white);
 }
 
 .evento[data-tom='ambar'] {
-  --tom: #ffa41b;
-  --tom-tinta: var(--luz-tinta);
-  --tom-fundo: var(--luz-fundo);
+  --tom: var(--status-cobrando);
+  --tom-tinta: color-mix(in srgb, var(--status-cobrando) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-cobrando) 12%, white);
 }
 
 .evento[data-tom='vermelho'] {
-  --tom: #ff5a4a;
-  --tom-tinta: #a8261a;
-  --tom-fundo: #ffe5e1;
+  --tom: var(--status-descumprida);
+  --tom-tinta: color-mix(in srgb, var(--status-descumprida) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-descumprida) 12%, white);
 }
 
 .evento[data-tom='verde'] {
-  --tom: #2ec27e;
-  --tom-tinta: #1b6b3f;
-  --tom-fundo: #dff3e7;
+  --tom: var(--status-conquistada);
+  --tom-tinta: color-mix(in srgb, var(--status-conquistada) 65%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-conquistada) 12%, white);
 }
 
 .icone {

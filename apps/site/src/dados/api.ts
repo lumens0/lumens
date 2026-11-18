@@ -99,7 +99,7 @@ const MAX_PAGINAS = 50;
  * Todas as pautas públicas, de todas as páginas, na ordem da API. Os totais da home somam a lista
  * inteira (e acompanham o filtro), então não dá para parar na primeira página.
  */
-export async function buscarPautas(bloco?: string): Promise<Pauta[]> {
+export async function buscarPautas(bloco?: string, status?: string): Promise<Pauta[]> {
   const pautas: Pauta[] = [];
   let offset: number | null = 0;
   for (let i = 0; offset !== null && i < MAX_PAGINAS; i++) {
@@ -108,6 +108,7 @@ export async function buscarPautas(bloco?: string): Promise<Pauta[]> {
       offset: String(offset),
     });
     if (bloco) query.set('bloco', bloco);
+    if (status) query.set('status', status);
     const pagina: Pautas = await buscarJson<Pautas>(
       `/pautas?${query.toString()}`,
       'a lista de pautas',

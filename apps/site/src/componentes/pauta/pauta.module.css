@@ -274,15 +274,15 @@
 }
 
 .chipJuntando::before {
-  background: #4f8cff;
+  background: var(--status-apoios);
 }
 
 .chipEsperando::before {
-  background: #ffa41b;
+  background: var(--status-cobrando);
 }
 
 .chipFeito::before {
-  background: #2ec27e;
+  background: var(--status-conquistada);
 }
 
 .regra {
