@@ -4,17 +4,17 @@ Relacionadas: SCRUM-365 (sugestão com confirmação) e SCRUM-357 (escolha pelo 
 
 ## Método
 
-22 frases representativas (títulos das pautas do seed e relatos típicos de estudantes) rodadas em
+24 frases representativas (títulos das pautas do seed e relatos típicos de estudantes) rodadas em
 `sugerirCategoria`. O conjunto fica no teste
 [`categoria-sugerida.test.ts`](../../packages/dominio/src/pauta/categoria-sugerida.test.ts)
 ("avaliação com frases representativas"), que falha se aparecer categoria errada ou se os acertos
-caírem abaixo de 20 de 22 (as 2 que faltam são empates).
+caírem abaixo de 22 de 24 (as 2 que faltam são empates).
 
 ## Resultado
 
 | Frase                                                                 | Resultado                                                    |
 | --------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 20 das 22                                                             | Categoria certa ou, onde o certo é ambíguo, sem sugestão     |
+| 22 das 24                                                             | Categoria certa ou, onde o certo é ambíguo, sem sugestão     |
 | "Iluminação no entorno do Bloco de Artes"                             | Empate Infraestrutura × Segurança: lista completa (esperado) |
 | "Internet estável na residência universitária" (esperado: Tecnologia) | Empate Tecnologia × Permanência: lista completa              |
 | "Roubaram celulares no estacionamento à noite" (esperado: Segurança)  | Empate Segurança × Infraestrutura: lista completa            |

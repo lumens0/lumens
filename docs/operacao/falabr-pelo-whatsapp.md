@@ -5,13 +5,13 @@ protocola em https://falabr.cgu.gov.br.
 
 ## Passos de cada caminho
 
-| Passo                 | Pelo web (adotado)                                     | Pelo WhatsApp (descartado)                                                                                                  |
-| --------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Texto da manifestação | Bot gera, confere a RN08 e entrega                     | Igual                                                                                                                       |
-| Login                 | gov.br no navegador, uma vez                           | Sem API: o bot teria de operar o login da pessoa (não pode)                                                                 |
-| Preencher e enviar    | Colar o texto no campo "Descrição" e enviar            | Automatizar o formulário (fere os termos do gov.br) ou fluxo manual em vários passos no chat (assunto, órgão, tipo, anexos) |
-| Protocolo             | Pessoa informa o número ao bot (_Registrar protocolo_) | Igual, sem ganho                                                                                                            |
-| Revisão da RN08       | A pessoa revisa antes de colar                         | Perdida se o envio fosse automático                                                                                         |
+| Passo                 | Pelo web (adotado)                                     | Pelo WhatsApp (descartado)                                                                                                                                               |
+| --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Texto da manifestação | Bot gera, confere a RN08 e entrega                     | Igual                                                                                                                                                                    |
+| Login                 | gov.br no navegador, uma vez                           | Sem API: o bot teria de operar o login da pessoa (não pode)                                                                                                              |
+| Preencher e enviar    | Colar o texto no campo "Descrição" e enviar            | Automatizar o formulário (pode não ser permitido pelos termos de uso do gov.br (não verificado)) ou fluxo manual em vários passos no chat (assunto, órgão, tipo, anexos) |
+| Protocolo             | Pessoa informa o número ao bot (_Registrar protocolo_) | Igual, sem ganho                                                                                                                                                         |
+| Revisão da RN08       | A pessoa revisa antes de colar                         | Perdida se o envio fosse automático                                                                                                                                      |
 
 ## Por que o web
 

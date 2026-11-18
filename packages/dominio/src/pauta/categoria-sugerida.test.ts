@@ -46,6 +46,8 @@ describe('sugerirCategoria', () => {
     ['VAZAMENTO NO BANHEIRO!!!', 'infraestrutura'],
     ['Mais árvores e sombra nas áreas de convivência', 'infraestrutura'],
     ['Sala de descanso para estudantes da Saúde', 'permanencia'],
+    ['Laboratório de informática com goteira', undefined],
+    ['Sala de descanso dos professores sem ar condicionado', undefined],
     ['Laboratórios de informática abertos no contraturno', 'tecnologia'],
   ] as const)('texto com termo claro: "%s" → %s', (texto, categoria) => {
     expect(sugerirCategoria(texto)).toBe(categoria);
@@ -99,6 +101,8 @@ describe('avaliação com frases representativas', () => {
     ['Biblioteca aberta aos sábados', 'servicos'],
     ['Iluminação no entorno do Bloco de Artes', undefined],
     ['Sala de descanso para estudantes da Saúde', 'permanencia'],
+    ['Laboratório de informática com goteira', undefined],
+    ['Sala de descanso dos professores sem ar condicionado', undefined],
     ['Acessibilidade nas entradas do Bloco 18', 'acessibilidade'],
     ['Internet estável na residência universitária', 'tecnologia'],
     ['Laboratórios de informática abertos no contraturno', 'tecnologia'],
@@ -124,8 +128,8 @@ describe('avaliação com frases representativas', () => {
     }
   });
 
-  it('acerta pelo menos 20 das 22 (as outras duas empatam e vão para a lista)', () => {
+  it('acerta pelo menos 22 das 24 (as outras duas empatam e vão para a lista)', () => {
     const acertos = casos.filter(([texto, esperada]) => sugerirCategoria(texto) === esperada);
-    expect(acertos.length).toBeGreaterThanOrEqual(20);
+    expect(acertos.length).toBeGreaterThanOrEqual(22);
   });
 });
