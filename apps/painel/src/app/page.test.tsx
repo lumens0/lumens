@@ -1,7 +1,7 @@
-import type { ResumoDaCuradoria } from '@lumens/dominio';
+import type { ResumoDaCuradoria, VisaoGeralDaCuradoria } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Inicio } from './inicio';
+import { Inicio, rotuloDaSemana, textoDoTempoMedio } from './inicio';
 import { Moldura } from './moldura';
 
 const resumo: ResumoDaCuradoria = {
@@ -12,11 +12,26 @@ const resumo: ResumoDaCuradoria = {
   conferenciasAbertas: 5,
 };
 
+const visao: VisaoGeralDaCuradoria = {
+  pautasPertoDeVencer: 2,
+  pautasPorStatus: [
+    { status: 'em_curadoria', total: 3 },
+    { status: 'juntando_apoios', total: 7 },
+    { status: 'recusada', total: 0 },
+  ],
+  apoiosPorSemana: [
+    { semana: '2030-01-07', apoios: 0 },
+    { semana: '2030-01-14', apoios: 12 },
+  ],
+  tempoMedioAteDecisaoMs: 8 * 3_600_000,
+  decisoesNoPeriodo: 5,
+};
+
 describe('início do painel de curadoria', () => {
   it('mostra o resumo com contagens e links, sem repetir links do menu nem o nome do cabeçalho', () => {
     const html = renderToStaticMarkup(
       <Moldura nome="Ana" sair={() => Promise.resolve()}>
-        <Inicio resumo={resumo} />
+        <Inicio resumo={resumo} visao={visao} />
       </Moldura>,
     );
 
@@ -43,9 +58,45 @@ describe('início do painel de curadoria', () => {
 
   it('concorda no singular e avisa quando nada está atrasado', () => {
     const html = renderToStaticMarkup(
-      <Inicio resumo={{ ...resumo, pautasAtrasadas: 0, relatosAModerar: 1 }} />,
+      <Inicio resumo={{ ...resumo, pautasAtrasadas: 0, relatosAModerar: 1 }} visao={visao} />,
     );
     expect(html).toContain('<strong>1</strong> relato em pautas publicadas');
     expect(html).toContain('Nenhuma atrasada no prazo de 24 h');
+  });
+
+  it('mostra prazos, pautas por status com atalhos, apoios por semana e tempo médio', () => {
+    const html = renderToStaticMarkup(<Inicio resumo={resumo} visao={visao} />);
+    expect(html).toContain('2 vencem nas próximas 6 h');
+    expect(html).toContain('Pautas por status');
+    expect(html).toContain('href="/pautas?status=juntando_apoios">Juntando apoios</a>');
+    expect(html).toMatch(/<strong class="[^"]*barrasNumero[^"]*">7<\/strong>/);
+    expect(html).toContain('Semana de 14 jan');
+    expect(html).toMatch(/<strong class="[^"]*barrasNumero[^"]*">12<\/strong>/);
+    expect(html).toContain('Semana de 07 jan');
+    expect(html).toContain('<strong>8,0 h</strong> em média');
+    expect(html).toContain('5 decisões nos últimos 30 dias');
+  });
+
+  it('não repete o aviso de prazo próximo quando não há e explica a falta de decisões', () => {
+    const html = renderToStaticMarkup(
+      <Inicio
+        resumo={resumo}
+        visao={{
+          ...visao,
+          pautasPertoDeVencer: 0,
+          tempoMedioAteDecisaoMs: null,
+          decisoesNoPeriodo: 0,
+        }}
+      />,
+    );
+    expect(html).not.toContain('nas próximas 6 h');
+    expect(html).toContain('Nenhuma decisão nos últimos 30 dias.');
+  });
+
+  it('formata o tempo médio e o rótulo da semana', () => {
+    expect(textoDoTempoMedio(20 * 60_000)).toBe('20 min');
+    expect(textoDoTempoMedio(90 * 60_000)).toBe('1,5 h');
+    expect(textoDoTempoMedio(72 * 3_600_000)).toBe('3 dias');
+    expect(rotuloDaSemana('2030-01-07')).toBe('07 jan');
   });
 });
