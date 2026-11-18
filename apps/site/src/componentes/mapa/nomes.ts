@@ -77,12 +77,91 @@ export interface Nome {
 const CENTRO_DO_TEXTO = { abaixo: 13, centro: 0, acima: -17 } as const;
 const ALTURA_DO_TEXTO = 18;
 /** Folga entre dois nomes, em px, para não encostarem. */
-const FOLGA = 4;
+// O contorno escuro das letras (0,22 em de traço) e o respiro entre nomes.
+const FOLGA = 7;
 
-/** Largura aproximada do texto em 15 px: maiúscula e número são mais largos que minúscula. */
-function larguraDoTexto(texto: string): number {
-  const largas = (texto.match(/[A-Z0-9]/g) ?? []).length;
-  return largas * 10 + (texto.length - largas) * 7.5;
+// Largura de cada letra da fonte do site (peso 500) em 15 px, medida no navegador com
+// `canvas.measureText`. Acento não muda a largura da letra-base. Letra fora da tabela vale `MEDIA`.
+const LARGURAS: Record<string, number> = {
+  ...Object.fromEntries(
+    Object.entries({
+      I: 3.8,
+      G: 11.5,
+      D: 11.3,
+      E: 9.5,
+      M: 13.5,
+      A: 11,
+      F: 9,
+      S: 9.3,
+      O: 11.8,
+      C: 11.2,
+      T: 9.8,
+      H: 11,
+      J: 6.6,
+      B: 9.6,
+      L: 8.8,
+      N: 11,
+      P: 9.9,
+      Q: 11.9,
+      R: 9.9,
+      U: 10.6,
+      V: 11,
+      W: 16.3,
+      X: 10.5,
+      Y: 10.3,
+      Z: 9.4,
+      K: 10.5,
+      a: 8.2,
+      b: 9.2,
+      c: 8.1,
+      d: 9.2,
+      e: 8.5,
+      f: 5.4,
+      g: 9.2,
+      h: 9.1,
+      i: 3.8,
+      j: 3.8,
+      k: 8.2,
+      l: 3.8,
+      m: 14,
+      n: 9.1,
+      o: 8.9,
+      p: 9.2,
+      q: 9.2,
+      r: 5.7,
+      s: 7.2,
+      t: 5.9,
+      u: 8.9,
+      v: 7.9,
+      w: 11.7,
+      x: 8.5,
+      y: 7.9,
+      z: 7.6,
+      ' ': 3,
+      '-': 7.5,
+      '.': 4,
+      '0': 10.1,
+      '1': 5.8,
+      '2': 8.3,
+      '3': 8.7,
+      '4': 9.1,
+      '5': 8.7,
+      '6': 9.1,
+      '7': 8.2,
+      '8': 8.8,
+      '9': 9.2,
+    }),
+  ),
+};
+const MEDIA = 9.5;
+
+/** Largura do texto em 15 px, letra por letra (medida na fonte real; ver `LARGURAS`). */
+export function larguraDoTexto(texto: string): number {
+  let total = 0;
+  for (const letra of texto.normalize('NFD').replace(/\p{M}/gu, '')) {
+    total += LARGURAS[letra] ?? MEDIA;
+  }
+  return total;
 }
 
 /**
