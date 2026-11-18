@@ -78,8 +78,7 @@ export const PROPOSAL_ALREADY_OPEN_TEXT =
 export const INDEPENDENT_TEXT =
   'Os caminhos são independentes: abra um, o outro ou os dois, quando quiser, mesmo antes da meta.';
 export const NEXT_STEP_TEXT = 'O que você quer fazer agora?';
-export const FALABR_TEXT_INTRO =
-  'Aqui está o texto pronto. Copie só a mensagem abaixo, inteira:';
+export const FALABR_TEXT_INTRO = 'Aqui está o texto pronto. Copie só a mensagem abaixo, inteira:';
 export const FALABR_TEXT_BLOCKED =
   'Não consegui montar um texto sem dado pessoal para esta pauta, e ele não pode ir assim para o Fala.BR (RN08). Fale com a curadoria antes de protocolar.';
 
