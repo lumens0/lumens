@@ -202,6 +202,7 @@ describe('migração inicial em Postgres real', () => {
       'mensagem_processada',
       'papel_pauta',
       'pauta',
+      'pedido_link_login',
       'promessa',
       'proposta',
       'registro_verificacao',

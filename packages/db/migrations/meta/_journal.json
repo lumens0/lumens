@@ -169,6 +169,13 @@
       "when": 1794968311858,
       "tag": "0023_promessa_tetos_de_texto",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794998845399,
+      "tag": "0024_pedido_link_login",
+      "breakpoints": true
     }
   ]
 }
