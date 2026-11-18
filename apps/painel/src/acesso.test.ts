@@ -134,11 +134,11 @@ describe('limite de um link por minuto (SCRUM-305)', () => {
 
   it('o segundo pedido logo depois não grava link nem libera envio; passados 60 s, libera', async () => {
     const t = new Date('2026-11-18T12:00:00.000Z');
-    expect(await reservarEnvio(db, 'Ana@ufal.br ', CHAVE, t)).toBe(true);
-    expect(await reservarEnvio(db, 'ana@ufal.br', CHAVE, new Date(t.getTime() + 59_000))).toBe(
+    expect(await reservarEnvio(db, 'Janela@ufal.br ', CHAVE, t)).toBe(true);
+    expect(await reservarEnvio(db, 'janela@ufal.br', CHAVE, new Date(t.getTime() + 59_000))).toBe(
       false,
     );
-    expect(await reservarEnvio(db, 'ana@ufal.br', CHAVE, new Date(t.getTime() + 60_000))).toBe(
+    expect(await reservarEnvio(db, 'janela@ufal.br', CHAVE, new Date(t.getTime() + 60_000))).toBe(
       true,
     );
   });
