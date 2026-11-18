@@ -21,7 +21,8 @@ export const TAMANHO_MAXIMO_PDF = 10 * 1024 * 1024;
 /** Todo PDF começa com esta assinatura; o que não começa não é PDF, diga o tipo o que disser. */
 const ASSINATURA_PDF = Buffer.from('%PDF-', 'ascii');
 
-export type MotivoPdfRecusado = 'formato' | 'tamanho' | 'indisponivel';
+/** `indisponivel` é o download; `armazenamento` é o storage (SCRUM-330), como nas fotos. */
+export type MotivoPdfRecusado = 'formato' | 'tamanho' | 'indisponivel' | 'armazenamento';
 
 export type ResultadoPdf = { ok: true; chave: string } | { ok: false; motivo: MotivoPdfRecusado };
 
@@ -73,7 +74,7 @@ export function criarServicoDeRespostas({
         await storage.guardar(chave, baixada.bytes, 'application/pdf');
       } catch (erro) {
         avisar(`pdf: storage falhou (${erro instanceof Error ? erro.name : 'erro'})`);
-        return { ok: false, motivo: 'indisponivel' };
+        return { ok: false, motivo: 'armazenamento' };
       }
       return { ok: true, chave };
     },

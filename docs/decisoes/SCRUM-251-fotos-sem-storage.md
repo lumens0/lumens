@@ -1,7 +1,9 @@
 # SCRUM-251 · O envio de foto está quebrado até existir um bucket
 
 Dívida registrada · 2026-11-09 · @sthefanyblima
-**Situação:** aceita se a demo for sem foto. Precisa de decisão se a demo tiver foto.
+**Situação:** substituída pela [SCRUM-330](SCRUM-330-storage-minio.md) em 2026-11-17: o storage
+passou a ser um MinIO no compose da homologação, e a falha do storage ganhou motivo e texto
+próprios (`armazenamento`), separados do download (`indisponivel`), cujo texto continua o mesmo. O resto desta página é o registro de como estava.
 
 ## Estado real
 
