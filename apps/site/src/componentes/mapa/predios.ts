@@ -22,12 +22,31 @@ export interface Predio {
   blocos: readonly string[];
 }
 
+// Slugs do catálogo real de blocos (`packages/db/seed/blocos-ufal.ts`, SCRUM-292). Bloco sem prédio
+// aqui aparece só na lista: faltam IQB, FANUT, EENF, FOUFAL, ICF, FALE, ICS, IEFE, FAU e FDA, que o
+// OpenStreetMap não traz como prédio nomeado.
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
-  64963500: ['bloco-18'], // Bloco 18 - João de Deus
+  202492816: ['ic'], // IC - Instituto de Computação
+  1341542148: ['im'], // Instituto de Matemática
+  64975419: ['if'], // Instituto de Física
+  1338403227: ['icbs'],
+  259323643: ['famed'],
+  288826603: ['ctec'], // Novo CTEC
+  326103196: ['feac'],
+  64963102: ['fsso'],
+  64963499: ['ichca'],
+  64963258: ['icat'], // Instituto de Meteorologia
+  64962904: ['igdema'],
+  493988328: ['ip'],
+  64974358: ['cedu'],
+  64974284: ['csau'], // Centro de Ciências da Saúde - CSAU
   202492922: ['biblioteca-central'],
-  64974284: ['saude'], // Centro de Ciências da Saúde - CSAU
-  288826603: ['engenharias'], // Novo CTEC
-  64963499: ['artes'], // ICHCA
+  288827034: ['ru'], // Restaurante Universitário
+  544426692: ['praca-de-alimentacao'],
+  64963500: ['bloco-18'], // Bloco 18 - João de Deus
+  64980223: ['bloco-07'], // Bloco 07 - Salas de Aula
+  64963507: ['bloco-13'],
+  64963326: ['ginasio'], // Ginásio da UFAL
 };
 
 /**
