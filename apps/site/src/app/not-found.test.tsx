@@ -15,7 +15,7 @@ describe('páginas não encontradas', () => {
 
   it('a pauta não encontrada também usa h1', () => {
     expect(renderToStaticMarkup(<PautaNaoEncontrada />)).toMatch(
-      /<h1[^>]*>Não encontramos essa pauta<\/h1>/,
+      /<h1[^>]*>Não encontramos essa pauta.<\/h1>/,
     );
   });
 });
