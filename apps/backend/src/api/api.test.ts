@@ -287,7 +287,7 @@ describe('API de leitura pública com o seed', () => {
         criada_em: '2026-02-06T12:00:00.000Z',
         aprovada_em: '2026-02-07T12:00:00.000Z',
         meta_batida_em: '2026-02-08T12:00:00.000Z',
-        proxima_etapa: 'Prazo do Fala.BR em 20/03',
+        proxima_etapa: 'Prazo do Fala.BR venceu em 20/03/2026',
         relatos: [
           {
             texto: 'A saída das aulas noturnas fica muito escura perto do ponto.',

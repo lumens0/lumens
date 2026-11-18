@@ -196,12 +196,12 @@ describe('página da pauta: seções', () => {
   it('próxima etapa mostra o texto da API e o prazo do Fala.BR', () => {
     const pauta = {
       ...fixture,
-      proxima_etapa: 'Prazo do Fala.BR em 10/03',
+      proxima_etapa: 'Prazo do Fala.BR venceu em 10/03/2026',
       caminhos: [{ ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' }],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} />);
     expect(html).toContain('Próxima etapa</h2>');
-    expect(html).toContain('Prazo do Fala.BR em 10/03');
+    expect(html).toContain('Prazo do Fala.BR venceu em 10/03/2026');
     expect(html).toContain('Prazo de resposta do Fala.BR: 10/03/2026');
   });
 
