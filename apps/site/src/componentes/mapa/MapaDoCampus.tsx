@@ -12,6 +12,7 @@ import {
   CONTORNO,
   LARGURA_DO_CAMPUS,
   AREAS,
+  ID_DO_ESTADIO,
   PONTOS,
   PREDIOS,
   type Area,
@@ -64,7 +65,8 @@ const nomeDaArea = (a: Area): Nome => {
     texto: a.nome,
     x: x + largura / 2,
     y: y + altura / 2,
-    lado: 'centro',
+    // O estádio fica entre dois nomes de ponto: o dele vai acima do centro para não disputar com eles.
+    lado: a.id === ID_DO_ESTADIO ? 'acima' : 'centro',
   };
 };
 
@@ -136,7 +138,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
         y: p.y,
         lado: 'acima',
       })),
-      ...(comNomes ? AREAS.filter((a) => a.nome).map(nomeDaArea) : []),
+      ...AREAS.filter((a) => a.id === ID_DO_ESTADIO).map(nomeDaArea),
+      ...(comNomes ? AREAS.filter((a) => a.nome && a.id !== ID_DO_ESTADIO).map(nomeDaArea) : []),
       ...semBloco.map(nomeDoPredio),
     ];
   }, [porPredio, sel, comNomes, todosOsNomes]);
@@ -315,11 +318,11 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 </g>
               );
             })}
-            {/* Lugares que o OSM não tem (EDGE Academy): um ponto, com o nome ao aproximar. */}
+            {/* Lugares que o OSM não tem (EDGE Academy): um ponto do mesmo tamanho em qualquer zoom. */}
             {PONTOS.map((p) => (
               <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
                 <title>{p.nome}</title>
-                <rect x={-14} y={-14} width={28} height={28} className={estilos.pontoLocal} />
+                <circle className={estilos.pontoLocal} />
               </g>
             ))}
             {/* Os nomes ficam numa camada por cima de todos os prédios; só vão os que cabem sem

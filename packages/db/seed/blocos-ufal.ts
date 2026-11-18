@@ -37,7 +37,6 @@ export const blocosUfal = [
   { slug: 'csau', nome: 'CSAU - Centro de Ciências da Saúde', baseEstudantes: 1500 },
   { slug: 'biblioteca-central', nome: 'Biblioteca Central', baseEstudantes: 7000 },
   { slug: 'ru', nome: 'RU - Restaurante Universitário', baseEstudantes: 6000 },
-  { slug: 'praca-de-alimentacao', nome: 'Praça de Alimentação', baseEstudantes: 5000 },
   { slug: 'bloco-18', nome: 'Bloco 18', baseEstudantes: 2000 },
   { slug: 'bloco-07', nome: 'Bloco 07', baseEstudantes: 2000 },
   { slug: 'bloco-13', nome: 'Bloco 13', baseEstudantes: 1500 },

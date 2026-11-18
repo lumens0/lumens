@@ -31,7 +31,7 @@ export interface Predio {
 // aqui aparece só na lista (hoje, todo bloco do catálogo tem prédio).
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
-  1341542148: ['im'], // Instituto de Matemática
+  157086398: ['im'], // IM (Bloco 12); o OSM o chama de "IC e IM"
   64975419: ['if'], // Instituto de Física
   1338403227: ['icbs'],
   259323643: ['famed'],
@@ -49,7 +49,6 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   288826604: ['fau'], // FAU, idem
   202492922: ['biblioteca-central'],
   288827034: ['ru'], // Restaurante Universitário
-  544426692: ['praca-de-alimentacao'],
   64963500: ['bloco-18'], // Bloco 18 - João de Deus
   64980223: ['bloco-07'], // Bloco 07 - Salas de Aula
   64963507: ['bloco-13'],
@@ -89,18 +88,23 @@ const SIGLAS: Record<string, string> = {
   'Núcleo de Pesquisas Multidisciplinar': 'NPM',
   'Núcleo de Desenvolvimento Infantil': 'NDI',
   'Faculdade de Economia, Administração e Contabilidade': 'FEAC',
-  'Instituto de Computação e Instituto de Matemática': 'IC e IM',
-  'Instituto de Matemática': 'IM',
+  'Instituto de Computação e Instituto de Matemática': 'IM (Bloco 12)',
+  // O outro prédio de Matemática, que o povo chama de "IM novo"; o bloco `im` é o do Bloco 12.
+  'Instituto de Matemática': 'IM novo',
   'Instituto de Física': 'IF',
   'Centro de Educação': 'CEDU',
   'Polo Maceió EAD': 'EAD',
-  'Praça de Alimentação UFAL': 'Praça de alimentação',
   'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)': 'CPTEC',
   'Posto de Meteorologia': 'Posto meteorológico',
   'Instituto de Química e Biotecnologia': 'IQB',
   'Comunicação Social': 'COS B', // o Bloco A é o prédio ao lado (NOMES_LOCAIS)
   'Bloco 06 - IGDEMA': 'Bloco 06',
   'Ginásio da UFAL': 'Ginásio',
+};
+
+/** Nome mostrado no painel quando o do OSM engana: o prédio dos dois institutos é o IM, Bloco 12. */
+const NOMES_EXIBIDOS: Record<string, string> = {
+  'Instituto de Computação e Instituto de Matemática': 'Instituto de Matemática (Bloco 12)',
 };
 
 /** "Bloco 18 - João de Deus" vira "Bloco 18"; "Centro de Ciências da Saúde - CSAU" vira "CSAU". */
@@ -115,9 +119,11 @@ export function siglaDe(nome: string): string {
   return antes.length <= depois.length ? antes : depois;
 }
 
+const SEM_ROTULO = new Set(['Praça de Alimentação UFAL']);
+
 export const PREDIOS: readonly Predio[] = PREDIOS_OSM.map(([id, nomeOsm, d, caixa, curto]) => {
   const local = NOMES_LOCAIS[id];
-  const nome = nomeOsm || local?.nome || '';
+  const nome = NOMES_EXIBIDOS[nomeOsm] ?? (nomeOsm || local?.nome || '');
   // A sigla do OSM (`short_name`, `ref`) vale quando tem 3 letras ou mais: "13" não diz nada.
   const sigla = nomeOsm
     ? (SIGLAS[nomeOsm] ?? (curto.length >= 3 ? curto : siglaDe(nomeOsm)))
@@ -125,7 +131,8 @@ export const PREDIOS: readonly Predio[] = PREDIOS_OSM.map(([id, nomeOsm, d, caix
   return {
     id,
     nome: nome || 'Prédio sem nome no mapa',
-    sigla: nome ? sigla || siglaDe(nome) : '',
+    // A praça ao lado do IQB não é bloco nem nome que os estudantes usem: fica desenhada, sem rótulo.
+    sigla: nome && !SEM_ROTULO.has(nome) ? sigla || siglaDe(nome) : '',
     d,
     caixa,
     rotulo: pontoDoNome(d, caixa),
@@ -148,10 +155,14 @@ export interface Area {
 // Área que repete o nome de um prédio (a Praça de Alimentação é parque e prédio no OSM) fica sem rótulo.
 const NOMES_DE_PREDIO = new Set(PREDIOS_OSM.map(([, nome]) => nome));
 
+/** Nomes que o OSM não tem, dados por quem conhece o campus: o campo ao lado da EDGE Academy. */
+export const ID_DO_ESTADIO = 288827033;
+const NOMES_EXTRAS = new Map([[ID_DO_ESTADIO, 'Estádio da UFAL']]);
+
 export const AREAS: readonly Area[] = AREAS_OSM.map(([id, tipo, nome, d, caixa]) => ({
   id,
   tipo: tipo as TipoDeArea,
-  nome: NOMES_DE_PREDIO.has(nome) ? '' : nome,
+  nome: NOMES_EXTRAS.get(id) ?? (NOMES_DE_PREDIO.has(nome) ? '' : nome),
   d,
   caixa,
 }));
