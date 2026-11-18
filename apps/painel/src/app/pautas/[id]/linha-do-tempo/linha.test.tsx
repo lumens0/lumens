@@ -147,3 +147,19 @@ describe('rótulo e detalhe do evento', () => {
     expect(detalheDoEvento('conferencia_aberta', { fecha_em: 'amanhã' })).toBe('Fecha em amanhã.');
   });
 });
+
+describe('eventos iguais seguidos (SCRUM-355)', () => {
+  it('três saídas iguais do mesmo minuto viram uma linha só', () => {
+    const saida = () =>
+      evento({ tipo: 'owner_removido', dados: { papel: 'owner' }, origem: 'agendador' });
+    const html = tela([saida(), saida(), saida()]);
+
+    expect(html).toContain('3 responsáveis saíram');
+    expect(html.match(/<li /g)).toHaveLength(1);
+  });
+
+  it('uma saída sozinha mantém o rótulo de sempre', () => {
+    const html = tela([evento({ tipo: 'owner_removido', dados: { papel: 'owner' } })]);
+    expect(html).toContain('Owner saiu');
+  });
+});
