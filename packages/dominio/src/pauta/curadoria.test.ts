@@ -19,6 +19,7 @@ import {
   definirCategoria,
   listarFilaDeCuradoria,
   listarPautasDaCuradoria,
+  marcarUrgencia,
   recusarPauta,
   recusarRelatoDeOrigem,
   resumoDaCuradoria,
@@ -309,6 +310,34 @@ describe('aprovarPauta', () => {
         .map(({ id, fotoChave }) => [id, fotoChave]),
     );
   }
+
+  it('aprova como urgente, grava autoria e instante, e registra evento público sem identidade', async () => {
+    const pauta = await novaEmCuradoria();
+    const agora = new Date('2030-01-02T12:00:00.000Z');
+    await db.transaction((tx) =>
+      aprovarPauta(tx, {
+        pautaId: pauta.id,
+        curadorId,
+        categoria: 'infraestrutura',
+        fotosVistas: {},
+        urgente: true,
+        agora,
+      }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+    });
+    expect(await eventosDa(pauta.id)).toContainEqual({
+      tipo: 'pauta_urgente',
+      origem: 'curadoria',
+      publico: true,
+    });
+    expect(
+      await db.select({ dados: eventos.dados }).from(eventos).where(eq(eventos.pautaId, pauta.id)),
+    ).toContainEqual({ dados: { urgente: true } });
+  });
 
   it('aprova o relato pendente de quem criou a pauta, sem decidir relatos de outras pessoas', async () => {
     const pauta = await novaEmCuradoria();
@@ -624,6 +653,129 @@ describe('aprovarPauta', () => {
       expect(await filaDa(pauta.id)).toEqual([]);
     },
   );
+});
+
+describe('marcarUrgencia', () => {
+  it('marca e desmarca pauta pública, registrando cada mudança uma vez', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    const agora = new Date('2030-01-02T12:00:00.000Z');
+    expect(
+      await db.transaction((tx) =>
+        marcarUrgencia(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          urgente: true,
+          motivo: 'Risco à segurança',
+          agora,
+        }),
+      ),
+    ).toEqual({ atualizada: true });
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+      urgenteMotivo: 'Risco à segurança',
+    });
+    expect(await eventosDa(pauta.id)).toContainEqual({
+      tipo: 'pauta_urgente',
+      origem: 'curadoria',
+      publico: true,
+    });
+    expect(
+      await db.select({ dados: eventos.dados }).from(eventos).where(eq(eventos.pautaId, pauta.id)),
+    ).toContainEqual({ dados: { urgente: true } });
+    // O motivo fica só na pauta: o evento é público e vai à linha do tempo do site.
+    const dadosDosEventos = await db
+      .select({ dados: eventos.dados })
+      .from(eventos)
+      .where(eq(eventos.pautaId, pauta.id));
+    expect(JSON.stringify(dadosDosEventos)).not.toContain('Risco à segurança');
+    const quantidade = (await eventosDa(pauta.id)).length;
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: true }),
+    );
+    expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
+    // Editar só o motivo (ou apagar) numa pauta já urgente grava o texto novo, preserva quem e
+    // quando marcou e não repete o evento público na linha do tempo.
+    const outroCurador = await criarCurador(db);
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, {
+        pautaId: pauta.id,
+        curadorId: outroCurador.id,
+        urgente: true,
+        motivo: '  Fio desencapado no corredor  ',
+        agora: new Date('2030-01-03T12:00:00.000Z'),
+      }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+      urgenteMotivo: 'Fio desencapado no corredor',
+    });
+    expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: true, motivo: '   ' }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: true,
+      urgenteDesde: agora,
+      urgentePor: curadorId,
+      urgenteMotivo: null,
+    });
+    expect(await eventosDa(pauta.id)).toHaveLength(quantidade);
+    await db.transaction((tx) =>
+      marcarUrgencia(tx, { pautaId: pauta.id, curadorId, urgente: false }),
+    );
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: false,
+      urgenteDesde: null,
+      urgentePor: null,
+      urgenteMotivo: null,
+    });
+    expect(await eventosDa(pauta.id)).toContainEqual({
+      tipo: 'pauta_urgente',
+      origem: 'curadoria',
+      publico: true,
+    });
+    expect(
+      await db.select({ dados: eventos.dados }).from(eventos).where(eq(eventos.pautaId, pauta.id)),
+    ).toContainEqual({ dados: { urgente: false } });
+  });
+
+  it.each(['em_curadoria', 'recusada'] as const)('recusa pauta %s', async (status) => {
+    const pauta = await criarPauta(db, { status });
+    expect(
+      await db.transaction((tx) =>
+        marcarUrgencia(tx, {
+          pautaId: pauta.id,
+          curadorId,
+          urgente: true,
+        }),
+      ),
+    ).toEqual({ atualizada: false, motivo: 'pauta_nao_publica' });
+  });
+
+  it('recusa motivo acima de 200 caracteres ou com quebra de linha', async () => {
+    const pauta = await criarPauta(db, { status: 'juntando_apoios' });
+    for (const motivo of ['a'.repeat(201), 'linha 1\nlinha 2']) {
+      expect(
+        await db.transaction((tx) =>
+          marcarUrgencia(tx, {
+            pautaId: pauta.id,
+            curadorId,
+            urgente: true,
+            motivo,
+          }),
+        ),
+      ).toEqual({ atualizada: false, motivo: 'motivo_invalido' });
+    }
+    expect(await pautaDa(pauta.id)).toMatchObject({
+      urgente: false,
+      urgenteDesde: null,
+      urgentePor: null,
+    });
+  });
 });
 
 describe('definirCategoria', () => {

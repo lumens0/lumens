@@ -26,10 +26,18 @@ describe('decisões da curadoria pela tela', () => {
     const { decisoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
     expect(await decisoes.aprovar(ID, 'ensino', {})).toBe(`/pautas/${ID}?feito=aprovada`);
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', {});
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', {}, false);
 
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe(`/pautas/${ID}?feito=recusada`);
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1', 'Duplicada.');
+  });
+
+  it('encaminha a seleção de urgência junto da aprovação', async () => {
+    const { decisoes, aprovar } = montar({ id: 'curador-1' });
+    expect(await decisoes.aprovar(ID, 'infraestrutura', {}, true)).toBe(
+      `/pautas/${ID}?feito=aprovada`,
+    );
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'infraestrutura', {}, true);
   });
 
   it.each(['motivo_obrigatorio', 'ja_decidida'] as const)(
@@ -68,7 +76,7 @@ describe('decisões da curadoria pela tela', () => {
     );
     const fotos = { 'relato-1': 'relatos/foto.jpg', 'relato-2': null };
     expect(await decisoes.aprovar(ID, 'ensino', fotos)).toBe(`/pautas/${ID}?erro=relato_mudou`);
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos);
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos, false);
   });
 
   it('lê do formulário a foto de cada relato que a tela mostrou; vazio é sem foto', () => {
