@@ -30,6 +30,11 @@ mão, e uma falha do backup ficava só no `journalctl`.
 - **Retenção pelo bucket**, não pelo script: a regra de ciclo de vida esconde cada cópia depois de
   30 dias e apaga a escondida 30 dias depois. Os 30 dias depois de escondida são o que protege a
   versão antiga de um arquivo sobrescrito. A chave da VM nem teria permissão de apagar.
+- **Fotos e PDFs da resposta oficial** (o espelho do storage, quando ele é o MinIO do compose) vão
+  no mesmo envio: um `.tar` cifrado do espelho inteiro por dia, em `arquivos/`. Inteiro porque a
+  chave da VM não lista nem apaga. Assim, a foto de quem saiu deixa de ir no pacote seguinte e
+  some do bucket em até 60 dias, pela retenção, sem precisar de permissão de apagar. O dump vai
+  antes: um problema no pacote das fotos não deixa o banco sem cópia fora.
 - **Teste de restauração semanal** (`lumens-restauracao.timer`, quarta), com o
   `restaurar-backup.sh` que já existia, no dump local do dia. A cópia de fora tem a mesma origem, e
   o teste de regressão `testar-backup-externo.sh` confere que ela decifra igual ao dump.
@@ -43,5 +48,7 @@ mão, e uma falha do backup ficava só no `journalctl`.
   vida esconde também a última cópia, então 60 dias sem backup novo deixam o bucket vazio.
 - **Restaurar a cópia de fora automaticamente:** a VM não decifra, de propósito. A conferência de
   que a chave do cofre abre a cópia é à mão, na instalação e a cada troca de chave.
-- **Fotos e PDFs da resposta oficial** no storage da VM: quando o storage existir, a cópia deles
-  para fora segue o mesmo caminho.
+- **Fotos e PDFs mais de uma vez por dia, ou só o que mudou.** Eles vão no mesmo envio, mas como um
+  `.tar` cifrado do espelho inteiro, por dia. Mandar só o que mudou exigiria listar e apagar no
+  bucket, o que a chave da VM não faz de propósito. Se o espelho passar de uns 150 MB, o plano
+  gratuito não comporta os 60 pacotes guardados: aí é plano pago ou pacote semanal.

@@ -5,7 +5,9 @@
 #   Uso: ./scripts/enviar-backup.sh [arquivo.dump]   (padrão: o diário mais novo)
 #
 # Cifra o dump com `age` para as chaves PÚBLICAS de BACKUP_AGE_DESTINATARIOS e envia o `.age` ao
-# bucket do Backblaze B2 pela API S3 dele. A VM não tem como decifrar: a chave privada fica só no
+# bucket do Backblaze B2 pela API S3 dele. Se existir o espelho das fotos e dos PDFs da resposta
+# oficial ($BACKUP_DIR/arquivos, que o backup-banco.sh faz quando o storage é o MinIO do compose),
+# ele vai junto: um `.tar` cifrado do mesmo jeito, em `arquivos/`. A VM não tem como decifrar: a chave privada fica só no
 # gerenciador de senhas da equipe. E a chave do B2 que fica na VM só grava, não lê nem apaga: quem
 # invadir a VM não apaga nem lê as cópias de fora. Quanto tempo elas ficam é regra do bucket
 # (ciclo de vida), não deste script.
@@ -46,13 +48,11 @@ if [[ -z $arquivo || ! -f $arquivo ]]; then
 fi
 
 umask 077
+cifrado='' cifrado_arquivos=''
+trap 'rm -f "$cifrado" "$cifrado_arquivos"' EXIT
 cifrado=$(mktemp "$BACKUP_DIR/.envio-XXXXXX")
-trap 'rm -f "$cifrado"' EXIT
-
 destinatarios=()
 for chave in $BACKUP_AGE_DESTINATARIOS; do destinatarios+=(-r "$chave"); done
-echo "--> Cifrando $arquivo"
-age "${destinatarios[@]}" -o "$cifrado" "$arquivo"
 
 # O rclone lê o destino destas variáveis: nada de chave na linha de comando (um `ps` a mostraria)
 # nem arquivo de configuração a mais na VM. A chave só grava, então o rclone não pode fazer nada
@@ -68,8 +68,32 @@ export RCLONE_CONFIG_EXTERNO_SECRET_ACCESS_KEY=$BACKUP_S3_CHAVE
 export RCLONE_CONFIG_EXTERNO_NO_CHECK_BUCKET=true
 export RCLONE_CONFIG_EXTERNO_NO_HEAD=true
 
-destino="externo:$BACKUP_S3_BUCKET/diario/$(basename "$arquivo").age"
-echo "--> Enviando para $BACKUP_S3_BUCKET/diario/$(basename "$arquivo").age"
-rclone copyto --no-check-dest --retries 3 "$cifrado" "$destino"
+enviar() { # $1 = arquivo local cifrado, $2 = caminho no bucket
+  echo "--> Enviando para $BACKUP_S3_BUCKET/$2 ($(du -h "$1" | cut -f1))"
+  rclone copyto --no-check-dest --retries 3 "$1" "externo:$BACKUP_S3_BUCKET/$2"
+}
 
-echo "--> Cópia fora da VM pronta: $(du -h "$cifrado" | cut -f1), cifrada"
+# O banco primeiro: um problema nas fotos (disco cheio para o pacote, arquivo ilegível) não pode
+# deixar o dump do dia sem cópia fora da VM. O script ainda termina com erro, e o alerta sai.
+echo "--> Cifrando $arquivo"
+age "${destinatarios[@]}" -o "$cifrado" "$arquivo"
+enviar "$cifrado" "diario/$(basename "$arquivo").age"
+
+# Fotos e PDFs: um `.tar` inteiro por dia, não arquivo por arquivo. A chave só grava, então não dá
+# para listar o que já está lá nem apagar o que saiu; com o pacote do dia, a foto de quem saiu
+# (SCRUM-314) deixa de ir no seguinte, e as cópias antigas somem pela regra de ciclo de vida, em
+# até 60 dias. O preço é reenviar tudo todo dia, o que cabe enquanto o volume for pequeno
+# (docs/operacao/backup.md). O nome leva o carimbo do dump: é o par a restaurar junto.
+espelho=$BACKUP_DIR/arquivos
+if [[ -n $(find "$espelho" -mindepth 1 -print -quit 2>/dev/null) ]]; then
+  carimbo=$(basename "$arquivo" .dump)
+  carimbo=${carimbo#lumens-}
+  cifrado_arquivos=$(mktemp "$BACKUP_DIR/.envio-XXXXXX")
+  echo "--> Empacotando e cifrando $espelho"
+  tar -C "$espelho" -cf - . | age "${destinatarios[@]}" -o "$cifrado_arquivos"
+  enviar "$cifrado_arquivos" "arquivos/lumens-arquivos-$carimbo.tar.age"
+else
+  echo "--> Sem espelho de fotos em $espelho (storage fora do MinIO ou vazio): só o banco vai."
+fi
+
+echo "--> Cópia fora da VM pronta, cifrada"

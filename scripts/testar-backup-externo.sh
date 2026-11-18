@@ -6,7 +6,9 @@
 #   Uso: ./scripts/testar-backup-externo.sh
 #
 # Cenários:
-#   1. o envio cifra o diário mais novo, e o que chega ao bucket decifra igual ao original;
+#   1. o envio cifra o diário mais novo, e o que chega ao bucket decifra igual ao original; sem o
+#      espelho das fotos, só o dump vai;
+#   1b. com o espelho das fotos, vai também um `.tar` cifrado que decifra com os mesmos arquivos;
 #   2. a chave da VM só grava: não lê o que enviou;
 #   3. destino fora do ar: o envio FALHA;
 #   4. sem chave pública do age: FALHA;
@@ -126,6 +128,30 @@ cenario '1. envio do diário mais novo' passou /repo/scripts/enviar-backup.sh
 cenario '1. o que chegou decifra igual ao dump' passou decifra_igual
 cenario '1. o que chegou não é o dump em claro' passou cifrado_de_fato
 cenario '1. nenhum temporário ficou para trás' passou bash -c '[[ -z $(find "$BACKUP_DIR" -name ".envio-*") ]]'
+listar_b2() {
+  RCLONE_CONFIG_B2_TYPE=s3 RCLONE_CONFIG_B2_PROVIDER=Other RCLONE_CONFIG_B2_ENDPOINT=http://b2:9000 \
+    RCLONE_CONFIG_B2_REGION=us-east-1 RCLONE_CONFIG_B2_ACCESS_KEY_ID=raiz \
+    RCLONE_CONFIG_B2_SECRET_ACCESS_KEY=raiz-senha-de-teste rclone lsf -R b2:lumens-backup
+}
+cenario '1. sem espelho de fotos, nada em arquivos/' passou bash -c "$(declare -f listar_b2); ! listar_b2 | grep -q '^arquivos/.'"
+
+mkdir -p "$BACKUP_DIR/arquivos"
+cenario '1. espelho vazio: só o banco vai' passou bash -c "/repo/scripts/enviar-backup.sh | grep -q 'só o banco vai'"
+mkdir -p "$BACKUP_DIR/arquivos/fotos/2026/11" "$BACKUP_DIR/arquivos/respostas/2026/11"
+head -c 50000 /dev/urandom >"$BACKUP_DIR/arquivos/fotos/2026/11/a.jpg"
+printf '%%PDF-1.4 resposta' >"$BACKUP_DIR/arquivos/respostas/2026/11/b.pdf"
+cenario '1b. envio com o espelho das fotos' passou /repo/scripts/enviar-backup.sh
+arquivos_iguais() {
+  mkdir -p /tmp/restaurado && ler_do_b2_raiz arquivos/lumens-arquivos-2026-11-17T150000Z.tar.age |
+    age -d -i /tmp/chave-privada.txt | tar -C /tmp/restaurado -xf - && diff -r /tmp/restaurado "$BACKUP_DIR/arquivos"
+}
+ler_do_b2_raiz() {
+  RCLONE_CONFIG_B2_TYPE=s3 RCLONE_CONFIG_B2_PROVIDER=Other RCLONE_CONFIG_B2_ENDPOINT=http://b2:9000 \
+    RCLONE_CONFIG_B2_REGION=us-east-1 RCLONE_CONFIG_B2_ACCESS_KEY_ID=raiz \
+    RCLONE_CONFIG_B2_SECRET_ACCESS_KEY=raiz-senha-de-teste rclone cat "b2:lumens-backup/$1"
+}
+cenario '1b. o .tar de fora decifra com os mesmos arquivos' passou arquivos_iguais
+cenario '1b. nenhum temporário ficou para trás' passou bash -c '[[ -z $(find "$BACKUP_DIR" -name ".envio-*") ]]'
 cenario '2. a chave da VM não lê o bucket' falhou env CHAVE_ID=chave-da-vm CHAVE=senha-da-vm-de-teste \
   bash -c "$(declare -f ler_do_b2); ler_do_b2 lumens-2026-11-17T150000Z.dump.age"
 

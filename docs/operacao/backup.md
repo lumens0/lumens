@@ -18,6 +18,7 @@ gerenciado. Então o backup é próprio:
 | Retenção     | 7 diários + 4 semanais (o de domingo)                                               |
 | Onde fica    | `/var/backups/lumens/{diario,semanal}` na própria VM, legível só pelo `azureuser`   |
 | Fora da VM   | Cada diário, cifrado, num bucket privado do Backblaze B2, por 30 dias (até 60)      |
+| Fotos e PDFs | Com o storage no MinIO, o espelho vai junto, num `.tar` cifrado por dia             |
 | Cifra        | `age` com chave pública: a VM cifra e não decifra; a chave privada fica fora dela   |
 | Restauração  | Toda quarta, pelo timer `lumens-restauracao.timer`, no dump do dia                  |
 | Falha        | `OnFailure=` manda e-mail ao time (backup, envio ou teste de restauração)           |
@@ -50,9 +51,12 @@ Uma vez, na conta do Backblaze da equipe (o plano gratuito tem 10 GB, sem cartã
 1. **Bucket:** _Buckets → Create a Bucket_, nome `lumens-backup`, **Private**, com _Default
    Encryption_ ligada. Anote o _Endpoint_ (`s3.<região>.backblazeb2.com`): a região é o pedaço do
    meio.
-2. **Retenção:** em _Lifecycle Settings_ do bucket, _Use custom lifecycle rules_ com prefixo
-   `diario/`, esconder depois de **30** dias e apagar **30** dias depois de escondido. Os 30 dias
-   depois de escondido protegem a versão antiga se alguém enviar outro arquivo com o mesmo nome.
+2. **Retenção:** em _Lifecycle Settings_ do bucket, _Use custom lifecycle rules_ com o prefixo
+   **vazio** (vale para `diario/` e `arquivos/`), esconder depois de **30** dias e apagar **30**
+   dias depois de escondido. Os 30 dias depois de escondido protegem a versão antiga se alguém
+   enviar outro arquivo com o mesmo nome. Se o bucket já tiver uma regra só para `diario/`, troque-a
+   por esta em vez de somar as duas: sem ela, nada em `arquivos/` expira e o bucket cresce até
+   encher.
 3. **Chave da VM:** _Application Keys → Add a New Application Key_, só para o bucket
    `lumens-backup`, com acesso **Write Only**. É a que vai para a VM: ela envia, mas não lê nem
    apaga. Quem invadir a VM ainda consegue esconder uma cópia ou mandar outra com o mesmo nome,
@@ -83,6 +87,15 @@ cd /opt/lumens && cp .env.backup.example .env.backup && chmod 600 .env.backup
 ```
 
 O alerta usa o SMTP do `EMAIL_*` do `.env.producao`; nada a configurar além do destinatário.
+
+**Espaço no B2.** Com o storage das fotos no MinIO do compose, o envio manda também, todo dia, o
+espelho inteiro das fotos e dos PDFs num `.tar` cifrado (`arquivos/` no bucket). Inteiro porque a
+chave da VM não lista nem apaga: é assim que a foto de quem saiu deixa de ir para fora, e some do
+bucket em até 60 dias depois da saída (30 no pacote mais velho que ainda a tem, mais 30 escondida).
+Com a retenção acima ficam até 60 pacotes e 60 dumps, então os 10 GB do plano gratuito comportam um
+espelho de até uns 150 MB com dumps de até uns 15 MB. Para conferir:
+`du -sh /var/backups/lumens/arquivos /var/backups/lumens/diario`. Passando disso, ou o plano pago
+(barato por GB), ou o envio do pacote só uma vez por semana.
 
 ### Unidades do systemd
 
@@ -249,8 +262,24 @@ a chave privada do `age`, as duas do gerenciador de senhas:
    scp lumens.dump azureuser@<IP-DA-VM>:/var/backups/lumens/
    ```
 
-4. Apague o `lumens.dump` e a chave privada da sua máquina: o dump decifrado tem a linha do tempo
-   e os dados cifrados por coluna.
+4. **Fotos e PDFs**, se o storage era o MinIO: baixe também, da pasta `arquivos/`, o
+   `lumens-arquivos-<data>.tar.age` com a **mesma** data do dump (se o envio dele falhou naquele
+   dia, o mais novo anterior a ela: um pacote mais novo que o dump pode ter fotos que o banco
+   restaurado não conhece). Decifre e mande para o espelho da VM nova. Com o MinIO no ar (o deploy
+   o cria), devolva o espelho ao bucket como em _Fotos e PDFs_, no fim de
+   [Restaurar de verdade](#restaurar-de-verdade-incidente). O `COPYFILE_DISABLE=1` evita que o
+   `tar` do macOS ponha arquivos `._*` no meio.
+
+   ```bash
+   mkdir arquivos && age -d -i lumens-backup-age.txt lumens-arquivos-<data>.tar.age | tar -C arquivos -xf -
+   ```
+
+   ```bash
+   COPYFILE_DISABLE=1 tar -C arquivos -cf - . | ssh azureuser@<IP-DA-VM> 'mkdir -p /var/backups/lumens/arquivos && tar -C /var/backups/lumens/arquivos -xf -'
+   ```
+
+5. Apague da sua máquina o `lumens.dump`, a pasta `arquivos` e a chave privada: o dump decifrado
+   tem a linha do tempo e os dados cifrados por coluna, e os PDFs podem ter nome de quem manifestou.
 
 ## Quando o backup falha
 
@@ -266,6 +295,9 @@ journalctl -u lumens-backup.service -n 50
   para a conta do `EMAIL_USUARIO`, não para o `BACKUP_ALERTA_PARA`.
 - **Erro do `rclone` (403, timeout):** chave do B2 revogada ou trocada, ou B2 fora do ar. O dump
   local do dia foi feito; rode `./scripts/enviar-backup.sh` quando resolver.
+- **Erro no pacote das fotos (`tar`, disco cheio):** o dump já foi para fora antes dele, e só as
+  fotos ficaram para trás. O pacote ocupa no disco o tamanho do espelho enquanto é enviado: veja
+  `df -h` e `du -sh /var/backups/lumens/arquivos`.
 - **`lumens-restauracao.service`:** o dump não restaura ou perdeu o trigger da linha do tempo.
   Rode `./scripts/restaurar-backup.sh` à mão para ver a mensagem, e teste o diário anterior.
 - **Nenhum e-mail chega, mas o backup falhou:** `journalctl -u 'lumens-alerta@*' -n 20` mostra se
