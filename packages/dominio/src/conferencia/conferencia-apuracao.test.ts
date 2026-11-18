@@ -130,7 +130,8 @@ describe('encerrarConferencia (RN10), exemplos do card com 100 apoiadores', () =
 
     expect(r).toMatchObject({ apurada: true, resultado: 'sem_quorum', respondentes: 8 });
     expect(await resultadoDa(promessaId)).toBe('sem_quorum');
-    expect(await statusDa(pauta.id)).toBe('prometido');
+    // SCRUM-308: a pauta volta a ser cobrada. A reabertura da 1ª rodada fica no fecharConferencia.
+    expect(await statusDa(pauta.id)).toBe('cobrando');
   });
 });
 

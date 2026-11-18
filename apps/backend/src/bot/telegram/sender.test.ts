@@ -18,6 +18,7 @@ import { idDoCurso, listaDeCursos } from '../conversation/verificacao';
 import type { OutgoingReplies } from '../worker';
 import { ErroDaApiDoTelegram } from './api';
 import {
+  LIMITE_DA_DESCRICAO,
   LIMITE_DO_CALLBACK_BYTES,
   LIMITE_DO_TEXTO,
   dividirTexto,
@@ -117,6 +118,40 @@ describe('paraTelegram', () => {
   it('lista sem descrição manda só o corpo', () => {
     const resposta = lista({ corpo: 'Qual?', botao: 'Ver', linhas: [{ id: 'a', titulo: 'A' }] });
     expect(paraTelegram(resposta, CHAT)[0]?.text).toBe('Qual?');
+  });
+
+  it('títulos de bloco e de pauta vão inteiros, sem o corte da Meta (SCRUM-323)', () => {
+    const blocos = listaDeBlocos([
+      { id: 'b1', slug: 'saude', nome: 'Bloco da Saúde (fictício)' },
+      { id: 'b2', slug: 'engenharias', nome: 'Bloco das Engenharias (fictício)' },
+    ]);
+    const teclado = paraTelegram(blocos, CHAT)[0]?.reply_markup?.inline_keyboard ?? [];
+    const textos = teclado.flat().map((b) => b.text);
+    expect(textos).toContain('Bloco da Saúde (fictício)');
+    expect(textos).toContain('Bloco das Engenharias (fictício)');
+
+    const titulo = 'Bebedouros funcionando no Bloco 18';
+    const parecidas = listaDeParecidas([
+      { id: 'p1', titulo, descricao: 'Sem água desde segunda.' },
+    ]);
+    const [envio] = paraTelegram(parecidas, CHAT);
+    expect(envio?.text).toContain(`• ${titulo}: Sem água desde segunda.`);
+    expect(envio?.reply_markup?.inline_keyboard[0]).toEqual([
+      { text: titulo, callback_data: 'pauta:p1' },
+    ]);
+    expect(JSON.stringify(envio)).not.toContain('…');
+  });
+
+  it('descrição longa da lista é encurtada no corpo, não o título', () => {
+    const resposta = lista({
+      corpo: 'Alguma destas?',
+      botao: 'Ver',
+      linhas: [{ id: 'p', titulo: 'Título inteiro', descricao: 'x'.repeat(500) }],
+    });
+    const texto = paraTelegram(resposta, CHAT)[0]?.text ?? '';
+    const descricao = texto.split('• Título inteiro: ')[1] ?? '';
+    expect(Array.from(descricao)).toHaveLength(LIMITE_DA_DESCRICAO);
+    expect(descricao.endsWith('…')).toBe(true);
   });
 
   it('texto longo é dividido; os botões vão só na última parte', () => {
