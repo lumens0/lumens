@@ -288,6 +288,15 @@ describe('blocos', () => {
     expect(mensagem.linhas.at(-1)?.id).toBe(CAMPUS_ROW_ID);
     expect(mensagem.corpo).toContain('escreva o nome');
   });
+
+  it('com muitos blocos, RU, IC e IM abrem a lista e os demais ficam por sigla digitada', () => {
+    const slugs = ['fale', 'ic', 'ru', 'zeta', 'im', 'alfa', 'b1', 'b2', 'b3', 'b4', 'b5'];
+    const muitos = slugs.map((slug) => ({ id: slug, slug, nome: slug.toUpperCase() }));
+    const ids = listaDeBlocos(muitos).linhas.map((l) => l.id);
+    expect(ids.slice(0, 3)).toEqual(['bloco:ru', 'bloco:ic', 'bloco:im']);
+    expect(ids).not.toContain('bloco:b5');
+    expect(blocoEscolhido('b5', muitos)).toEqual({ blocoId: 'b5' });
+  });
 });
 
 describe('mensagem de lista', () => {
