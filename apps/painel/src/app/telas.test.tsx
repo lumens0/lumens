@@ -1,6 +1,6 @@
 import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
 import { ListaDePautas } from './pautas/lista';
@@ -15,6 +15,7 @@ const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCur
   titulo: 'Bebedouro quebrado no bloco 12',
   descricao: 'O bebedouro do térreo não funciona desde agosto.',
   bloco: 'Bloco 12',
+  blocoId: '22222222-2222-4222-8222-222222222222',
   fotoChave: null,
   criadaEm: new Date('2026-11-09T12:00:00.000Z'),
   prazo: new Date('2026-11-10T12:00:00.000Z'),
@@ -50,6 +51,24 @@ describe('textoDoPrazo', () => {
 });
 
 describe('tela da pauta', () => {
+  it('oferece os dois ajustes só durante a curadoria ou a coleta de apoios', () => {
+    const emCuradoria = renderToStaticMarkup(
+      <Pauta pauta={pauta()} aprovar={acao} recusar={acao} />,
+    );
+    expect(emCuradoria).toContain('Corrigir bloco');
+    expect(emCuradoria).toContain('Todo o campus');
+    expect(emCuradoria).toContain('Ajustar meta');
+    const juntando = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'juntando_apoios' })} aprovar={acao} recusar={acao} />,
+    );
+    expect(juntando).toContain('Corrigir bloco');
+    const cobrando = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'cobrando' })} aprovar={acao} recusar={acao} />,
+    );
+    expect(cobrando).not.toContain('Corrigir bloco');
+    expect(cobrando).not.toContain('Ajustar meta');
+  });
+
   it('com foto: mostra a imagem pela rota que exige sessão e abre inteira em outra aba', () => {
     const FOTO = 'fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.png';
     const html = renderToStaticMarkup(
@@ -75,8 +94,9 @@ describe('tela da pauta', () => {
     expect(html).toContain('Aprovar pauta');
     expect(html).toContain('também publica o relato de quem a criou');
     expect(html).toContain('Recusar pauta');
+    // Aprovar, recusar, corrigir o bloco e ajustar a meta (SCRUM-326).
     expect(html.match(/name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"/g)).toHaveLength(
-      2,
+      4,
     );
     // Recusa sem motivo nem sai do navegador; o servidor confere de novo.
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
@@ -142,11 +162,17 @@ describe('tela da pauta', () => {
           ],
           responsaveis: [{ curso: 'Engenharia Civil' }, { curso: 'Pedagogia' }],
           caminhos: [
-            { tipo: 'falabr', protocolo: '12345.678901/2026-11', prazo: '2026-12-09' },
-            { tipo: 'comunidade', protocolo: null, prazo: null },
-            { tipo: 'representante', protocolo: 'REP-42', prazo: null },
+            {
+              id: 'caminho-1',
+              tipo: 'falabr',
+              protocolo: '12345.678901/2026-11',
+              prazo: '2026-12-09',
+            },
+            { id: 'caminho-2', tipo: 'comunidade', protocolo: null, prazo: null },
+            { id: 'caminho-3', tipo: 'representante', protocolo: 'REP-42', prazo: null },
           ],
           promessa: {
+            id: 'promessa-1',
             resumo: 'Reparo até dezembro.',
             fonte: 'Ouvidoria da UFAL',
             dataEntrega: '2026-12-01',
@@ -175,6 +201,61 @@ describe('tela da pauta', () => {
     expect(html).toContain('Promessa registrada');
     expect(html).toContain('4 sim, 2 em parte, 1 não');
     expect(html).not.toMatch(/nome(?: completo)?|telefone|e-?mail|@ufal\.br/i);
+  });
+
+  it('oferece ajustes de prazo somente nos caminhos e promessas aplicáveis', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          status: 'cobrando',
+          caminhos: [{ id: 'caminho-1', tipo: 'falabr', protocolo: 'NUP-1', prazo: '2026-12-01' }],
+        })}
+        aprovar={acao}
+        recusar={acao}
+        prorrogarPrazo={acao}
+        corrigirProtocolo={acao}
+        remarcarPromessa={acao}
+      />,
+    );
+    expect(html).toContain('Registrar prorrogação');
+    expect(html).toContain('Corrigir data do protocolo');
+    expect(html).not.toContain('Remarcar data prometida');
+    expect(html).toContain('name="motivo"');
+    expect(html).toContain('name="fonte"');
+  });
+
+  it('entre 21h e meia-noite em Maceió, calcula o dia mínimo da remarcação no fuso local', () => {
+    // 22h de 17/11 em Maceió (UTC−3) já é 18/11 em UTC, mas amanhã em Maceió ainda é 18/11.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T01:00:00Z'));
+    try {
+      const html = renderToStaticMarkup(
+        <Pauta
+          pauta={pauta({
+            status: 'prometido',
+            caminhos: [{ id: 'c-1', tipo: 'falabr', protocolo: 'NUP-1', prazo: '2026-12-01' }],
+            promessa: {
+              id: 'p-1',
+              resumo: 'Trocar o equipamento.',
+              fonte: 'Ofício 1',
+              dataEntrega: '2026-12-01',
+              conferenciaAbreEm: new Date('2026-12-01T03:00:00Z'),
+              conferenciaFechaEm: new Date('2026-12-08T03:00:00Z'),
+              votos: { sim: 0, em_parte: 0, nao: 0 },
+            },
+          })}
+          aprovar={acao}
+          recusar={acao}
+          prorrogarPrazo={acao}
+          corrigirProtocolo={acao}
+          remarcarPromessa={acao}
+        />,
+      );
+      expect(html).toContain('max="2026-11-17"');
+      expect(html).toContain('min="2026-11-18"');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('pauta aprovada permite trocar categoria; recusada não oferece esse formulário', () => {

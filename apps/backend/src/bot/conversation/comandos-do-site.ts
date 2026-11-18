@@ -22,6 +22,7 @@ import { SUPPORT_CLOSED_TEXT, entrarNoApoio } from './apoio';
 import { cuidarDaPauta } from './co-owner';
 import type { StepContext, StepResult } from './handlers';
 import { entrarNaPautaNova } from './nova-pauta';
+import { pautaDoLink } from './pauta-do-link';
 import { UUID, vouAjudar } from './proposta';
 import type { Step } from './steps';
 import { normalize } from './texto';
@@ -43,12 +44,13 @@ export function parseComandoDoSite(texto: string): ComandoDoSite | null {
   return normalize(texto) === 'nova pauta' ? { kind: 'nova-pauta' } : null;
 }
 
-/** Pauta pelo slug do site ou pelo id (botões do próprio bot). */
+/** Pauta pelo id (botões do próprio bot) ou pelo link do site: slug ou id curto (SCRUM-293). */
 async function pautaDoAlvo(db: Db, alvo: string) {
+  if (!UUID.test(alvo)) return pautaDoLink(db, alvo);
   const [pauta] = await db
     .select({ id: pautas.id, status: pautas.status })
     .from(pautas)
-    .where(UUID.test(alvo) ? eq(pautas.id, alvo) : eq(pautas.slug, alvo.toLowerCase()));
+    .where(eq(pautas.id, alvo.toLowerCase()));
   return pauta;
 }
 

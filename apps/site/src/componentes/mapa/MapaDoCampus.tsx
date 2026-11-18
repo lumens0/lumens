@@ -71,13 +71,46 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const geral = useMemo(() => enquadrar([...porPredio.keys()]), [porPredio]);
   // Com o campus inteiro na tela, os nomes se amontoam; aparecem quando o mapa aproxima.
   const [comNomes, setComNomes] = useState(false);
+  const [ajudaVisivel, setAjudaVisivel] = useState(true);
+  const [avisoToque, setAvisoToque] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('mapa-ajuda-fechada') === 'sim') setAjudaVisivel(false);
+    } catch {
+      /* armazenamento indisponível */
+    }
+  }, []);
   // O `viewBox` fica parado na visão de abertura; a câmera move a camada dentro dele.
   const [base] = useState(geral);
-  const [camera] = useState(() =>
-    criarCamera(base, (v) => {
-      setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
-    }),
-  );
+  const [camera] = useState(() => {
+    // O primeiro gesto fecha a ajuda; os seguintes não regravam nada.
+    let ajudaFechada = false;
+    let avisoAte = 0;
+    return criarCamera(
+      base,
+      (v) => {
+        setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
+      },
+      (dedos) => {
+        if (!ajudaFechada) {
+          ajudaFechada = true;
+          setAjudaVisivel(false);
+          try {
+            localStorage.setItem('mapa-ajuda-fechada', 'sim');
+          } catch {
+            // O mapa continua utilizável sem armazenamento local.
+          }
+        }
+        if (dedos === 1 && Date.now() > avisoAte && matchMedia('(max-width: 720px)').matches) {
+          avisoAte = Date.now() + 1800;
+          setAvisoToque(true);
+          window.setTimeout(() => {
+            setAvisoToque(false);
+          }, 1800);
+        }
+      },
+    );
+  });
   const svg = useRef<SVGSVGElement>(null);
   const camada = useRef<SVGGElement>(null);
   useEffect(() => {
@@ -130,13 +163,19 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           viewBox={`${String(base.x)} ${String(base.y)} ${String(base.w)} ${String(base.h)}`}
           role="group"
           aria-label="Mapa do campus. A lista abaixo do mapa tem a mesma informação."
+          tabIndex={0}
+          aria-describedby="atalhos-mapa"
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight + - N"
+          onContextMenu={(e) => {
+            e.preventDefault();
+          }}
         >
           <g ref={camada}>
             {/* Dois toques (ou dois cliques) no chão aproximam o mapa naquele ponto. */}
             <g
               onClick={fechar}
               onDoubleClick={(e) => {
-                camera.zoomNoPonteiro(0.5, e.clientX, e.clientY);
+                camera.zoomNoPonteiro(e.shiftKey ? 2 : 0.5, e.clientX, e.clientY);
               }}
             >
               <rect
@@ -208,13 +247,41 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           </g>
         </svg>
 
-        <div className={estilos.hudTitulo}>
-          <h1 className={estilos.hudNome}>Mapa do campus</h1>
-          <p className={estilos.hudDica}>
-            Toque num prédio. Arraste para mover; a roda, a pinça ou dois toques aproximam; dois
-            dedos giram.
+        <p id="atalhos-mapa" className={estilos.somenteLeitor}>
+          Atalhos do mapa: setas movem, mais e menos alteram o zoom, Shift com setas gira e N volta
+          ao norte.
+        </p>
+        {/* O título fica na página mesmo com a ajuda fechada: é o único h1 do mapa. */}
+        {!ajudaVisivel && <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>}
+        {ajudaVisivel && (
+          <div className={estilos.hudTitulo}>
+            <h1 className={estilos.hudNome}>Mapa do campus</h1>
+            <p className={estilos.hudDica}>
+              Toque num prédio. Use dois dedos para mover o mapa; pinça aproxima. No computador,
+              arraste para mover, botão direito para girar e roda para aproximar.
+            </p>
+            <button
+              type="button"
+              className={estilos.fecharAjuda}
+              aria-label="Fechar ajuda do mapa"
+              onClick={() => {
+                setAjudaVisivel(false);
+                try {
+                  localStorage.setItem('mapa-ajuda-fechada', 'sim');
+                } catch {
+                  /* armazenamento indisponível */
+                }
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {avisoToque && (
+          <p className={estilos.avisoToque} role="status">
+            Use dois dedos para mover o mapa
           </p>
-        </div>
+        )}
 
         <ul className={estilos.legenda} aria-label="Legenda das cores">
           {LEGENDA.map((l) => (

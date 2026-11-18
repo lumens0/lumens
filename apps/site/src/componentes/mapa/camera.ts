@@ -104,7 +104,11 @@ export function matrizDaCamada(
  * no DOM, uma vez por quadro, sem passar pelo estado do React: redesenhar o SVG inteiro a cada
  * movimento do dedo era o que travava o mapa. `aoMudar` avisa a visão nova a cada quadro pintado.
  */
-export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
+export function criarCamera(
+  base: Visao,
+  aoMudar: (v: Visao) => void,
+  aoGesto?: (dedos: number) => void,
+) {
   let svg: SVGSVGElement | null = null;
   let camada: SVGGElement | null = null;
   let largura = 0;
@@ -130,6 +134,8 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
   let vx = 0;
   let vy = 0;
   let ultimoMovimento = 0;
+  let modoPonteiro: 'mover' | 'girar' | null = null;
+  let velocidadeGiro = 0;
 
   const reduzir = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -240,6 +246,7 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
   };
 
   const onPointerDown = (e: EventoDePonteiro<SVGSVGElement>) => {
+    if (e.pointerType === 'mouse' && e.button === 2) e.preventDefault();
     parar();
     medirCanto();
     dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -249,15 +256,33 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
       pincou = false;
       vx = 0;
       vy = 0;
+      velocidadeGiro = 0;
       inicio = { x: e.clientX, y: e.clientY };
+      modoPonteiro =
+        e.pointerType === 'mouse' && (e.button === 2 || e.ctrlKey || e.metaKey) ? 'girar' : 'mover';
     }
   };
 
   const onPointerMove = (e: EventoDePonteiro<SVGSVGElement>) => {
     const antes = dedos.get(e.pointerId);
     if (!antes || !svg || largura === 0) return;
+    if (e.pointerType === 'touch' && dedos.size === 1) {
+      const deslocamento = e.clientY - antes.y;
+      if (
+        Math.hypot(e.clientX - (inicio?.x ?? e.clientX), e.clientY - (inicio?.y ?? e.clientY)) >= 4
+      ) {
+        if (!arrastou) aoGesto?.(1);
+        arrastou = true;
+        // Instantânea: o `scroll-behavior: smooth` da página faria cada movimento recomeçar uma
+        // animação curta, e a página andaria menos que o dedo.
+        window.scrollBy({ top: -deslocamento, behavior: 'instant' });
+      }
+      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      return;
+    }
     if (!arrastou && inicio) {
       if (Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) < 4) return;
+      aoGesto?.(dedos.size);
       // Só agora o ponteiro é capturado: antes disso, o clique continua chegando ao prédio.
       arrastou = true;
       svg.setPointerCapture(e.pointerId);
@@ -282,7 +307,14 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
           v = girar(v, giro, delta, px, py);
           giro += delta;
         }
-        mover(limitar(v));
+        // Os dois dedos andando juntos arrastam o mapa: o ponto médio entre eles anda metade do
+        // que o dedo que se moveu andou.
+        const [mx, my] = desgirar(
+          ((e.clientX - antes.x) / 2 / largura) * v.w,
+          ((e.clientY - antes.y) / 2 / altura) * v.h,
+          giro,
+        );
+        mover(limitar({ ...v, x: v.x - mx, y: v.y - my }));
       }
     } else {
       const dx = e.clientX - antes.x;
@@ -292,8 +324,15 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
       // Média móvel da velocidade (px/ms): é com ela que o mapa desliza ao soltar.
       vx = 0.7 * (dx / dt) + 0.3 * vx;
       vy = 0.7 * (dy / dt) + 0.3 * vy;
+      if (modoPonteiro === 'girar') {
+        const delta = (dx / Math.max(1, largura)) * Math.PI * 2;
+        velocidadeGiro = 0.7 * (delta / dt) + 0.3 * velocidadeGiro;
+        giro += delta;
+        mover(vista);
+      } else {
+        mover(deslocada(dx, dy));
+      }
       ultimoMovimento = agora;
-      mover(deslocada(dx, dy));
     }
     dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
   };
@@ -303,7 +342,25 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
     if (dedos.size > 0) return;
     inicio = null;
     const recente = performance.now() - ultimoMovimento < 80;
-    if (arrastou && !pincou && recente && Math.hypot(vx, vy) > 0.15 && !reduzir()) deslizar();
+    if (arrastou && !pincou && recente && !reduzir()) {
+      if (modoPonteiro === 'girar' && Math.abs(velocidadeGiro) > 0.0002) {
+        let antes = performance.now();
+        const passo = (agora: number) => {
+          const dt = Math.min(32, Math.max(0, agora - antes));
+          antes = agora;
+          giro += velocidadeGiro * dt;
+          agendar();
+          velocidadeGiro *= Math.exp(-dt / ATRITO_MS);
+          animacao = Math.abs(velocidadeGiro) > 0.00002 ? requestAnimationFrame(passo) : 0;
+        };
+        deslizarGiro(passo);
+        // Só o arrasto de mover desliza ao soltar: no giro, `vx`/`vy` também andam com o ponteiro.
+      } else if (modoPonteiro === 'mover' && Math.hypot(vx, vy) > 0.15) deslizar();
+    }
+  };
+
+  const deslizarGiro = (passo: (agora: number) => void) => {
+    animacao = requestAnimationFrame(passo);
   };
 
   /** Liga a câmera ao SVG e à camada que se move. Devolve a limpeza. */
@@ -324,20 +381,69 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
       pintar();
     });
     observador.observe(oSvg);
-    // A roda dá zoom onde o ponteiro está, como em qualquer mapa. A pinça do trackpad chega como
-    // roda com Ctrl e passos pequenos, por isso o fator maior.
+    const aoContexto = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    const aoTeclar = (e: KeyboardEvent) => {
+      // Alt+setas, Ctrl/⌘+mais/menos e ⌘+setas são do navegador.
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const passo = Math.max(24, Math.min(80, largura * 0.06));
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        giro = normalizar(giro);
+        irPara(vista, 0);
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        irPara(aproximar(vista, 0.8, 0.5, 0.5, giro));
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        irPara(aproximar(vista, 1.25, 0.5, 0.5, giro));
+      } else if (e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        if (e.shiftKey)
+          irPara(
+            vista,
+            giro +
+              ({ ArrowLeft: -0.08, ArrowRight: 0.08, ArrowUp: -0.08, ArrowDown: 0.08 }[e.key] ?? 0),
+          );
+        else {
+          const [dx, dy] = (
+            {
+              ArrowLeft: [passo, 0],
+              ArrowRight: [-passo, 0],
+              ArrowUp: [0, passo],
+              ArrowDown: [0, -passo],
+            } as Record<string, [number, number]>
+          )[e.key] ?? [0, 0];
+          irPara(deslocada(dx, dy));
+        }
+      }
+    };
+    // Shift+roda gira; trackpad (delta horizontal ou fracionário) faz pan; Ctrl+roda é pinça.
+    // Roda de mouse, mesmo de alta resolução, só tem delta vertical inteiro: sempre dá zoom.
     const roda = (e: WheelEvent) => {
       e.preventDefault();
+      aoGesto?.(0);
       parar();
       medirCanto();
       const { px, py } = naTela(e.clientX, e.clientY);
-      const passo = e.deltaY * (e.ctrlKey || e.metaKey ? 0.01 : 0.0015);
-      mover(limitar(aproximar(vista, Math.exp(passo), px, py, giro)));
+      if (e.shiftKey) {
+        giro += (e.deltaY || e.deltaX) * 0.002;
+        agendar();
+      } else if ((e.ctrlKey || e.metaKey) && e.deltaMode === 0)
+        mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.01), px, py, giro)));
+      else if (e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY)))
+        mover(deslocada(-e.deltaX, -e.deltaY));
+      else mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.0015), px, py, giro)));
     };
     oSvg.addEventListener('wheel', roda, { passive: false });
+    oSvg.addEventListener('contextmenu', aoContexto);
+    oSvg.addEventListener('keydown', aoTeclar);
     return () => {
       observador.disconnect();
       oSvg.removeEventListener('wheel', roda);
+      oSvg.removeEventListener('contextmenu', aoContexto);
+      oSvg.removeEventListener('keydown', aoTeclar);
       parar();
       cancelAnimationFrame(pintura);
       clearTimeout(parado);
@@ -379,6 +485,7 @@ export function criarCamera(base: Visao, aoMudar: (v: Visao) => void) {
     },
     /** Se o último toque virou arraste: o clique que vem no fim dele não conta. */
     arrastou: () => arrastou,
+    estado: () => ({ vista, giro }),
     eventos: { onPointerDown, onPointerMove, onPointerUp: soltar, onPointerCancel: soltar },
   };
 }
