@@ -18,10 +18,10 @@ const ATUALIZADA_EM = '18 de novembro de 2026';
 
 // SCRUM-283: no Telegram a identidade é o chat e o telefone nunca é coletado. O que o bot guarda
 // cifrado é o id do chat (`estudante.telefone_cifrado`), e o HMAC dele é a chave de busca.
-const NO_TELEGRAM = canalAtivo() === 'telegram';
-const DADO_DA_CONVERSA = NO_TELEGRAM ? 'id do seu chat' : 'seu telefone';
 
 export default function Privacidade() {
+  const NO_TELEGRAM = canalAtivo() === 'telegram';
+  const DADO_DA_CONVERSA = NO_TELEGRAM ? 'id do seu chat' : 'seu telefone';
   return (
     <main className={estilos.pagina}>
       <p className={estilos.rotulo}>Atualizada em {ATUALIZADA_EM}</p>

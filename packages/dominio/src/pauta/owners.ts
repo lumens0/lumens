@@ -200,7 +200,7 @@ export async function removerOwnerInativo(
     await registrarEvento(tx, {
       pautaId,
       tipo: 'owner_removido',
-      dados: { papel },
+      dados: { papel, motivo: 'inatividade' },
       origem: 'agendador',
     });
   }

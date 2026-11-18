@@ -33,8 +33,8 @@ export function rotuloEvento(tipo: string): string {
 
 /**
  * SCRUM-345: quem entra ou sai aparece pelo papel ("Corresponsável saiu"). Papel ausente ou
- * desconhecido cai no rótulo genérico. Quem saiu por inatividade ainda não se distingue: o evento
- * público não leva a origem.
+ * desconhecido cai no rótulo genérico. O agendador grava `motivo: 'inatividade'` nos dados (eventos
+ * novos; os antigos aparecem como "saiu").
  */
 export function rotuloDoPapel(tipo: string, dados: Record<string, unknown>): string | undefined {
   if (tipo !== 'owner_entrou' && tipo !== 'owner_removido') return undefined;
@@ -45,9 +45,11 @@ export function rotuloDoPapel(tipo: string, dados: Record<string, unknown>): str
         ? 'responsável'
         : undefined;
   if (papel === undefined) return undefined;
-  return tipo === 'owner_entrou'
-    ? `Novo ${papel}`
-    : `${papel.charAt(0).toUpperCase()}${papel.slice(1)} saiu`;
+  const comMaiuscula = `${papel.charAt(0).toUpperCase()}${papel.slice(1)}`;
+  if (tipo === 'owner_entrou') return `Novo ${papel}`;
+  return dados.motivo === 'inatividade'
+    ? `${comMaiuscula} removido por inatividade`
+    : `${comMaiuscula} saiu`;
 }
 
 function textoDoEvento(tipo: string, dados: Record<string, unknown>): string {
