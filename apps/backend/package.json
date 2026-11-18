@@ -4,9 +4,6 @@
   "private": true,
   "description": "Back-end Node.js: bot (webhook da Meta), agendador e API.",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "scripts": {
     "dev": "tsx --env-file-if-exists=../../.env src/main.ts --dev",
     "env:check": "tsx --env-file-if-exists=../../.env src/main.ts --dev --so-validar",
@@ -23,6 +20,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@lumens/contratos": "workspace:*",
     "@lumens/db": "workspace:*",
     "@lumens/dominio": "workspace:*",

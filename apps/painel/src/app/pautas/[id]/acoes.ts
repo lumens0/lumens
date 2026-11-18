@@ -2,6 +2,8 @@
 
 import {
   aprovarPauta,
+  ajustarMeta as gravarMeta,
+  corrigirBloco as gravarBloco,
   definirCategoria as gravarCategoria,
   marcarUrgencia,
   recusarPauta,
@@ -88,5 +90,46 @@ export async function definirCategoria(formulario: FormData) {
     resultado.motivo === 'pauta_inexistente'
       ? '/fila'
       : `/pautas/${pautaId}?erro=${resultado.motivo}`,
+  );
+}
+
+export async function corrigirBloco(formulario: FormData) {
+  const pautaId = texto(formulario, 'pautaId');
+  const quem = await curadorDaSessao();
+  if (!quem) redirect('/login');
+  if (!UUID.test(pautaId)) redirect('/fila');
+  const blocoId = texto(formulario, 'blocoId');
+  const resultado = await servidor().db.transaction((tx) =>
+    gravarBloco(tx, {
+      pautaId,
+      curadorId: quem.id,
+      blocoId: blocoId || null,
+      motivo: texto(formulario, 'motivo'),
+    }),
+  );
+  redirect(
+    resultado.feito
+      ? `/pautas/${pautaId}?feito=bloco`
+      : `/pautas/${pautaId}?erro=${
+          resultado.motivo === 'motivo_obrigatorio' ? 'motivo_ajuste' : resultado.motivo
+        }`,
+  );
+}
+
+export async function ajustarMeta(formulario: FormData) {
+  const pautaId = texto(formulario, 'pautaId');
+  const quem = await curadorDaSessao();
+  if (!quem) redirect('/login');
+  if (!UUID.test(pautaId)) redirect('/fila');
+  const meta = Number(texto(formulario, 'meta'));
+  const resultado = await servidor().db.transaction((tx) =>
+    gravarMeta(tx, { pautaId, curadorId: quem.id, meta, motivo: texto(formulario, 'motivo') }),
+  );
+  redirect(
+    resultado.feito
+      ? `/pautas/${pautaId}?feito=meta`
+      : `/pautas/${pautaId}?erro=${
+          resultado.motivo === 'motivo_obrigatorio' ? 'motivo_ajuste' : resultado.motivo
+        }`,
   );
 }
