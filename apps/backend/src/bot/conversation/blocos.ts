@@ -87,12 +87,42 @@ export function blocoEscolhido(
   return contem.length === 1 && unico ? { blocoId: unico.id } : undefined;
 }
 
+/**
+ * Os blocos que abrem a lista (só cabem 9): os espaços que todo mundo usa e os institutos mais
+ * citados. Os demais vêm depois, em ordem alfabética, e a pessoa os escolhe digitando o nome ou a
+ * sigla ("ic", "im", "ru"). Slug que não existe no banco é ignorado.
+ */
+export const BLOCOS_EM_DESTAQUE = [
+  'ru',
+  'biblioteca-central',
+  'praca-de-alimentacao',
+  'ic',
+  'im',
+  'ctec',
+  'csau',
+  'bloco-18',
+  'bloco-07',
+] as const;
+
+/** Blocos em destaque primeiro, na ordem acima; o resto segue na ordem em que veio. */
+export function blocosEmOrdemDeLista(blocos: readonly BlocoParaRelato[]): BlocoParaRelato[] {
+  const posicao = (slug: string) => {
+    const i = (BLOCOS_EM_DESTAQUE as readonly string[]).indexOf(slug);
+    return i === -1 ? BLOCOS_EM_DESTAQUE.length : i;
+  };
+  return blocos
+    .map((b, i) => ({ b, i }))
+    .sort((x, y) => posicao(x.b.slug) - posicao(y.b.slug) || x.i - y.i)
+    .map(({ b }) => b);
+}
+
 /** Lista de blocos. Cabem 9 e a linha do campus; com mais, a pessoa pode digitar o nome. */
-export function listaDeBlocos(blocos: readonly BlocoParaRelato[]): MensagemDeLista {
+export function listaDeBlocos(todos: readonly BlocoParaRelato[]): MensagemDeLista {
+  const blocos = blocosEmOrdemDeLista(todos);
   const cabem = blocos.slice(0, 9);
   const corpo =
     cabem.length < blocos.length
-      ? `${BLOCK_QUESTION_TEXT} Se o seu não está na lista, escreva o nome dele.`
+      ? `${BLOCK_QUESTION_TEXT} Se o seu não está na lista, escreva o nome ou a sigla dele.`
       : BLOCK_QUESTION_TEXT;
   return lista({
     corpo,
