@@ -79,7 +79,7 @@ export const INDEPENDENT_TEXT =
   'Os caminhos são independentes: abra um, o outro ou os dois, quando quiser, mesmo antes da meta.';
 export const NEXT_STEP_TEXT = 'O que você quer fazer agora?';
 export const FALABR_TEXT_INTRO =
-  'Este é o texto da manifestação. Copie a próxima mensagem inteira e cole no campo de descrição do Fala.BR:';
+  'Este é o texto pronto da manifestação. Copie só a mensagem que vem logo abaixo, inteira, e cole no campo "Descrição" do Fala.BR:';
 export const FALABR_TEXT_BLOCKED =
   'Não consegui montar um texto sem dado pessoal para esta pauta, e ele não pode ir assim para o Fala.BR (RN08). Fale com a curadoria antes de protocolar.';
 
@@ -105,7 +105,7 @@ export function suspectText(trechos: readonly string[]): string {
 
 export const OPENED_TEXT: Record<TipoEscolhido, string> = {
   falabr:
-    'Caminho Fala.BR aberto ✅\nAgora registre a manifestação em https://falabr.cgu.gov.br. Guarde o número do protocolo: é com ele que a pauta passa a ser cobrada.',
+    'Caminho Fala.BR aberto ✅\nO Fala.BR é o canal oficial do governo federal para registrar a manifestação. Faltam 3 passos:\n1. Copie o texto que mando a seguir.\n2. Entre em https://falabr.cgu.gov.br e cole no campo "Descrição" de uma nova manifestação.\n3. Ao enviar, o Fala.BR dá um número de protocolo. Guarde e mande aqui em *Registrar protocolo*: é com ele que a pauta passa a ser cobrada.',
   comunidade:
     'Caminho comunidade aberto ✅\nA pauta passa a mostrar no site que a comunidade está se mobilizando.',
 };

@@ -44,6 +44,9 @@ describe('sugerirCategoria', () => {
     ['atraso no pagamento da bolsa e do auxilio moradia', 'permanencia'],
     ['sem creche pra quem tem filho', 'permanencia'],
     ['VAZAMENTO NO BANHEIRO!!!', 'infraestrutura'],
+    ['Mais árvores e sombra nas áreas de convivência', 'infraestrutura'],
+    ['Sala de descanso para estudantes da Saúde', 'permanencia'],
+    ['Laboratórios de informática abertos no contraturno', 'tecnologia'],
   ] as const)('texto com termo claro: "%s" → %s', (texto, categoria) => {
     expect(sugerirCategoria(texto)).toBe(categoria);
   });
