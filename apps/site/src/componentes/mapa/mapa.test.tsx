@@ -122,15 +122,46 @@ describe('prédios do OpenStreetMap', () => {
     expect(siglaDe('Biblioteca Central')).toBe('Biblioteca Central');
   });
 
-  it('todo bloco ligado aponta para um prédio que existe no desenho', () => {
-    const ligados = PREDIOS.filter((p) => p.blocos.length > 0).map((p) => p.blocos[0]);
-    expect(ligados.sort()).toEqual([
-      'artes',
+  it('todo slug ligado a um prédio existe no catálogo real de blocos', () => {
+    // Cópia dos slugs de `packages/db/seed/blocos-ufal.ts` (PR 205): trocar pelo import quando ele
+    // entrar na main.
+    const catalogo = [
+      'ic',
+      'im',
+      'if',
+      'iqb',
+      'icbs',
+      'famed',
+      'fanut',
+      'eenf',
+      'foufal',
+      'icf',
+      'ctec',
+      'fau',
+      'fda',
+      'feac',
+      'fale',
+      'fsso',
+      'ics',
+      'ichca',
+      'icat',
+      'igdema',
+      'ip',
+      'cedu',
+      'iefe',
+      'csau',
       'biblioteca-central',
+      'ru',
+      'praca-de-alimentacao',
       'bloco-18',
-      'engenharias',
-      'saude',
-    ]);
+      'bloco-07',
+      'bloco-13',
+      'ginasio',
+    ];
+    const ligados = PREDIOS.flatMap((p) => p.blocos);
+    expect(ligados.length).toBeGreaterThan(15);
+    for (const slug of ligados) expect(catalogo, slug).toContain(slug);
+    expect(new Set(ligados).size).toBe(ligados.length);
   });
 });
 
