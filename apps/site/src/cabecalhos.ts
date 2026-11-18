@@ -1,0 +1,42 @@
+/**
+ * Cabeçalhos de segurança do site na Vercel (SCRUM-377). Os valores comuns são os mesmos do Caddy
+ * (Caddyfile, SCRUM-303), para a VM e a Vercel responderem igual.
+ */
+export type Cabecalho = { key: string; value: string };
+
+/** Fontes, scripts e estilos são do próprio site; o Next injeta scripts e estilos inline. */
+const CSP_DO_SITE = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+export const CABECALHOS_DE_SEGURANCA: Cabecalho[] = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
+  // O site não abre dentro de página nenhuma. `frame-ancestors` não vale em report-only, então
+  // fica numa política própria, aplicada de verdade.
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+  // O resto da política só relata, por causa do mapa e das fontes: vira bloqueio quando o
+  // relatório do navegador (console) vier limpo.
+  { key: 'Content-Security-Policy-Report-Only', value: CSP_DO_SITE },
+];
+
+/**
+ * Cache curto das páginas públicas (SCRUM-379): o Next responde `private, no-store` nas páginas
+ * dinâmicas (a home lê `searchParams`), e no pico do QR Code cada visita chamaria a API. A CDN
+ * guarda por 30 s por URL (o filtro de bloco entra na chave) e serve a cópia antiga por até 60 s
+ * enquanto renova. Os dados mudam em minutos, então uma pauta nova aparece em até 1 minuto.
+ */
+export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=30, stale-while-revalidate=60';
+
+/** Páginas sem sessão que podem ir para a CDN. `/p/*` e `/dados.csv` já têm o cache delas. */
+export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade'];
