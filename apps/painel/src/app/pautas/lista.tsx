@@ -1,7 +1,7 @@
 import { LIMITE_DA_LISTA, type PautaDaCuradoria } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../painel.module.css';
-import { textoDoPrazo } from '../prazo';
+import { SeloDePrazo, SeloDeStatus, SeloUrgente } from './selos';
 import { STATUS } from './status';
 
 /** Lista única de pautas da curadoria, filtrável por situação e título. */
@@ -50,24 +50,16 @@ export function ListaDePautas({
               <h2>
                 <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
               </h2>
-              <p className={estilos.detalhes}>
-                {pauta.urgente && (
-                  <>
-                    <span className={estilos.seloUrgente}>Urgente</span> ·{' '}
-                  </>
+              <p className={estilos.selos}>
+                <SeloDeStatus status={pauta.status} />
+                {pauta.status === 'em_curadoria' && (
+                  <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
                 )}
-                {pauta.bloco ?? 'Campus inteiro'} · {STATUS[pauta.status]} · {pauta.apoios} de{' '}
-                {pauta.meta} apoios
+                {pauta.urgente && <SeloUrgente />}
               </p>
-              {pauta.status === 'em_curadoria' && (
-                <p
-                  className={[estilos.detalhes, pauta.restanteMs < 0 ? estilos.atrasada : ''].join(
-                    ' ',
-                  )}
-                >
-                  Prazo: {textoDoPrazo(pauta.restanteMs)}
-                </p>
-              )}
+              <p className={estilos.detalhes}>
+                {pauta.bloco ?? 'Campus inteiro'} · {pauta.apoios} de {pauta.meta} apoios
+              </p>
             </li>
           ))}
         </ul>
