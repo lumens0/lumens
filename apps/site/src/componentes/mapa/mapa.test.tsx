@@ -171,6 +171,18 @@ describe('lugares que faltavam no mapa (SCRUM-284)', () => {
     );
   });
 
+  it('a Reitoria (relação multipolygon do OSM) aparece com pátio e nome', () => {
+    const reitoria = PREDIOS.find((p) => p.nome === 'Reitoria Universitária');
+    expect(reitoria?.sigla).toBe('Reitoria');
+    // Dois contornos: o de fora e o pátio.
+    expect(reitoria?.d.match(/M/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('a EENF fica no prédio ao norte da FANUT, e não no do CSAU', () => {
+    expect(PREDIOS.find((p) => p.blocos.includes('eenf'))?.id).toBe(404594001);
+    expect(PREDIOS.find((p) => p.id === 64974284)?.blocos).not.toContain('eenf');
+  });
+
   it('o COS aparece com nome e sigla', () => {
     const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
     expect(cos?.sigla).toBe('COS B');
