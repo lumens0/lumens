@@ -59,7 +59,7 @@ export const NEED_TEXT_FOR_FILE = 'Recebi o arquivo, mas agora preciso de uma re
 const PHOTO_AS_FILE_STEPS: readonly Step[] = ['NEW_ASK_PHOTO', 'SUPPORT_ASK_PHOTO'];
 
 export const PHOTO_AS_FILE_TEXT =
-  "Recebi um arquivo, mas aqui preciso de uma foto. Mande a imagem como foto (não como documento), ou responda 'pular'.";
+  'Recebi um arquivo, mas aqui preciso de uma foto. Mande a imagem como foto (não como documento), ou responda *pular*.';
 
 /** O único passo que recebe arquivo é o do PDF da resposta oficial (3.6). */
 const STEPS_WITH_DOCUMENT: readonly Step[] = [

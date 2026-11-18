@@ -24,6 +24,34 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Áreas abertas (SCRUM-284): cada uso com a sua cor, sem competir com os prédios acesos. */
+.area {
+  stroke: rgb(255 255 255 / 14%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.pista {
+  fill: #5a3b2c;
+}
+
+.quadra {
+  fill: #1f5457;
+}
+
+.parque {
+  fill: #1d4a3c;
+}
+
+.agua {
+  fill: #234d8c;
+}
+
+.estacionamento {
+  fill: #20296a;
+  stroke-dasharray: 4 3;
+}
+
 .via,
 .caminho {
   fill: none;
@@ -607,4 +635,13 @@
   .abaixo {
     padding: 8px 16px 48px;
   }
+}
+
+/* Ponto de um lugar que o OSM não tem: do mesmo tamanho na tela em qualquer zoom. */
+.pontoLocal {
+  r: calc(var(--k) * 6px);
+  fill: #ffc23d;
+  stroke: #0f1330;
+  stroke-width: calc(var(--k) * 2px);
+  pointer-events: none;
 }

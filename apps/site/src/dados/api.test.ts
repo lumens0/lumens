@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buscarAtividade, buscarBlocos, buscarConquistas, buscarPauta, buscarPautas } from './api';
+import {
+  buscarFoto,
+  buscarAtividade,
+  buscarBlocos,
+  buscarConquistas,
+  buscarPauta,
+  buscarPautas,
+} from './api';
 
 const responder = (status: number, corpo: unknown = {}) =>
   vi.fn(() => Promise.resolve(new Response(JSON.stringify(corpo), { status })));
@@ -218,5 +225,31 @@ describe('buscarConquistas e buscarAtividade', () => {
     vi.stubGlobal('fetch', responder(500));
     await expect(buscarConquistas()).rejects.toThrow('500');
     await expect(buscarAtividade(1)).rejects.toThrow('500');
+  });
+});
+
+describe('buscarFoto', () => {
+  beforeEach(() => vi.stubEnv('LUMENS_API_URL', 'http://api.teste/'));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('200 devolve os bytes e o tipo; 404 (pendente, recusada ou inexistente) devolve null', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('img', { headers: { 'content-type': 'image/jpeg' } }))
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }));
+    vi.stubGlobal('fetch', fetch);
+    const foto = await buscarFoto('2026', '11', 'a.jpg');
+    expect(foto?.tipo).toBe('image/jpeg');
+    expect(Buffer.from(foto?.bytes ?? new ArrayBuffer(0)).toString()).toBe('img');
+    expect(fetch).toHaveBeenCalledWith('http://api.teste/fotos/2026/11/a.jpg', expect.anything());
+    expect(await buscarFoto('2026', '11', 'b.jpg')).toBeNull();
+  });
+
+  it('erro 500 da API sobe', async () => {
+    vi.stubGlobal('fetch', responder(500));
+    await expect(buscarFoto('2026', '11', 'c.jpg')).rejects.toThrow('500');
   });
 });

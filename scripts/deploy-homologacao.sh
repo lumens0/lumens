@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy da homologação (SCRUM-93). Roda DENTRO da instância EC2, chamado por SSH pelo
+# Deploy da homologação (SCRUM-93). Roda DENTRO da VM do Azure, chamado por SSH pelo
 # job `deploy-backend` do CI — ou na mão, se precisar.
 #
 # A ordem aqui é o critério de aceite do ticket: migração primeiro, em comando separado.

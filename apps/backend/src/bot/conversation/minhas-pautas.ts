@@ -63,7 +63,7 @@ import { normalize } from './texto';
 type TipoEscolhido = 'falabr' | 'comunidade';
 
 export const NOT_OWNER_TEXT =
-  'Você ainda não cuida de nenhuma pauta aprovada. Pautas que você criou aparecem aqui depois que a curadoria aprova. Para criar uma, escolha 2 no menu.';
+  'Você ainda não cuida de nenhuma pauta aprovada. Pautas que você criou aparecem aqui depois que a curadoria aprova. Para criar uma, mande *menu* e escolha *Nova pauta*.';
 export const PICK_PAUTA_TEXT = 'De qual pauta você quer ver os caminhos?';
 export const PAUTA_NOT_FOUND_TEXT = 'Não achei essa pauta. Escolha uma na lista.';
 export const PICK_PATH_AGAIN_TEXT = 'Escolha um caminho nos botões ou responda *menu*.';
@@ -71,7 +71,7 @@ export const LOST_OWNER_TEXT =
   'Você não é mais responsável por esta pauta, então não pode abrir caminhos nela.';
 export const PAUTA_CLOSED_TEXT = 'Esta pauta não aceita caminhos novos agora.';
 export const DATA_LOST_TEXT =
-  'Não consegui recuperar a pauta escolhida. Escolha 4 no menu de novo.';
+  'Não consegui recuperar a pauta escolhida. Mande *menu* e escolha *Minhas pautas* de novo.';
 export const ALL_OPEN_TEXT = 'Os dois caminhos já estão abertos nesta pauta.';
 export const PROPOSAL_ALREADY_OPEN_TEXT =
   'Esta pauta já tem uma proposta aberta. Quando ela for feita, toque em "Proposta feita".';
@@ -156,7 +156,10 @@ function dataDoPrazo(prazo: string): string {
 
 function linhaDoCaminho(caminho: CaminhoDaPauta): string {
   const aberto = `aberto em ${dataBR.format(caminho.abertoEm)}`;
-  if (caminho.protocolo === null) return `${aberto}, ainda sem protocolo`;
+  // SCRUM-345: só o Fala.BR tem protocolo; os outros caminhos não ganham o "ainda sem protocolo".
+  if (caminho.protocolo === null) {
+    return caminho.tipo === 'falabr' ? `${aberto}, ainda sem protocolo` : aberto;
+  }
   const prazo = caminho.prazo === null ? '' : `, prazo ${dataDoPrazo(caminho.prazo)}`;
   return `${aberto}, protocolo ${caminho.protocolo}${prazo}`;
 }

@@ -1,8 +1,10 @@
+import { blocosSeed } from '../../../../../packages/db/seed/data';
+import { existsSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
-import { PREDIOS, siglaDe } from './predios';
+import { AREAS, PONTOS, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
@@ -122,15 +124,92 @@ describe('prédios do OpenStreetMap', () => {
     expect(siglaDe('Biblioteca Central')).toBe('Biblioteca Central');
   });
 
-  it('todo bloco ligado aponta para um prédio que existe no desenho', () => {
-    const ligados = PREDIOS.filter((p) => p.blocos.length > 0).map((p) => p.blocos[0]);
-    expect(ligados.sort()).toEqual([
-      'artes',
-      'biblioteca-central',
-      'bloco-18',
-      'engenharias',
-      'saude',
-    ]);
+  it('todo bloco do seed de desenvolvimento que tem prédio continua achando o prédio', () => {
+    const comPredio = ['bloco-18', 'biblioteca-central', 'engenharias', 'saude', 'artes'];
+    const slugsDoSeed = blocosSeed.map((b) => b.slug);
+    for (const slug of comPredio) {
+      expect(slugsDoSeed, slug).toContain(slug);
+      expect(
+        PREDIOS.some((p) => p.blocos.includes(slug)),
+        `bloco ${slug} sem prédio`,
+      ).toBe(true);
+    }
+    // Os que o seed cria e o mapa não conhece ficam só na lista, sem quebrar nada.
+    expect(slugsDoSeed).toContain('residencia-universitaria');
+  });
+
+  // O catálogo real (SCRUM-292) está no PR do painel; enquanto não chega à main, o teste se pula.
+  const catalogo = new URL('../../../../../packages/db/seed/blocos-ufal.ts', import.meta.url);
+  it.skipIf(!existsSync(catalogo))(
+    'todo slug ligado existe no seed ou no catálogo real, e todo bloco do catálogo tem prédio',
+    async () => {
+      const { blocosUfal } = (await import(/* @vite-ignore */ catalogo.href)) as {
+        blocosUfal: readonly { slug: string }[];
+      };
+      const reais = blocosUfal.map((b) => b.slug);
+      const conhecidos = new Set([...reais, ...blocosSeed.map((b) => b.slug)]);
+      const ligados = PREDIOS.flatMap((p) => p.blocos);
+      for (const slug of ligados) expect(conhecidos, slug).toContain(slug);
+      for (const slug of reais) expect(ligados, slug).toContain(slug);
+    },
+  );
+});
+
+describe('lugares que faltavam no mapa (SCRUM-284)', () => {
+  it('a EDGE Academy é um ponto junto à pista de atletismo (posição do Google Maps)', () => {
+    const edge = PONTOS.find((p) => p.nome === 'EDGE Academy');
+    expect(edge).toBeDefined();
+    const pista = AREAS.filter((a) => a.tipo === 'pista').map((a) => a.caixa);
+    const perto = pista.some(([x = 0, y = 0, w = 0, h = 0]) => {
+      const dx = Math.max(x - (edge?.x ?? 0), 0, (edge?.x ?? 0) - (x + w));
+      const dy = Math.max(y - (edge?.y ?? 0), 0, (edge?.y ?? 0) - (y + h));
+      return Math.hypot(dx, dy) < 40;
+    });
+    expect(perto).toBe(true);
+    expect(renderToStaticMarkup(<MapaDoCampus marcadores={[]} />)).toContain(
+      '<title>EDGE Academy</title>',
+    );
+  });
+
+  it('o COS aparece com nome e sigla', () => {
+    const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
+    expect(cos?.sigla).toBe('COS B');
+    expect(PREDIOS.find((p) => p.id === 493988335)).toMatchObject({ sigla: 'COS A' });
+  });
+
+  it('a pista de atletismo aparece com nome, uma vez só, sem rótulo nas outras raias', () => {
+    const pistas = AREAS.filter((a) => a.tipo === 'pista');
+    expect(pistas.length).toBeGreaterThan(1);
+    expect(pistas.filter((a) => a.nome === 'Pista de atletismo')).toHaveLength(1);
+    expect(pistas.every((a) => a.nome === '' || a.nome === 'Pista de atletismo')).toBe(true);
+  });
+
+  it('quadras, parques e estacionamentos do OSM entram como áreas abertas', () => {
+    const tipos = new Set(AREAS.map((a) => a.tipo));
+    for (const tipo of ['pista', 'quadra', 'parque', 'estacionamento'] as const) {
+      expect(tipos).toContain(tipo);
+    }
+    for (const area of AREAS) expect(area.d).toMatch(/^M[\d. LZ-]+Z$/);
+  });
+
+  it('o mapa desenha as áreas abertas, e o nome da pista vira dica do desenho', () => {
+    const html = renderToStaticMarkup(<MapaDoCampus marcadores={[]} />);
+    expect(html).toContain('<title>Pista de atletismo</title>');
+    expect(html.match(/class="[^"]*area[^"]*"/g)?.length).toBe(AREAS.length);
+  });
+
+  it('prédio sem nome no OSM usa o nome local confirmado; os outros ficam como "sem nome"', () => {
+    expect(PREDIOS.find((p) => p.id === 404591641)).toMatchObject({
+      nome: 'Centro de Interesse Comunitário',
+      sigla: 'CIC',
+    });
+    const semNome = PREDIOS.filter((p) => p.nome === 'Prédio sem nome no mapa');
+    expect(semNome.every((p) => p.sigla === '')).toBe(true);
+  });
+
+  it('blocos do ICBS ganham a sigla do instituto antes do número', () => {
+    expect(siglaDe('Bloco 05 do ICBS')).toBe('ICBS 05');
+    expect(PREDIOS.find((p) => p.nome === 'Bloco 13')?.sigla).toBe('Bloco 13');
   });
 });
 

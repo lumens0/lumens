@@ -125,14 +125,14 @@ export function Pauta({
       )}
       {feito === 'recusada' && (
         <p className={estilos.aviso} role="status">
-          Pauta recusada. Quem criou recebe o motivo pelo WhatsApp.
+          Pauta recusada. Quem criou recebe o motivo pelo bot.
         </p>
       )}
       {avisados !== undefined && (
         <p className={estilos.aviso} role="status">
           Promessa registrada.{' '}
           {avisados === 1 ? '1 apoiador vai' : `${String(avisados)} apoiadores vão`} receber o aviso
-          da resposta pelo WhatsApp.
+          da resposta pelo bot.
         </p>
       )}
       {categoriaSalva && <p role="status">Categoria atualizada.</p>}
@@ -359,7 +359,7 @@ export function Pauta({
             <summary className={estilos.botaoSecundario}>Recusar pauta</summary>
             <form action={recusar} className={estilos.formulario}>
               <input type="hidden" name="pautaId" value={pauta.id} />
-              <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
+              <label htmlFor="motivo">Motivo (vai pelo bot para quem criou a pauta)</label>
               <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
               <button className={estilos.botaoPerigo} type="submit">
                 Confirmar recusa

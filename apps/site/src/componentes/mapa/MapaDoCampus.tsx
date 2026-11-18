@@ -11,7 +11,10 @@ import {
   CAMINHOS,
   CONTORNO,
   LARGURA_DO_CAMPUS,
+  AREAS,
+  PONTOS,
   PREDIOS,
+  type Area,
   type Predio,
 } from './predios';
 import { enquadrar } from './MapaResumo';
@@ -44,6 +47,21 @@ function Sigla({ predio }: { predio: Predio }) {
   );
 }
 
+/** Rótulo de uma área aberta (a pista de atletismo, o estádio...): no centro dela. */
+function SiglaDaArea({ area }: { area: Area }) {
+  const [x = 0, y = 0, largura = 0, altura = 0] = area.caixa;
+  return (
+    <g
+      transform={`translate(${String(x + largura / 2)} ${String(y + altura / 2)})`}
+      aria-hidden="true"
+    >
+      <text dy="0.35em" className={estilos.sigla}>
+        {area.nome}
+      </text>
+    </g>
+  );
+}
+
 /**
  * Retângulo invisível em volta do prédio: no celular um prédio tem poucos pixels, e o vão entre
  * duas alas (o Bloco 18 tem duas) contaria como chão. A folga de toque é o contorno, no CSS.
@@ -71,6 +89,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const geral = useMemo(() => enquadrar([...porPredio.keys()]), [porPredio]);
   // Com o campus inteiro na tela, os nomes se amontoam; aparecem quando o mapa aproxima.
   const [comNomes, setComNomes] = useState(false);
+  // Bem de perto cabem todos os nomes; antes disso, só os dos prédios com bloco (sem se atropelarem).
+  const [todosOsNomes, setTodosOsNomes] = useState(false);
   const [ajudaVisivel, setAjudaVisivel] = useState(true);
   const [avisoToque, setAvisoToque] = useState(false);
   useEffect(() => {
@@ -90,6 +110,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       base,
       (v) => {
         setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
+        setTodosOsNomes(v.w < LARGURA_DO_CAMPUS * 0.12);
       },
       (dedos) => {
         if (!ajudaFechada) {
@@ -186,6 +207,12 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 className={estilos.chao}
               />
               <path d={CONTORNO} className={estilos.terreno} />
+              {/* As áreas abertas ficam sob as vias e os prédios: são chão com uso (SCRUM-284). */}
+              {AREAS.map((a) => (
+                <path key={a.id} d={a.d} className={[estilos.area, estilos[a.tipo]].join(' ')}>
+                  {a.nome && <title>{a.nome}</title>}
+                </path>
+              ))}
               {CAMINHOS.map((d) => (
                 <path key={d} d={d} className={estilos.via} />
               ))}
@@ -236,13 +263,35 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 </g>
               );
             })}
+            {/* Lugares que o OSM não tem (EDGE Academy): um ponto, com o nome ao aproximar. */}
+            {PONTOS.map((p) => (
+              <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
+                <title>{p.nome}</title>
+                <circle className={estilos.pontoLocal} />
+              </g>
+            ))}
             {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
             <g aria-hidden="true">
               {PREDIOS.filter(
-                (p) => p.sigla && (porPredio.has(p.id) || comNomes || sel?.predio?.id === p.id),
+                (p) =>
+                  p.sigla &&
+                  (porPredio.has(p.id) ||
+                    todosOsNomes ||
+                    (comNomes && p.blocos.length > 0) ||
+                    sel?.predio?.id === p.id),
               ).map((p) => (
                 <Sigla key={p.id} predio={p} />
               ))}
+              {comNomes &&
+                PONTOS.map((p) => (
+                  <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
+                    <text dy="-0.9em" className={estilos.sigla}>
+                      {p.nome}
+                    </text>
+                  </g>
+                ))}
+              {comNomes &&
+                AREAS.filter((a) => a.nome).map((a) => <SiglaDaArea key={a.id} area={a} />)}
             </g>
           </g>
         </svg>
