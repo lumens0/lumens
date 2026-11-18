@@ -100,7 +100,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   // Bem de perto cabem todos os nomes; antes disso, só os dos prédios com bloco (sem se atropelarem).
   const [todosOsNomes, setTodosOsNomes] = useState(false);
   const [ajudaVisivel, setAjudaVisivel] = useState(true);
-  const [avisoToque, setAvisoToque] = useState(false);
   useEffect(() => {
     try {
       if (localStorage.getItem('mapa-ajuda-fechada') === 'sim') setAjudaVisivel(false);
@@ -162,7 +161,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const [camera] = useState(() => {
     // O primeiro gesto fecha a ajuda; os seguintes não regravam nada.
     let ajudaFechada = false;
-    let avisoAte = 0;
     return criarCamera(
       base,
       (v, k, giro) => {
@@ -171,22 +169,14 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
         escala.current = { k, giro };
         decidirNomes();
       },
-      (dedos) => {
-        if (!ajudaFechada) {
-          ajudaFechada = true;
-          setAjudaVisivel(false);
-          try {
-            localStorage.setItem('mapa-ajuda-fechada', 'sim');
-          } catch {
-            // O mapa continua utilizável sem armazenamento local.
-          }
-        }
-        if (dedos === 1 && Date.now() > avisoAte && matchMedia('(max-width: 720px)').matches) {
-          avisoAte = Date.now() + 1800;
-          setAvisoToque(true);
-          window.setTimeout(() => {
-            setAvisoToque(false);
-          }, 1800);
+      () => {
+        if (ajudaFechada) return;
+        ajudaFechada = true;
+        setAjudaVisivel(false);
+        try {
+          localStorage.setItem('mapa-ajuda-fechada', 'sim');
+        } catch {
+          // O mapa continua utilizável sem armazenamento local.
         }
       },
     );
@@ -354,8 +344,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           <div className={estilos.hudTitulo}>
             <h1 className={estilos.hudNome}>Mapa do campus</h1>
             <p className={estilos.hudDica}>
-              Toque num prédio. Use dois dedos para mover o mapa; pinça aproxima. No computador,
-              arraste para mover, botão direito para girar e roda para aproximar.
+              Toque num prédio e arraste para mover o mapa. Com dois dedos, aproxime e gire. No
+              computador, o botão direito gira e a roda aproxima.
             </p>
             <button
               type="button"
@@ -373,11 +363,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
               ×
             </button>
           </div>
-        )}
-        {avisoToque && (
-          <p className={estilos.avisoToque} role="status">
-            Use dois dedos para mover o mapa
-          </p>
         )}
 
         <ul className={estilos.legenda} aria-label="Legenda das cores">
