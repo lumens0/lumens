@@ -11,6 +11,7 @@ export const STEPS = [
   'NEW_ASK_TITLE',
   'NEW_ASK_PLACE',
   'NEW_PICK_SIMILAR',
+  'NEW_ASK_CATEGORY',
   'NEW_ASK_DESCRIPTION',
   'NEW_ASK_PHOTO',
   'OWNER_PICK_PAUTA',
@@ -44,6 +45,7 @@ export const Step = {
   NEW_ASK_TITLE: 'NEW_ASK_TITLE',
   NEW_ASK_PLACE: 'NEW_ASK_PLACE',
   NEW_PICK_SIMILAR: 'NEW_PICK_SIMILAR',
+  NEW_ASK_CATEGORY: 'NEW_ASK_CATEGORY',
   NEW_ASK_DESCRIPTION: 'NEW_ASK_DESCRIPTION',
   NEW_ASK_PHOTO: 'NEW_ASK_PHOTO',
   OWNER_PICK_PAUTA: 'OWNER_PICK_PAUTA',
@@ -96,19 +98,21 @@ export const TRANSITIONS: Record<Step, readonly Step[]> = {
     'REPORT_PICK_SIMILAR',
     'SUPPORT_ASK_REPORT',
   ],
-  // A pauta nova pula o local e a descrição quando vem do relato (2.5), e cada passo repete a
-  // pergunta quando a resposta não serve (título longo, bloco que não existe...).
-  NEW_ASK_TITLE: ['NEW_ASK_PLACE', 'NEW_ASK_DESCRIPTION', 'NEW_ASK_PHOTO', 'NEW_ASK_TITLE'],
-  // SCRUM-346: com pauta parecida, o bloco leva à lista antes da descrição. Dela, "É outro"
-  // segue para a descrição e "É essa" vai ao apoio (2.7), como no relato.
-  NEW_ASK_PLACE: ['NEW_ASK_DESCRIPTION', 'NEW_PICK_SIMILAR', 'NEW_ASK_PLACE'],
+  // A pauta nova pula o local quando vem do relato (2.5), e cada passo repete a pergunta quando a
+  // resposta não serve (título longo, bloco ou categoria que não existe...).
+  NEW_ASK_TITLE: ['NEW_ASK_PLACE', 'NEW_ASK_CATEGORY', 'NEW_ASK_TITLE'],
+  // SCRUM-346: com pauta parecida, o bloco leva à lista antes da categoria. Dela, "É outro"
+  // segue para a categoria e "É essa" vai ao apoio (2.7), como no relato.
+  NEW_ASK_PLACE: ['NEW_ASK_CATEGORY', 'NEW_PICK_SIMILAR', 'NEW_ASK_PLACE'],
   NEW_PICK_SIMILAR: [
-    'NEW_ASK_DESCRIPTION',
+    'NEW_ASK_CATEGORY',
     'NEW_PICK_SIMILAR',
     'SUPPORT_ASK_REPORT',
     'VERIFY_ASK_EMAIL',
     'MENU',
   ],
+  // SCRUM-357: depois da categoria vem a descrição, ou a foto quando o relato da 2.5 já a cobre.
+  NEW_ASK_CATEGORY: ['NEW_ASK_DESCRIPTION', 'NEW_ASK_PHOTO', 'NEW_ASK_CATEGORY'],
   NEW_ASK_DESCRIPTION: ['NEW_ASK_PHOTO', 'NEW_ASK_DESCRIPTION'],
   NEW_ASK_PHOTO: ['MENU', 'NEW_ASK_PHOTO'],
   // 3.3: "Minhas pautas". Com uma pauta só, o menu vai direto aos caminhos. Os caminhos ficam no

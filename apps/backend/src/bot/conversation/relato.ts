@@ -17,8 +17,9 @@ import { eq, pautas, type Db } from '@lumens/db';
 import { z } from 'zod';
 import { entrarNoApoio } from './apoio';
 import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
+import { listaDeCategorias } from './categorias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
-import { DESCRIPTION_QUESTION_TEXT, NEW_SIMILAR_LIST_TEXT, entrarNaPautaNova } from './nova-pauta';
+import { NEW_SIMILAR_LIST_TEXT, entrarNaPautaNova } from './nova-pauta';
 import {
   escolheuOutro,
   listaDeParecidas,
@@ -167,9 +168,9 @@ export const newPickSimilar: StepHandler = async (ctx) => {
 
   if (parecidas.length === 0 || escolheuOutro(input.text)) {
     return {
-      next: 'NEW_ASK_DESCRIPTION',
+      next: 'NEW_ASK_CATEGORY',
       data: { parecidas: undefined },
-      replies: [DESCRIPTION_QUESTION_TEXT],
+      replies: [listaDeCategorias()],
     };
   }
 
@@ -190,9 +191,9 @@ export const newPickSimilar: StepHandler = async (ctx) => {
     .where(eq(pautas.id, escolhida.id));
   if (pauta === undefined || SEM_APOIO.has(pauta.status)) {
     return {
-      next: 'NEW_ASK_DESCRIPTION',
+      next: 'NEW_ASK_CATEGORY',
       data: { parecidas: undefined },
-      replies: [NEW_SUPPORT_FAILED_TEXT, DESCRIPTION_QUESTION_TEXT],
+      replies: [NEW_SUPPORT_FAILED_TEXT, listaDeCategorias()],
     };
   }
 
