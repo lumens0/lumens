@@ -33,6 +33,7 @@ import {
   resumo,
   titleTooLongText,
 } from './nova-pauta';
+import { CATEGORY_NOT_FOUND_TEXT, CATEGORY_QUESTION_TEXT } from './categorias';
 import { hashPhone } from './phone';
 import {
   BLOCK_NOT_FOUND_TEXT,
@@ -160,7 +161,10 @@ describe('pauta nova pelo menu', () => {
     ]);
     expect(await passo()).toBe('NEW_ASK_PLACE');
 
-    expect(await send(`bloco:${bloco18}`)).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    const categorias = listaEm(await send(`bloco:${bloco18}`));
+    expect(categorias.corpo).toBe(CATEGORY_QUESTION_TEXT);
+    expect(await passo()).toBe('NEW_ASK_CATEGORY');
+    expect(await send('categoria:infraestrutura')).toEqual([DESCRIPTION_QUESTION_TEXT]);
     expect(await send(DESCRICAO)).toEqual([PHOTO_ASK_TEXT]);
 
     const respostas = await send('pular');
@@ -194,7 +198,7 @@ describe('pauta nova pelo menu', () => {
   });
 
   it('com foto, guarda a chave no primeiro relato e o resumo diz que tem foto', async () => {
-    for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra', DESCRICAO]) await send(t);
     const respostas = await sendFoto(fotos);
     expect(fotosPedidas).toEqual([{ id: 'midia-1', mimeType: 'image/jpeg' }]);
     expect(respostas[0]).toBe(PHOTO_RECEIVED_TEXT);
@@ -209,7 +213,7 @@ describe('pauta nova pelo menu', () => {
   it.each(['formato', 'tamanho', 'invalida', 'indisponivel', 'armazenamento'] as const)(
     'foto recusada (%s): avisa, continua no passo da foto e não cria pauta',
     async (motivo) => {
-      for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+      for (const t of ['Bebedouro', 'não sei', 'outra', DESCRICAO]) await send(t);
       resultadoDaFoto = { ok: false, motivo };
       expect(await sendFoto(fotos)).toEqual([photoRefusedText(motivo)]);
       expect(await passo()).toBe('NEW_ASK_PHOTO');
@@ -228,12 +232,12 @@ describe('pauta nova pelo menu', () => {
   });
 
   it('sem serviço de fotos configurado, a foto é recusada como indisponível', async () => {
-    for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra', DESCRICAO]) await send(t);
     expect(await sendFoto()).toEqual([photoRefusedText('indisponivel')]);
   });
 
   it('"não sei" é o campus inteiro, com a meta máxima', async () => {
-    for (const t of ['Fila do RU', 'não sei', 'Fila gigante no almoço.']) await send(t);
+    for (const t of ['Fila do RU', 'não sei', 'outra', 'Fila gigante no almoço.']) await send(t);
     const texto = resumoEm(await send('pular'));
     expect(texto).toContain('*Local:* Todo o campus');
     expect(texto).toContain('*Meta:* 300 apoios');
@@ -254,32 +258,33 @@ describe('pauta nova pelo menu', () => {
     expect(respostas[0]).toBe(BLOCK_NOT_FOUND_TEXT);
     listaEm(respostas);
     expect(await passo()).toBe('NEW_ASK_PLACE');
-    expect(await send('artes')).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    expect(listaEm(await send('artes')).corpo).toBe(CATEGORY_QUESTION_TEXT);
     expect(await dados()).toMatchObject({ blocoId: artes });
   });
 
   it('descrição em branco ou longa demais pergunta de novo', async () => {
-    for (const t of ['Bebedouro', 'não sei']) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra']) await send(t);
     expect(await send(' ')).toEqual([DESCRIPTION_EMPTY_TEXT]);
     expect(await send('x'.repeat(2001))).toEqual([descriptionTooLongText(2001)]);
     expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
   });
 
   it('no passo da foto, texto qualquer pede a foto de novo', async () => {
-    for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra', DESCRICAO]) await send(t);
     expect(await send('já mandei')).toEqual([PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('NEW_ASK_PHOTO');
   });
 
   it('título e descrição ficam cifrados na conversa, nunca em claro', async () => {
-    for (const t of ['Título secreto da pauta', 'não sei', 'Descrição secreta']) await send(t);
+    for (const t of ['Título secreto da pauta', 'não sei', 'outra', 'Descrição secreta'])
+      await send(t);
     const linhas = JSON.stringify(await db.select().from(conversas));
     expect(linhas).not.toContain('Título secreto');
     expect(linhas).not.toContain('Descrição secreta');
   });
 
   it('estudante que deixa de ser verificado no meio não cria pauta', async () => {
-    for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra', DESCRICAO]) await send(t);
     await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, estudanteId));
     expect(await send('pular')).toEqual([NOT_VERIFIED_AT_END_TEXT, MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
@@ -292,14 +297,14 @@ describe('pauta nova pelo menu', () => {
       .values({ slug: 'extra', nome: 'Bloco Extra', baseEstudantes: 100 })
       .returning({ id: blocos.id });
     if (!extra) throw new Error('bloco não inserido');
-    for (const t of ['Bebedouro', `bloco:${extra.id}`, DESCRICAO]) await send(t);
+    for (const t of ['Bebedouro', `bloco:${extra.id}`, 'outra', DESCRICAO]) await send(t);
     await db.delete(blocos).where(eq(blocos.id, extra.id));
     expect(await send('pular')).toEqual([BLOCK_GONE_TEXT, MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
   });
 
   it("'cancelar' no meio não cria pauta e limpa as respostas", async () => {
-    for (const t of ['Bebedouro', 'não sei']) await send(t);
+    for (const t of ['Bebedouro', 'não sei', 'outra']) await send(t);
     await send('cancelar');
     expect(await dados()).toEqual({});
     expect(await todasAsPautas()).toEqual([]);
@@ -345,7 +350,8 @@ describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () =>
 
   it('"É outro problema" segue o fluxo normal e cria a pauta com o título e o bloco', async () => {
     await send(`bloco:${bloco18}`);
-    expect(await send(OTHER_ROW_ID)).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    expect(listaEm(await send(OTHER_ROW_ID)).corpo).toBe(CATEGORY_QUESTION_TEXT);
+    expect(await send('categoria:seguranca')).toEqual([DESCRIPTION_QUESTION_TEXT]);
     await send(DESCRICAO);
     expect(resumoEm(await send('pular'))).toContain(`*Título:* ${TITULO}`);
 
@@ -375,8 +381,9 @@ describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () =>
 
     expect(await send(`pauta:${aberta}`)).toEqual([
       NEW_SUPPORT_FAILED_TEXT,
-      DESCRIPTION_QUESTION_TEXT,
+      expect.objectContaining({ tipo: 'lista', corpo: CATEGORY_QUESTION_TEXT }),
     ]);
+    await send('outra');
     await send(DESCRICAO);
     expect(resumoEm(await send('pular'))).toContain(`*Título:* ${TITULO}`);
     expect(await db.select().from(apoios)).toEqual([]);
@@ -384,7 +391,7 @@ describe('pauta nova pelo menu com pauta parecida já aberta (SCRUM-346)', () =>
 
   it('no canal só de texto, aceita o número da pauta e "É outro problema" escrito', async () => {
     await send(`bloco:${bloco18}`);
-    expect(await send('É outro problema')).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    expect(listaEm(await send('É outro problema')).corpo).toBe(CATEGORY_QUESTION_TEXT);
 
     await send('cancelar');
     await send('2');
@@ -426,15 +433,23 @@ describe('pauta nova vinda do relato (2.5)', () => {
   it('pula local e descrição: o relato vira a descrição e o primeiro relato', async () => {
     await send(RELATO);
     expect(await send(OTHER_ROW_ID)).toEqual([NEW_FROM_REPORT_TEXT, NEW_TITLE_TEXT]);
-    expect(await send('Bebedouro do Bloco 18')).toEqual([
+    expect(listaEm(await send('Bebedouro do Bloco 18')).corpo).toBe(CATEGORY_QUESTION_TEXT);
+    expect(await passo()).toBe('NEW_ASK_CATEGORY');
+    expect(await send('categoria:infraestrutura')).toEqual([
       FROM_REPORT_DESCRIPTION_TEXT,
       PHOTO_ASK_TEXT,
     ]);
     expect(await passo()).toBe('NEW_ASK_PHOTO');
 
-    expect(resumoEm(await send('pular'))).toContain('*Local:* Bloco 18');
+    const resumoDoRelato = resumoEm(await send('pular'));
+    expect(resumoDoRelato).toContain('*Local:* Bloco 18');
+    expect(resumoDoRelato).toContain('*Categoria:* Infraestrutura');
     const [pauta] = await todasAsPautas();
-    expect(pauta).toMatchObject({ titulo: 'Bebedouro do Bloco 18', descricao: RELATO });
+    expect(pauta).toMatchObject({
+      titulo: 'Bebedouro do Bloco 18',
+      descricao: RELATO,
+      categoria: 'infraestrutura',
+    });
     if (!pauta) throw new Error('pauta não criada');
     expect(await db.select().from(relatos).where(eq(relatos.pautaId, pauta.id))).toMatchObject([
       { texto: RELATO },
@@ -446,18 +461,83 @@ describe('pauta nova vinda do relato (2.5)', () => {
     await abrirPautaDeBebedouros();
     listaEm(await send(RELATO));
     await send(OTHER_ROW_ID);
-    expect(await send('Bebedouro do Bloco 18')).toEqual([
-      FROM_REPORT_DESCRIPTION_TEXT,
-      PHOTO_ASK_TEXT,
-    ]);
+    listaEm(await send('Bebedouro do Bloco 18'));
+    expect(await send('infraestrutura')).toEqual([FROM_REPORT_DESCRIPTION_TEXT, PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('NEW_ASK_PHOTO');
   });
 
   it('relato maior que o limite da descrição: pergunta a descrição', async () => {
     await send(`a porta do bloco 18 ta emperrada${' muito'.repeat(400)}`);
     await send('sim');
-    expect(await send('Porta emperrada')).toEqual([DESCRIPTION_QUESTION_TEXT]);
+    listaEm(await send('Porta emperrada'));
+    expect(await send('infraestrutura')).toEqual([DESCRIPTION_QUESTION_TEXT]);
     expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
+  });
+});
+
+describe('categoria da pauta (SCRUM-357)', () => {
+  beforeEach(async () => {
+    await verificar();
+    await send('2');
+    await send('Bebedouro quebrado');
+    await send(`bloco:${bloco18}`);
+  });
+
+  it('a lista traz as categorias do site e "Outra", sem "a_classificar"', async () => {
+    const lista = listaEm(await send('categoria:xyz'));
+    expect(lista.linhas.map((l) => l.titulo)).toEqual([
+      'Infraestrutura',
+      'Segurança',
+      'Acessibilidade',
+      'Ensino',
+      'Permanência',
+      'Serviços',
+      'Tecnologia',
+      'Outra',
+    ]);
+  });
+
+  it('a categoria tocada na lista chega na pauta e no resumo', async () => {
+    await send('categoria:seguranca');
+    await send(DESCRICAO);
+    const resumoFinal = resumoEm(await send('pular'));
+    expect(resumoFinal).toContain('*Categoria:* Segurança');
+    const [pauta] = await todasAsPautas();
+    expect(pauta?.categoria).toBe('seguranca');
+  });
+
+  it.each(['Segurança', 'seguranca', 'SEGURANÇA.', ' Seguranca '])(
+    'aceita o nome digitado: %j',
+    async (digitado) => {
+      expect(await send(digitado)).toEqual([DESCRIPTION_QUESTION_TEXT]);
+      expect(await dados()).toMatchObject({ categoria: 'seguranca' });
+    },
+  );
+
+  it('categoria inválida repete a lista sem perder título nem bloco', async () => {
+    const respostas = await send('qualquer coisa');
+    expect(respostas[0]).toBe(CATEGORY_NOT_FOUND_TEXT);
+    expect(listaEm(respostas).corpo).toBe(CATEGORY_QUESTION_TEXT);
+    expect(await passo()).toBe('NEW_ASK_CATEGORY');
+    expect(await dados()).toMatchObject({ blocoId: bloco18 });
+    expect(await dados()).toHaveProperty('tituloCifrado');
+    expect(await dados()).not.toHaveProperty('categoria');
+  });
+
+  it('"Outra" segue como a_classificar, para a curadoria', async () => {
+    await send('categoria:outra');
+    await send(DESCRICAO);
+    const resumoFinal = resumoEm(await send('pular'));
+    expect(resumoFinal).toContain('*Categoria:* Outra');
+    const [pauta] = await todasAsPautas();
+    expect(pauta?.categoria).toBe('a_classificar');
+  });
+
+  it('a categoria não sobra na conversa depois de criar a pauta', async () => {
+    await send('ensino');
+    await send(DESCRICAO);
+    await send('pular');
+    expect(await dados()).toEqual({});
   });
 });
 

@@ -25,11 +25,12 @@ export const TITULO_MAXIMO = 80;
 export const DESCRICAO_MAXIMA = 2000;
 
 /**
- * Categoria de toda pauta nova. O bot não pergunta a categoria (a lista de perguntas da 2.6 é
- * título, local, descrição e foto): quem classifica é a curadoria, ao aprovar.
+ * Categoria da pauta que o estudante não classificou ("Outra" na lista do bot, ou canal que não
+ * pergunta): a curadoria classifica ao aprovar.
  */
 export const CATEGORIA_A_CLASSIFICAR = 'a_classificar';
 // O domínio lê a lista oficial de categorias (SCRUM-291) por este re-export.
+import type { Categoria } from '@lumens/contratos';
 export { CATEGORIAS, ehCategoria, rotuloDaCategoria, type Categoria } from '@lumens/contratos';
 
 export interface NovaPautaDoEstudante {
@@ -38,6 +39,8 @@ export interface NovaPautaDoEstudante {
   descricao: string;
   /** `null` = pauta do campus inteiro (meta máxima, RN04). */
   blocoId: string | null;
+  /** Escolhida pelo estudante (SCRUM-357); sem ela, a pauta entra como `a_classificar`. */
+  categoria?: Categoria;
   /**
    * Texto original de quem relatou, quando a pauta nasce de um relato (2.5). Vira o primeiro
    * relato da pauta; sem ele, o primeiro relato é a própria descrição.
@@ -89,6 +92,7 @@ export async function criarPauta(
     titulo,
     descricao,
     blocoId,
+    categoria,
     relato,
     fotoChave = null,
     agora = new Date(),
@@ -135,7 +139,7 @@ export async function criarPauta(
     titulo: tituloLimpo,
     descricao: descricaoLimpa,
     blocoId,
-    categoria: CATEGORIA_A_CLASSIFICAR,
+    categoria: categoria ?? CATEGORIA_A_CLASSIFICAR,
     status: 'em_curadoria',
     meta,
     criadaEm: agora,

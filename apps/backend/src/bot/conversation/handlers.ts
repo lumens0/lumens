@@ -7,6 +7,7 @@ import { supportAskPhoto, supportAskReport } from './apoio';
 import { temCadastro } from './estudante';
 import {
   entrarNaPautaNova,
+  newAskCategory,
   newAskDescription,
   newAskPhoto,
   newAskPlace,
@@ -217,6 +218,7 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_TITLE: newAskTitle,
   NEW_ASK_PLACE: newAskPlace,
   NEW_PICK_SIMILAR: newPickSimilar,
+  NEW_ASK_CATEGORY: newAskCategory,
   NEW_ASK_DESCRIPTION: newAskDescription,
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
