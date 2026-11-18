@@ -293,6 +293,7 @@
 .barras li progress {
   grid-column: 1 / -1;
   grid-row: 2;
+  max-width: none;
   margin-top: var(--esp-1);
 }
 
