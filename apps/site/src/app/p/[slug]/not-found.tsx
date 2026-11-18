@@ -8,7 +8,7 @@ export default function PautaNaoEncontrada() {
     <main className={pagina.pagina}>
       <div role="status" className={estilos.estado}>
         <h1 className={estilos.estadoTitulo} style={{ margin: '0 0 8px' }}>
-          Não encontramos essa pauta
+          Não encontramos essa pauta.
         </h1>
         <p>O endereço pode estar errado, ou a pauta ainda não está pública.</p>
         <div className={estilos.acoes}>
