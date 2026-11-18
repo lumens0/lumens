@@ -15,9 +15,9 @@ import { criarDecisoes, fotosVistasDoFormulario, UUID } from './decisoes';
 
 const decisoes = criarDecisoes({
   curador: curadorDaSessao,
-  aprovar: (pautaId, curadorId, categoria, fotosVistas, urgente = false, edicoesVistas = 0) =>
+  aprovar: (pautaId, curadorId, categoria, fotosVistas, urgente = false, textoVisto = '') =>
     servidor().db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId, curadorId, categoria, fotosVistas, urgente, edicoesVistas }),
+      aprovarPauta(tx, { pautaId, curadorId, categoria, fotosVistas, urgente, textoVisto }),
     ),
   recusar: (pautaId, curadorId, motivo) =>
     servidor().db.transaction((tx) => recusarPauta(tx, { pautaId, curadorId, motivo })),
@@ -35,8 +35,8 @@ export async function aprovar(formulario: FormData) {
       texto(formulario, 'categoria'),
       fotosVistasDoFormulario(formulario),
       formulario.get('urgente') === 'on',
-      // Sem o campo (formulário velho), vale 0: se houve edição, a aprovação é recusada.
-      Number.parseInt(texto(formulario, 'edicoesVistas'), 10) || 0,
+      // Sem o campo (formulário velho), vale vazio: nenhum texto tem essa versão, e a aprovação falha.
+      texto(formulario, 'textoVisto'),
     ),
   );
 }

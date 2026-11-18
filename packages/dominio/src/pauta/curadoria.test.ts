@@ -37,7 +37,7 @@ import {
   criarRelato,
   tornarOwner,
 } from '../teste/fabricas';
-import { registrarEvento } from '../compartilhado/eventos';
+import { versaoDoTexto } from './edicao';
 import { transicionarStatus } from './status';
 
 let db: Db;
@@ -307,32 +307,41 @@ describe('aprovarPauta', () => {
     );
   });
 
-  it('recusa aprovar se o autor editou o texto depois que a tela abriu, e aprova com a tela nova', async () => {
+  it('recusa aprovar o texto que o autor editou depois de a tela abrir, e aprova com a tela nova', async () => {
     const pauta = await novaEmCuradoria();
-    await db.transaction((tx) =>
-      registrarEvento(tx, {
-        pautaId: pauta.id,
-        tipo: 'pauta_editada',
-        dados: { campo: 'titulo', antes: 'a', depois: 'b' },
-        origem: 'bot',
-      }),
-    );
-    const aprovar = (edicoesVistas?: number) =>
+    const antes = await pautaDa(pauta.id);
+    // A tela abre com o texto de agora.
+    const textoDaTela = versaoDoTexto(antes?.titulo ?? '', antes?.descricao ?? '');
+    // O autor edita com a tela da curadoria já aberta.
+    await db
+      .update(pautas)
+      .set({ titulo: 'Título trocado depois', descricao: 'Texto que a curadoria não viu' })
+      .where(eq(pautas.id, pauta.id));
+    const aprovar = (textoVisto?: string) =>
       db.transaction((tx) =>
         aprovarPauta(tx, {
           pautaId: pauta.id,
           curadorId,
           categoria: 'infraestrutura',
           fotosVistas: {},
-          ...(edicoesVistas === undefined ? {} : { edicoesVistas }),
+          ...(textoVisto === undefined ? {} : { textoVisto }),
         }),
       );
 
-    // A tela velha (0 edições) e o formulário sem o campo valem 0: nada muda.
-    expect(await aprovar()).toEqual({ decidida: false, motivo: 'pauta_editada' });
+    // A tela velha, e o formulário sem o campo (vazio), são recusados e nada muda.
+    expect(await aprovar(textoDaTela)).toEqual({ decidida: false, motivo: 'pauta_editada' });
+    expect(await aprovar('')).toEqual({ decidida: false, motivo: 'pauta_editada' });
     expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
-    // A tela que já mostrava a edição aprova.
-    expect(await aprovar(1)).toEqual({ decidida: true });
+    // A tela recarregada, que já mostra o texto novo, aprova.
+    expect(
+      await aprovar(versaoDoTexto('Título trocado depois', 'Texto que a curadoria não viu')),
+    ).toEqual({ decidida: true });
+  });
+
+  it('a versão do texto muda com o título e com a descrição, e não confunde os dois campos', () => {
+    expect(versaoDoTexto('a', 'b')).toBe(versaoDoTexto('a', 'b'));
+    expect(versaoDoTexto('a', 'b')).not.toBe(versaoDoTexto('a', 'c'));
+    expect(versaoDoTexto('a', 'b')).not.toBe(versaoDoTexto('ab', ''));
   });
 
   /** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */

@@ -4,6 +4,7 @@ import {
   type BlocoParaRelato,
   type DetalhePautaDaCuradoria,
   type EventoDaLinha,
+  versaoDoTexto,
 } from '@lumens/dominio';
 import Link from 'next/link';
 import estilos from '../../painel.module.css';
@@ -349,8 +350,8 @@ export function Pauta({
               ))}
             <input
               type="hidden"
-              name="edicoesVistas"
-              value={eventos.filter((e) => e.tipo === 'pauta_editada').length}
+              name="textoVisto"
+              value={versaoDoTexto(pauta.titulo, pauta.descricao)}
             />
             <label className={estilos.campo}>
               Categoria

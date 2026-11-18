@@ -164,6 +164,23 @@ describe('menu: 6 Editar pauta', () => {
     expect((await doBanco(segunda))?.titulo).toBe('Segunda corrigida');
   });
 
+  it('se uma das duas pautas é decidida antes da escolha, o passo acompanha a que sobrou', async () => {
+    const id = await novoEstudante(H);
+    const primeira = await pautaDe(id, 'Primeira');
+    const segunda = await pautaDe(id, 'Segunda');
+    await send('6');
+    expect(await passo()).toBe('OWNER_EDIT_PICK');
+    // A curadoria decide a "Segunda" enquanto a lista está na tela da pessoa.
+    await db.update(pautas).set({ status: 'juntando_apoios' }).where(eq(pautas.id, segunda));
+    await send('Segunda');
+    // Sobrou uma pauta: vai direto aos botões dela, sem ficar repetindo "Não achei essa pauta".
+    expect(await passo()).toBe('OWNER_EDIT_FIELD');
+    await send('campo:titulo');
+    expect(await passo()).toBe('OWNER_EDIT_TEXT');
+    await send('Primeira corrigida');
+    expect((await doBanco(primeira))?.titulo).toBe('Primeira corrigida');
+  });
+
   it('se a curadoria decidiu entre uma mensagem e outra, a edição é recusada e nada muda', async () => {
     const id = await novoEstudante(H);
     const pautaId = await pautaDe(id, 'Pauta');

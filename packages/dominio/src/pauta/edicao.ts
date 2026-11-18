@@ -5,6 +5,7 @@
  * reescrever a descrição enquanto a pauta está em curadoria. Por garantia, também recusa se outra
  * pessoa já apoiou (o apoio do próprio owner não conta). Título, bloco e categoria não mudam por aqui (o bloco mexe na meta, que é congelada).
  */
+import { createHash } from 'node:crypto';
 import {
   and,
   apoios,
@@ -24,6 +25,18 @@ import { DESCRICAO_MAXIMA, TITULO_MAXIMO } from './pauta';
  * Só enquanto a curadoria ainda não decidiu: o texto corrigido é o que ela vai avaliar. Depois de
  * publicada, mudar a descrição pularia a moderação (ficaria para um pedido de edição aprovado).
  */
+/**
+ * A "versão" do texto de uma pauta: um resumo do título e da descrição. A tela da curadoria leva
+ * a versão do texto que mostra, e a aprovação só vale se o texto no banco ainda tiver a mesma:
+ * quem aprova nunca publica um texto que o autor mudou depois de a tela abrir. Sai do próprio
+ * texto exibido, e não de um contador lido à parte, para não existir brecha entre duas leituras.
+ */
+export function versaoDoTexto(titulo: string, descricao: string): string {
+  return createHash('sha256')
+    .update(JSON.stringify([titulo, descricao]))
+    .digest('hex');
+}
+
 export const STATUS_EDITAVEIS = ['em_curadoria'] as const;
 
 const tamanho = (texto: string) => Array.from(texto).length;

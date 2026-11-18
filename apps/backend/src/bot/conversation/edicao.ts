@@ -105,8 +105,10 @@ export const ownerEditPick: StepHandler = async (ctx) => {
       ? editaveis[numero - 1]
       : editaveis.find((p) => normalize(p.titulo) === texto);
   if (escolhida === undefined) {
-    const { replies } = await entrarNaEdicao(ctx);
-    return { next: 'OWNER_EDIT_PICK', replies: [EDIT_PICK_AGAIN_TEXT, ...replies] };
+    // Refaz a entrada do zero: se, entre a lista e a escolha, sobrou uma pauta só (ou nenhuma), o
+    // passo e os dados seguem o resultado novo, e não ficam presos na lista que já não vale.
+    const nova = await entrarNaEdicao(ctx);
+    return { ...nova, replies: [EDIT_PICK_AGAIN_TEXT, ...nova.replies] };
   }
   return perguntaDoCampo(escolhida);
 };
