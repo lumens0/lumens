@@ -18,14 +18,15 @@ atividade por aqui, nunca pelas tabelas.
 
 ## Rotas
 
-| Método e caminho    | View de origem                                                                    | Requisito |
-| ------------------- | --------------------------------------------------------------------------------- | --------- |
-| `GET /resumo`       | `v_resumo`                                                                        | RF-S01    |
-| `GET /blocos`       | `v_bloco`                                                                         | RF-S02    |
-| `GET /pautas`       | `v_pauta_publica`                                                                 | RF-S01/02 |
-| `GET /pautas/:slug` | `v_pauta_publica` + `v_relato_publico` + `v_caminho_publico` + `v_linha_do_tempo` | RF-S03    |
-| `GET /conquistas`   | `v_conquista`                                                                     | RF-S06    |
-| `GET /atividade`    | `v_atividade`                                                                     | RF-S07    |
+| Método e caminho         | View de origem                                                                    | Requisito |
+| ------------------------ | --------------------------------------------------------------------------------- | --------- |
+| `GET /resumo`            | `v_resumo`                                                                        | RF-S01    |
+| `GET /blocos`            | `v_bloco`                                                                         | RF-S02    |
+| `GET /apoios-por-semana` | `v_apoio_semana`                                                                  | SCRUM-362 |
+| `GET /pautas`            | `v_pauta_publica`                                                                 | RF-S01/02 |
+| `GET /pautas/:slug`      | `v_pauta_publica` + `v_relato_publico` + `v_caminho_publico` + `v_linha_do_tempo` | RF-S03    |
+| `GET /conquistas`        | `v_conquista`                                                                     | RF-S06    |
+| `GET /atividade`         | `v_atividade`                                                                     | RF-S07    |
 
 `/blocos` não estava no ticket: o filtro de bloco do site precisa da lista de blocos, inclusive os
 sem pauta pública.
@@ -71,6 +72,29 @@ Todos os blocos, em ordem de `nome`. Sem paginação.
       "nome": "Residência Universitária",
       "base_estudantes": 3000
     }
+  ]
+}
+```
+
+### `GET /apoios-por-semana`
+
+Apoios das últimas 8 semanas (a atual e as 7 anteriores), para o gráfico do dashboard. Sem
+paginação. Filtro opcional `?bloco=<slug>`.
+
+| Campo            | Tipo   | Conteúdo                                    |
+| ---------------- | ------ | ------------------------------------------- |
+| `itens[].semana` | string | segunda-feira da semana (UTC), `AAAA-MM-DD` |
+| `itens[].apoios` | int    | apoios dados na semana, em pautas públicas  |
+
+Sempre vêm as 8 semanas, da mais antiga à atual; semana sem apoio volta com `0`. Só há números
+agregados, nada que identifique estudante. A contagem reflete os apoios que **existem hoje**: quem
+sai do Lumens perde o apoio, então uma semana passada pode ficar menor depois.
+
+```json
+{
+  "itens": [
+    { "semana": "2026-10-05", "apoios": 12 },
+    { "semana": "2026-10-12", "apoios": 0 }
   ]
 }
 ```

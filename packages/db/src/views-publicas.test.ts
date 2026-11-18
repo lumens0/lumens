@@ -9,6 +9,7 @@ import { criarBancoEmMemoria } from './teste';
 // Contrato com o site (SCRUM-87). Os valores esperados saem do ticket e do seed escrito à mão
 // (`seed/data.ts`), conferidos linha a linha — nunca da própria view.
 const VIEWS = [
+  'v_apoio_semana',
   'v_atividade',
   'v_bloco',
   'v_caminho_publico',
@@ -90,7 +91,7 @@ describe('views públicas com o seed', () => {
     await executarSeed(db);
   }, 60_000);
 
-  it('instala exatamente as oito views públicas', async () => {
+  it('instala exatamente as nove views públicas', async () => {
     const linhas = await consultar<{ table_name: string }>(
       db,
       sql`SELECT table_name FROM information_schema.views
@@ -129,7 +130,7 @@ describe('views públicas com o seed', () => {
       expect(await codigoDoErro(comoSite(db, sql`SELECT * FROM estudante`))).toBe('42501');
     });
 
-    it('tem só SELECT, e só nas oito views', async () => {
+    it('tem só SELECT, e só nas nove views', async () => {
       const linhas = await consultar<{ table_name: string; privilege_type: string }>(
         db,
         sql`SELECT table_name, privilege_type FROM information_schema.role_table_grants
@@ -679,6 +680,33 @@ describe('views públicas com dados além do seed', () => {
       'Ciência da Computação',
       'Enfermagem',
     ]);
+  });
+
+  it('v_apoio_semana soma o mesmo que v_resumo, em segundas-feiras, sem apoio de pauta escondida', async () => {
+    const total = async () => {
+      const [linha] = await comoSite<{ total: number }>(
+        db,
+        sql`SELECT coalesce(sum(apoios), 0)::int AS total FROM v_apoio_semana`,
+      );
+      return linha?.total;
+    };
+    const [resumo] = await comoSite<{ apoios: number }>(db, sql`SELECT apoios FROM v_resumo`);
+    const antes = await total();
+    expect(antes).toBe(resumo?.apoios);
+
+    const pautaId = await idDaPauta(db, PAUTA_RECUSADA);
+    await db.execute(
+      sql`INSERT INTO apoio (pauta_id, estudante_id, origem)
+          SELECT ${pautaId}, id, 'site' FROM estudante ORDER BY id LIMIT 5
+          ON CONFLICT DO NOTHING`,
+    );
+    expect(await total()).toBe(antes);
+
+    const dias = await comoSite<{ dia: number }>(
+      db,
+      sql`SELECT DISTINCT extract(isodow FROM semana)::int AS dia FROM v_apoio_semana`,
+    );
+    expect(dias).toEqual([{ dia: 1 }]);
   });
 
   it('v_resumo não conta apoio de pauta em curadoria', async () => {

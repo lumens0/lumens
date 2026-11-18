@@ -1,4 +1,5 @@
 import {
+  apoiosPorSemana,
   atividade,
   blocos,
   conquistas,
@@ -17,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { buildApp } from '../app';
 import { FakeQueue } from '../infra/queue.fake';
+import { listarApoiosPorSemana, ultimasSemanas } from './consultas';
 import { apiPlugin, CACHE_PUBLICO } from './routes';
 
 // Os valores esperados saem do seed escrito à mão (`packages/db/seed/data.ts`) e das asserções
@@ -125,6 +127,113 @@ describe('API de leitura pública com o seed', () => {
 
       expect(body).toEqual({ pautas_abertas: 4, apoios: 978, conquistas: 1 });
       conferirContrato(resumo, body);
+    });
+  });
+
+  describe('GET /apoios-por-semana', () => {
+    it('devolve as 8 últimas semanas em ordem, só com semana e total', async () => {
+      const body = (await corpo('/apoios-por-semana')) as { itens: { semana: string }[] };
+
+      expect(body.itens).toHaveLength(8);
+      expect(body.itens.map((i) => i.semana)).toEqual(ultimasSemanas(new Date(), 8));
+      conferirContrato(apoiosPorSemana, body);
+    });
+
+    it('aceita o filtro de bloco e recusa bloco inválido', async () => {
+      expect((await get('/apoios-por-semana?bloco=bloco-18-ficticio')).statusCode).toBe(200);
+      expect((await get('/apoios-por-semana?bloco=')).statusCode).toBe(400);
+      expect((await get('/apoios-por-semana?bloco=a&bloco=b')).statusCode).toBe(400);
+    });
+
+    describe('contra os apoios do seed, contados por fora da view', () => {
+      interface Apoio {
+        bloco: string | null;
+        criado: Date;
+      }
+      let apoios: Apoio[];
+      let agora: Date;
+
+      beforeAll(async () => {
+        // O dono do banco lê as tabelas, que `lumens_site` não enxerga: o esperado sai delas, não
+        // da view que o teste confere.
+        await db.execute(sql`RESET ROLE`);
+        try {
+          const resultado: unknown = await db.execute(
+            sql`SELECT b.slug AS bloco, a.criado_em AS criado
+                FROM apoio a JOIN pauta p ON p.id = a.pauta_id
+                LEFT JOIN bloco b ON b.id = p.bloco_id
+                WHERE p.status NOT IN ('em_curadoria', 'recusada')`,
+          );
+          apoios = (
+            resultado as { rows: { bloco: string | null; criado: Date | string }[] }
+          ).rows.map((l) => ({ bloco: l.bloco, criado: new Date(l.criado) }));
+        } finally {
+          await db.execute(sql.raw('SET ROLE "lumens_site"'));
+        }
+        agora = new Date(Math.max(...apoios.map((a) => a.criado.getTime())));
+      });
+
+      function esperado(bloco?: string) {
+        const semanas = ultimasSemanas(agora, 8);
+        return semanas.map((semana) => ({
+          semana,
+          apoios: apoios.filter(
+            (a) =>
+              (bloco === undefined || a.bloco === bloco) &&
+              ultimasSemanas(a.criado, 1)[0] === semana,
+          ).length,
+        }));
+      }
+
+      it('o total semanal é o de apoios por segunda-feira, e as semanas vazias vêm com zero', async () => {
+        const semanas = await listarApoiosPorSemana(db, {}, agora);
+
+        expect(semanas).toEqual(esperado());
+        expect(semanas.reduce((soma, s) => soma + s.apoios, 0)).toBeGreaterThan(0);
+      });
+
+      it('o filtro devolve só os apoios do bloco, semana a semana', async () => {
+        const blocosComApoio = [...new Set(apoios.flatMap((a) => (a.bloco ? [a.bloco] : [])))];
+        expect(blocosComApoio.length).toBeGreaterThan(1);
+
+        const todos = await listarApoiosPorSemana(db, {}, agora);
+        for (const bloco of blocosComApoio) {
+          const doBloco = await listarApoiosPorSemana(db, { bloco }, agora);
+          expect(doBloco, bloco).toEqual(esperado(bloco));
+        }
+        // Há semana em que o filtro tira apoios de outro bloco: sem o filtro, o teste falharia.
+        const algumaMenor = blocosComApoio.some((bloco) =>
+          esperado(bloco).some((s, i) => s.apoios > 0 && s.apoios < (todos[i]?.apoios ?? 0)),
+        );
+        expect(algumaMenor).toBe(true);
+      });
+
+      it('bloco sem apoio ou que não existe devolve as 8 semanas zeradas', async () => {
+        const semanas = await listarApoiosPorSemana(db, { bloco: 'bloco-que-nao-existe' }, agora);
+
+        expect(semanas).toHaveLength(8);
+        expect(semanas.every((s) => s.apoios === 0)).toBe(true);
+      });
+    });
+  });
+
+  describe('ultimasSemanas', () => {
+    it('começa na segunda-feira, mesmo quando hoje é domingo', () => {
+      // 2026-11-22 é domingo: a semana atual começa em 16/11.
+      expect(ultimasSemanas(new Date('2026-11-22T23:59:59Z'), 2)).toEqual([
+        '2026-11-09',
+        '2026-11-16',
+      ]);
+      expect(ultimasSemanas(new Date('2026-11-16T00:00:00Z'), 1)).toEqual(['2026-11-16']);
+    });
+
+    it('atravessa a virada de ano sem pular nem repetir semana', () => {
+      expect(ultimasSemanas(new Date('2027-01-05T10:00:00Z'), 4)).toEqual([
+        '2026-12-14',
+        '2026-12-21',
+        '2026-12-28',
+        '2027-01-04',
+      ]);
     });
   });
 
@@ -519,6 +628,7 @@ describe('API de leitura pública com o seed', () => {
     it.each([
       '/resumo',
       '/blocos',
+      '/apoios-por-semana',
       '/pautas',
       '/pautas/bebedouros-no-bloco-18',
       '/conquistas',
@@ -736,6 +846,7 @@ describe('API de leitura pública: serialização e rotas', () => {
         new Set([
           '/resumo',
           '/blocos',
+          '/apoios-por-semana',
           '/pautas',
           '/pautas/:slug',
           '/conquistas',
