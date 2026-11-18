@@ -16,9 +16,12 @@
                       ▼
                registrarApoio ──▶ placar "Agora são X de Y apoios" (+ aviso de meta batida)
                       ▼
-SUPPORT_ASK_REPORT ──sim / relato escrito──▶ SUPPORT_ASK_PHOTO ──foto ou 'pular'──▶ relato pendente
+SUPPORT_ASK_REPORT ──sim / relato escrito──▶ relato pendente ──▶ SUPPORT_ASK_PHOTO ──foto──▶ foto no relato
       └──não / pular──▶ menu (apoio já contado)
 ```
+
+> SCRUM-301: o relato passou a ser gravado antes do passo da foto, e a foto é juntada depois
+> (`anexarFotoAoRelato`). Ver `docs/sdd/SCRUM-301-relato-sem-foto/`.
 
 Código: `apps/backend/src/bot/conversation/apoio.ts` (bot) e `packages/dominio/src/pauta/relato.ts`
 (`adicionarRelato`).

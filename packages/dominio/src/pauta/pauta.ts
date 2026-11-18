@@ -29,6 +29,8 @@ export const DESCRICAO_MAXIMA = 2000;
  * título, local, descrição e foto): quem classifica é a curadoria, ao aprovar.
  */
 export const CATEGORIA_A_CLASSIFICAR = 'a_classificar';
+// O domínio lê a lista oficial de categorias (SCRUM-291) por este re-export.
+export { CATEGORIAS, ehCategoria, rotuloDaCategoria, type Categoria } from '@lumens/contratos';
 
 export interface NovaPautaDoEstudante {
   estudanteId: string;

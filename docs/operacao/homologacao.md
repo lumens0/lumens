@@ -8,6 +8,14 @@ Ele responde em `https://painel.<DOMINIO>`: com DuckDNS o nome já resolve para 
 outro DNS, crie o registro antes do deploy. Precisa do `AUTH_SECRET` no `.env.producao`
 (`openssl rand -base64 32`); o deploy recusa publicar sem ele.
 
+Quem entra no painel: o script `curador` só cria o **primeiro administrador**, pelo contêiner do
+back-end (`... run --rm -T backend pnpm --filter @lumens/backend curador --administrador <email>
+"<nome>"`). Todo o resto (adicionar, desativar, reativar) é pela tela `/curadores` do painel, só
+para administrador; veja o [README](../../README.md#painel-de-curadoria). O painel lê também a
+`CHAVE_CIFRA_PAINEL` do `.env.producao`, só dele, para mostrar o e-mail de quem já foi cadastrado.
+Ao criar essa chave, rode uma vez `... run --rm -T backend pnpm --filter @lumens/backend curador
+--recifrar`, que passa o e-mail dos curadores existentes da `CHAVE_CIFRA` para ela.
+
 ## Onde roda, e por que não é a AWS
 
 A decisão original era AWS. Ela não se sustentou, e o motivo fica aqui para ninguém repetir
@@ -111,6 +119,33 @@ Saia e entre de novo no SSH para o grupo `docker` valer. Confira:
 docker compose version
 ```
 
+Limite o tamanho dos logs dos contêineres. Sem isto o Docker usa o driver `json-file` sem
+limite, e o log do back-end cresce até encher o disco, onde também está o Postgres.
+
+O comando só grava o arquivo se ele ainda não existir. Se já existir, junte as duas chaves
+(`log-driver` e `log-opts`) ao que está lá, à mão, para não apagar outra configuração:
+
+```bash
+[ -e /etc/docker/daemon.json ] && echo "daemon.json já existe: edite à mão" || { echo '{ "log-driver": "json-file", "log-opts": { "max-size": "10m", "max-file": "3" } }' | sudo tee /etc/docker/daemon.json && sudo systemctl restart docker; }
+```
+
+**Só numa VM que já tem o Lumens no ar** (na VM nova, siga para o clone abaixo): o
+`systemctl restart docker` acima **derruba todos os contêineres**, inclusive o Postgres e a
+Evolution, e o limite só vale para contêiner criado depois dele. Faça fora do horário do backup
+(12:00) e de demonstração, e recrie os contêineres em seguida:
+
+```bash
+cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate
+```
+
+Se o perfil da Evolution estiver ligado, acrescente `--profile evolution` antes do `up`. Para
+conferir, `docker inspect --format '{{.HostConfig.LogConfig}}' <contêiner>` mostra o `max-size`.
+
+O cache de build e as imagens antigas o próprio deploy limpa (`scripts/deploy-homologacao.sh`):
+imagem sem tag sai na hora; imagem sem contêiner criada há mais de 72 h também sai; o cache de
+mais de 72 h sai e o resto fica em no máximo 3 GB. O log de cada deploy mostra o
+`docker system df` e o uso do disco, e avisa quando o disco passa de 85%.
+
 Clone em `/opt/lumens` — é o caminho que o `scripts/deploy-homologacao.sh` espera:
 
 ```bash
@@ -163,7 +198,8 @@ para e nada é publicado. Confira:
 curl -s https://<DOMINIO>/saude
 ```
 
-Esperado: `{"ok":true}`. Para a demo, com o banco vazio:
+Esperado: `{"ok":true,"versao":"<SHA>"}`, com o SHA do commit publicado (SCRUM-322).
+Para a demo, com o banco vazio:
 
 ```bash
 cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao run --rm migracao pnpm db:seed
@@ -183,7 +219,14 @@ Cinco secrets no repositório (Settings → Secrets and variables → Actions):
 
 A partir daí, todo push na `main` com o `check` e o `e2e` verdes roda o job `deploy-backend`, que migra
 e publica o SHA exato que passou nos testes, e termina com um smoke test em `/saude` e
-`/resumo`.
+`/resumo`. O `/saude` precisa devolver o SHA do run: um back-end antigo que tenha ficado no
+ar não passa.
+
+Se o `check` ou um deploy de um push na `main` for cancelado (timeout, cancelamento manual),
+o job `deploy-perdido` falha e pinta a `main` de vermelho: aquele merge não está na
+homologação. Reexecute o run ou use **Actions → CI → Run workflow** na `main`. Quando vários
+merges entram seguidos, o run que esperava na fila é substituído pelo mais novo e nem começa;
+isso é normal, porque o mais novo publica tudo.
 
 ## 7. Webhook da Meta
 
@@ -220,6 +263,10 @@ Para publicar depois de ligar a máquina: **Actions → CI → Run workflow**. O
 novo e o deploy sai em seguida. Vale conferir o aviso da execução anterior para saber se havia
 mesmo algo pendente de publicar.
 
+Dispare o Run workflow **da `main`**. De outra branch o deploy é pulado com o aviso "Deploy
+ignorado" e nada é publicado; e o `scripts/deploy-homologacao.sh` também recusa qualquer SHA que
+não esteja na `main` (SCRUM-336), porque o banco da homologação não tem backup.
+
 ### O que o site mostra quando ela está desligada
 
 O site continua no ar na Vercel, mas as páginas que leem a API (`/`, `/conquistas`, `/atividade`
@@ -253,5 +300,9 @@ cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.prod
   liberada no NSG — a validação do Let's Encrypt passa por ela. Se o erro falar em _rate
   limit_, o domínio escolhido divide faixa de emissão com muita gente; troque de domínio.
 - **Build morre sem mensagem:** disco cheio ou memória. `df -h` e `free -h` respondem qual.
+  Se for disco, `docker system df` mostra quanto é cache de build e imagem; o
+  `docker builder prune --force` e o `docker image prune --all --force` liberam na hora. O
+  segundo apaga toda imagem sem contêiner, inclusive a da Evolution se os contêineres dela
+  tiverem sido removidos (o `up` baixa de novo); não rode durante um deploy.
 - **Crédito acabou:** os recursos param e o ambiente some do ar. Sem cartão vinculado não há
   cobrança — mas também não há aviso útil. Vale olhar o painel _Education_ de vez em quando.
