@@ -1,6 +1,11 @@
 import type { NextConfig } from 'next';
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
-import { CABECALHOS_DE_SEGURANCA, CACHE_PUBLICO, PAGINAS_EM_CACHE } from './src/cabecalhos';
+import {
+  CABECALHOS_DE_SEGURANCA,
+  CACHE_DA_CDN,
+  CACHE_PUBLICO,
+  PAGINAS_EM_CACHE,
+} from './src/cabecalhos';
 import { exigirBotDoCanal } from './src/whatsapp';
 
 const nextConfig: NextConfig = {
@@ -13,7 +18,10 @@ const nextConfig: NextConfig = {
       { source: '/:path*', headers: CABECALHOS_DE_SEGURANCA },
       ...PAGINAS_EM_CACHE.map((source) => ({
         source,
-        headers: [{ key: 'Cache-Control', value: CACHE_PUBLICO }],
+        headers: [
+          { key: 'Cache-Control', value: CACHE_PUBLICO },
+          { key: 'Vercel-CDN-Cache-Control', value: CACHE_DA_CDN },
+        ],
       })),
     ]);
   },
