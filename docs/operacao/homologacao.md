@@ -432,6 +432,24 @@ Para tirar a dúvida entre "ambiente desligado" e "defeito":
 3. Se o `/saude` responde 200 e a home continua em erro, aí é configuração ou código: confira a
    `LUMENS_API_URL` do projeto do site na Vercel e os logs da função na Vercel.
 
+## Conferir o deploy do site antes da demonstração
+
+O site na Vercel é publicado pelo job `deploy-site` do CI a cada merge na `main` (o deploy
+automático da Vercel pelo Git fica desligado no `vercel.json`). Antes de uma demonstração:
+
+1. Veja se o job passou: `gh run list --workflow ci.yml --branch main --limit 3` e, na execução do
+   último merge, `deploy-site` tem que estar `success`. A Vercel já travou publicações por limite
+   de deploys por dia; se o job falhou por isso, rode a execução de novo no dia seguinte.
+2. Compare o commit: no painel da Vercel (projeto do site, aba Deployments), o deploy de produção
+   tem que ter o mesmo SHA do último commit da `main` (`git log origin/main -1`).
+3. Confira as variáveis do projeto na Vercel contra o `.env.example`. A que decide para onde os
+   botões "Relatar um problema" e "Apoiar" levam é `NEXT_PUBLIC_WHATSAPP_BOT`: só dígitos, com
+   DDI, e tem que ser o número do chip em uso (hoje o do WhatsApp Business "Lumens" da Evolution).
+   `LUMENS_API_URL` aponta para a API da VM. Variável de `NEXT_PUBLIC_*` só vale a partir do
+   próximo build: depois de mudar, publique de novo.
+4. Confira o site publicado: `curl -s https://lumens-ufal.vercel.app/ | grep -o 'wa.me/[0-9]*'`
+   tem que mostrar o número do chip.
+
 ## Quando algo falha
 
 ```bash
