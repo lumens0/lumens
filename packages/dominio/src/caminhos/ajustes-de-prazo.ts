@@ -13,7 +13,7 @@ import { formatarDia } from '../compartilhado/datas';
 import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarDisparos } from '../avisos/fila';
 import { calcularPrazo } from './prazo';
-import { janelaDeConferencia } from './promessa';
+import { dataDeEntregaMaxima, janelaDeConferencia } from './promessa';
 
 export type MotivoRecusaAjusteDePrazo =
   | 'entrada_invalida'
@@ -25,7 +25,8 @@ export type MotivoRecusaAjusteDePrazo =
   | 'pauta_criada_depois'
   | 'promessa_inexistente'
   | 'conferencia_aberta'
-  | 'data_no_passado';
+  | 'data_no_passado'
+  | 'data_distante';
 export type ResultadoAjusteDePrazo =
   { feito: true } | { feito: false; motivo: MotivoRecusaAjusteDePrazo };
 
@@ -221,6 +222,7 @@ export async function remarcarDataPrometida(
     return { feito: false, motivo: 'promessa_inexistente' };
   if (agora >= promessa.conferenciaAbreEm) return { feito: false, motivo: 'conferencia_aberta' };
   if (dataEntrega <= hojeEmMaceio(agora)) return { feito: false, motivo: 'data_no_passado' };
+  if (dataEntrega > dataDeEntregaMaxima(agora)) return { feito: false, motivo: 'data_distante' };
   const janela = janelaDeConferencia(dataEntrega);
   await tx
     .update(promessas)

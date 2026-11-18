@@ -162,6 +162,13 @@
       "when": 1794964495421,
       "tag": "0022_proxima_etapa_com_ano",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794968311858,
+      "tag": "0023_promessa_tetos_de_texto",
+      "breakpoints": true
     }
   ]
 }

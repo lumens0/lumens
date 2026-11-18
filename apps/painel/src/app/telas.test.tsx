@@ -403,18 +403,21 @@ describe('promessa pela tela', () => {
     expect(html).toContain('42 apoiadores vão');
   });
 
-  it('formulário tem resumo, fonte e data prometida a partir de hoje', () => {
+  it('formulário tem resumo, fonte e data prometida entre hoje e o teto', () => {
     const html = renderToStaticMarkup(
       <FormularioDaPromessa
         pauta={pauta({ status: 'cobrando' })}
         hoje="2026-11-10"
+        ate="2028-11-10"
         registrar={acao}
       />,
     );
 
     expect(html).toMatch(/<textarea[^>]*name="resumo"[^>]*required/);
     expect(html).toMatch(/<input[^>]*required[^>]*name="fonte"/);
-    expect(html).toMatch(/<input[^>]*min="2026-11-10"[^>]*name="dataEntrega"/);
+    expect(html).toMatch(/<input id="dataEntrega"[^>]*min="2026-11-10" max="2028-11-10"/);
+    expect(html).toMatch(/<textarea[^>]*name="resumo"[^>]*maxLength="500"/);
+    expect(html).toMatch(/<input id="fonte"[^>]*maxLength="120"/);
     expect(html).toContain('name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
   });
 
@@ -429,6 +432,7 @@ describe('promessa pela tela', () => {
           { id: 'd1', arquivoChave: ANTIGO, recebidoEm: new Date('2026-10-30T15:00:00.000Z') },
         ]}
         hoje="2026-11-10"
+        ate="2028-11-10"
         registrar={acao}
       />,
     );
@@ -436,6 +440,7 @@ describe('promessa pela tela', () => {
       <FormularioDaPromessa
         pauta={pauta({ status: 'cobrando' })}
         hoje="2026-11-10"
+        ate="2028-11-10"
         registrar={acao}
       />,
     );
@@ -449,12 +454,13 @@ describe('promessa pela tela', () => {
 
   it('pauta fora de cobrança não mostra o formulário; erro do registro aparece', () => {
     const fora = renderToStaticMarkup(
-      <FormularioDaPromessa pauta={pauta()} hoje="2026-11-10" registrar={acao} />,
+      <FormularioDaPromessa pauta={pauta()} hoje="2026-11-10" ate="2028-11-10" registrar={acao} />,
     );
     const comErro = renderToStaticMarkup(
       <FormularioDaPromessa
         pauta={pauta({ status: 'cobrando' })}
         hoje="2026-11-10"
+        ate="2028-11-10"
         erro="data_no_passado"
         registrar={acao}
       />,
@@ -464,6 +470,25 @@ describe('promessa pela tela', () => {
     expect(fora).toContain('não pode receber promessa agora');
     expect(comErro).toContain('role="alert"');
     expect(comErro).toContain('não pode estar no passado');
+  });
+
+  it.each([
+    ['data_distante', 'passa de 2 anos a partir de hoje'],
+    ['resumo_longo', 'O resumo passou de 500 caracteres'],
+    ['fonte_longa', 'Quem respondeu passou de 120 caracteres'],
+  ])('recusa %s do domínio tem mensagem própria (SCRUM-313)', (erro, mensagem) => {
+    const html = renderToStaticMarkup(
+      <FormularioDaPromessa
+        pauta={pauta({ status: 'cobrando' })}
+        hoje="2026-11-10"
+        ate="2028-11-10"
+        erro={erro}
+        registrar={acao}
+      />,
+    );
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(mensagem);
   });
 });
 

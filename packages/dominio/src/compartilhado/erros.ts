@@ -13,7 +13,10 @@ export type CodigoErroDeRegra =
   | 'pauta_inexistente'
   | 'transicao_invalida'
   | 'motivo_obrigatorio'
-  | 'data_invalida';
+  | 'data_invalida'
+  | 'data_distante'
+  | 'resumo_longo'
+  | 'fonte_longa';
 
 export class ErroDeRegra extends Error {
   constructor(

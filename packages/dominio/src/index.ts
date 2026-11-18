@@ -228,9 +228,14 @@ export type {
 } from './caminhos/proposta';
 
 export {
+  ANOS_ATE_A_ENTREGA_MAXIMO,
   DIAS_DE_CONFERENCIA,
+  FONTE_MAXIMA,
   MODELO_RESPOSTA_OFICIAL,
+  RESUMO_MAXIMO,
   RESUMO_NO_AVISO_MAXIMO,
+  dataDeEntregaMaxima,
+  hojeEmMaceio,
   registrarPromessa,
 } from './caminhos/promessa';
 export type { NovaPromessa } from './caminhos/promessa';
