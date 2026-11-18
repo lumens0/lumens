@@ -32,7 +32,8 @@ let poolAplicacao: Pool;
 let urlAdministrativaBase: string;
 let urlAplicacaoBase: string;
 let nomeBancoPrincipal: string;
-let encerrando = false;
+// Pools que já pediram `end()`: só neles um 57P01 é esperado (ver `removerBanco`).
+const poolsEncerrando = new WeakSet<Pool>();
 
 /** Uma linha por migração do journal: o total cresce a cada migração nova sem editar o teste. */
 async function totalDeMigracoes() {
@@ -42,12 +43,23 @@ async function totalDeMigracoes() {
   return String(journal.entries.length);
 }
 
+/**
+ * Todo pool deste arquivo passa por aqui: um `error` sem ouvinte derruba a execução inteira
+ * do vitest (SCRUM-378). O `removerBanco` termina os backends do banco logo depois do
+ * `end()`; se o `pg` ainda estiver fechando o client, o `57P01` chega a um pool já encerrando.
+ * Só esse caso é ignorado: qualquer outro erro, ou um `57P01` com o pool em uso, estoura.
+ */
 function observarErrosDoPool(pool: Pool): Pool {
   pool.on('error', (erro: Error & { code?: string }) => {
-    if (encerrando && erro.code === '57P01') return;
+    if (poolsEncerrando.has(pool) && erro.code === '57P01') return;
     throw erro;
   });
   return pool;
+}
+
+async function encerrarPool(pool: Pool) {
+  poolsEncerrando.add(pool);
+  await pool.end();
 }
 
 type EventoPersistido = {
@@ -219,10 +231,11 @@ beforeAll(async () => {
 }, 40_000);
 
 afterAll(async () => {
-  encerrando = true;
-  for (const pool of poolsDeBanco) await pool.end();
+  // Marca todos antes de fechar o primeiro: o `removerBanco` derruba backends de pools ainda abertos.
+  for (const pool of [...poolsDeBanco, ...poolsAdministrativos]) poolsEncerrando.add(pool);
+  for (const pool of poolsDeBanco) await encerrarPool(pool);
   for (const banco of [...bancosCriados]) await removerBanco(banco);
-  for (const pool of poolsAdministrativos) await pool.end();
+  for (const pool of poolsAdministrativos) await encerrarPool(pool);
 });
 
 describe('privilégios do login real da aplicação', () => {
@@ -475,14 +488,16 @@ describe('separação das URLs no processo de migração', () => {
       await executarEmLayoutTemporario(
         `DATABASE_URL=postgresql://invalido:invalido@127.0.0.1:1/invalido\nDATABASE_URL_MIGRACAO=${urlOwner}\n`,
       );
-      const pool = new Pool({ connectionString: urlOwner, connectionTimeoutMillis: 5000 });
+      const pool = observarErrosDoPool(
+        new Pool({ connectionString: urlOwner, connectionTimeoutMillis: 5000 }),
+      );
       try {
         const { rows } = await pool.query<{ total: string }>(
           'SELECT count(*) AS total FROM drizzle.__drizzle_migrations',
         );
         expect(rows[0]?.total).toBe(await totalDeMigracoes());
       } finally {
-        await pool.end();
+        await encerrarPool(pool);
       }
     } finally {
       await removerBanco(banco);
@@ -494,7 +509,9 @@ describe('upgrade histórico para a migração de privilégios', () => {
   it('aplica 0003 após 0000/0001/0002 reais sem alterar evento nem preservar grants adversariais', async () => {
     const banco = await criarBanco('upgrade');
     const urlOwner = urlNoBanco(urlAdministrativaBase, banco);
-    const pool = new Pool({ connectionString: urlOwner, connectionTimeoutMillis: 5000 });
+    const pool = observarErrosDoPool(
+      new Pool({ connectionString: urlOwner, connectionTimeoutMillis: 5000 }),
+    );
     const pastaHistorica = await mkdtemp(join(tmpdir(), 'lumens-migrations-0002-'));
     const metaHistorica = join(pastaHistorica, 'meta');
 
@@ -573,7 +590,7 @@ describe('upgrade histórico para a migração de privilégios', () => {
       );
       expect(privilegiosPublicos).toEqual([]);
     } finally {
-      await pool.end();
+      await encerrarPool(pool);
       await rm(pastaHistorica, { recursive: true, force: true });
       await removerBanco(banco);
     }
