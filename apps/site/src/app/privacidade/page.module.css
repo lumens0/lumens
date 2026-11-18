@@ -64,6 +64,8 @@
 }
 
 .voltar {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-top: var(--espaco);
 }
