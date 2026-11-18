@@ -34,6 +34,15 @@ describe('pautasPublicas', () => {
     expect(pautasPublicas([antiga, nova]).map((p) => p.slug)).toEqual(['nova', 'antiga']);
   });
 
+  it('urgentes vêm antes das demais mesmo com menos apoios', () => {
+    const [base] = PAUTAS_TESTE.filter((p) => p.status === 'cobrando');
+    const [naoUrgente] = PAUTAS_TESTE.filter((p) => p.status === 'juntando_apoios');
+    if (!base || !naoUrgente) throw new Error('faltou pauta de teste');
+    const urgente = { ...base, slug: 'urgente', urgente: true, apoios: 1 };
+    const popular = { ...naoUrgente, slug: 'popular', apoios: 500 };
+    expect(pautasPublicas([popular, urgente]).map((p) => p.slug)).toEqual(['urgente', 'popular']);
+  });
+
   it('no empate, compara o instante e não o texto da data (fusos diferentes)', () => {
     const [base] = PAUTAS_TESTE.filter((p) => p.status === 'cobrando');
     if (!base) throw new Error('faltou pauta de teste em cobrando');

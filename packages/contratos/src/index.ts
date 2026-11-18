@@ -79,6 +79,7 @@ export const pauta = z.object({
   descricao: z.string(),
   categoria: z.string(),
   status: statusPublico,
+  urgente: z.boolean(),
   meta: z.number().int(),
   apoios: z.number().int(),
   /** Nulo quando a pauta é do campus inteiro. */

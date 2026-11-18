@@ -15,6 +15,7 @@ function pauta(
     descricao: 'Descrição de teste.',
     categoria: 'infraestrutura',
     status,
+    urgente: false,
     bloco_slug: bloco?.slug ?? null,
     bloco_nome: bloco?.nome ?? null,
     meta,
