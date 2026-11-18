@@ -298,7 +298,8 @@ describe('experiência da pessoa', () => {
   });
 
   it('nova pauta aceita a foto no último passo e cria a pauta', async () => {
-    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'Vazando']) await send(t);
+    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'categoria:outra', 'Vazando'])
+      await send(t);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
 
     const replies = await sendFoto();
@@ -312,7 +313,8 @@ describe('experiência da pessoa', () => {
   });
 
   it("no passo da foto, texto qualquer pede a foto de novo e 'pular' segue sem ela", async () => {
-    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'Vazando']) await send(t);
+    for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'categoria:outra', 'Vazando'])
+      await send(t);
     expect(await send('já mandei')).toEqual([PHOTO_ASK_TEXT]);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
     expect((await send('Pular')).at(-1)).toBe(MENU_PRINCIPAL);

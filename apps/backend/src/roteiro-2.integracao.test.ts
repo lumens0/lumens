@@ -48,7 +48,7 @@ import {
   supportedText,
 } from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT, coOwnerText } from './bot/conversation/co-owner';
-import { GREETING_TEXT, MENU_DICA_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { FALABR_TEXT_INTRO, OPENED_TEXT } from './bot/conversation/minhas-pautas';
 import {
   DESCRIPTION_QUESTION_TEXT,
@@ -396,7 +396,12 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       const [listaDeBlocos] = await texto(RESPONSAVEL, TITULO, 1);
       const doBloco = opcoes(listaDeBlocos).find((id) => id !== 'bloco:campus');
       if (doBloco === undefined) throw new Error('esperava a lista de blocos');
-      expect(await linha(RESPONSAVEL, doBloco, 1)).toEqual([DESCRIPTION_QUESTION_TEXT]);
+      // SCRUM-365: "iluminacao" e "estacionamento" apontam para Infraestrutura, e o bot confirma.
+      const [sugestao] = await linha(RESPONSAVEL, doBloco, 1);
+      expect(JSON.stringify(sugestao)).toContain('Parece ser Infraestrutura. Confirma?');
+      expect(await botao(RESPONSAVEL, 'categoria:confirmar', 1)).toEqual([
+        DESCRIPTION_QUESTION_TEXT,
+      ]);
       expect(await texto(RESPONSAVEL, DESCRICAO, 1)).toEqual([PHOTO_ASK_TEXT]);
 
       const [semFoto, resumo, menu] = await texto(RESPONSAVEL, 'pular', 3);
@@ -404,9 +409,10 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(resumo).toContain('Pauta enviada para a curadoria!');
       expect(resumo).toContain(`*Título:* ${TITULO}`);
       expect(resumo).toContain(`*Local:* ${BLOCO.nome}`);
+      expect(resumo).toContain('*Categoria:* Infraestrutura');
       expect(resumo).toContain(`*Meta:* ${String(META)} apoios`);
-      // SCRUM-340: o resumo é longo, então o fim do fluxo manda só a dica do menu.
-      expect(menu).toBe(MENU_DICA_TEXT);
+      // SCRUM-340: com o resumo abaixo do limite de resposta longa, o menu vai inteiro ao fim do fluxo.
+      expect(menu).toEqual(MENU_PRINCIPAL);
 
       const [pauta] = await admin
         .select({ id: pautas.id, slug: pautas.slug, status: pautas.status })

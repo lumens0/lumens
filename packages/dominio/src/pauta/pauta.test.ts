@@ -55,6 +55,12 @@ describe('criarPauta', () => {
     expect(r.meta).toBe(120);
   });
 
+  it('grava a categoria que o estudante escolheu (SCRUM-357)', async () => {
+    const r = criada(await criar(await entradaValida({ categoria: 'seguranca' })));
+    const [pauta] = await db.select().from(pautas).where(eq(pautas.id, r.pautaId));
+    expect(pauta?.categoria).toBe('seguranca');
+  });
+
   it('pauta do campus inteiro (sem bloco) recebe a meta máxima', async () => {
     const r = criada(await criar(await entradaValida({ blocoId: null })));
     expect(r.meta).toBe(META_MAXIMA);
