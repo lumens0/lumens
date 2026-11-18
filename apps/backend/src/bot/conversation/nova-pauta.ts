@@ -5,10 +5,15 @@
  *   2.5 "É outro" ───┴─▶ estudante verificado? ──não──▶ VERIFY_ASK_EMAIL (2.4), guardando o pedido
  *                              │ sim
  *                              ▼
- *   NEW_ASK_TITLE ──▶ NEW_ASK_PLACE ──▶ NEW_ASK_DESCRIPTION ──▶ NEW_ASK_PHOTO ──▶ criarPauta + resumo
- *        │  (lista de blocos) │            ▲                        ▲
- *        │                    └─ parecida? ─▶ NEW_PICK_SIMILAR ─"É outro"   "É essa" → apoio (2.7)
- *        └── veio da 2.5: o bloco e o relato já estão nos dados ────┘
+ *   NEW_ASK_TITLE ──▶ NEW_ASK_PLACE ──▶ NEW_ASK_CATEGORY ──▶ NEW_ASK_DESCRIPTION ──▶ NEW_ASK_PHOTO
+ *        │  (lista de blocos) │               ▲  (lista de categorias)                  │
+ *        │                    └─ parecida? ─▶ NEW_PICK_SIMILAR ─"É outro"      criarPauta + resumo
+ *        │                                  "É essa" → apoio (2.7)
+ *        └── veio da 2.5: o bloco e o relato já estão nos dados, vai direto à categoria
+ *
+ * A categoria (SCRUM-357) vem logo depois do bloco e da checagem de pautas parecidas. "Outra" deixa
+ * a pauta como `a_classificar`, para a curadoria. Vindo da 2.5, o relato serve de descrição e a
+ * descrição é pulada, se couber.
  *
  * Pelo menu, o título e o bloco passam pela mesma busca de pautas parecidas do relato (SCRUM-346):
  * sem ela, a pauta repetida dividia os apoios. Quem vem da 2.5 já viu a lista e não passa de novo.
@@ -19,17 +24,28 @@
  */
 import { blocos, eq, type Db } from '@lumens/db';
 import {
+  CATEGORIAS,
   DESCRICAO_MAXIMA,
   PRAZO_DE_CURADORIA_MS,
   TITULO_MAXIMO,
   buscarPautasParecidas,
   criarPauta,
   listarBlocos,
+  sugerirCategoria,
+  type Categoria,
   type ResultadoCriacao,
 } from '@lumens/dominio';
 import { z } from 'zod';
 import type { MotivoFotoRecusada } from '../../fotos/servico';
 import { BLOCK_NOT_FOUND_TEXT, blocoEscolhido, listaDeBlocos } from './blocos';
+import {
+  CATEGORY_NOT_FOUND_TEXT,
+  OTHER_CATEGORY,
+  categoriaEscolhida,
+  confirmacaoDaCategoria,
+  listaDeCategorias,
+  respostaDaSugestao,
+} from './categorias';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { listaDeParecidas, type Parecida } from './parecidas';
@@ -93,6 +109,10 @@ const dadosSchema = z.object({
   descricaoCifrada: z.string().optional(),
   /** Da lista de blocos ou da 2.5. `null` = todo o campus. */
   blocoId: z.string().nullable().optional(),
+  /** Da lista de categorias (`outra` = sem categoria, a curadoria classifica). */
+  categoria: z.string().optional(),
+  /** A sugestão por palavras-chave, esperando o estudante confirmar (SCRUM-365). */
+  categoriaSugerida: z.string().optional(),
   /** Da 2.5: o relato vira a descrição e o primeiro relato da pauta. */
   relatoCifrado: z.string().optional(),
 });
@@ -107,6 +127,8 @@ const LIMPAR: DataPatch = {
   tituloCifrado: undefined,
   descricaoCifrada: undefined,
   blocoId: undefined,
+  categoria: undefined,
+  categoriaSugerida: undefined,
   relatoCifrado: undefined,
   parecidas: undefined,
   fotoMediaId: undefined,
@@ -153,17 +175,17 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
   }
 
   const data: DataPatch = { tituloCifrado: segredo.cifrar(titulo) };
-  const { blocoId, relatoCifrado } = dadosDaPauta(state.data);
+  const { blocoId } = dadosDaPauta(state.data);
 
   if (blocoId === undefined) {
     return { next: 'NEW_ASK_PLACE', data, replies: [listaDeBlocos(await listarBlocos(db))] };
   }
-  // Veio da 2.5: o lugar já foi respondido. O relato serve de descrição, se couber nela.
-  const relato = decifrado(segredo, relatoCifrado);
-  if (relato === undefined || tamanho(relato.trim()) > DESCRICAO_MAXIMA) {
-    return { next: 'NEW_ASK_DESCRIPTION', data, replies: [DESCRIPTION_QUESTION_TEXT] };
-  }
-  return { next: 'NEW_ASK_PHOTO', data, replies: [FROM_REPORT_DESCRIPTION_TEXT, PHOTO_ASK_TEXT] };
+  // Veio da 2.5: o lugar já foi respondido, falta a categoria.
+  const { relatoCifrado } = dadosDaPauta(state.data);
+  return perguntarCategoria(
+    [titulo, decifrado(segredo, relatoCifrado)].filter((t) => t !== undefined).join('\n'),
+    data,
+  );
 };
 
 export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) => {
@@ -194,8 +216,91 @@ export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) =>
       };
     }
   }
-  return { next: 'NEW_ASK_DESCRIPTION', data, replies: [DESCRIPTION_QUESTION_TEXT] };
+  return perguntarCategoria(tituloDaPauta, data);
 };
+
+/**
+ * Abre a pergunta da categoria. O texto da pauta (título e, vindo da 2.5, o relato) passa pelas
+ * palavras-chave do domínio, no servidor (SCRUM-365): com uma categoria vencendo com clareza, o
+ * bot sugere e o estudante confirma; com empate ou sem palavra reconhecida, mostra a lista.
+ * O texto não é guardado nem enviado a lugar nenhum: só o id da categoria sugerida fica na conversa.
+ */
+export function perguntarCategoria(
+  texto: string | undefined,
+  data: DataPatch = {},
+  antes: Resposta[] = [],
+): StepResult {
+  const sugerida = texto === undefined ? undefined : sugerirCategoria(texto);
+  if (sugerida === undefined) {
+    return {
+      next: 'NEW_ASK_CATEGORY',
+      data: { ...data, categoriaSugerida: undefined },
+      replies: [...antes, listaDeCategorias()],
+    };
+  }
+  return {
+    next: 'NEW_CONFIRM_CATEGORY',
+    data: { ...data, categoriaSugerida: sugerida },
+    replies: [...antes, confirmacaoDaCategoria(sugerida)],
+  };
+}
+
+/** O texto da pauta até aqui (título e relato da 2.5), para a sugestão de categoria. */
+export function textoDaPauta(segredo: Segredo, data: unknown): string | undefined {
+  const { tituloCifrado, relatoCifrado } = dadosDaPauta(data);
+  const texto = [decifrado(segredo, tituloCifrado), decifrado(segredo, relatoCifrado)]
+    .filter((t) => t !== undefined)
+    .join('\n');
+  return texto === '' ? undefined : texto;
+}
+
+/**
+ * A categoria: a linha da lista ou o nome digitado. Resposta que não vale repete a lista, sem
+ * perder o que já foi respondido. Vindo da 2.5, o relato serve de descrição, se couber nela.
+ */
+export const newAskCategory: StepHandler = ({ state, input, segredo }) => {
+  const categoria = categoriaEscolhida(input.text);
+  if (categoria === undefined) {
+    return {
+      next: 'NEW_ASK_CATEGORY',
+      replies: [CATEGORY_NOT_FOUND_TEXT, listaDeCategorias()],
+    };
+  }
+  return depoisDaCategoria(state.data, segredo, categoria);
+};
+
+/**
+ * A resposta à sugestão (SCRUM-365). "Confirmar" vale a categoria sugerida; "Escolher outra" abre
+ * a lista completa; o nome de uma categoria digitado também vale. O resto repete a pergunta.
+ */
+export const newConfirmCategory: StepHandler = ({ state, input, segredo }) => {
+  const { categoriaSugerida } = dadosDaPauta(state.data);
+  const sugerida = categoriaEscolhida(categoriaSugerida ?? '');
+  if (sugerida === undefined || sugerida === OTHER_CATEGORY) {
+    return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
+  }
+  const resposta = respostaDaSugestao(input.text);
+  if (resposta === 'confirmar') return depoisDaCategoria(state.data, segredo, sugerida);
+  if (resposta === 'escolher') return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
+  // Escolheu na mão, sem tocar nos botões: vale como a lista.
+  const digitada = categoriaEscolhida(input.text);
+  if (digitada !== undefined) return depoisDaCategoria(state.data, segredo, digitada);
+  return { next: 'NEW_CONFIRM_CATEGORY', replies: [confirmacaoDaCategoria(sugerida)] };
+};
+
+/** Guarda a categoria e segue: a descrição, ou a foto quando o relato da 2.5 já a cobre. */
+function depoisDaCategoria(
+  dados: unknown,
+  segredo: Segredo,
+  categoria: NonNullable<ReturnType<typeof categoriaEscolhida>>,
+): StepResult {
+  const data: DataPatch = { categoria, categoriaSugerida: undefined };
+  const relato = decifrado(segredo, dadosDaPauta(dados).relatoCifrado);
+  if (relato === undefined || tamanho(relato.trim()) > DESCRICAO_MAXIMA) {
+    return { next: 'NEW_ASK_DESCRIPTION', data, replies: [DESCRIPTION_QUESTION_TEXT] };
+  }
+  return { next: 'NEW_ASK_PHOTO', data, replies: [FROM_REPORT_DESCRIPTION_TEXT, PHOTO_ASK_TEXT] };
+}
 
 export const newAskDescription: StepHandler = ({ input, segredo }) => {
   const descricao = input.text.trim();
@@ -243,6 +348,9 @@ async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<St
     return fim(DATA_LOST_TEXT);
   }
   const blocoId = dados.blocoId;
+  // Sem escolha ou "Outra": entra como `a_classificar` e a curadoria classifica.
+  const escolha = categoriaEscolhida(dados.categoria ?? '');
+  const categoria = escolha === undefined || escolha === OTHER_CATEGORY ? undefined : escolha;
 
   // Confere de novo no fim: o estudante pode ter saído no meio da conversa.
   const estudanteId = await estudanteVerificado(db, phoneHmac);
@@ -257,6 +365,7 @@ async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<St
       descricao,
       blocoId,
       fotoChave,
+      ...(categoria === undefined ? {} : { categoria }),
       ...(relato === undefined ? {} : { relato }),
     }),
   );
@@ -265,7 +374,10 @@ async function finalizar(ctx: StepContext, fotoChave: string | null): Promise<St
   return {
     next: 'MENU',
     data: LIMPAR,
-    replies: [antes, await resumo(db, { titulo, blocoId, meta: resultado.meta, comFoto })],
+    replies: [
+      antes,
+      await resumo(db, { titulo, blocoId, categoria: escolha, meta: resultado.meta, comFoto }),
+    ],
   };
 }
 
@@ -287,7 +399,13 @@ function textoDaRecusa(motivo: Extract<ResultadoCriacao, { criada: false }>['mot
 /** O resumo que confirma a pauta criada. */
 export async function resumo(
   db: Db,
-  pauta: { titulo: string; blocoId: string | null; meta: number; comFoto: boolean },
+  pauta: {
+    titulo: string;
+    blocoId: string | null;
+    categoria?: Categoria | typeof OTHER_CATEGORY | undefined;
+    meta: number;
+    comFoto: boolean;
+  },
 ): Promise<string> {
   let local = 'Todo o campus';
   if (pauta.blocoId !== null) {
@@ -297,15 +415,22 @@ export async function resumo(
       .where(eq(blocos.id, pauta.blocoId));
     local = bloco?.nome ?? local;
   }
+  const categoria =
+    pauta.categoria === undefined
+      ? undefined
+      : pauta.categoria === OTHER_CATEGORY
+        ? 'Outra'
+        : CATEGORIAS[pauta.categoria];
   const linhas = [
     'Pauta enviada para a curadoria! ✅',
     '',
     `*Título:* ${pauta.titulo}`,
     `*Local:* ${local}`,
+    ...(categoria === undefined ? [] : [`*Categoria:* ${categoria}`]),
     `*Meta:* ${String(pauta.meta)} apoios`,
     `*Foto:* ${pauta.comFoto ? 'sim' : 'não'}`,
     '',
-    'Antes de aparecer no site, a curadoria confere a pauta. Você recebe uma mensagem quando ela for aprovada ou recusada.',
+    'Antes de aparecer no site, a curadoria confere a pauta e avisa você da decisão.',
     CURADORIA_PRAZO_TEXT,
   ];
   return linhas.join('\n');
