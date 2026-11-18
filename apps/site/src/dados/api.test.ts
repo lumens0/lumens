@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  buscarApoiosPorSemana,
   buscarFoto,
   buscarAtividade,
   buscarBlocos,
@@ -251,5 +252,34 @@ describe('buscarFoto', () => {
   it('erro 500 da API sobe', async () => {
     vi.stubGlobal('fetch', responder(500));
     await expect(buscarFoto('2026', '11', 'c.jpg')).rejects.toThrow('500');
+  });
+});
+
+describe('buscarApoiosPorSemana', () => {
+  beforeEach(() => vi.stubEnv('LUMENS_API_URL', 'http://api.teste/'));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('devolve os itens; com bloco, manda o filtro na URL', async () => {
+    const itens = [{ semana: '2026-11-16', apoios: 3 }];
+    const fetch = responder(200, { itens });
+    vi.stubGlobal('fetch', fetch);
+    expect(await buscarApoiosPorSemana()).toEqual(itens);
+    expect(fetch).toHaveBeenLastCalledWith('http://api.teste/apoios-por-semana', {
+      next: { revalidate: 30 },
+      signal: SINAL,
+    });
+    await buscarApoiosPorSemana('bloco-a');
+    expect(fetch).toHaveBeenLastCalledWith('http://api.teste/apoios-por-semana?bloco=bloco-a', {
+      next: { revalidate: 30 },
+      signal: SINAL,
+    });
+  });
+
+  it('erro da API sobe, para cair no error.tsx', async () => {
+    vi.stubGlobal('fetch', responder(500));
+    await expect(buscarApoiosPorSemana()).rejects.toThrow('respondeu 500');
   });
 });

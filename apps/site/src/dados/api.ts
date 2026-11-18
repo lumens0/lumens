@@ -1,4 +1,6 @@
 import type {
+  ApoioSemana,
+  ApoiosPorSemana,
   Atividade,
   Bloco,
   Blocos,
@@ -108,6 +110,14 @@ export async function buscarFoto(
 
 export async function buscarBlocos(): Promise<Bloco[]> {
   return (await buscarJson<Blocos>('/blocos', 'os blocos')).itens;
+}
+
+/** Apoios das últimas 8 semanas (a atual e as 7 anteriores), com o filtro de bloco opcional. */
+export async function buscarApoiosPorSemana(bloco?: string): Promise<ApoioSemana[]> {
+  const caminho = bloco
+    ? `/apoios-por-semana?${new URLSearchParams({ bloco }).toString()}`
+    : '/apoios-por-semana';
+  return (await buscarJson<ApoiosPorSemana>(caminho, 'os apoios por semana')).itens;
 }
 
 // Trava contra uma API que nunca devolve `proximo: null`: 50 páginas de 100 são 5 mil pautas.
