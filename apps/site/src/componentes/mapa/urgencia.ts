@@ -12,7 +12,8 @@ const COR: Record<Exclude<StatusPauta, 'em_curadoria' | 'recusada' | 'conquistad
   descumprida: STATUS.descumprida.ponto,
 };
 const SO_CONQUISTAS = STATUS.conquistada.ponto;
-const SEM_PAUTAS = '#9ea2b8';
+// Apagado: dá para ver que o prédio é um bloco, sem competir com os acesos (SCRUM-284).
+const SEM_PAUTAS = '#6f7597';
 
 export const LEGENDA = [
   { cor: COR.juntando_apoios, rotulo: 'Juntando apoios' },

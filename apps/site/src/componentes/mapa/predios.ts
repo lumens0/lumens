@@ -6,6 +6,7 @@
  * na lista; quando os blocos oficiais forem cadastrados, é só acrescentar o slug.
  */
 import { AREAS_OSM, PONTOS_LOCAIS, PREDIOS_OSM } from './campus-osm';
+import { pontoDoNome } from './nomes';
 
 export { ALTURA_DO_CAMPUS, CAMINHOS, CONTORNO, LARGURA_DO_CAMPUS } from './campus-osm';
 
@@ -19,6 +20,8 @@ export interface Predio {
   d: string;
   /** `[x, y, largura, altura]` do contorno. */
   caixa: readonly number[];
+  /** Ponto do nome: na borda de baixo da parte mais larga do prédio (`pontoDoNome`). */
+  rotulo: readonly [number, number];
   blocos: readonly string[];
 }
 
@@ -121,6 +124,7 @@ export const PREDIOS: readonly Predio[] = PREDIOS_OSM.map(([id, nomeOsm, d, caix
     sigla: nome ? sigla || siglaDe(nome) : '',
     d,
     caixa,
+    rotulo: pontoDoNome(d, caixa),
     blocos: BLOCOS_DO_PREDIO[id] ?? [],
   };
 });
