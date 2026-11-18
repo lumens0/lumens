@@ -5,6 +5,7 @@ import componentes from '../componentes/componentes.module.css';
 import { MapaResumo } from '../componentes/mapa/MapaResumo';
 import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { Numero } from '../componentes/Numero';
+import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { FiltroStatus } from '../componentes/FiltroStatus';
@@ -115,6 +116,7 @@ export default async function Home({
           </div>
         </dl>
       </section>
+      {todas.length > 0 && <CaminhoDasPautas pautas={todas} />}
       {lista.length === 0 ? (
         <ListaVazia bloco={bloco} status={status} />
       ) : (
