@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import estilos from './painel.module.css';
+import { Enviar } from './enviar';
 
 /**
  * Cabeçalho comum das telas de quem já entrou. Recebe `sair` para o teste não carregar o Auth.js.
@@ -47,9 +48,9 @@ export function Moldura({
           </details>
           <form action={sair} className={estilos.sessao}>
             <span className={estilos.nome}>{nome}</span>
-            <button className={estilos.botaoNoite} type="submit" title={`Sair da conta de ${nome}`}>
+            <Enviar className={estilos.botaoNoite} title={`Sair da conta de ${nome}`}>
               Sair
-            </button>
+            </Enviar>
           </form>
         </div>
       </header>

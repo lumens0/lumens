@@ -4,8 +4,8 @@
 }
 
 .detalhesRecolhiveis {
-  margin-top: 24px;
-  padding-top: 16px;
+  margin-top: var(--esp-5);
+  padding-top: var(--esp-4);
   border-top: 1px solid var(--borda);
 }
 
@@ -16,25 +16,25 @@
 }
 
 .titulo {
-  margin: 20px 0 4px;
+  margin: var(--esp-5) 0 var(--esp-1);
   font-size: clamp(1.5rem, 4vw, 2rem);
 }
 
 .pauta {
-  margin: 0 0 12px;
+  margin: 0 0 var(--esp-3);
   font-size: 1.125rem;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 .apoio {
-  margin: 0 0 24px;
+  margin: 0 0 var(--esp-5);
   color: var(--tinta-2);
   line-height: 1.5;
 }
 
 .vazio {
-  padding: 20px;
+  padding: var(--esp-5);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
   background: var(--superficie);
@@ -42,7 +42,7 @@
 
 .lista {
   display: grid;
-  gap: 12px;
+  gap: var(--esp-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -51,8 +51,8 @@
 .evento {
   display: grid;
   grid-template-columns: 9.5rem 1fr;
-  gap: 4px 16px;
-  padding: 16px 20px;
+  gap: var(--esp-1) var(--esp-4);
+  padding: var(--esp-4) var(--esp-5);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
   background: var(--superficie);
@@ -77,7 +77,7 @@
 }
 
 .detalhe {
-  margin: 4px 0 0;
+  margin: var(--esp-1) 0 0;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -85,13 +85,13 @@
 .marcas {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 10px 0 0;
+  gap: var(--esp-2);
+  margin: var(--esp-3) 0 0;
 }
 
 .marca,
 .marcaInterna {
-  padding: 2px 10px;
+  padding: 2px var(--esp-3);
   border-radius: 999px;
   background: var(--superficie-2);
   color: var(--tinta-2);

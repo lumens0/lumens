@@ -3,6 +3,7 @@ import Link from 'next/link';
 import estilos from '../painel.module.css';
 import { SeloDePrazo, SeloDeStatus, SeloUrgente } from './selos';
 import { STATUS } from './status';
+import { Enviar } from '../enviar';
 
 /** Lista única de pautas da curadoria, filtrável por situação e título. */
 export function ListaDePautas({
@@ -37,9 +38,7 @@ export function ListaDePautas({
         </select>
         <label htmlFor="busca-pautas">Buscar pelo título</label>
         <input id="busca-pautas" name="q" type="search" defaultValue={q} />
-        <button className={estilos.botao} type="submit">
-          Filtrar
-        </button>
+        <Enviar className={estilos.botao}>Filtrar</Enviar>
       </form>
       {pautas.length === 0 ? (
         <p className={estilos.aviso}>Nenhuma pauta encontrada.</p>

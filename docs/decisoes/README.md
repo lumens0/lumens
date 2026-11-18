@@ -20,6 +20,8 @@ arquivo novo que diz qual substitui.
 | [SCRUM-257](SCRUM-257-seed-pelo-dominio.md)             | Seed com inserções diretas e teste das regras do domínio      |
 | [SCRUM-267](SCRUM-267-canal-telegram.md)                | Telegram como canal reserva do bot                            |
 | [SCRUM-275](SCRUM-275-canal-evolution.md)               | WhatsApp pela Evolution API para a demonstração               |
+| [SCRUM-292](SCRUM-292-dados-de-demonstracao.md)         | Dados de demonstração na homologação (em aberto)              |
+| [SCRUM-294](SCRUM-294-dividas-tecnicas.md)              | Dívidas técnicas: offset em /atividade, lista de status       |
 | [SCRUM-308](SCRUM-308-pauta-sem-quorum.md)              | Pauta depois de duas conferências sem quórum                  |
 | [SCRUM-309](SCRUM-309-backup-fora-da-vm.md)             | Cópia do backup fora da VM, cifrada, no Backblaze B2          |
 | [SCRUM-314](SCRUM-314-sair-relatos-e-fotos.md)          | O que o `sair` apaga dos relatos, fotos e PDFs                |

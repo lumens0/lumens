@@ -1,4 +1,15 @@
 /* Os tokens (cores, raio, ritmo) vêm de `@lumens/marca/tokens.css`, os mesmos do site. */
+/* Escala de espaçamento do painel (SCRUM-351): margens, respiros e vãos usam só estes passos. */
+:root {
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 24px;
+  --esp-6: 32px;
+  --esp-7: 48px;
+}
+
 * {
   box-sizing: border-box;
 }

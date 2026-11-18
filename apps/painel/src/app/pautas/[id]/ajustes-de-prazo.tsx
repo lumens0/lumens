@@ -1,6 +1,7 @@
 import { dataDeEntregaMaxima } from '@lumens/dominio';
 import type { DetalhePautaDaCuradoria, EventoDaLinha } from '@lumens/dominio';
 import estilos from '../../painel.module.css';
+import { Enviar } from '../../enviar';
 
 type Acao = (formulario: FormData) => Promise<void>;
 
@@ -89,13 +90,9 @@ export function AjustesDePrazo({
               <input type="hidden" name="pautaId" value={pauta.id} />
               <input type="hidden" name="caminhoId" value={caminho.id} />
               <CamposDeAuditoria />
-              <button
-                className={estilos.botao}
-                disabled={prorrogado || caminho.prazo === null}
-                type="submit"
-              >
+              <Enviar className={estilos.botao} desabilitado={prorrogado || caminho.prazo === null}>
                 {prorrogado ? 'Prazo já prorrogado' : 'Registrar prorrogação'}
-              </button>
+              </Enviar>
             </form>
             <form action={corrigir}>
               <input type="hidden" name="pautaId" value={pauta.id} />
@@ -105,9 +102,7 @@ export function AjustesDePrazo({
                 <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
               </label>
               <CamposDeAuditoria />
-              <button className={estilos.botao} type="submit">
-                Corrigir data do protocolo
-              </button>
+              <Enviar className={estilos.botao}>Corrigir data do protocolo</Enviar>
             </form>
           </div>
         );
@@ -133,9 +128,7 @@ export function AjustesDePrazo({
             />
           </label>
           <CamposDeAuditoria />
-          <button className={estilos.botao} type="submit">
-            Remarcar data prometida
-          </button>
+          <Enviar className={estilos.botao}>Remarcar data prometida</Enviar>
         </form>
       )}
     </section>

@@ -1,4 +1,4 @@
-import type { AtividadeItem } from '@lumens/contratos';
+import { agruparEventosIguais, rotuloDeResponsaveis, type AtividadeItem } from '@lumens/contratos';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import componentes from '../../componentes/componentes.module.css';
@@ -71,7 +71,9 @@ function statusNovo(item: AtividadeItem): StatusPauta | undefined {
 }
 
 /** "Status alterado para Conquistada" em vez de só "Status alterado"; os outros tipos, o rótulo. */
-function textoDoEvento(item: AtividadeItem): string {
+function textoDoEvento(item: AtividadeItem, quantidade = 1): string {
+  const grupo = rotuloDeResponsaveis(item.tipo, item.dados, quantidade);
+  if (grupo !== undefined) return grupo;
   const doPapel = rotuloDoPapel(item.tipo, item.dados);
   if (doPapel !== undefined) return doPapel;
   if (item.tipo === 'meta_ajustada') {
@@ -149,7 +151,12 @@ export default async function PaginaAtividade({
         </div>
       ) : (
         <ol className={estilos.registro}>
-          {itens.map((item, i) => (
+          {/* Eventos iguais seguidos da mesma pauta viram uma linha (SCRUM-355); só vizinhos da página. */}
+          {agruparEventosIguais(
+            itens,
+            (item) => item.criado_em,
+            (item) => item.pauta_slug,
+          ).map(({ evento: item, quantidade }, i) => (
             <li
               key={`${String(pagina)}-${String(i)}`}
               className={estilos.evento}
@@ -160,7 +167,7 @@ export default async function PaginaAtividade({
                 <Link href={`/p/${item.pauta_slug}`} className={estilos.eventoPauta}>
                   {item.pauta_titulo}
                 </Link>
-                <p className={estilos.eventoTexto}>{textoDoEvento(item)}</p>
+                <p className={estilos.eventoTexto}>{textoDoEvento(item, quantidade)}</p>
               </div>
               <time dateTime={item.criado_em} className={estilos.quando}>
                 {formatarData(item.criado_em)}

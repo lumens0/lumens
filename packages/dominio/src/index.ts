@@ -164,6 +164,10 @@ export type {
 
 export { listarLinhaDoTempo } from './pauta/linha-do-tempo';
 export type { EventoDaLinha } from './pauta/linha-do-tempo';
+export { aplicarApoioDosOwners, conferirApoioDosOwners } from './pauta/apoio-dos-owners';
+export type { Conferencia, OwnerSemApoio } from './pauta/apoio-dos-owners';
+export { agruparEventosIguais, rotuloDeResponsaveis } from './pauta/agrupar-eventos';
+export type { EventoAgrupavel, GrupoDeEventos } from './pauta/agrupar-eventos';
 export { detalharPautaDaCuradoria } from './pauta/detalhe-curadoria';
 export type {
   DetalhePautaDaCuradoria,

@@ -22,18 +22,18 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: var(--esp-5);
   max-width: 1120px;
   min-height: 64px;
   margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 24px);
+  padding: 0 clamp(var(--esp-4), 4vw, var(--esp-5));
 }
 
 .marca {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--esp-3);
   color: var(--tinta);
   font:
     700 20px var(--fonte-titulo),
@@ -58,7 +58,7 @@
 .navegacao,
 .menuLinks {
   display: flex;
-  gap: 4px;
+  gap: var(--esp-1);
 }
 
 .navegacao {
@@ -71,7 +71,7 @@
   display: flex;
   align-items: center;
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 var(--esp-3);
   border-radius: 8px;
   color: var(--tinta-2);
   font-size: 14.5px;
@@ -90,7 +90,7 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 12px;
+  gap: var(--esp-3);
   color: var(--tinta-2);
   font-size: 14.5px;
 }
@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 var(--esp-3);
   border: 1px solid rgb(255 255 255 / 24%);
   border-radius: 8px;
   color: var(--tinta);
@@ -122,7 +122,7 @@
 }
 
 .menuNome {
-  padding: 8px 12px 0;
+  padding: var(--esp-2) var(--esp-3) 0;
   border-top: 1px solid rgb(255 255 255 / 12%);
   color: var(--tinta-2);
   font-size: 14px;
@@ -137,7 +137,7 @@
 
 @media (max-width: 900px) {
   .faixa {
-    gap: 12px;
+    gap: var(--esp-3);
   }
 
   .navegacao {
@@ -155,7 +155,7 @@
     right: 0;
     left: 0;
     flex-direction: column;
-    padding: 8px 16px 16px;
+    padding: var(--esp-2) var(--esp-4) var(--esp-4);
     border-bottom: 1px solid rgb(255 255 255 / 12%);
     background: var(--noite);
   }
@@ -169,7 +169,7 @@
 
 .botaoNoite {
   min-height: 36px;
-  padding: 0 14px;
+  padding: 0 var(--esp-4);
   border: 1px solid rgb(255 255 255 / 24%);
   border-radius: 8px;
   background: transparent;
@@ -187,11 +187,12 @@
 .conteudo {
   width: min(100%, 880px);
   margin: 0 auto;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 64px;
+  padding: clamp(var(--esp-5), 4vw, var(--esp-6)) clamp(var(--esp-4), 4vw, var(--esp-6))
+    var(--esp-7);
 }
 
 .conteudo h1 {
-  margin: 0 0 12px;
+  margin: 0 0 var(--esp-3);
   font-size: clamp(1.625rem, 4.5vw, 2.25rem);
   font-weight: 800;
   line-height: 1.1;
@@ -199,22 +200,22 @@
 }
 
 .conteudo section {
-  margin-top: 32px;
+  margin-top: var(--esp-6);
 }
 
 .conteudo section > h2 {
-  margin: 0 0 12px;
+  margin: 0 0 var(--esp-3);
   font-size: 1.25rem;
 }
 
 .apoio {
-  margin: 0 0 24px;
+  margin: 0 0 var(--esp-5);
   color: var(--tinta-2);
 }
 
 .lista {
   display: grid;
-  gap: 12px;
+  gap: var(--esp-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -222,7 +223,7 @@
 
 .cartao,
 .formulario {
-  padding: 20px;
+  padding: var(--esp-4);
   border: 1px solid var(--borda);
   border-radius: var(--raio);
   background: var(--superficie);
@@ -230,7 +231,7 @@
 
 /* Hierarquia do cartão: título em destaque, selos, e os metadados menores. */
 .cartao h2 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--esp-2);
   font-size: 1.1875rem;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -280,16 +281,16 @@
 .selos {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 8px;
+  gap: var(--esp-2);
+  margin: 0 0 var(--esp-2);
 }
 
 .selo {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--esp-2);
   min-height: 26px;
-  padding: 0 10px;
+  padding: 0 var(--esp-3);
   border-radius: 999px;
   background: var(--superficie-2);
   color: var(--tinta-2);
@@ -331,8 +332,8 @@
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-5);
 }
 
 .filtros label {
@@ -374,7 +375,7 @@
   width: 100%;
   min-width: 0;
   min-height: 42px;
-  padding: 9px 12px;
+  padding: var(--esp-2) var(--esp-3);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio-controle);
   background: var(--superficie);
@@ -389,15 +390,15 @@
 .conteudo input[type='checkbox'] {
   width: 18px;
   height: 18px;
-  margin: 0 6px 0 0;
+  margin: 0 var(--esp-2) 0 0;
   accent-color: var(--luz-tinta);
   vertical-align: -3px;
 }
 
 .aviso,
 .erro {
-  margin: 0 0 20px;
-  padding: 14px 16px;
+  margin: 0 0 var(--esp-5);
+  padding: var(--esp-4);
   border: 1px solid rgb(143 76 0 / 18%);
   border-radius: var(--raio-controle);
   background: var(--luz-fundo);
@@ -405,7 +406,7 @@
 }
 
 .aviso p {
-  margin: 0 0 10px;
+  margin: 0 0 var(--esp-3);
 }
 
 .erro {
@@ -415,7 +416,7 @@
 }
 
 .descricaoDaPauta {
-  margin: 20px 0;
+  margin: var(--esp-5) 0;
   font-size: 1.0625rem;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -424,8 +425,8 @@
 .ficha {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 6px 16px;
-  margin: 16px 0 8px;
+  gap: var(--esp-2) var(--esp-4);
+  margin: var(--esp-4) 0 var(--esp-2);
   font-size: 0.9375rem;
 }
 
@@ -440,7 +441,7 @@
 /* Formulários lado a lado no desktop (ajustes de bloco e meta). */
 .grade {
   display: grid;
-  gap: 12px;
+  gap: var(--esp-3);
 }
 
 @media (min-width: 720px) {
@@ -451,45 +452,45 @@
 
 .grade h2,
 .grade h3 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--esp-2);
   font-size: 1.0625rem;
 }
 
 .grade label {
   display: block;
-  margin: 8px 0 6px;
+  margin: var(--esp-2) 0 var(--esp-2);
   color: var(--tinta-2);
   font-size: 0.9375rem;
   font-weight: 600;
 }
 
 .grade button {
-  margin-top: 12px;
+  margin-top: var(--esp-3);
 }
 
 /* Decisão da pauta: uma barra de ações; recusar é secundária e abre o motivo. */
 .decisoes {
-  padding: 20px;
+  padding: var(--esp-5);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio);
   background: var(--superficie);
 }
 
 .decisoes > .detalhes {
-  margin-bottom: 16px;
+  margin-bottom: var(--esp-4);
 }
 
 .barraDeAcoes {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px 16px;
+  gap: var(--esp-3) var(--esp-4);
 }
 
 .campo {
   display: grid;
   flex: 1 1 220px;
-  gap: 6px;
+  gap: var(--esp-2);
   color: var(--tinta-2);
   font-size: 0.9375rem;
   font-weight: 600;
@@ -502,8 +503,8 @@
 }
 
 .recusa {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: var(--esp-4);
+  padding-top: var(--esp-4);
   border-top: 1px solid var(--borda);
 }
 
@@ -516,7 +517,7 @@
 }
 
 .recusa[open] summary {
-  margin-bottom: 12px;
+  margin-bottom: var(--esp-3);
 }
 
 .recusa .formulario {
@@ -533,7 +534,7 @@
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  padding: 0 18px;
+  padding: 0 var(--esp-4);
   border: 1px solid transparent;
   border-radius: var(--raio-controle);
   font: inherit;
@@ -582,27 +583,27 @@
 
 .formulario {
   display: grid;
-  gap: 6px;
+  gap: var(--esp-2);
 }
 
 .formulario label {
-  margin-top: 12px;
+  margin-top: var(--esp-3);
   font-weight: 600;
 }
 
 .formulario button {
   justify-self: start;
-  margin-top: 16px;
+  margin-top: var(--esp-4);
 }
 
 .acao {
-  margin-top: 24px;
+  margin-top: var(--esp-5);
 }
 
 /* Foto do relato (SCRUM-262): pequena na ficha, inteira ao tocar. */
 .foto {
   display: inline-block;
-  margin-top: 4px;
+  margin-top: var(--esp-1);
 }
 
 .foto img {
@@ -617,7 +618,7 @@
 /* Formulário da promessa com o PDF da resposta ao lado (SCRUM-262); um embaixo do outro no celular. */
 .aoLado {
   display: grid;
-  gap: 24px;
+  gap: var(--esp-5);
 }
 
 @media (min-width: 1000px) {
@@ -629,7 +630,7 @@
 
 .documentos {
   display: grid;
-  gap: 12px;
+  gap: var(--esp-3);
 }
 
 .documentos h2 {
@@ -642,4 +643,71 @@
   min-height: 420px;
   border: 1px solid var(--borda);
   border-radius: var(--raio-controle);
+}
+
+.botao:disabled,
+.botaoPerigo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Lista de curadores (SCRUM-351): no celular, empilhado e com a ação em largura cheia, separada
+   do texto; de 640 px em diante, colunas (quem, selos, data, ação). */
+.filtro {
+  margin: var(--esp-5) 0 var(--esp-3);
+}
+
+.curador {
+  display: grid;
+  gap: var(--esp-3);
+}
+
+.curador .selos,
+.curador .detalhes,
+.curador h2 {
+  margin: 0;
+}
+
+.curadorQuem {
+  display: grid;
+  gap: var(--esp-1);
+  min-width: 0;
+}
+
+.curadorQuem .detalhes {
+  overflow-wrap: anywhere;
+}
+
+.curadorAcao {
+  padding-top: var(--esp-3);
+  border-top: 1px solid var(--borda);
+}
+
+.curadorAcao button {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .curador {
+    grid-template-columns: minmax(0, 1fr) 12rem 7rem 7.5rem;
+    align-items: center;
+    gap: var(--esp-5);
+  }
+
+  .curadorAcao {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .curadorAcao button {
+    width: auto;
+    min-width: 112px;
+  }
+}
+
+@media (min-width: 640px) {
+  .cartao,
+  .formulario {
+    padding: var(--esp-5);
+  }
 }

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { caminhoDoArquivo } from '../../../curadoria/arquivos/[...chave]/arquivo';
 import estilos from '../../../painel.module.css';
 import { dataHora } from '../../../prazo';
+import { Enviar } from '../../../enviar';
 
 /** Status em que a pauta pode receber promessa (as transições para `prometido`). */
 export const ACEITA_PROMESSA: readonly PautaDaCuradoria['status'][] = [
@@ -81,9 +82,7 @@ export function FormularioDaPromessa({
               Nesse dia quem apoia a pauta recebe a pergunta &quot;Foi feito?&quot; e tem 7 dias
               para responder. Ao salvar, os apoiadores são avisados da resposta pelo bot.
             </p>
-            <button className={estilos.botao} type="submit">
-              Registrar promessa
-            </button>
+            <Enviar className={estilos.botao}>Registrar promessa</Enviar>
           </form>
           <Documentos documentos={documentos} />
         </div>

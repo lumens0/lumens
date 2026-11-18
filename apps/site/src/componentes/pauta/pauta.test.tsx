@@ -168,6 +168,24 @@ describe('página da pauta: seções', () => {
     expect(rotuloDoPapel('owner_entrou', {})).toBeUndefined();
   });
 
+  it('saídas iguais seguidas viram "N corresponsáveis saíram" (SCRUM-355)', () => {
+    const saida = {
+      tipo: 'owner_removido',
+      dados: { papel: 'co_owner' },
+      criado_em: '2026-11-15T18:40:00.000Z',
+    };
+    const html = renderToStaticMarkup(<LinhaDoTempo eventos={[saida, saida, saida]} />);
+    expect(html).toContain('3 corresponsáveis saíram');
+    expect(html.match(/<li/g)).toHaveLength(1);
+  });
+
+  it('dois relatos aprovados no mesmo minuto continuam em duas linhas', () => {
+    const relato = { tipo: 'relato_aprovado', dados: {}, criado_em: '2026-11-15T18:40:00.000Z' };
+    const html = renderToStaticMarkup(<LinhaDoTempo eventos={[relato, relato]} />);
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html.match(/Relato publicado/g)).toHaveLength(2);
+  });
+
   it('tipo fora do catálogo vira texto legível', () => {
     const html = renderToStaticMarkup(
       <LinhaDoTempo eventos={[{ tipo: 'algo_novo', dados: {}, criado_em: fixture.criada_em }]} />,

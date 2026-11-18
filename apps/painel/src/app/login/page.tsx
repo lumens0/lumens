@@ -1,5 +1,6 @@
 import { entrar } from '../acoes';
 import estilos from '../page.module.css';
+import { Enviar } from '../enviar';
 
 export default function Login() {
   return (
@@ -16,9 +17,7 @@ export default function Login() {
         <form action={entrar} className={estilos.formulario}>
           <label htmlFor="email">E-mail</label>
           <input id="email" name="email" type="email" autoComplete="email" required />
-          <button className={estilos.botao} type="submit">
-            Receber o link
-          </button>
+          <Enviar className={estilos.botao}>Receber o link</Enviar>
         </form>
       </section>
     </main>
