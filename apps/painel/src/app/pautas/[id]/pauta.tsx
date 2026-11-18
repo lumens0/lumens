@@ -10,6 +10,7 @@ import estilos from '../../painel.module.css';
 import { dataHora, textoDoPrazo } from '../../prazo';
 import { Foto } from '../../arquivos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
+import { PREFIXO_FOTO_VISTA } from './decisoes';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { STATUS } from '../status';
 import { AjustesDeMeta } from './ajustes-de-meta';
@@ -25,6 +26,8 @@ const ERRO: Record<string, string> = {
   categoria_invalida: 'Escolha uma categoria válida para esta pauta.',
   relato_com_dado_pessoal:
     'O relato de quem criou a pauta tem e-mail ou telefone. Recuse só o relato e aprove depois.',
+  relato_mudou:
+    'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova ou relato novo). Confira e aprove de novo.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
@@ -319,6 +322,16 @@ export function Pauta({
               achados de dado pessoal.
             </p>
             <input type="hidden" name="pautaId" value={pauta.id} />
+            {pauta.relatos
+              .filter((relato) => relato.moderacao === 'pendente')
+              .map((relato) => (
+                <input
+                  key={relato.id}
+                  type="hidden"
+                  name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
+                  value={relato.fotoChave ?? ''}
+                />
+              ))}
             <label htmlFor="categoria">Categoria</label>
             <select id="categoria" name="categoria" required defaultValue="">
               <option value="" disabled>

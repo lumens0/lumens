@@ -2,6 +2,21 @@ import type { ResultadoDecisao } from '@lumens/dominio';
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Id de relato → foto que a tela mostrou (`null` é sem foto). */
+export type FotosVistas = Record<string, string | null>;
+
+/** Campo do formulário de aprovação: um por relato pendente, `fotoVista:<id>` = foto na tela. */
+export const PREFIXO_FOTO_VISTA = 'fotoVista:';
+
+export function fotosVistasDoFormulario(formulario: FormData): FotosVistas {
+  const fotos: FotosVistas = {};
+  for (const [campo, valor] of formulario.entries()) {
+    if (!campo.startsWith(PREFIXO_FOTO_VISTA) || typeof valor !== 'string') continue;
+    fotos[campo.slice(PREFIXO_FOTO_VISTA.length)] = valor || null;
+  }
+  return fotos;
+}
+
 export interface DependenciasDeDecisao {
   /** Curador da sessão, conferido no banco. Sem ele nada é gravado. */
   curador: () => Promise<{ id: string } | undefined>;
@@ -9,6 +24,8 @@ export interface DependenciasDeDecisao {
     pautaId: string,
     curadorId: string,
     categoria: string,
+    /** A foto de cada relato pendente que a tela mostrou. */
+    fotosVistas: FotosVistas,
     urgente?: boolean,
   ) => Promise<ResultadoDecisao>;
   recusar: (pautaId: string, curadorId: string, motivo: string) => Promise<ResultadoDecisao>;
@@ -37,8 +54,8 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
   }
 
   return {
-    aprovar: (pautaId: string, categoria: string, urgente = false) =>
-      decidir(pautaId, (c) => aprovar(pautaId, c, categoria, urgente), 'aprovada'),
+    aprovar: (pautaId: string, categoria: string, fotosVistas: FotosVistas, urgente = false) =>
+      decidir(pautaId, (c) => aprovar(pautaId, c, categoria, fotosVistas, urgente), 'aprovada'),
     recusar: (pautaId: string, motivo: string) =>
       decidir(pautaId, (c) => recusar(pautaId, c, motivo), 'recusada'),
   };
