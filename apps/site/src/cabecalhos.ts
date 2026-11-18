@@ -39,5 +39,13 @@ export const CABECALHOS_DE_SEGURANCA: Cabecalho[] = [
  */
 export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=15, stale-while-revalidate=15';
 
+/**
+ * Na Vercel o `Cache-Control` das páginas dinâmicas é reescrito para `private, no-store` depois do
+ * Next (visto em produção: o `CACHE_PUBLICO` acima não chegava ao cliente, `x-vercel-cache: MISS`
+ * sempre). O `Vercel-CDN-Cache-Control` tem prioridade para a CDN da Vercel, não é reescrito e é
+ * removido da resposta: o navegador continua sem guardar nada.
+ */
+export const CACHE_DA_CDN = 'max-age=15, stale-while-revalidate=15';
+
 /** Páginas sem sessão que podem ir para a CDN. `/dados.csv` já tem o cache dele; `/p/:slug` é só a pauta (o card e o og.png ficam de fora). */
 export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade', '/p/:slug'];

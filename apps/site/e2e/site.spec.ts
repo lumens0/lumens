@@ -130,3 +130,17 @@ test('robots.txt e sitemap.xml respondem 200', async ({ request }) => {
   expect(sitemap.status()).toBe(200);
   expect(await sitemap.text()).toContain(`/p/${PAUTA.slug}</loc>`);
 });
+
+// SCRUM-379: a resposta renderizada (não só a config) sai com o cache curto da CDN, e o filtro de
+// bloco entra na URL, então cada filtro é uma entrada própria. Na Vercel o `Cache-Control` do Next
+// é reescrito; o `Vercel-CDN-Cache-Control` é o que vale lá, e some antes de chegar ao navegador.
+test.describe('cache das páginas públicas', () => {
+  for (const caminho of ['/', '/?bloco=bloco-18', '/mapa', '/conquistas', '/atividade']) {
+    test(`${caminho} responde com cache curto`, async ({ request }) => {
+      const resposta = await request.get(caminho);
+      expect(resposta.status()).toBe(200);
+      expect(resposta.headers()['cache-control']).toContain('s-maxage=15');
+      expect(resposta.headers()['cache-control']).not.toContain('no-store');
+    });
+  }
+});

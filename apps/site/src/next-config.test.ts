@@ -70,6 +70,8 @@ describe('next.config', () => {
       );
       for (const regra of regrasDeCache)
         expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=15');
+      for (const regra of regrasDeCache)
+        expect(valor(regra.headers, 'Vercel-CDN-Cache-Control')).toContain('max-age=15');
     });
   });
 });
