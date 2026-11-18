@@ -138,6 +138,9 @@ describe('câmera ligada ao mapa', () => {
     let quadros = new Map<number, (agora: number) => void>();
     let proximo = 0;
     let relogio = 0;
+    const ouvintes = new Map<string, (e: Event) => void>();
+    let ponteiroCapturado = false;
+    const limites = { left: 0, top: 0, width: 1000, height: 500 };
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -162,8 +165,12 @@ describe('câmera ligada ao mapa', () => {
     const elemento = {
       setAttribute: () => undefined,
       removeAttribute: () => undefined,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
+      addEventListener: (nome: string, fn: (e: Event) => void) => ouvintes.set(nome, fn),
+      removeEventListener: (nome: string) => ouvintes.delete(nome),
+      getBoundingClientRect: () => limites,
+      setPointerCapture: () => {
+        ponteiroCapturado = true;
+      },
       parentElement: null,
       style: { setProperty: () => undefined },
     };
@@ -179,6 +186,9 @@ describe('câmera ligada ao mapa', () => {
       camera,
       desligar,
       vista: () => vista,
+      ouvintes,
+      limites,
+      capturado: () => ponteiroCapturado,
       tela: (width: number, height: number) => {
         redimensionar([{ contentRect: { width, height } }]);
       },
@@ -208,6 +218,244 @@ describe('câmera ligada ao mapa', () => {
     const v = mapa.vista();
     expect(v.w / v.h).toBeCloseTo(0.5);
     expect(v).toEqual(cobrir(alvo, 0.5));
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('gira ao arrastar com o botão direito ou Ctrl/⌘ esquerdo, só depois do limiar', () => {
+    for (const [button, ctrlKey] of [
+      [2, false],
+      [0, true],
+    ] as const) {
+      const mapa = montar();
+      mapa.tela(1000, 500);
+      const enviar = (
+        handler: keyof typeof mapa.camera.eventos,
+        valores: Record<string, unknown>,
+      ) => {
+        const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+        fn({
+          pointerId: 1,
+          pointerType: 'mouse',
+          clientX: 100,
+          clientY: 100,
+          button,
+          ctrlKey,
+          metaKey: false,
+          preventDefault() {},
+          ...valores,
+        });
+      };
+      enviar('onPointerDown', {});
+      enviar('onPointerMove', { clientX: 102, clientY: 100 });
+      expect(mapa.camera.estado().giro).toBe(0);
+      enviar('onPointerMove', { clientX: 140, clientY: 100 });
+      expect(mapa.camera.estado().giro).toBeCloseTo((40 / 1000) * Math.PI * 2);
+      expect(mapa.capturado()).toBe(true);
+      mapa.desligar();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('no celular, dois dedos andando juntos arrastam o mapa sem mudar zoom nem giro', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const tocar = (
+      handler: keyof typeof mapa.camera.eventos,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ) => {
+      const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+      fn({ pointerId, pointerType: 'touch', clientX, clientY, button: 0, preventDefault() {} });
+    };
+    // Aproxima antes: com o campus inteiro na tela, não há para onde arrastar.
+    for (let i = 0; i < 8; i++) {
+      mapa.ouvintes.get('wheel')?.({
+        deltaX: 0,
+        deltaY: -40,
+        deltaMode: 0,
+        clientX: 500,
+        clientY: 250,
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault() {},
+      } as unknown as Event);
+    }
+    tocar('onPointerDown', 1, 400, 200);
+    tocar('onPointerDown', 2, 600, 200);
+    const antes = { ...mapa.camera.estado().vista };
+    // Os dois descem 100 px, intercalados em passos de 10 px, como o navegador entrega o gesto.
+    for (let y = 210; y <= 300; y += 10) {
+      tocar('onPointerMove', 1, 400, y);
+      tocar('onPointerMove', 2, 600, y);
+    }
+    const depois = mapa.camera.estado().vista;
+    expect(depois.w).toBeCloseTo(antes.w, 0);
+    expect(mapa.camera.estado().giro).toBe(0);
+    // 100 px de tela, numa tela de 500 px de altura, são um quinto da altura da visão.
+    expect(antes.y - depois.y).toBeCloseTo((100 / 500) * antes.h, 0);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('no celular, um dedo rola a página na hora, sem a rolagem suave', () => {
+    const scrollBy = vi.fn();
+    vi.stubGlobal('window', { scrollBy });
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const fn = (handler: keyof typeof mapa.camera.eventos) =>
+      mapa.camera.eventos[handler] as (evento: unknown) => void;
+    const toque = { pointerId: 1, pointerType: 'touch', button: 0, preventDefault() {} };
+    fn('onPointerDown')({ ...toque, clientX: 300, clientY: 300 });
+    fn('onPointerMove')({ ...toque, clientX: 300, clientY: 260 });
+    expect(scrollBy).toHaveBeenCalledWith({ top: 40, behavior: 'instant' });
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('soltar um giro com o botão direito não faz o mapa deslizar', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const enviar = (handler: keyof typeof mapa.camera.eventos, clientX: number) => {
+      const fn = mapa.camera.eventos[handler] as (evento: unknown) => void;
+      fn({
+        pointerId: 1,
+        pointerType: 'mouse',
+        clientX,
+        clientY: 100 + clientX / 2,
+        button: 2,
+        ctrlKey: false,
+        metaKey: false,
+        preventDefault() {},
+      });
+    };
+    enviar('onPointerDown', 100);
+    // Movimentos rápidos na diagonal: o giro ganha inércia, mas a visão não pode deslizar.
+    mapa.avancar(16);
+    enviar('onPointerMove', 120);
+    mapa.avancar(16);
+    enviar('onPointerMove', 140);
+    const parado = { ...mapa.camera.estado().vista };
+    const giroAoSoltar = mapa.camera.estado().giro;
+    enviar('onPointerUp', 140);
+    mapa.avancar(16);
+    mapa.avancar(16);
+    expect(mapa.camera.estado().vista).toEqual(parado);
+    expect(mapa.camera.estado().giro).toBeGreaterThan(giroAoSoltar);
+    // Pegar o mapa no meio do giro e arrastar curto para o outro lado: a inércia nova segue o
+    // gesto novo, sem herdar a velocidade do anterior.
+    enviar('onPointerDown', 300);
+    mapa.avancar(16);
+    enviar('onPointerMove', 294);
+    const giroDoSegundo = mapa.camera.estado().giro;
+    enviar('onPointerUp', 294);
+    mapa.avancar(16);
+    mapa.avancar(16);
+    expect(mapa.camera.estado().giro).toBeLessThan(giroDoSegundo);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('Shift+roda gira, trackpad desloca e roda com Ctrl aproxima', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const emitir = (dados: Partial<WheelEvent>) =>
+      mapa.ouvintes.get('wheel')?.({
+        deltaX: 0,
+        deltaY: 0,
+        deltaMode: 0,
+        clientX: 500,
+        clientY: 250,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault() {},
+        ...dados,
+      } as WheelEvent);
+    const visao = () => ({ ...mapa.camera.estado().vista });
+    emitir({ shiftKey: true, deltaY: 12 });
+    expect(mapa.camera.estado().giro).toBeCloseTo(0.024);
+    let antes = visao();
+    emitir({ deltaX: 4.5, deltaY: 2.5 });
+    expect(visao().x).not.toBe(antes.x);
+    expect(visao().w).toBe(antes.w);
+    antes = visao();
+    emitir({ deltaY: 0.75 });
+    expect(visao().y).not.toBe(antes.y);
+    expect(visao().w).toBe(antes.w);
+    // Roda de mouse de alta resolução (deltas inteiros pequenos) dá zoom, devagar ou rápido.
+    for (const deltaY of [40, 60, -40, 120]) {
+      antes = visao();
+      emitir({ deltaY });
+      if (deltaY > 0) expect(visao().w).toBeGreaterThan(antes.w);
+      else expect(visao().w).toBeLessThan(antes.w);
+    }
+    antes = visao();
+    emitir({ ctrlKey: true, deltaY: -10 });
+    expect(visao().w).toBeLessThan(antes.w);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('bloqueia o menu de contexto no SVG do mapa', () => {
+    const mapa = montar();
+    let bloqueado = false;
+    mapa.ouvintes.get('contextmenu')?.({
+      preventDefault: () => {
+        bloqueado = true;
+      },
+    } as MouseEvent);
+    expect(bloqueado).toBe(true);
+    mapa.desligar();
+    vi.restoreAllMocks();
+  });
+
+  it('setas movem, Shift+setas giram e N volta ao norte', () => {
+    const mapa = montar();
+    mapa.tela(1000, 500);
+    const tecla = mapa.ouvintes.get('keydown');
+    let bloqueou: boolean | undefined;
+    const enviar = (key: string, shiftKey = false, mod: Partial<KeyboardEvent> = {}) =>
+      tecla?.({
+        key,
+        shiftKey,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        preventDefault() {
+          bloqueou = true;
+        },
+        ...mod,
+      } as KeyboardEvent);
+    const antes = { ...mapa.camera.estado().vista };
+    enviar('ArrowRight');
+    mapa.avancar(600);
+    expect(mapa.camera.estado().vista.x).toBeGreaterThan(antes.x);
+    expect(mapa.camera.estado().vista.y).toBe(antes.y);
+    // Atalhos do navegador passam direto: voltar (Alt+←) e zoom da página (Ctrl/⌘ + mais/menos).
+    bloqueou = undefined;
+    const parado = { ...mapa.camera.estado().vista };
+    enviar('ArrowLeft', false, { altKey: true });
+    enviar('+', false, { ctrlKey: true });
+    enviar('-', false, { metaKey: true });
+    enviar('ArrowUp', false, { metaKey: true });
+    mapa.avancar(600);
+    expect(bloqueou).toBeUndefined();
+    expect(mapa.camera.estado().vista).toEqual(parado);
+    enviar('ArrowLeft', true);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).not.toBe(0);
+    // Mesmo depois de uma volta inteira, o N volta pelo lado mais curto (sem desenrolar 2π).
+    mapa.camera.girar(Math.PI * 2 + 0.2);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).toBeGreaterThan(Math.PI * 2);
+    enviar('n');
+    mapa.avancar(16);
+    expect(Math.abs(mapa.camera.estado().giro)).toBeLessThan(0.2);
+    mapa.avancar(600);
+    expect(mapa.camera.estado().giro).toBe(0);
     mapa.desligar();
     vi.restoreAllMocks();
   });

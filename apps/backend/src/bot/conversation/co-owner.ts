@@ -17,7 +17,7 @@ import type { StepContext, StepResult } from './handlers';
 import { botoes, type Resposta } from './resposta';
 
 export const COOWNER_VERIFY_FIRST_TEXT =
-  'Para cuidar de uma pauta, você precisa ser estudante verificado. Vamos verificar o seu e-mail institucional: qual é ele?';
+  'Para cuidar de uma pauta, você precisa verificar o seu e-mail institucional. Qual é ele?';
 export const COOWNER_INVITE_TEXT =
   'Quer ajudar a cuidar desta pauta? Até 3 pessoas cuidam de cada uma: recebem os avisos e escolhem os próximos passos pelo bot, em "Minhas pautas".';
 export const COOWNER_NOT_FOUND_TEXT = 'Não encontrei essa pauta. Confira o link no site.';
