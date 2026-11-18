@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
-import { PREDIOS, siglaDe } from './predios';
+import { AREAS, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
@@ -131,6 +131,48 @@ describe('prédios do OpenStreetMap', () => {
       'engenharias',
       'saude',
     ]);
+  });
+});
+
+describe('lugares que faltavam no mapa (SCRUM-284)', () => {
+  it('o COS aparece com nome e sigla', () => {
+    const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
+    expect(cos?.sigla).toBe('COS');
+  });
+
+  it('a pista de atletismo aparece com nome, uma vez só, sem rótulo nas outras raias', () => {
+    const pistas = AREAS.filter((a) => a.tipo === 'pista');
+    expect(pistas.length).toBeGreaterThan(1);
+    expect(pistas.filter((a) => a.nome === 'Pista de atletismo')).toHaveLength(1);
+    expect(pistas.every((a) => a.nome === '' || a.nome === 'Pista de atletismo')).toBe(true);
+  });
+
+  it('quadras, parques e estacionamentos do OSM entram como áreas abertas', () => {
+    const tipos = new Set(AREAS.map((a) => a.tipo));
+    for (const tipo of ['pista', 'quadra', 'parque', 'estacionamento'] as const) {
+      expect(tipos).toContain(tipo);
+    }
+    for (const area of AREAS) expect(area.d).toMatch(/^M[\d. LZ-]+Z$/);
+  });
+
+  it('o mapa desenha as áreas abertas, e o nome da pista vira dica do desenho', () => {
+    const html = renderToStaticMarkup(<MapaDoCampus marcadores={[]} />);
+    expect(html).toContain('<title>Pista de atletismo</title>');
+    expect(html.match(/class="[^"]*area[^"]*"/g)?.length).toBe(AREAS.length);
+  });
+
+  it('prédio sem nome no OSM usa o nome local confirmado; os outros ficam como "sem nome"', () => {
+    expect(PREDIOS.find((p) => p.id === 404591641)).toMatchObject({
+      nome: 'Centro de Interesse Comunitário',
+      sigla: 'CIC',
+    });
+    const semNome = PREDIOS.filter((p) => p.nome === 'Prédio sem nome no mapa');
+    expect(semNome.every((p) => p.sigla === '')).toBe(true);
+  });
+
+  it('blocos do ICBS ganham a sigla do instituto antes do número', () => {
+    expect(siglaDe('Bloco 05 do ICBS')).toBe('ICBS 05');
+    expect(PREDIOS.find((p) => p.nome === 'Bloco 13')?.sigla).toBe('Bloco 13');
   });
 });
 

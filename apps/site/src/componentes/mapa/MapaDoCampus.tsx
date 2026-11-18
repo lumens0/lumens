@@ -11,7 +11,9 @@ import {
   CAMINHOS,
   CONTORNO,
   LARGURA_DO_CAMPUS,
+  AREAS,
   PREDIOS,
+  type Area,
   type Predio,
 } from './predios';
 import { enquadrar } from './MapaResumo';
@@ -39,6 +41,21 @@ function Sigla({ predio }: { predio: Predio }) {
     <g transform={`translate(${String(x + largura / 2)} ${String(y + altura)})`} aria-hidden="true">
       <text dy="1.15em" className={estilos.sigla}>
         {predio.sigla}
+      </text>
+    </g>
+  );
+}
+
+/** Rótulo de uma área aberta (a pista de atletismo, o estádio...): no centro dela. */
+function SiglaDaArea({ area }: { area: Area }) {
+  const [x = 0, y = 0, largura = 0, altura = 0] = area.caixa;
+  return (
+    <g
+      transform={`translate(${String(x + largura / 2)} ${String(y + altura / 2)})`}
+      aria-hidden="true"
+    >
+      <text dy="0.35em" className={estilos.sigla}>
+        {area.nome}
       </text>
     </g>
   );
@@ -186,6 +203,12 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 className={estilos.chao}
               />
               <path d={CONTORNO} className={estilos.terreno} />
+              {/* As áreas abertas ficam sob as vias e os prédios: são chão com uso (SCRUM-284). */}
+              {AREAS.map((a) => (
+                <path key={a.id} d={a.d} className={[estilos.area, estilos[a.tipo]].join(' ')}>
+                  {a.nome && <title>{a.nome}</title>}
+                </path>
+              ))}
               {CAMINHOS.map((d) => (
                 <path key={d} d={d} className={estilos.via} />
               ))}
@@ -243,6 +266,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
               ).map((p) => (
                 <Sigla key={p.id} predio={p} />
               ))}
+              {comNomes &&
+                AREAS.filter((a) => a.nome).map((a) => <SiglaDaArea key={a.id} area={a} />)}
             </g>
           </g>
         </svg>
