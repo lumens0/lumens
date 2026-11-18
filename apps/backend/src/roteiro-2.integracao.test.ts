@@ -24,7 +24,12 @@ import {
   relatos,
   type Db,
 } from '@lumens/db';
-import { aprovarPauta, diaEmMaceio, registrarApoio } from '@lumens/dominio';
+import {
+  aprovarPauta,
+  detalharPautaDaCuradoria,
+  diaEmMaceio,
+  registrarApoio,
+} from '@lumens/dominio';
 import { criarBancoTemporario } from '@lumens/db/teste';
 import type { FastifyInstance } from 'fastify';
 import type { PgBoss } from 'pg-boss';
@@ -128,6 +133,16 @@ const PROPOSTA = 'Mutirão para mapear os postes apagados e levar a lista à pre
 const PESSOAS = 5;
 
 let db: Db;
+
+/** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */
+async function fotosDaTela(banco: Db, pautaId: string) {
+  const detalhe = await detalharPautaDaCuradoria(banco, pautaId);
+  return Object.fromEntries(
+    (detalhe?.relatos ?? [])
+      .filter(({ moderacao }) => moderacao === 'pendente')
+      .map(({ id, fotoChave }) => [id, fotoChave]),
+  );
+}
 // Opcionais: se o beforeAll falhar no meio, o afterAll fecha só o que chegou a abrir.
 let pool: ReturnType<typeof criarPool> | undefined;
 let poolLeitura: ReturnType<typeof criarPool> | undefined;
@@ -272,9 +287,12 @@ async function estudanteVerificadoNaFixture(telefone: string): Promise<string> {
   return e.id;
 }
 
-/** Apoiadores da fixture: os que levam a pauta até um antes da meta, junto com o APOIADOR. */
+/**
+ * Apoiadores da fixture: os que levam a pauta até um antes da meta, junto com a responsável (que
+ * conta como o primeiro apoio, SCRUM-344) e o APOIADOR.
+ */
 const TELEFONES_DA_FIXTURE = Array.from(
-  { length: META - 2 },
+  { length: META - 3 },
   (_, i) => `55829900${String(i).padStart(5, '0')}`,
 );
 
@@ -399,17 +417,18 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       slug = pauta.slug;
     });
 
-    it('2. a curadoria aprova e a pauta aparece na API juntando apoios, com 0 apoios', async () => {
+    it('2. a curadoria aprova e a pauta aparece na API juntando apoios, com 1 apoio, o de quem a criou', async () => {
       // Como o painel faz (apps/painel/src/app/pautas/[id]/acoes.ts).
+      const fotosVistas = await fotosDaTela(db, pautaId);
       const decisao = await db.transaction((tx) =>
-        aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura' }),
+        aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura', fotosVistas }),
       );
       expect(decisao).toEqual({ decidida: true });
 
       expect(await pautaNaApi()).toMatchObject({
         titulo: TITULO,
         status: 'juntando_apoios',
-        apoios: 0,
+        apoios: 1,
         meta: META,
       });
     });
@@ -422,8 +441,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       // Verificado, o apoio pedido pelo site é retomado e conta na hora.
       expect(await verificar(APOIADOR, 4)).toEqual([
         VERIFIED_TEXT,
-        supportedText(TITULO, 1, META),
-        cardDaPauta(slug, 1),
+        supportedText(TITULO, 2, META),
+        cardDaPauta(slug, 2),
         ASK_WRITE_REPORT_TEXT,
       ]);
       const relato = 'Ontem caí no estacionamento por causa do escuro.';
@@ -476,8 +495,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
 
       // O apoio que cruza a meta vem pelo bot, de um estudante já verificado.
       await estudanteVerificadoNaFixture(TERCEIRO.telefone);
-      expect(await texto(TERCEIRO, `apoiar ${slug}`, 5)).toEqual([
-        PRIVACY_NOTICE_TEXT,
+      // Com cadastro, não é primeiro contato: sem o aviso de privacidade.
+      expect(await texto(TERCEIRO, `apoiar ${slug}`, 4)).toEqual([
         supportedText(TITULO, META, META),
         goalReachedText(META),
         cardDaPauta(slug, META),
@@ -515,10 +534,14 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       const destinos = daMeta.map((s) => s.destino);
       // Ninguém recebe duas vezes.
       expect(new Set(destinos).size).toBe(destinos.length);
-      // Todos os apoiadores, e só eles. Sobre a responsável não se afirma nada: quem cria a pauta
-      // não conta como apoio, e se ela recebe este aviso ainda está em aberto.
-      const apoiadores = [...TELEFONES_DA_FIXTURE, APOIADOR.telefone, TERCEIRO.telefone];
-      expect(destinos.filter((d) => d !== RESPONSAVEL.telefone).sort()).toEqual(apoiadores.sort());
+      // Todos os apoiadores, e só eles: quem cria a pauta conta como o primeiro apoio (SCRUM-344).
+      const apoiadores = [
+        RESPONSAVEL.telefone,
+        ...TELEFONES_DA_FIXTURE,
+        APOIADOR.telefone,
+        TERCEIRO.telefone,
+      ];
+      expect([...destinos].sort()).toEqual(apoiadores.sort());
       for (const { aviso } of daMeta) {
         expect(aviso.texto).toContain(
           `A pauta "${TITULO}", que você apoiou, chegou à meta de ${String(META)} apoios.`,
