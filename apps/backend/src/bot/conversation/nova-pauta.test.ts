@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
 import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import { SUPPORT_VERIFY_FIRST_TEXT } from './apoio';
-import { MENU_TEXT } from './handlers';
+import { MENU_PRINCIPAL } from './handlers';
 import {
   BLOCK_GONE_TEXT,
   CURADORIA_PRAZO_TEXT,
@@ -165,7 +165,7 @@ describe('pauta nova pelo menu', () => {
 
     const respostas = await send('pular');
     expect(respostas[0]).toBe(NO_PHOTO_TEXT);
-    expect(respostas.at(-1)).toBe(MENU_TEXT);
+    expect(respostas.at(-1)).toBe(MENU_PRINCIPAL);
     const texto = resumoEm(respostas);
     expect(texto).toContain('*Título:* Bebedouro quebrado');
     expect(texto).toContain('*Local:* Bloco 18');
@@ -281,7 +281,7 @@ describe('pauta nova pelo menu', () => {
   it('estudante que deixa de ser verificado no meio não cria pauta', async () => {
     for (const t of ['Bebedouro', 'não sei', DESCRICAO]) await send(t);
     await db.update(estudantes).set({ saiuEm: new Date() }).where(eq(estudantes.id, estudanteId));
-    expect(await send('pular')).toEqual([NOT_VERIFIED_AT_END_TEXT, MENU_TEXT]);
+    expect(await send('pular')).toEqual([NOT_VERIFIED_AT_END_TEXT, MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
     expect(await dados()).toEqual({});
   });
@@ -294,7 +294,7 @@ describe('pauta nova pelo menu', () => {
     if (!extra) throw new Error('bloco não inserido');
     for (const t of ['Bebedouro', `bloco:${extra.id}`, DESCRICAO]) await send(t);
     await db.delete(blocos).where(eq(blocos.id, extra.id));
-    expect(await send('pular')).toEqual([BLOCK_GONE_TEXT, MENU_TEXT]);
+    expect(await send('pular')).toEqual([BLOCK_GONE_TEXT, MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
   });
 

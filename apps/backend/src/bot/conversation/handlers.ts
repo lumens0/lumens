@@ -29,7 +29,7 @@ import {
   reportPickSimilar,
   REPORT_PROMPT_TEXT,
 } from './relato';
-import type { Resposta } from './resposta';
+import { lista, type MensagemDeLista, type Resposta } from './resposta';
 import type { ConversationData, ConversationState } from './store';
 import type { Step } from './steps';
 import { normalize } from './texto';
@@ -108,9 +108,27 @@ export const OPCOES_DO_MENU = [
   { id: '5', titulo: 'Ver pautas abertas' },
 ] as const;
 
-export const MENU_TEXT = [MENU_PERGUNTA, ...OPCOES_DO_MENU.map((o) => `${o.id} ${o.titulo}`)].join(
-  '\n',
-);
+/**
+ * SCRUM-340: o menu principal é uma lista como as outras. Cada canal a desenha do seu jeito: lista
+ * da Meta, teclado do Telegram, linhas numeradas (`*1.* Título`) no texto da Evolution.
+ */
+export const MENU_PRINCIPAL: MensagemDeLista = lista({
+  corpo: MENU_PERGUNTA,
+  botao: 'Ver opções',
+  linhas: OPCOES_DO_MENU.map(({ id, titulo }) => ({ id, titulo })),
+});
+
+/** Reconhece o menu principal depois de passar por JSON (as respostas vão cifradas pela fila). */
+export function ehMenuPrincipal(resposta: Resposta): boolean {
+  return (
+    typeof resposta !== 'string' && resposta.tipo === 'lista' && resposta.corpo === MENU_PERGUNTA
+  );
+}
+
+/** SCRUM-340: fim de fluxo depois de uma resposta longa: a dica no lugar do menu inteiro. */
+export const MENU_DICA_TEXT = 'Mande *menu* para ver as opções.';
+/** Acima disto (em caracteres) a última resposta do fluxo já ocupa a tela: o menu vai só como dica. */
+export const RESPOSTA_LONGA = 280;
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com um número de 1 a 5, ou *ajuda*.';
 
@@ -136,15 +154,15 @@ export const HELP_TEXT = [
 const greeting: StepHandler = async (ctx) => {
   if (opcaoDoMenu(ctx.input.text) !== undefined) return menu(ctx);
   if (await temCadastro(ctx.db, ctx.phoneHmac)) {
-    return { next: 'MENU', replies: [WELCOME_BACK_TEXT, MENU_TEXT] };
+    return { next: 'MENU', replies: [WELCOME_BACK_TEXT, MENU_PRINCIPAL] };
   }
-  return { next: 'MENU', replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT] };
+  return { next: 'MENU', replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL] };
 };
 
 /** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; replies: Resposta[] }> = {
   '1': { next: 'REPORT_ASK_TEXT', replies: [REPORT_PROMPT_TEXT] },
-  '5': { next: 'MENU', replies: [OPEN_PAUTAS_TEXT, MENU_TEXT] },
+  '5': { next: 'MENU', replies: [OPEN_PAUTAS_TEXT, MENU_PRINCIPAL] },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -182,9 +200,9 @@ function menu(ctx: StepContext): StepResult | Promise<StepResult> {
   const opt = escolha === undefined ? undefined : MENU_OPTIONS[escolha];
   if (opt) return { next: opt.next, replies: opt.replies };
   const t = normalize(ctx.input.text);
-  if (PEDE_AJUDA.has(t)) return { next: 'MENU', replies: [HELP_TEXT, MENU_TEXT] };
-  if (PEDE_O_MENU.has(t)) return { next: 'MENU', replies: [MENU_TEXT] };
-  return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
+  if (PEDE_AJUDA.has(t)) return { next: 'MENU', replies: [HELP_TEXT, MENU_PRINCIPAL] };
+  if (PEDE_O_MENU.has(t)) return { next: 'MENU', replies: [MENU_PRINCIPAL] };
+  return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_PRINCIPAL] };
 }
 
 export const defaultHandlers: HandlerRegistry = {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ehMenuPrincipal, MENU_PRINCIPAL } from '../conversation/handlers';
 import {
   botoes,
   dentroDosLimitesDaMeta,
@@ -83,16 +84,17 @@ describe('menuDoTurno', () => {
 
 describe('semMenuPrincipalDepoisDoMenu', () => {
   const PRINCIPAL = 'O que você quer fazer?\n1 Relatar problema';
+  const ehPrincipal = (r: unknown) => r === PRINCIPAL;
 
   it('tira o menu principal que vem depois dos botões (o "Vou ajudar" que volta ao menu)', () => {
-    expect(semMenuPrincipalDepoisDoMenu(['antes', BOTOES, PRINCIPAL], PRINCIPAL)).toEqual([
+    expect(semMenuPrincipalDepoisDoMenu(['antes', BOTOES, PRINCIPAL], ehPrincipal)).toEqual([
       'antes',
       BOTOES,
     ]);
   });
 
   it('mantém o menu principal quando não há menu numerado antes dele', () => {
-    expect(semMenuPrincipalDepoisDoMenu(['Ok, cancelei.', PRINCIPAL], PRINCIPAL)).toEqual([
+    expect(semMenuPrincipalDepoisDoMenu(['Ok, cancelei.', PRINCIPAL], ehPrincipal)).toEqual([
       'Ok, cancelei.',
       PRINCIPAL,
     ]);
@@ -131,5 +133,16 @@ describe('resolverEscolha', () => {
     const titulo = cortado.linhas[0]?.titulo ?? '';
     expect(titulo.endsWith('…')).toBe(true);
     expect(resolverEscolha(titulo.slice(0, -1), menu)).toBe('p');
+  });
+});
+
+describe('menu principal como lista (SCRUM-340)', () => {
+  it('é reconhecido depois de passar por JSON e sai no mesmo formato das outras listas', () => {
+    const volta = JSON.parse(JSON.stringify(MENU_PRINCIPAL)) as typeof MENU_PRINCIPAL;
+    expect(ehMenuPrincipal(volta)).toBe(true);
+    expect(ehMenuPrincipal('texto')).toBe(false);
+    const texto = renderizarEmTexto(MENU_PRINCIPAL);
+    expect(texto).toContain('*1.* Relatar problema');
+    expect(texto).toContain(DICA_DO_MENU);
   });
 });

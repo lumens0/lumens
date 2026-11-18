@@ -12,7 +12,7 @@ import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from './app';
 import { defaultHandlers } from './bot/conversation/handlers';
-import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { REPORT_PROMPT_TEXT } from './bot/conversation/relato';
 import { PRIVACY_NOTICE_TEXT } from './bot/conversation/privacidade';
 import { PHOTO_ASK_TEXT } from './bot/conversation/nova-pauta';
@@ -28,6 +28,7 @@ import { criarCliente } from './bot/canais/evolution/cliente';
 import { respostasPelaEvolution } from './bot/canais/evolution/respostas';
 import { ROTA_DO_WEBHOOK } from './bot/canais/evolution/webhook';
 import { evolutionTexto } from './bot/sim/evolution';
+import { renderizarEmTexto } from './bot/canais/menu-em-texto';
 import { processIncomingJob } from './bot/worker';
 import type { Chaves } from './cripto/cifra';
 import type { ServicoDeEmail } from './email/codigo';
@@ -120,7 +121,11 @@ describe('roteiro 1 pela entrada da Evolution', () => {
   }
 
   it('oi, verificação por e-mail e relato, tudo por mensagens numeradas', async () => {
-    expect(await escrever('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await escrever('oi')).toEqual([
+      GREETING_TEXT,
+      PRIVACY_NOTICE_TEXT,
+      renderizarEmTexto(MENU_PRINCIPAL),
+    ]);
 
     expect(await escrever('3')).toEqual([EMAIL_QUESTION_TEXT]);
     expect(await escrever(EMAIL)).toEqual([CODE_SENT_TEXT]);
@@ -133,7 +138,10 @@ describe('roteiro 1 pela entrada da Evolution', () => {
     const menuDeCursos = aposCodigo.at(-1) ?? '';
     const numeroDoCurso = /\*(\d+)\.\* Administração/.exec(menuDeCursos)?.[1];
     expect(numeroDoCurso).toBeDefined();
-    expect(await escrever(numeroDoCurso ?? '')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
+    expect(await escrever(numeroDoCurso ?? '')).toEqual([
+      VERIFIED_TEXT,
+      renderizarEmTexto(MENU_PRINCIPAL),
+    ]);
 
     expect(await escrever('1')).toEqual([REPORT_PROMPT_TEXT]);
     const [semParecida] = await escrever('o bebedouro do bloco 18 está quebrado');

@@ -21,7 +21,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
 import { ASK_WRITE_REPORT_TEXT, cardDaPauta, supportedText } from './apoio';
-import { MENU_TEXT } from './handlers';
+import { MENU_PRINCIPAL } from './handlers';
 import { VERIFY_FIRST_TEXT } from './nova-pauta';
 import { NO_PROPOSAL_TEXT } from './proposta';
 import { NEW_TITLE_TEXT } from './texto';
@@ -179,7 +179,7 @@ describe('pedir o e-mail institucional (SCRUM-134)', () => {
   it("'cancelar' no passo do e-mail volta ao menu sem guardar nada", async () => {
     await send('3');
     const respostas = await send('cancelar');
-    expect(respostas.at(-1)).toBe(MENU_TEXT);
+    expect(respostas.at(-1)).toBe(MENU_PRINCIPAL);
     expect(await passo()).toBe('MENU');
     expect(await dados()).not.toHaveProperty('emailCifrado');
   });
@@ -556,7 +556,7 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
 
   it('escolher pela lista marca verificado com o curso e volta ao menu', async () => {
     await ateOCurso();
-    expect(await send('curso:Ciência da Computação')).toEqual([VERIFIED_TEXT, MENU_TEXT]);
+    expect(await send('curso:Ciência da Computação')).toEqual([VERIFIED_TEXT, MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
     const cadastro = await estudante();
     expect(cadastro?.curso).toBe('Ciência da Computação');
@@ -621,7 +621,7 @@ describe('curso, verificado e pedido pendente (SCRUM-138)', () => {
     await store.save(H, 'VERIFY_ASK_COURSE', {
       pendingCommand: { kind: 'ajudar', id: 'pauta-sem-proposta' },
     });
-    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await send('curso:Direito')).toEqual([VERIFIED_TEXT, NO_PROPOSAL_TEXT, MENU_PRINCIPAL]);
     expect(await dados()).not.toHaveProperty('pendingCommand');
   });
 
