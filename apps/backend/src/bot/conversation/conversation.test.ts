@@ -7,7 +7,7 @@ import { JOBS } from '../../infra/queue';
 import {
   defaultHandlers,
   GREETING_TEXT,
-  MENU_TEXT,
+  MENU_PRINCIPAL,
   normalize,
   PHOTO_ASK_TEXT,
   PHOTO_RECEIVED_TEXT,
@@ -90,7 +90,7 @@ describe('router', () => {
   it('usuário novo recebe saudação + menu e fica em MENU', async () => {
     // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
     await db.delete(estudantes);
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(st?.expiresAt.getTime()).toBe(clock.getTime() + 24 * HOUR);
@@ -118,7 +118,7 @@ describe('router', () => {
   it('menu inválido mantém em MENU', async () => {
     await send('oi');
     const r = await send('xyz');
-    expect(r).toContain(MENU_TEXT);
+    expect(r).toContain(MENU_PRINCIPAL);
     expect((await store.get(H))?.step).toBe('MENU');
   });
 
@@ -126,7 +126,7 @@ describe('router', () => {
     "'cancelar' em %s volta ao MENU e limpa os dados",
     async (step) => {
       await store.save(H, step, { foo: 'bar', pendingCommand: { kind: 'apoiar', id: 'p1' } });
-      expect(await send('  CANCELÁR ')).toEqual([CANCEL_TEXT, MENU_TEXT]);
+      expect(await send('  CANCELÁR ')).toEqual([CANCEL_TEXT, MENU_PRINCIPAL]);
       const st = await store.get(H);
       expect(st?.step).toBe('MENU');
       expect(st?.data).toEqual({});
@@ -138,7 +138,7 @@ describe('router', () => {
       title: 'x',
       pendingCommand: { kind: 'ajudar', id: 'p9' },
     });
-    expect(await send('Menu')).toEqual([MENU_TEXT]);
+    expect(await send('Menu')).toEqual([MENU_PRINCIPAL]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(st?.data).toEqual({ pendingCommand: { kind: 'ajudar', id: 'p9' } });
@@ -160,7 +160,7 @@ describe('router', () => {
     await store.save(H, 'NEW_ASK_PLACE', { title: 'x' });
     advance(25 * HOUR);
     expect(await store.get(H)).toBeNull();
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(st?.data).toEqual({});
@@ -270,7 +270,7 @@ describe('experiência da pessoa', () => {
   it("'Cancelar.' com pontuação cancela no meio do fluxo", async () => {
     await send('oi');
     await send('2');
-    expect(await send('Cancelar.')).toEqual([CANCEL_TEXT, MENU_TEXT]);
+    expect(await send('Cancelar.')).toEqual([CANCEL_TEXT, MENU_PRINCIPAL]);
     expect((await store.get(H))?.step).toBe('MENU');
   });
 
@@ -293,7 +293,7 @@ describe('experiência da pessoa', () => {
     await sendComEmail('aluno@ufal.br');
     await sendComEmail(codigo);
     const replies = await sendComEmail('Ciência da Computação');
-    expect(replies.at(-1)).toBe(MENU_TEXT);
+    expect(replies.at(-1)).toBe(MENU_PRINCIPAL);
     expect((await store.get(H))?.step).toBe('MENU');
   });
 
@@ -303,7 +303,7 @@ describe('experiência da pessoa', () => {
 
     const replies = await sendFoto();
     expect(replies[0]).toBe(PHOTO_RECEIVED_TEXT);
-    expect(replies.at(-1)).toBe(MENU_TEXT);
+    expect(replies.at(-1)).toBe(MENU_PRINCIPAL);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
     expect(await db.select({ titulo: pautas.titulo }).from(pautas)).toEqual([
@@ -315,7 +315,7 @@ describe('experiência da pessoa', () => {
     for (const t of ['oi', '2', 'Bebedouro', 'não sei', 'Vazando']) await send(t);
     expect(await send('já mandei')).toEqual([PHOTO_ASK_TEXT]);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
-    expect((await send('Pular')).at(-1)).toBe(MENU_TEXT);
+    expect((await send('Pular')).at(-1)).toBe(MENU_PRINCIPAL);
     expect((await store.get(H))?.step).toBe('MENU');
   });
 
@@ -329,6 +329,6 @@ describe('experiência da pessoa', () => {
   it('foto como primeira mensagem recebe a saudação', async () => {
     // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
     await db.delete(estudantes);
-    expect(await sendFoto()).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await sendFoto()).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 });

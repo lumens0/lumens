@@ -20,7 +20,7 @@ import {
   RECUSA_DA_CONFERENCIA_TEXT,
   entradaDeConferencia,
 } from './conferencia';
-import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
+import { MENU_INVALID_TEXT, MENU_PRINCIPAL } from './handlers';
 import { hashPhone } from './phone';
 import { handleIncoming } from './router';
 import { ConversationStore } from './store';
@@ -260,7 +260,7 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     const c = await cenario({ apoioEm: new Date() });
     await store.save(c.phoneHmac, 'MENU', {});
 
-    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_TEXT]);
+    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_PRINCIPAL]);
     expect(await c.votos()).toEqual([]);
   });
 
@@ -268,7 +268,7 @@ describe('resposta à conferência pela conversa (SCRUM-293)', () => {
     const c = await cenario({ apoiou: false });
     await store.save(c.phoneHmac, 'MENU', {});
 
-    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_TEXT]);
+    expect(await c.send('sim')).toEqual([MENU_INVALID_TEXT, MENU_PRINCIPAL]);
   });
 
   it('botão de outro aviso responde que ainda não dá e não mexe na conversa', async () => {

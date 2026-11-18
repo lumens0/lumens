@@ -14,7 +14,7 @@ import {
   type MenuEmTexto,
 } from './canais/menu-em-texto';
 import {
-  MENU_TEXT,
+  ehMenuPrincipal,
   type HandlerRegistry,
   type IncomingMessage,
   type Segredo,
@@ -223,7 +223,7 @@ export async function processIncomingJob(
             },
           );
     const replies = deps.menusEmTexto
-      ? semMenuPrincipalDepoisDoMenu(respondidas, MENU_TEXT)
+      ? semMenuPrincipalDepoisDoMenu(respondidas, ehMenuPrincipal)
       : respondidas;
     // Aviso sem mexer na conversa (endereço velho do site no meio de um fluxo): o menu que valia
     // continua valendo, e é a ele que a pessoa vai responder, como o aviso manda.

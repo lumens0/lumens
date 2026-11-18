@@ -86,7 +86,7 @@ export const COURSE_MANY_TEXT = 'Achei mais de um curso com esse nome. Qual é o
 export const VERIFIED_TEXT =
   'Pronto, sua verificação está feita ✅ Agora você pode criar pautas e apoiar as que já existem. A verificação vale para esta conversa: não precisa fazer de novo.';
 export const ALREADY_VERIFIED_TEXT =
-  'Sua verificação já está feita ✅ Não precisa verificar de novo.';
+  'Sua verificação já está feita. Não precisa verificar de novo.';
 export const LINK_LOST_TEXT = `Não achei o seu e-mail confirmado. Vamos refazer essa parte: ${EMAIL_QUESTION_TEXT.charAt(0).toLowerCase()}${EMAIL_QUESTION_TEXT.slice(1)}`;
 
 const CURSO_ROW_PREFIX = 'curso:';

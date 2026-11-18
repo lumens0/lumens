@@ -12,7 +12,7 @@ import {
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
-import { MENU_INVALID_TEXT, MENU_TEXT } from './handlers';
+import { MENU_INVALID_TEXT, MENU_PRINCIPAL } from './handlers';
 import {
   DATA_LOST_TEXT,
   FALABR_TEXT_INTRO,
@@ -133,8 +133,8 @@ beforeEach(async () => {
 
 describe('menu: 4 Minhas pautas', () => {
   it('aparece no menu, e a resposta inválida cita as 4 opções', async () => {
-    expect(MENU_TEXT).toContain('4 Minhas pautas');
-    expect(await send('9')).toEqual([MENU_INVALID_TEXT, MENU_TEXT]);
+    expect(MENU_PRINCIPAL.linhas).toContainEqual({ id: '4', titulo: 'Minhas pautas' });
+    expect(await send('9')).toEqual([MENU_INVALID_TEXT, MENU_PRINCIPAL]);
   });
 
   it('quem não é verificado não tem pauta: avisa e fica no menu', async () => {
@@ -277,27 +277,27 @@ describe('abrir os caminhos (RN07: um não bloqueia o outro)', () => {
   });
 
   it('o botão "Voltar ao menu" é o comando global', async () => {
-    expect(await send('menu')).toEqual([MENU_TEXT]);
+    expect(await send('menu')).toEqual([MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
   });
 
   it('quem deixou de ser owner no meio do caminho não abre', async () => {
     await db.update(papeisPauta).set({ ate: new Date() }).where(eq(papeisPauta.pautaId, pautaId));
     const r = await send('caminho:falabr');
-    expect(r).toEqual([LOST_OWNER_TEXT, MENU_TEXT]);
+    expect(r).toEqual([LOST_OWNER_TEXT, MENU_PRINCIPAL]);
     expect(await caminhosDe(pautaId)).toHaveLength(0);
     expect(await passo()).toBe('MENU');
   });
 
   it('pauta que fechou no meio do caminho não abre', async () => {
     await db.update(pautas).set({ status: 'conquistada' }).where(eq(pautas.id, pautaId));
-    expect(await send('caminho:comunidade')).toEqual([PAUTA_CLOSED_TEXT, MENU_TEXT]);
+    expect(await send('caminho:comunidade')).toEqual([PAUTA_CLOSED_TEXT, MENU_PRINCIPAL]);
     expect(await caminhosDe(pautaId)).toHaveLength(0);
   });
 
   it('sem a pauta nos dados da conversa, pede para começar de novo', async () => {
     await store.save(H, 'OWNER_PATHS', {});
-    expect(await send('caminho:falabr')).toEqual([DATA_LOST_TEXT, MENU_TEXT]);
+    expect(await send('caminho:falabr')).toEqual([DATA_LOST_TEXT, MENU_PRINCIPAL]);
   });
 });
 
@@ -492,7 +492,7 @@ describe('proposta da comunidade (3.5)', () => {
     // Chave trocada ou dado corrompido: o texto guardado não decifra mais.
     await store.save(H, 'PROPOSAL_ASK_PEOPLE', { ...(await dados()), propostaCifrada: 'lixo' });
 
-    expect(await send('2')).toEqual([PROPOSAL_LOST_TEXT, MENU_TEXT]);
+    expect(await send('2')).toEqual([PROPOSAL_LOST_TEXT, MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
     expect(await dados()).not.toHaveProperty('propostaCifrada');
     expect(await propostasDe()).toHaveLength(0);
@@ -537,8 +537,8 @@ describe('proposta da comunidade (3.5)', () => {
         voluntarios: 1,
       }),
     );
-    expect(confirmado.at(-1)).toBe(MENU_TEXT);
-    expect(await sendOutro(`ajudar ${id}`)).toEqual([ALREADY_VOLUNTEER_TEXT, MENU_TEXT]);
+    expect(confirmado.at(-1)).toBe(MENU_PRINCIPAL);
+    expect(await sendOutro(`ajudar ${id}`)).toEqual([ALREADY_VOLUNTEER_TEXT, MENU_PRINCIPAL]);
     expect(await db.select().from(voluntarios)).toHaveLength(1);
   });
 
@@ -556,7 +556,7 @@ describe('proposta da comunidade (3.5)', () => {
     await send('Rifa para comprar tinta');
     expect((await send('3'))[0]).toBe(PUBLISHED_TEXT);
 
-    expect(await sendOutro(botaoDeA)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_TEXT]);
+    expect(await sendOutro(botaoDeA)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_PRINCIPAL]);
     expect(await db.select().from(voluntarios)).toHaveLength(0);
 
     // Abrir o link de novo mostra B, e só confirmando B a pessoa entra.
@@ -579,9 +579,9 @@ describe('proposta da comunidade (3.5)', () => {
   it('pauta sem proposta aberta avisa', async () => {
     expect(await send('ajudar ' + 'pauta-' + String(contador))).toEqual([
       NO_PROPOSAL_TEXT,
-      MENU_TEXT,
+      MENU_PRINCIPAL,
     ]);
-    expect(await send('ajudar nao-existe')).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await send('ajudar nao-existe')).toEqual([NO_PROPOSAL_TEXT, MENU_PRINCIPAL]);
   });
 
   it('marcar feita vira conquista parcial: a pauta continua sendo cobrada (RN09)', async () => {
@@ -600,7 +600,10 @@ describe('proposta da comunidade (3.5)', () => {
 
     // Depois de feita, ninguém mais entra na lista dela.
     const [proposta] = await propostasDe();
-    expect(await send(`ajudar ${proposta?.id ?? ''}`)).toEqual([PROPOSAL_CLOSED_TEXT, MENU_TEXT]);
+    expect(await send(`ajudar ${proposta?.id ?? ''}`)).toEqual([
+      PROPOSAL_CLOSED_TEXT,
+      MENU_PRINCIPAL,
+    ]);
   });
 
   /** Outro telefone, verificado e co-owner da mesma pauta. */

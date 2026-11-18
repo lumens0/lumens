@@ -18,7 +18,7 @@ import { normalize } from './texto';
 // só o que o sistema faz hoje, igual à página /privacidade: mudou o comportamento, mude os dois.
 export const PRIVACY_NOTICE_TEXT = [
   '🔒 *Sua privacidade no Lumens*',
-  'Guardamos, cifrado, o identificador desta conversa (no WhatsApp, o número; no Telegram, o id do chat) para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso. Se você sair, do e-mail fica só uma marca que não permite recuperá-lo, para seus apoios não contarem duas vezes se você voltar.',
+  'Guardamos o identificador desta conversa, cifrado, para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso. Se você sair, do e-mail fica só uma marca que não permite recuperá-lo, para seus apoios não contarem duas vezes se você voltar.',
   'No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome, telefone ou e-mail. Quem apoia não aparece: só o total.',
   'Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie *sair* a qualquer momento.',
   `Política completa: ${ORIGEM_SITE_PRODUCAO}/privacidade`,

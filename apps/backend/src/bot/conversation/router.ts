@@ -4,7 +4,10 @@ import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import {
   defaultHandlers,
-  MENU_TEXT,
+  MENU_DICA_TEXT,
+  MENU_PRINCIPAL,
+  RESPOSTA_LONGA,
+  ehMenuPrincipal,
   normalize,
   type HandlerRegistry,
   type IncomingMessage,
@@ -115,13 +118,13 @@ async function responder(
     // 'cancelar' limpa tudo, inclusive pendingCommand.
     await store.save(phoneHmac, 'MENU', {});
     const relatoJaEnviado = current?.step === 'SUPPORT_ASK_PHOTO';
-    return [relatoJaEnviado ? CANCEL_PHOTO_TEXT : CANCEL_TEXT, MENU_TEXT];
+    return [relatoJaEnviado ? CANCEL_PHOTO_TEXT : CANCEL_TEXT, MENU_PRINCIPAL];
   }
   if (cmd === 'menu') {
     // 'menu' recomeça mas preserva o comando pendente.
     const pending = current?.data.pendingCommand;
     await store.save(phoneHmac, 'MENU', pending ? { pendingCommand: pending } : {});
-    return [MENU_TEXT];
+    return [MENU_PRINCIPAL];
   }
   const ctxBase = { input: { text: msg.text }, db, segredo, phoneHmac };
   // SCRUM-334: na confirmação, o 'sair' repetido é a resposta, e não um pedido novo de saída.
@@ -201,6 +204,10 @@ async function responder(
   // Fim de um fluxo: a pessoa volta ao menu e precisa ver as opções, ou a próxima mensagem dela
   // cai num "Não entendi".
   const flowEnded = result.next === 'MENU' && (state.step !== 'MENU' || global);
-  if (flowEnded && !result.replies.includes(MENU_TEXT)) return [...result.replies, MENU_TEXT];
+  if (flowEnded && !result.replies.some(ehMenuPrincipal)) {
+    const ultima = result.replies.at(-1);
+    const longa = typeof ultima === 'string' && ultima.length > RESPOSTA_LONGA;
+    return [...result.replies, longa ? MENU_DICA_TEXT : MENU_PRINCIPAL];
+  }
   return result.replies;
 }
