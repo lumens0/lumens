@@ -325,12 +325,14 @@
   overflow-wrap: anywhere;
 }
 
-.cartao h2 a {
+.cartao h2 a,
+.barrasRotulo a {
   color: var(--tinta);
   text-decoration: none;
 }
 
-.cartao h2 a:hover {
+.cartao h2 a:hover,
+.barrasRotulo a:hover {
   text-decoration: underline;
 }
 
