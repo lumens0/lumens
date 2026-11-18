@@ -15,6 +15,7 @@ const CAMINHO: Caminho = {
   status: 'aberto',
   protocolo: null,
   prazo: null,
+  prorrogado: false,
   aberto_em: '2026-02-09T12:00:00.000Z',
   descricao: null,
   pessoas_necessarias: null,
@@ -28,6 +29,30 @@ describe('página da pauta: seções', () => {
   it('cabeçalho mostra selo urgente junto do status', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, urgente: true }} />);
     expect(html).toContain('Urgente');
+  });
+
+  it('mostra indicação junto ao placar quando a meta foi ajustada e textos dos novos eventos', () => {
+    const meta = {
+      tipo: 'meta_ajustada',
+      dados: { metaAntes: 100, metaDepois: 80, motivo: 'Ajuste excepcional.' },
+      criado_em: '2026-03-19T12:00:00.000Z',
+    };
+    const pauta = { ...fixture, linha_do_tempo: [meta] };
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={pauta} />);
+    expect(html).toContain('Meta ajustada pela curadoria');
+    expect(html).toContain('Meta ajustada pela curadoria de 100 para 80: Ajuste excepcional.');
+    const bloco = renderToStaticMarkup(
+      <LinhaDoTempo
+        eventos={[
+          {
+            tipo: 'bloco_corrigido',
+            dados: { blocoAntes: 'Bloco A', blocoDepois: 'Bloco B' },
+            criado_em: '2026-03-19T12:00:00.000Z',
+          },
+        ]}
+      />,
+    );
+    expect(bloco).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
   });
 
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
@@ -264,6 +289,112 @@ describe('página da pauta: seções', () => {
     expect(html).toContain('entrega até 30/05/2026');
     expect(html).toContain('A prefeitura troca as luminárias até maio.');
     expect(html).toContain('href="https://ufal.br/noticia"');
+  });
+
+  it('mostra prazo prorrogado e data prometida remarcada na página', () => {
+    const caminho = {
+      ...CAMINHO,
+      tipo: 'falabr' as const,
+      prazo: '2026-12-20',
+      prorrogado: true,
+    };
+    // Formato real de `v_linha_do_tempo`: sem chaves `*_id`.
+    const linha_do_tempo = [
+      {
+        tipo: 'caminho_aberto',
+        dados: { tipo: 'falabr' },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'prazo_prorrogado',
+        dados: {
+          data_antiga: '2026-12-01',
+          data_nova: '2026-12-31',
+          motivo: 'Aguardando material',
+          fonte: 'Ofício 4',
+        },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'promessa_registrada',
+        dados: { data_entrega: '2026-12-10' },
+        criado_em: fixture.criada_em,
+      },
+      {
+        tipo: 'promessa_remarcada',
+        dados: {
+          data_antiga: '2026-12-10',
+          data_nova: '2026-12-15',
+          motivo: 'Entrega adiada',
+          fonte: 'Comunicado',
+        },
+        criado_em: fixture.criada_em,
+      },
+    ];
+    const pauta = { ...fixture, caminhos: [caminho], linha_do_tempo };
+    expect(renderToStaticMarkup(<Caminhos caminhos={[caminho]} slug={fixture.slug} />)).toContain(
+      'Prazo prorrogado',
+    );
+    expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} />)).toContain(
+      'Prazo do Fala.BR prorrogado.',
+    );
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} />)).toContain('Promessa remarcada');
+    const timeline = renderToStaticMarkup(<LinhaDoTempo eventos={linha_do_tempo} />);
+    expect(timeline).toContain('Promessa remarcada: 10/12/2026 → 15/12/2026');
+    expect(timeline).toContain('Motivo: Entrega adiada. Fonte: Comunicado.');
+  });
+
+  it('prorrogação e remarcação antigas não vazam para novo Fala.BR nem para nova promessa', () => {
+    const pauta = {
+      ...fixture,
+      caminhos: [
+        {
+          ...CAMINHO,
+          tipo: 'falabr' as const,
+          prazo: '2026-04-30',
+          prorrogado: true,
+          aberto_em: '2026-03-01T12:00:00.000Z',
+        },
+        {
+          ...CAMINHO,
+          tipo: 'falabr' as const,
+          prazo: '2026-06-30',
+          prorrogado: false,
+          aberto_em: '2026-06-01T12:00:00.000Z',
+        },
+      ],
+      linha_do_tempo: [
+        {
+          tipo: 'prazo_prorrogado',
+          dados: { data_antiga: '2026-03-31', data_nova: '2026-04-30' },
+          criado_em: '2026-03-20T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_registrada',
+          dados: { data_entrega: '2026-05-01', resumo: 'Primeira promessa.' },
+          criado_em: '2026-04-10T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_remarcada',
+          dados: { data_antiga: '2026-05-01', data_nova: '2026-05-20' },
+          criado_em: '2026-04-25T12:00:00.000Z',
+        },
+        {
+          tipo: 'promessa_registrada',
+          dados: { data_entrega: '2026-08-15', resumo: 'Segunda promessa.' },
+          criado_em: '2026-06-10T12:00:00.000Z',
+        },
+      ],
+    };
+    const proxima = renderToStaticMarkup(<ProximaEtapa pauta={pauta} />);
+    expect(proxima).toContain('Prazo de resposta do Fala.BR: 30/06/2026');
+    expect(proxima).not.toContain('Prazo do Fala.BR prorrogado.');
+
+    const resposta = renderToStaticMarkup(<RespostaOficial pauta={pauta} />);
+    expect(resposta).toContain('Segunda promessa.');
+    expect(resposta).toContain('entrega até 15/08/2026');
+    expect(resposta).not.toContain('Promessa remarcada');
+    expect(resposta).not.toContain('20/05/2026');
   });
 
   it('fonte sem URL fica como texto, e `javascript:` nunca vira link', () => {

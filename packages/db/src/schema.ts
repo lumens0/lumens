@@ -44,6 +44,7 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'recusa',
   'vitoria',
   'aprovacao',
+  'remarcacao',
 ]);
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
@@ -239,6 +240,10 @@ export const caminhos = pgTable(
     status: text('status').notNull(),
     protocolo: text('protocolo'),
     prazo: date('prazo'),
+    /** Dia do protocolo no Fala.BR: o prazo conta dele (SCRUM-321). */
+    protocoloEm: date('protocolo_em'),
+    /** O Fala.BR concedeu os 30 dias a mais (uma vez só). */
+    prorrogado: boolean('prorrogado').notNull().default(false),
     abertoEm: instante('aberto_em').notNull().defaultNow(),
   },
   (t) => [index('caminho_pauta_id_idx').on(t.pautaId)],

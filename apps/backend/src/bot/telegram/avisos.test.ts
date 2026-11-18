@@ -18,6 +18,7 @@ const TIPO: Record<NomeModelo, string> = {
   lumens_pauta_recusada: 'recusa',
   lumens_conquista: 'vitoria',
   lumens_pauta_aprovada: 'aprovacao',
+  lumens_promessa_remarcada: 'remarcacao',
 };
 
 /** O disparo de um modelo com os exemplos do catálogo e, se houver link, o slug de exemplo. */
@@ -32,11 +33,11 @@ function disparoDe(nome: NomeModelo) {
   };
 }
 
-describe('mensagensDoAviso: os oito modelos no Telegram', () => {
+describe('mensagensDoAviso: os nove modelos no Telegram', () => {
   const nomes = Object.keys(MODELOS) as NomeModelo[];
 
-  it('cobre os oito modelos do catálogo', () => {
-    expect(nomes).toHaveLength(8);
+  it('cobre os nove modelos do catálogo', () => {
+    expect(nomes).toHaveLength(9);
   });
 
   it.each(nomes)('%s: o texto do catálogo preenchido, o rodapé e os botões', (nome) => {

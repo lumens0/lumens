@@ -91,7 +91,7 @@ export interface NovaPromessa {
  * Início do dia em Maceió (UTC−3, sem horário de verão) como instante.
  * Lança `ErroDeRegra` para data fora do formato ou inexistente (31/02).
  */
-function inicioDoDiaEmMaceio(dia: string): Date {
+export function inicioDoDiaEmMaceio(dia: string): Date {
   const instante = new Date(`${dia}T00:00:00-03:00`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || Number.isNaN(instante.getTime())) {
     throw new ErroDeRegra('data_invalida', `Data de entrega inválida: ${dia}`);
@@ -100,6 +100,18 @@ function inicioDoDiaEmMaceio(dia: string): Date {
   const deVolta = new Date(instante.getTime() - 3 * 3_600_000).toISOString().slice(0, 10);
   if (deVolta !== dia) throw new ErroDeRegra('data_invalida', `Data de entrega inválida: ${dia}`);
   return instante;
+}
+
+/** A mesma janela de conferência usada ao registrar e remarcar uma promessa. */
+export function janelaDeConferencia(dataEntrega: string): {
+  conferenciaAbreEm: Date;
+  conferenciaFechaEm: Date;
+} {
+  const conferenciaAbreEm = inicioDoDiaEmMaceio(dataEntrega);
+  return {
+    conferenciaAbreEm,
+    conferenciaFechaEm: new Date(conferenciaAbreEm.getTime() + DIAS_DE_CONFERENCIA * MS_POR_DIA),
+  };
 }
 
 /**
@@ -124,8 +136,7 @@ export async function registrarPromessa(
   /** PDFs do owner que a curadoria leu para esta resposta e que agora apontam para ela. */
   documentosLigados: number;
 }> {
-  const abre = inicioDoDiaEmMaceio(dataEntrega);
-  const fecha = new Date(abre.getTime() + DIAS_DE_CONFERENCIA * MS_POR_DIA);
+  const { conferenciaAbreEm: abre, conferenciaFechaEm: fecha } = janelaDeConferencia(dataEntrega);
 
   // Primeiro a transição: se a pauta não pode ir para `prometido`, nada abaixo acontece.
   await transicionarStatus(tx, { pautaId, para: 'prometido', origem: 'curadoria' });

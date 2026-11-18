@@ -1,17 +1,20 @@
-import { detalharPautaDaCuradoria, listarLinhaDoTempo } from '@lumens/dominio';
+import { detalharPautaDaCuradoria, listarBlocos, listarLinhaDoTempo } from '@lumens/dominio';
 import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { sair } from '../../acoes';
 import { Moldura } from '../../moldura';
 import {
+  ajustarMeta,
   aprovar,
   atualizarUrgencia,
+  corrigirBloco,
   definirCategoria,
   recusar,
   recusarRelatoDeOrigem,
 } from './acoes';
 import { UUID } from './decisoes';
 import { Pauta } from './pauta';
+import { corrigirProtocolo, prorrogarPrazo, remarcarPromessa } from './ajustes-de-prazo-acoes';
 
 export default async function PaginaDaPauta({
   params,
@@ -37,12 +40,18 @@ export default async function PaginaDaPauta({
         erro={erro}
         feito={feito}
         eventos={await listarLinhaDoTempo(servidor().db, id)}
+        blocos={await listarBlocos(servidor().db)}
         avisados={avisadosValido ? numero : undefined}
         categoriaSalva={feito === 'categoria'}
         aprovar={aprovar}
         recusar={recusar}
         definirCategoria={definirCategoria}
         atualizarUrgencia={atualizarUrgencia}
+        corrigirBloco={corrigirBloco}
+        ajustarMeta={ajustarMeta}
+        prorrogarPrazo={prorrogarPrazo}
+        corrigirProtocolo={corrigirProtocolo}
+        remarcarPromessa={remarcarPromessa}
         recusarRelatoDeOrigem={recusarRelatoDeOrigem}
         linhaAberta={linha === 'aberta'}
       />

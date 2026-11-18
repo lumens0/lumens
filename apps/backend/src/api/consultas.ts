@@ -108,7 +108,7 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
     linhas<Caminho>(
       db,
       // `to_char` e não `::text`: o cast segue o `DateStyle` da sessão (ex.: `20/03/2026`).
-      sql`SELECT tipo, status, protocolo, to_char(prazo, 'YYYY-MM-DD') AS prazo, ${iso('aberto_em')}, descricao,
+      sql`SELECT tipo, status, protocolo, to_char(prazo, 'YYYY-MM-DD') AS prazo, prorrogado, ${iso('aberto_em')}, descricao,
                  pessoas_necessarias::int AS pessoas_necessarias, voluntarios::int AS voluntarios,
                  ${iso('executada_em')}
           FROM v_caminho_publico WHERE pauta_slug = ${slug}
