@@ -31,6 +31,7 @@ import {
   buscarPautasParecidas,
   criarPauta,
   listarBlocos,
+  sugerirCategoria,
   type Categoria,
   type ResultadoCriacao,
 } from '@lumens/dominio';
@@ -41,7 +42,9 @@ import {
   CATEGORY_NOT_FOUND_TEXT,
   OTHER_CATEGORY,
   categoriaEscolhida,
+  confirmacaoDaCategoria,
   listaDeCategorias,
+  respostaDaSugestao,
 } from './categorias';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
@@ -108,6 +111,8 @@ const dadosSchema = z.object({
   blocoId: z.string().nullable().optional(),
   /** Da lista de categorias (`outra` = sem categoria, a curadoria classifica). */
   categoria: z.string().optional(),
+  /** A sugestão por palavras-chave, esperando o estudante confirmar (SCRUM-365). */
+  categoriaSugerida: z.string().optional(),
   /** Da 2.5: o relato vira a descrição e o primeiro relato da pauta. */
   relatoCifrado: z.string().optional(),
 });
@@ -123,6 +128,7 @@ const LIMPAR: DataPatch = {
   descricaoCifrada: undefined,
   blocoId: undefined,
   categoria: undefined,
+  categoriaSugerida: undefined,
   relatoCifrado: undefined,
   parecidas: undefined,
   fotoMediaId: undefined,
@@ -175,7 +181,11 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
     return { next: 'NEW_ASK_PLACE', data, replies: [listaDeBlocos(await listarBlocos(db))] };
   }
   // Veio da 2.5: o lugar já foi respondido, falta a categoria.
-  return { next: 'NEW_ASK_CATEGORY', data, replies: [listaDeCategorias()] };
+  const { relatoCifrado } = dadosDaPauta(state.data);
+  return perguntarCategoria(
+    [titulo, decifrado(segredo, relatoCifrado)].filter((t) => t !== undefined).join('\n'),
+    data,
+  );
 };
 
 export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) => {
@@ -206,8 +216,43 @@ export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) =>
       };
     }
   }
-  return { next: 'NEW_ASK_CATEGORY', data, replies: [listaDeCategorias()] };
+  return perguntarCategoria(tituloDaPauta, data);
 };
+
+/**
+ * Abre a pergunta da categoria. O texto da pauta (título e, vindo da 2.5, o relato) passa pelas
+ * palavras-chave do domínio, no servidor (SCRUM-365): com uma categoria vencendo com clareza, o
+ * bot sugere e o estudante confirma; com empate ou sem palavra reconhecida, mostra a lista.
+ * O texto não é guardado nem enviado a lugar nenhum: só o id da categoria sugerida fica na conversa.
+ */
+export function perguntarCategoria(
+  texto: string | undefined,
+  data: DataPatch = {},
+  antes: Resposta[] = [],
+): StepResult {
+  const sugerida = texto === undefined ? undefined : sugerirCategoria(texto);
+  if (sugerida === undefined) {
+    return {
+      next: 'NEW_ASK_CATEGORY',
+      data: { ...data, categoriaSugerida: undefined },
+      replies: [...antes, listaDeCategorias()],
+    };
+  }
+  return {
+    next: 'NEW_CONFIRM_CATEGORY',
+    data: { ...data, categoriaSugerida: sugerida },
+    replies: [...antes, confirmacaoDaCategoria(sugerida)],
+  };
+}
+
+/** O texto da pauta até aqui (título e relato da 2.5), para a sugestão de categoria. */
+export function textoDaPauta(segredo: Segredo, data: unknown): string | undefined {
+  const { tituloCifrado, relatoCifrado } = dadosDaPauta(data);
+  const texto = [decifrado(segredo, tituloCifrado), decifrado(segredo, relatoCifrado)]
+    .filter((t) => t !== undefined)
+    .join('\n');
+  return texto === '' ? undefined : texto;
+}
 
 /**
  * A categoria: a linha da lista ou o nome digitado. Resposta que não vale repete a lista, sem
@@ -221,13 +266,41 @@ export const newAskCategory: StepHandler = ({ state, input, segredo }) => {
       replies: [CATEGORY_NOT_FOUND_TEXT, listaDeCategorias()],
     };
   }
-  const data: DataPatch = { categoria };
-  const relato = decifrado(segredo, dadosDaPauta(state.data).relatoCifrado);
+  return depoisDaCategoria(state.data, segredo, categoria);
+};
+
+/**
+ * A resposta à sugestão (SCRUM-365). "Confirmar" vale a categoria sugerida; "Escolher outra" abre
+ * a lista completa; o nome de uma categoria digitado também vale. O resto repete a pergunta.
+ */
+export const newConfirmCategory: StepHandler = ({ state, input, segredo }) => {
+  const { categoriaSugerida } = dadosDaPauta(state.data);
+  const sugerida = categoriaEscolhida(categoriaSugerida ?? '');
+  if (sugerida === undefined || sugerida === OTHER_CATEGORY) {
+    return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
+  }
+  const resposta = respostaDaSugestao(input.text);
+  if (resposta === 'confirmar') return depoisDaCategoria(state.data, segredo, sugerida);
+  if (resposta === 'escolher') return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
+  // Escolheu na mão, sem tocar nos botões: vale como a lista.
+  const digitada = categoriaEscolhida(input.text);
+  if (digitada !== undefined) return depoisDaCategoria(state.data, segredo, digitada);
+  return { next: 'NEW_CONFIRM_CATEGORY', replies: [confirmacaoDaCategoria(sugerida)] };
+};
+
+/** Guarda a categoria e segue: a descrição, ou a foto quando o relato da 2.5 já a cobre. */
+function depoisDaCategoria(
+  dados: unknown,
+  segredo: Segredo,
+  categoria: NonNullable<ReturnType<typeof categoriaEscolhida>>,
+): StepResult {
+  const data: DataPatch = { categoria, categoriaSugerida: undefined };
+  const relato = decifrado(segredo, dadosDaPauta(dados).relatoCifrado);
   if (relato === undefined || tamanho(relato.trim()) > DESCRICAO_MAXIMA) {
     return { next: 'NEW_ASK_DESCRIPTION', data, replies: [DESCRIPTION_QUESTION_TEXT] };
   }
   return { next: 'NEW_ASK_PHOTO', data, replies: [FROM_REPORT_DESCRIPTION_TEXT, PHOTO_ASK_TEXT] };
-};
+}
 
 export const newAskDescription: StepHandler = ({ input, segredo }) => {
   const descricao = input.text.trim();

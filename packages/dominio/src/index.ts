@@ -190,6 +190,11 @@ export {
 } from './pauta/pauta';
 export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 
+export {
+  PALAVRAS_DA_CATEGORIA,
+  pontuarCategorias,
+  sugerirCategoria,
+} from './pauta/categoria-sugerida';
 
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
