@@ -105,7 +105,7 @@ export function suspectText(trechos: readonly string[]): string {
 
 export const OPENED_TEXT: Record<TipoEscolhido, string> = {
   falabr:
-    'Caminho Fala.BR aberto ✅\nO Fala.BR é o canal oficial do governo federal para registrar a manifestação. Faltam 3 passos:\n1. Copie o texto que mando a seguir.\n2. Entre em https://falabr.cgu.gov.br e cole no campo "Descrição" de uma nova manifestação.\n3. Ao enviar, o Fala.BR dá um número de protocolo. Guarde e mande aqui em *Registrar protocolo*: é com ele que a pauta passa a ser cobrada.',
+    'Caminho Fala.BR aberto ✅\nO Fala.BR é o canal oficial do governo federal para registrar manifestações. É para lá que a pauta vai porque a ouvidoria da UFAL tem prazo legal para responder. Faltam 3 passos:\n1. Copie o texto que mando a seguir.\n2. Entre em https://falabr.cgu.gov.br e cole no campo "Descrição" de uma nova manifestação.\n3. Ao enviar, o Fala.BR dá um número de protocolo. Guarde e mande aqui em *Registrar protocolo*: é com ele que a pauta passa a ser cobrada.',
   comunidade:
     'Caminho comunidade aberto ✅\nA pauta passa a mostrar no site que a comunidade está se mobilizando.',
 };
