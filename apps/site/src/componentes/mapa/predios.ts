@@ -23,8 +23,7 @@ export interface Predio {
 }
 
 // Slugs do catálogo real de blocos (`packages/db/seed/blocos-ufal.ts`, SCRUM-292). Bloco sem prédio
-// aqui aparece só na lista: faltam IQB, EENF, IEFE e FAU, cujo pino no Google Maps não cai com
-// segurança em um prédio do OpenStreetMap.
+// aqui aparece só na lista (hoje, todo bloco do catálogo tem prédio).
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
   1341542148: ['im'], // Instituto de Matemática
@@ -39,7 +38,10 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64962904: ['igdema'],
   493988328: ['ip'],
   64974358: ['cedu'],
-  64974284: ['csau', 'fanut', 'foufal'], // CSAU abriga a FANUT e a FOUFAL (pinos do Google Maps)
+  64974284: ['csau', 'fanut', 'foufal', 'eenf'], // o CSAU abriga FANUT, FOUFAL e EENF (pinos do Google Maps)
+  156943706: ['iefe'], // IEFE, área `amenity=university` do OSM
+  157086397: ['iqb'], // Instituto de Química e Biotecnologia, idem
+  288826604: ['fau'], // FAU, idem
   202492922: ['biblioteca-central'],
   288827034: ['ru'], // Restaurante Universitário
   544426692: ['praca-de-alimentacao'],
@@ -86,6 +88,7 @@ const SIGLAS: Record<string, string> = {
   'Praça de Alimentação UFAL': 'Praça de alimentação',
   'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)': 'CPTEC',
   'Posto de Meteorologia': 'Posto meteorológico',
+  'Instituto de Química e Biotecnologia': 'IQB',
   'Comunicação Social': 'COS B', // o Bloco A é o prédio ao lado (NOMES_LOCAIS)
   'Bloco 06 - IGDEMA': 'Bloco 06',
   'Ginásio da UFAL': 'Ginásio',
