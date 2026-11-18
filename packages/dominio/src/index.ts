@@ -180,10 +180,11 @@ export {
   DESCRICAO_MAXIMA,
   TITULO_MAXIMO,
   criarPauta,
+  ehCategoria,
+  rotuloDaCategoria,
   gerarSlug,
 } from './pauta/pauta';
-export type { Categoria } from './pauta/pauta';
-export type { NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
+export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
 
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
@@ -312,4 +313,7 @@ export type {
 
 export { documentosDeResposta, registrarDocumentoDeResposta } from './caminhos/documento-resposta';
 export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-resposta';
+
+export { APELIDOS, MAX_CANDIDATOS, buscarCurso, chave as chaveDoCurso } from './cursos';
+export type { BuscaDeCurso } from './cursos';
 export { cifrar, decifrar } from './compartilhado/cifra';
