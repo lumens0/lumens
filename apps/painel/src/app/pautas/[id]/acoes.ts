@@ -11,12 +11,14 @@ import {
 } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
-import { criarDecisoes, UUID } from './decisoes';
+import { criarDecisoes, fotosVistasDoFormulario, UUID } from './decisoes';
 
 const decisoes = criarDecisoes({
   curador: curadorDaSessao,
-  aprovar: (pautaId, curadorId, categoria, urgente = false) =>
-    servidor().db.transaction((tx) => aprovarPauta(tx, { pautaId, curadorId, categoria, urgente })),
+  aprovar: (pautaId, curadorId, categoria, fotosVistas, urgente = false) =>
+    servidor().db.transaction((tx) =>
+      aprovarPauta(tx, { pautaId, curadorId, categoria, fotosVistas, urgente }),
+    ),
   recusar: (pautaId, curadorId, motivo) =>
     servidor().db.transaction((tx) => recusarPauta(tx, { pautaId, curadorId, motivo })),
 });
@@ -31,6 +33,7 @@ export async function aprovar(formulario: FormData) {
     await decisoes.aprovar(
       texto(formulario, 'pautaId'),
       texto(formulario, 'categoria'),
+      fotosVistasDoFormulario(formulario),
       formulario.get('urgente') === 'on',
     ),
   );

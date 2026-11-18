@@ -1,6 +1,6 @@
 import type { ResultadoDecisao } from '@lumens/dominio';
 import { describe, expect, it, vi } from 'vitest';
-import { criarDecisoes } from './decisoes';
+import { criarDecisoes, fotosVistasDoFormulario } from './decisoes';
 
 const ID = '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab';
 const ok: ResultadoDecisao = { decidida: true };
@@ -16,7 +16,7 @@ describe('decisões da curadoria pela tela', () => {
   it('sem curador ativo na sessão vai para o login e não grava nada', async () => {
     const { decisoes, aprovar, recusar } = montar(undefined);
 
-    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/login');
+    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe('/login');
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe('/login');
     expect(aprovar).not.toHaveBeenCalled();
     expect(recusar).not.toHaveBeenCalled();
@@ -25,8 +25,8 @@ describe('decisões da curadoria pela tela', () => {
   it('aprovar e recusar gravam com o id do curador da sessão e voltam para a própria pauta', async () => {
     const { decisoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await decisoes.aprovar(ID, 'ensino')).toBe(`/pautas/${ID}?feito=aprovada`);
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', false);
+    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe(`/pautas/${ID}?feito=aprovada`);
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', {}, false);
 
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe(`/pautas/${ID}?feito=recusada`);
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1', 'Duplicada.');
@@ -34,8 +34,10 @@ describe('decisões da curadoria pela tela', () => {
 
   it('encaminha a seleção de urgência junto da aprovação', async () => {
     const { decisoes, aprovar } = montar({ id: 'curador-1' });
-    expect(await decisoes.aprovar(ID, 'infraestrutura', true)).toBe(`/pautas/${ID}?feito=aprovada`);
-    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'infraestrutura', true);
+    expect(await decisoes.aprovar(ID, 'infraestrutura', {}, true)).toBe(
+      `/pautas/${ID}?feito=aprovada`,
+    );
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'infraestrutura', {}, true);
   });
 
   it.each(['motivo_obrigatorio', 'ja_decidida'] as const)(
@@ -52,7 +54,7 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'categoria_invalida' },
     );
-    expect(await decisoes.aprovar(ID, '')).toBe(`/pautas/${ID}?erro=categoria_invalida`);
+    expect(await decisoes.aprovar(ID, '', {})).toBe(`/pautas/${ID}?erro=categoria_invalida`);
   });
 
   it('pauta inexistente ou id que não é UUID volta para a fila sem consultar o banco à toa', async () => {
@@ -60,10 +62,31 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'pauta_inexistente' },
     );
-    expect(await decisoes.aprovar(ID, 'ensino')).toBe('/fila');
+    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe('/fila');
 
     const invalido = montar({ id: 'curador-1' });
-    expect(await invalido.decisoes.aprovar('1; drop table pauta', 'ensino')).toBe('/fila');
+    expect(await invalido.decisoes.aprovar('1; drop table pauta', 'ensino', {})).toBe('/fila');
     expect(invalido.aprovar).not.toHaveBeenCalled();
+  });
+
+  it('aprovar leva a foto vista ao domínio; foto mudada volta para a pauta com o aviso', async () => {
+    const { decisoes, aprovar } = montar(
+      { id: 'curador-1' },
+      { decidida: false, motivo: 'relato_mudou' },
+    );
+    const fotos = { 'relato-1': 'relatos/foto.jpg', 'relato-2': null };
+    expect(await decisoes.aprovar(ID, 'ensino', fotos)).toBe(`/pautas/${ID}?erro=relato_mudou`);
+    expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos, false);
+  });
+
+  it('lê do formulário a foto de cada relato que a tela mostrou; vazio é sem foto', () => {
+    const formulario = new FormData();
+    formulario.set('pautaId', ID);
+    formulario.set('fotoVista:relato-1', 'relatos/foto.jpg');
+    formulario.set('fotoVista:relato-2', '');
+    expect(fotosVistasDoFormulario(formulario)).toEqual({
+      'relato-1': 'relatos/foto.jpg',
+      'relato-2': null,
+    });
   });
 });

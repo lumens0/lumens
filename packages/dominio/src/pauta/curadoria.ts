@@ -74,11 +74,14 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
       blocoId: pautas.blocoId,
       // O relato de origem é o de quem criou a pauta (o owner): `relato` não guarda data, então
       // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
+      // Relato recusado não conta; a ordem por id deixa a foto escolhida estável entre leituras.
       fotoChave: sql<string | null>`(
         select ${relatos.fotoChave} from ${relatos}
         join ${papeisPauta} on ${papeisPauta.pautaId} = ${relatos.pautaId}
           and ${papeisPauta.estudanteId} = ${relatos.estudanteId} and ${papeisPauta.papel} = 'owner'
         where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
+          and ${relatos.moderacao} <> 'recusado'
+        order by ${relatos.id}
         limit 1)`,
       apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
       meta: pautas.meta,
@@ -234,7 +237,8 @@ export type ResultadoDecisao =
         | 'motivo_obrigatorio'
         | 'motivo_longo'
         | 'categoria_invalida'
-        | 'relato_com_dado_pessoal';
+        | 'relato_com_dado_pessoal'
+        | 'relato_mudou';
     };
 
 async function decidir(
@@ -276,10 +280,11 @@ async function decidir(
 
 /**
  * Os relatos pendentes de quem criou a pauta (o owner). `relato` não marca qual é o de origem: em
- * pauta ainda em curadoria, só o owner relatou, então são esses.
+ * pauta ainda em curadoria, só o owner relatou, então são esses. Com `travar`, as linhas de
+ * `relato` ficam presas até o fim da transação: a foto não muda entre conferir e aprovar.
  */
-function relatosDeOrigemPendentes(tx: Tx, pautaId: string) {
-  return tx
+function relatosDeOrigemPendentes(tx: Tx, pautaId: string, { travar = false } = {}) {
+  const consulta = tx
     .select({ id: relatos.id, texto: relatos.texto, fotoChave: relatos.fotoChave })
     .from(relatos)
     .innerJoin(
@@ -291,6 +296,7 @@ function relatosDeOrigemPendentes(tx: Tx, pautaId: string) {
       ),
     )
     .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
+  return travar ? consulta.for('update', { of: relatos }) : consulta;
 }
 
 const temBloqueio = (texto: string) =>
@@ -322,7 +328,8 @@ export async function recusarRelatoDeOrigem(
 /**
  * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
  * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
- * avisado.
+ * avisado. Como na moderação de relato (SCRUM-301), só vale aprovar o que a curadoria viu: se um
+ * relato de origem chegou ou teve a foto trocada desde que a tela abriu (`fotosVistas`), nada muda.
  *
  * Quem cuida da pauta conta como o primeiro apoio, também na mesma transação (SCRUM-344). Na
  * aprovação esse é só quem a criou: virar co-owner exige ter apoiado, e apoio só existe depois de
@@ -336,18 +343,34 @@ export async function aprovarPauta(
     pautaId,
     curadorId,
     categoria,
+    fotosVistas,
     urgente = false,
     agora = new Date(),
-  }: { pautaId: string; curadorId: string; categoria: string; urgente?: boolean; agora?: Date },
+  }: {
+    pautaId: string;
+    curadorId: string;
+    categoria: string;
+    /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
+    fotosVistas: Readonly<Record<string, string | null>>;
+    urgente?: boolean;
+    agora?: Date;
+  },
 ): Promise<ResultadoDecisao> {
   if (!categoria || !Object.hasOwn(CATEGORIAS, categoria))
     return { decidida: false, motivo: 'categoria_invalida' };
   // Aprovar publica também o relato de quem criou a pauta. Com e-mail ou telefone nele, a pauta não
   // sai: a curadoria recusa só o relato (`recusarRelatoDeOrigem`) e aprova depois, sem ele.
-  const origem = await relatosDeOrigemPendentes(tx, pautaId);
+  // Pauta antes do relato, na ordem de `recusarPauta` e `recusarRelatoDeOrigem`: com a ordem
+  // trocada, aprovar e recusar ao mesmo tempo travariam uma à espera da outra (deadlock).
+  await tx.select({ id: pautas.id }).from(pautas).where(eq(pautas.id, pautaId)).for('update');
+  const origem = await relatosDeOrigemPendentes(tx, pautaId, { travar: true });
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
   }
+  // Cada relato publicado aqui precisa ter estado na tela, com a mesma foto.
+  const visto = ({ id, fotoChave }: { id: string; fotoChave: string | null }) =>
+    Object.hasOwn(fotosVistas, id) && fotosVistas[id] === fotoChave;
+  if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (!resultado.decidida) return resultado;
 
@@ -368,14 +391,13 @@ export async function aprovarPauta(
       origem: 'curadoria',
     });
   }
-  for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
-    // A foto lida aqui, na mesma transação travada pela decisão da pauta: o relato de origem sai
-    // como estava no momento da aprovação (SCRUM-301 exige `fotoVista` em toda aprovação).
+  // As linhas estão travadas desde a conferência: a foto de cada relato é a que a tela mostrou.
+  for (const relato of origem) {
     await aprovarRelato(tx, {
       relatoId: relato.id,
       curadorId,
-      agora,
       fotoVista: relato.fotoChave,
+      agora,
     });
   }
   const responsaveis = await tx
