@@ -300,17 +300,39 @@ describe('câmera ligada ao mapa', () => {
     vi.restoreAllMocks();
   });
 
-  it('no celular, um dedo rola a página na hora, sem a rolagem suave', () => {
+  it('no celular, um dedo arrasta o mapa e não rola a página', () => {
     const scrollBy = vi.fn();
     vi.stubGlobal('window', { scrollBy });
     const mapa = montar();
     mapa.tela(1000, 500);
     const fn = (handler: keyof typeof mapa.camera.eventos) =>
       mapa.camera.eventos[handler] as (evento: unknown) => void;
+    // Aproxima antes: com o campus inteiro na tela, não há para onde arrastar.
+    for (let i = 0; i < 8; i++) {
+      mapa.ouvintes.get('wheel')?.({
+        deltaX: 0,
+        deltaY: -40,
+        deltaMode: 0,
+        clientX: 500,
+        clientY: 250,
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault() {},
+      } as unknown as Event);
+    }
+    const antes = { ...mapa.camera.estado().vista };
     const toque = { pointerId: 1, pointerType: 'touch', button: 0, preventDefault() {} };
     fn('onPointerDown')({ ...toque, clientX: 300, clientY: 300 });
-    fn('onPointerMove')({ ...toque, clientX: 300, clientY: 260 });
-    expect(scrollBy).toHaveBeenCalledWith({ top: 40, behavior: 'instant' });
+    // Para o lado, com o tremor de um dedo de verdade.
+    for (let x = 310; x <= 400; x += 10)
+      fn('onPointerMove')({ ...toque, clientX: x, clientY: 300 + (x % 20 === 0 ? 2 : -2) });
+    const depois = mapa.camera.estado().vista;
+    expect(scrollBy).not.toHaveBeenCalled();
+    expect(mapa.camera.arrastou()).toBe(true);
+    // 100 px de tela, numa tela de 1000 px de largura, são um décimo da largura da visão.
+    expect(antes.x - depois.x).toBeCloseTo((100 / 1000) * antes.w, 0);
+    expect(depois.w).toBeCloseTo(antes.w, 6);
     mapa.desligar();
     vi.restoreAllMocks();
   });

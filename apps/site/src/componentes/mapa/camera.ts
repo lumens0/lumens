@@ -108,7 +108,7 @@ export function criarCamera(
   base: Visao,
   /** A visão nova, os metros do desenho por pixel da tela e o giro em radianos. */
   aoMudar: (v: Visao, k: number, giro: number) => void,
-  aoGesto?: (dedos: number) => void,
+  aoGesto?: () => void,
 ) {
   let svg: SVGSVGElement | null = null;
   let camada: SVGGElement | null = null;
@@ -267,23 +267,9 @@ export function criarCamera(
   const onPointerMove = (e: EventoDePonteiro<SVGSVGElement>) => {
     const antes = dedos.get(e.pointerId);
     if (!antes || !svg || largura === 0) return;
-    if (e.pointerType === 'touch' && dedos.size === 1) {
-      const deslocamento = e.clientY - antes.y;
-      if (
-        Math.hypot(e.clientX - (inicio?.x ?? e.clientX), e.clientY - (inicio?.y ?? e.clientY)) >= 4
-      ) {
-        if (!arrastou) aoGesto?.(1);
-        arrastou = true;
-        // Instantânea: o `scroll-behavior: smooth` da página faria cada movimento recomeçar uma
-        // animação curta, e a página andaria menos que o dedo.
-        window.scrollBy({ top: -deslocamento, behavior: 'instant' });
-      }
-      dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      return;
-    }
     if (!arrastou && inicio) {
       if (Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) < 4) return;
-      aoGesto?.(dedos.size);
+      aoGesto?.();
       // Só agora o ponteiro é capturado: antes disso, o clique continua chegando ao prédio.
       arrastou = true;
       svg.setPointerCapture(e.pointerId);
@@ -424,7 +410,7 @@ export function criarCamera(
     // Roda de mouse, mesmo de alta resolução, só tem delta vertical inteiro: sempre dá zoom.
     const roda = (e: WheelEvent) => {
       e.preventDefault();
-      aoGesto?.(0);
+      aoGesto?.();
       parar();
       medirCanto();
       const { px, py } = naTela(e.clientX, e.clientY);
@@ -440,11 +426,18 @@ export function criarCamera(
     oSvg.addEventListener('wheel', roda, { passive: false });
     oSvg.addEventListener('contextmenu', aoContexto);
     oSvg.addEventListener('keydown', aoTeclar);
+    // O Safari do iPhone pode começar a rolar ou ampliar a página mesmo com `touch-action: none`
+    // no SVG; cancelar o `touchmove` deixa o arrasto e a pinça só para o mapa.
+    const segurarToque = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+    oSvg.addEventListener('touchmove', segurarToque, { passive: false });
     return () => {
       observador.disconnect();
       oSvg.removeEventListener('wheel', roda);
       oSvg.removeEventListener('contextmenu', aoContexto);
       oSvg.removeEventListener('keydown', aoTeclar);
+      oSvg.removeEventListener('touchmove', segurarToque);
       parar();
       cancelAnimationFrame(pintura);
       clearTimeout(parado);

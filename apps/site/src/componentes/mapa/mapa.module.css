@@ -411,19 +411,6 @@
   border: 0;
 }
 
-.avisoToque {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgb(20 25 54 / 92%);
-  color: var(--tinta);
-}
-
 .legenda {
   position: absolute;
   left: 16px;
