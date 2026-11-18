@@ -55,6 +55,40 @@ export async function pedidoRecente(
   return achado !== undefined;
 }
 
+/** Pedidos aceitos nos últimos 60 s por este processo, por e-mail: fecha a janela entre dois pedidos simultâneos. */
+const reservas = new Map<string, number>();
+
+/** `true` e reserva o e-mail se não há pedido nos últimos 60 s neste processo; `false` se há. */
+export function reservarPedido(email: string, agora: number = Date.now()): boolean {
+  for (const [chave, quando] of reservas) {
+    if (agora - quando >= ESPERA_ENTRE_LINKS_S * 1000) reservas.delete(chave);
+  }
+  const chave = normalizarEmail(email);
+  if (reservas.has(chave)) return false;
+  reservas.set(chave, agora);
+  return true;
+}
+
+export type DecisaoDoPedido = 'enviar' | 'repetido' | 'nao_curador';
+
+/**
+ * O que fazer com um pedido de link (SCRUM-305). As duas consultas rodam sempre, para curador ou
+ * não, para o tempo da resposta não separar um do outro. Curador com link de menos de 60 s (no
+ * banco ou reservado por um pedido simultâneo) recebe a mesma tela, sem novo e-mail.
+ */
+export async function decidirPedidoDeLink(
+  db: Db,
+  email: string,
+  chave: Buffer,
+): Promise<DecisaoDoPedido> {
+  const [curador, recente] = await Promise.all([
+    curadorAtivo(db, email, chave),
+    pedidoRecente(db, email, chave),
+  ]);
+  if (!curador) return 'nao_curador';
+  return recente || !reservarPedido(email) ? 'repetido' : 'enviar';
+}
+
 /**
  * O curador da sessão, se ainda estiver ativo, com o papel de agora (não o do login). Desativar
  * ou rebaixar tira o acesso já no pedido seguinte.

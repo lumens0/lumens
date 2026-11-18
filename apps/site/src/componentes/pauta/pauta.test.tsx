@@ -55,6 +55,17 @@ describe('página da pauta: seções', () => {
     expect(bloco).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
   });
 
+  it('saídas iguais seguidas na linha do tempo viram "N responsáveis saíram" (SCRUM-355)', () => {
+    const saida = {
+      tipo: 'owner_removido',
+      dados: { papel: 'co_owner' },
+      criado_em: '2026-11-15T18:40:00.000Z',
+    };
+    const html = renderToStaticMarkup(<LinhaDoTempo eventos={[saida, saida, saida]} />);
+    expect(html).toContain('3 corresponsáveis saíram');
+    expect(html.match(/<li>/g)).toHaveLength(1);
+  });
+
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');

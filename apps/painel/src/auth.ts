@@ -15,8 +15,8 @@ import {
   adaptador,
   curadorAtivo,
   curadorAtivoPorId,
+  decidirPedidoDeLink,
   normalizarEmail,
-  pedidoRecente,
 } from './acesso';
 import { configBase } from './auth.config';
 import { opcoesSmtp } from './smtp';
@@ -119,16 +119,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       // No pedido do link: não curador não recebe nada, mas vê a mesma tela. No clique: confere
       // de novo, para um curador desativado nesse meio-tempo não entrar.
       async signIn({ user, email }) {
-        const pedido = email?.verificationRequest === true;
         const endereco = user.email ?? '';
-        // As duas consultas rodam sempre, para curador ou não: o tempo da resposta não separa um
-        // do outro. Curador com link de menos de 60 s recebe a mesma tela, sem novo e-mail.
-        const [curador, recente] = await Promise.all([
-          endereco ? curadorAtivo(db, endereco, chave) : undefined,
-          pedido && endereco ? pedidoRecente(db, endereco, chave) : false,
-        ]);
-        if (curador && !(pedido && recente)) return true;
-        return pedido ? VERIFIQUE : false;
+        // No clique do link: só confere que ainda é curador ativo.
+        if (email?.verificationRequest !== true) {
+          return endereco !== '' && (await curadorAtivo(db, endereco, chave)) !== undefined;
+        }
+        // No pedido: curador recebe o link, ou a mesma tela sem e-mail se pediu há menos de 60 s.
+        const decisao = await decidirPedidoDeLink(db, endereco, chave);
+        return decisao === 'enviar' ? true : VERIFIQUE;
       },
     },
   };

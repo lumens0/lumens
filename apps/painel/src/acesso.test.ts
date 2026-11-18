@@ -6,8 +6,10 @@ import {
   adaptador,
   curadorAtivo,
   curadorAtivoPorId,
+  decidirPedidoDeLink,
   hmacDoEmail,
   pedidoRecente,
+  reservarPedido,
 } from './acesso';
 import { destino } from './destino';
 
@@ -156,6 +158,38 @@ describe('limite de um link por minuto (SCRUM-305)', () => {
     await gravacao;
 
     expect(await pedidoRecente(db, 'adiado@ufal.br', CHAVE)).toBe(true);
+  });
+});
+
+describe('decisão do pedido de link (SCRUM-305)', () => {
+  it('curador sem pedido recente recebe; o segundo pedido logo depois recebe a mesma tela, sem e-mail', async () => {
+    expect(await decidirPedidoDeLink(db, 'ana@ufal.br', CHAVE)).toBe('enviar');
+    // Ainda sem token no banco (a gravação sai depois da resposta): a reserva barra o simultâneo.
+    expect(await decidirPedidoDeLink(db, 'Ana@ufal.br', CHAVE)).toBe('repetido');
+  });
+
+  it('curador com link gravado há menos de 60 s não recebe outro', async () => {
+    await db
+      .insert(curadores)
+      .values({ emailHmac: hmacDoEmail('bia@ufal.br', CHAVE), emailCifrado: 'x', nome: 'Bia' });
+    await adaptador(db, CHAVE).createVerificationToken?.({
+      identifier: 'bia@ufal.br',
+      token: 'recente-na-decisao',
+      expires: new Date(Date.now() + VALIDADE_DO_LINK_S * 1000),
+    });
+    expect(await decidirPedidoDeLink(db, 'bia@ufal.br', CHAVE)).toBe('repetido');
+  });
+
+  it('quem não é curador e o curador desativado ficam de fora, sem reserva', async () => {
+    expect(await decidirPedidoDeLink(db, 'intruso2@ufal.br', CHAVE)).toBe('nao_curador');
+    expect(await decidirPedidoDeLink(db, 'caio@ufal.br', CHAVE)).toBe('nao_curador');
+  });
+
+  it('a reserva vale 60 s e depois libera', () => {
+    const t = 1_000_000;
+    expect(reservarPedido('reserva@ufal.br', t)).toBe(true);
+    expect(reservarPedido('RESERVA@ufal.br', t + 59_000)).toBe(false);
+    expect(reservarPedido('reserva@ufal.br', t + 60_000)).toBe(true);
   });
 });
 

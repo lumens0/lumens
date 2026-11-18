@@ -200,3 +200,50 @@ export function rotuloDaCategoria(valor: string): string | undefined {
   const chave = valor.trim();
   return ehCategoria(chave) ? CATEGORIAS[chave] : undefined;
 }
+
+/**
+ * Junta eventos iguais seguidos (SCRUM-355). Quando várias pessoas saem de uma pauta de uma vez (a
+ * rotina de inatividade do agendador tira todos os responsáveis inativos na mesma rodada), cada
+ * saída é um `owner_removido` com o mesmo papel e o mesmo minuto: o evento não leva quem saiu
+ * (privacidade), então as linhas ficam idênticas. A lista mostra uma linha com a quantidade.
+ *
+ * Só junta vizinhos: dois eventos iguais separados por outro acontecimento continuam separados, e
+ * a ordem não muda. `instante` devolve a hora do evento; `origem` (opcional) entra na comparação.
+ */
+export function agruparEventosIguais<E extends { tipo: string; dados: Record<string, unknown> }>(
+  eventos: readonly E[],
+  instante: (evento: E) => Date | string,
+  origem: (evento: E) => string = () => '',
+): { evento: E; quantidade: number }[] {
+  const minuto = (e: E) => Math.floor(new Date(instante(e)).getTime() / 60_000);
+  const mesmo = (a: E, b: E) =>
+    a.tipo === b.tipo &&
+    origem(a) === origem(b) &&
+    minuto(a) === minuto(b) &&
+    JSON.stringify(a.dados) === JSON.stringify(b.dados);
+  const grupos: { evento: E; quantidade: number }[] = [];
+  for (const evento of eventos) {
+    const ultimo = grupos.at(-1);
+    if (ultimo && mesmo(ultimo.evento, evento)) ultimo.quantidade += 1;
+    else grupos.push({ evento, quantidade: 1 });
+  }
+  return grupos;
+}
+
+/**
+ * Rótulo de um grupo de saídas ou entradas de responsável: "3 responsáveis saíram",
+ * "2 corresponsáveis saíram". `undefined` para outro tipo ou para um evento só (vale o rótulo
+ * do tipo).
+ */
+export function rotuloDeResponsaveis(
+  tipo: string,
+  dados: Record<string, unknown>,
+  quantidade: number,
+): string | undefined {
+  if (quantidade < 2 || (tipo !== 'owner_removido' && tipo !== 'owner_entrou')) return undefined;
+  const co = dados.papel === 'co_owner';
+  const n = String(quantidade);
+  if (tipo === 'owner_removido')
+    return `${n} ${co ? 'corresponsáveis saíram' : 'responsáveis saíram'}`;
+  return `${n} ${co ? 'novos corresponsáveis' : 'novos responsáveis'}`;
+}
