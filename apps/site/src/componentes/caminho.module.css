@@ -1,7 +1,8 @@
 .caminho {
   display: grid;
   gap: 12px;
-  margin-bottom: 24px;
+  align-content: start;
+  min-width: 0;
   padding: 16px;
   background: var(--superficie);
   border: 1px solid var(--borda);
