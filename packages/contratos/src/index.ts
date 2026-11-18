@@ -16,6 +16,14 @@ import { z } from 'zod';
  */
 export const ORIGEM_SITE_PRODUCAO = 'https://lumens-ufal.vercel.app';
 
+/**
+ * Status em que a pauta não recebe apoio: ainda não aprovada, recusada ou já conquistada (status
+ * final). Uma lista só, para o bot, o painel e o site nunca discordarem: antes o site tinha uma
+ * cópia e podia mostrar "Apoiar" numa pauta que o bot recusa (SCRUM-294).
+ * `entregue_em_parte` e `descumprida` continuam recebendo: seguem sendo cobradas.
+ */
+export const STATUS_SEM_APOIO = ['em_curadoria', 'recusada', 'conquistada'] as const;
+
 /** Slug de pauta ou bloco: minúsculas, dígitos e hífens, sem hífen nas pontas nem repetido. */
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SLUG_MAX = 120;

@@ -130,7 +130,7 @@ describe('limite de um link por minuto (SCRUM-305)', () => {
     const agora = Date.now();
     await adaptador(db, CHAVE).createVerificationToken?.({
       identifier: email,
-      token: `t-${email}-${criadoHa}`,
+      token: `t-${email}-${String(criadoHa)}`,
       expires: new Date(agora - criadoHa * 1000 + VALIDADE_DO_LINK_S * 1000),
     });
   };

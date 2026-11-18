@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { CATEGORIAS } from '@lumens/contratos';
+import { CATEGORIAS, STATUS_SEM_APOIO } from '@lumens/contratos';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
 import exemplo from './blocos-teste.json';
@@ -114,19 +113,8 @@ describe('filtro por bloco', () => {
 });
 
 describe('SEM_APOIO', () => {
-  it('é a mesma lista de SEM_APOIO do domínio (packages/dominio/src/pauta/apoio.ts)', () => {
-    const fonte = readFileSync(
-      new URL('../../../../packages/dominio/src/pauta/apoio.ts', import.meta.url),
-      'utf-8',
-    );
-    const declaracao =
-      /const\s+SEM_APOIO\b[^=]*=\s*new\s+Set\s*(?:<[^>]*>)?\s*\(\s*\[([^\]]*)\]/.exec(fonte);
-    if (!declaracao) throw new Error('SEM_APOIO não encontrado em apoio.ts');
-    const doDominio = [...(declaracao[1] ?? '').matchAll(/['"]([a-z_]+)['"]/g)]
-      .map((m) => m[1])
-      .sort();
-    expect(doDominio.length).toBeGreaterThan(0);
-    expect([...SEM_APOIO].sort()).toEqual(doDominio);
+  it('sai da lista única de @lumens/contratos, a mesma do domínio (SCRUM-294)', () => {
+    expect([...SEM_APOIO].sort()).toEqual([...STATUS_SEM_APOIO].sort());
   });
 });
 
