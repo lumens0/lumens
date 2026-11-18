@@ -32,6 +32,14 @@ describe('manual: seções e âncoras', () => {
     expect(html).toContain('id="fala-br"');
   });
 
+  it('descreve a conquista e a revisão de nomes como o sistema faz', () => {
+    const texto = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+    expect(texto).toContain('maioria de quem respondeu à conferência');
+    expect(texto).toContain('pelo menos 10% de quem apoiou');
+    expect(texto).toContain('Possíveis nomes de pessoa ficam no texto');
+    expect(texto).not.toContain('sai sem dado pessoal');
+  });
+
   it('cita os quatro caminhos e as categorias', () => {
     for (const nome of [
       'Fala.BR',

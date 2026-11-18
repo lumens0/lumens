@@ -141,7 +141,8 @@ export default function Manual() {
         </ul>
         <p>
           <strong>Regra:</strong> uma solução da comunidade nunca fecha a pauta. A cobrança continua
-          até a universidade resolver, e só vira conquista quando a maioria de quem apoiou confirma.
+          até a universidade resolver, e só vira conquista quando a maioria de quem respondeu à
+          conferência confirma. Para valer, pelo menos 10% de quem apoiou precisa responder.
         </p>
       </Secao>
 
@@ -171,8 +172,9 @@ export default function Manual() {
           &ldquo;mando&rdquo; e &ldquo;aqui&rdquo;.
         </p>
         <p>
-          O texto da manifestação sai sem dado pessoal: o bot tira e-mail, telefone e matrícula
-          antes de entregá-lo, porque o Fala.BR é público.
+          O Fala.BR é público, então o texto não pode levar dado de ninguém. O bot troca e-mail,
+          telefone e matrícula por [removido]. Possíveis nomes de pessoa ficam no texto e o bot
+          avisa quais são: revise e apague os nomes antes de enviar.
         </p>
         <p>
           <strong>Prazo:</strong> a ouvidoria tem 30 dias para responder, contados do dia em que a
