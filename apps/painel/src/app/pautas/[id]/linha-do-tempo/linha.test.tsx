@@ -46,7 +46,7 @@ describe('tela da linha do tempo da pauta', () => {
     expect(html).toMatch(/09\/11\/2026,? 09:00/);
     // 02:30 UTC do dia 10 ainda é dia 9 em Maceió.
     expect(html).toMatch(/09\/11\/2026,? 23:30/);
-    expect(html).toContain('Origem: Bot do WhatsApp');
+    expect(html).toContain('Origem: Bot do Lumens');
     expect(html).toContain('Origem: Curadoria');
     expect(html).toContain('Só a curadoria vê');
     expect(html).toContain('Aparece no site');

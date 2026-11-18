@@ -52,7 +52,7 @@ export const NOTHING_CREATED_TEXT = 'Tudo bem, não criei nada.';
 export const NEW_SUPPORT_FAILED_TEXT =
   'Essa pauta não está recebendo apoios agora. Vamos seguir com a sua pauta nova.';
 export const REPORT_LOST_TEXT =
-  'Não consegui recuperar o seu relato. Escolha 1 no menu para relatar de novo.';
+  'Não consegui recuperar o seu relato. Mande *menu* e escolha *Relatar problema* para relatar de novo.';
 
 const YES = new Set(['sim', 's', 'quero', 'criar', 'pode']);
 const NO = new Set(['nao', 'n', 'nao quero']);

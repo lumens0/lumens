@@ -733,11 +733,86 @@ describe('API de leitura pública: serialização e rotas', () => {
     await app.ready();
     try {
       expect(new Set(rotas.map((r) => r.url))).toEqual(
-        new Set(['/resumo', '/blocos', '/pautas', '/pautas/:slug', '/conquistas', '/atividade']),
+        new Set([
+          '/resumo',
+          '/blocos',
+          '/pautas',
+          '/pautas/:slug',
+          '/conquistas',
+          '/atividade',
+          '/fotos/:ano/:mes/:arquivo',
+        ]),
       );
       expect(rotas.filter((r) => r.method !== 'GET' && r.method !== 'HEAD')).toEqual([]);
     } finally {
       await app.close();
+    }
+  });
+});
+
+describe('GET /fotos: só a foto de relato aprovado (SCRUM-263)', () => {
+  const CHAVE = 'fotos/2026/11/a.jpg';
+  const bytes = Buffer.from('imagem');
+
+  function montarComFotos(db: Db, lidas: string[]): Promise<FastifyInstance> {
+    return buildApp({
+      config: { verifyToken: 'verify', appSecret: 'segredo' },
+      db,
+      queue: new FakeQueue(),
+      logger: pino({ level: 'silent' }),
+      chaves: { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) },
+      leitura: {
+        db,
+        origensCors: [],
+        lerFoto: (chave) => {
+          lidas.push(chave);
+          return Promise.resolve({ bytes, contentType: 'image/jpeg' });
+        },
+      },
+    });
+  }
+
+  it('foto de relato aprovado é servida com o tipo da imagem', async () => {
+    const lidas: string[] = [];
+    const app = await montarComFotos(bancoFalso([{ ok: 1 }]), lidas);
+    try {
+      const res = await app.inject({ method: 'GET', url: `/${CHAVE}` });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toBe('image/jpeg');
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.rawPayload.equals(bytes)).toBe(true);
+      expect(lidas).toEqual([CHAVE]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('foto pendente ou recusada (fora da view pública) dá 404 e nem chega ao storage', async () => {
+    const lidas: string[] = [];
+    const app = await montarComFotos(bancoFalso([]), lidas);
+    try {
+      const res = await app.inject({ method: 'GET', url: `/${CHAVE}` });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toEqual({ erro: 'Foto não encontrada.' });
+      expect(lidas).toEqual([]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('chave fora do formato ou sem leitor configurado dá 404 sem consultar nada', async () => {
+    const lidas: string[] = [];
+    const app = await montarComFotos(bancoFalso([{ ok: 1 }]), lidas);
+    const semLeitor = await montarApp(bancoFalso([{ ok: 1 }]));
+    try {
+      expect(
+        (await app.inject({ method: 'GET', url: '/fotos/2026/11/a%20b.pdf' })).statusCode,
+      ).toBe(404);
+      expect((await semLeitor.inject({ method: 'GET', url: `/${CHAVE}` })).statusCode).toBe(404);
+      expect(lidas).toEqual([]);
+    } finally {
+      await app.close();
+      await semLeitor.close();
     }
   });
 });

@@ -202,6 +202,7 @@ describe('nenhuma rota pública devolve identidade (SCRUM-89)', () => {
       pautaId,
       estudanteId: SENTINELA.id,
       texto: SENTINELA.relato,
+      fotoChave: 'fotos/2026/11/a.jpg',
       moderacao: 'aprovado',
       moderadoEm: new Date(),
     });
@@ -213,11 +214,20 @@ describe('nenhuma rota pública devolve identidade (SCRUM-89)', () => {
       queue: new FakeQueue(),
       logger: pino({ level: 'silent' }),
       chaves: { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) },
-      leitura: { db, origensCors: ['https://lumens-ufal.vercel.app'] },
+      leitura: {
+        db,
+        origensCors: ['https://lumens-ufal.vercel.app'],
+        lerFoto: () => Promise.resolve({ bytes: Buffer.from('imagem'), contentType: 'image/jpeg' }),
+      },
     });
     const lista = await app.inject({ method: 'GET', url: '/pautas?limit=100' });
     const { itens } = lista.json<{ itens: Array<{ slug: string }> }>();
-    valores = { slug: itens.map((item) => item.slug) };
+    valores = {
+      slug: itens.map((item) => item.slug),
+      ano: ['2026'],
+      mes: ['11'],
+      arquivo: ['a.jpg'],
+    };
   }, 60_000);
 
   afterAll(async () => {

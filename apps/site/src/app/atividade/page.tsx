@@ -2,7 +2,7 @@ import { agruparEventosIguais, rotuloDeResponsaveis, type AtividadeItem } from '
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import componentes from '../../componentes/componentes.module.css';
-import { formatarData, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
+import { formatarData, rotuloDoPapel, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
 import { STATUS } from '../../componentes/StatusPill';
 import type { StatusPauta } from '../../dados/tipos';
 import { buscarAtividade } from '../../dados/api';
@@ -74,6 +74,8 @@ function statusNovo(item: AtividadeItem): StatusPauta | undefined {
 function textoDoEvento(item: AtividadeItem, quantidade = 1): string {
   const grupo = rotuloDeResponsaveis(item.tipo, item.dados, quantidade);
   if (grupo !== undefined) return grupo;
+  const doPapel = rotuloDoPapel(item.tipo, item.dados);
+  if (doPapel !== undefined) return doPapel;
   if (item.tipo === 'meta_ajustada') {
     const antes = item.dados.metaAntes;
     const depois = item.dados.metaDepois;

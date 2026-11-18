@@ -46,21 +46,21 @@ export const NEW_SIMILAR_LIST_TEXT =
   'Já existem pautas abertas parecidas com a sua. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const FROM_REPORT_DESCRIPTION_TEXT = 'Vou usar o seu relato como descrição da pauta.';
 export const PHOTO_ASK_TEXT =
-  "Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
+  'Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda *pular*.';
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
-  'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Escolha 3 no menu para verificar.';
+  'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Mande *menu* e escolha *Verificar e-mail* para verificar.';
 export const BLOCK_GONE_TEXT =
-  'Não consegui criar a pauta: o bloco escolhido não existe mais. Escolha 2 no menu para começar de novo.';
+  'Não consegui criar a pauta: o bloco escolhido não existe mais. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 export const DATA_LOST_TEXT =
-  'Não consegui recuperar as respostas da sua pauta. Escolha 2 no menu para começar de novo.';
+  'Não consegui recuperar as respostas da sua pauta. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 
 /** Foto que não deu para usar: a pessoa continua no passo da foto, para mandar outra ou pular. */
 export function photoRefusedText(motivo: MotivoFotoRecusada): string {
   // Storage fora do ar: outra foto falharia igual, então o texto não sugere mandar outra (SCRUM-330).
   if (motivo === 'armazenamento') {
-    return "Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda 'pular' para seguir sem foto.";
+    return 'Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda *pular* para seguir sem foto.';
   }
   const porque: Record<Exclude<MotivoFotoRecusada, 'armazenamento'>, string> = {
     formato: 'ela precisa ser JPEG ou PNG',
@@ -68,7 +68,7 @@ export function photoRefusedText(motivo: MotivoFotoRecusada): string {
     invalida: 'o arquivo não abriu como imagem',
     indisponivel: 'não consegui baixar a foto agora',
   };
-  return `Não consegui usar essa foto: ${porque[motivo]}. Envie outra foto ou responda 'pular'.`;
+  return `Não consegui usar essa foto: ${porque[motivo]}. Envie outra foto ou responda *pular*.`;
 }
 
 export function titleTooLongText(tamanho: number): string {

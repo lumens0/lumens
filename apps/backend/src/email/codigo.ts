@@ -57,7 +57,7 @@ export function textoDoCodigo(codigo: string): string {
     '',
     `Seu código de verificação do Lumens é: ${codigo}`,
     '',
-    `Ele vale por ${MINUTOS} minutos. Digite o código na conversa com o Lumens no WhatsApp.`,
+    `Ele vale por ${MINUTOS} minutos. Digite o código na conversa com o Lumens.`,
     '',
     'Se você não pediu este código, ignore este e-mail: sem ele, ninguém usa o seu endereço.',
     '',
