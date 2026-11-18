@@ -2,6 +2,7 @@ import { lt, mensagensProcessadas, type Db, type Tx } from '@lumens/db';
 import { z } from 'zod';
 import { cifrar, decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
 import type { Logger } from '../../infra/logger';
+import { limitadorDoBot, type LimitadorPorTelefone } from '../../infra/limite-por-telefone';
 import { JOBS, type JobQueue } from '../../infra/queue';
 import { hashPhone } from '../conversation/phone';
 import type { StatusDeEnvioJob } from '../envio/worker';
@@ -11,6 +12,8 @@ export interface ProcessDeps {
   queue: JobQueue;
   logger: Logger;
   chaves: Chaves;
+  /** Limite de mensagens por pessoa. O padrão é o do processo; os testes passam o deles. */
+  limitador?: LimitadorPorTelefone;
 }
 
 export interface ProcessResult {
@@ -264,8 +267,20 @@ export async function enfileirar(
  */
 export async function enfileirarUmaVez(
   job: IncomingMessageJob,
-  deps: Pick<ProcessDeps, 'db' | 'queue'>,
+  deps: Pick<ProcessDeps, 'db' | 'queue'> & Partial<Pick<ProcessDeps, 'limitador' | 'logger'>>,
 ): Promise<boolean> {
+  // Spam: a mensagem de quem passou do limite é descartada aqui, antes do dedup e da fila. O
+  // webhook responde 200 como numa mensagem duplicada, então nada é reenviado.
+  const limite = (deps.limitador ?? limitadorDoBot).registrar(job.phoneHmac);
+  if (!limite.permitida) {
+    if (limite.primeiraRecusa) {
+      deps.logger?.warn(
+        { pessoa: job.phoneHmac.slice(0, 12) },
+        'mensagens demais de uma pessoa só: o excesso é descartado até ela parar',
+      );
+    }
+    return false;
+  }
   return deps.db.transaction(async (tx) => {
     if (!(await marcarProcessada(tx, job.wamidHmac))) return false;
     await deps.queue.send(JOBS.incomingMessage, job, tx, { chave: job.phoneHmac });

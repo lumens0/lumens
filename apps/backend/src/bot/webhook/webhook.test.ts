@@ -7,6 +7,7 @@ import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../../app';
 import { decifrar, hmacHex, type Chaves } from '../../cripto/cifra';
+import { LIMITE_DE_MENSAGENS, limitadorDoBot } from '../../infra/limite-por-telefone';
 import type { SendOptions } from '../../infra/queue';
 import {
   FakeQueue,
@@ -65,6 +66,7 @@ describe('webhook da Meta', () => {
 
   // PGlite leva alguns segundos para subir no primeiro teste.
   beforeEach(async () => {
+    limitadorDoBot.limpar();
     db = await criarBancoEmMemoria();
     await prepararFilaFalsa(db);
     queue = new FakeQueue();
@@ -209,6 +211,25 @@ describe('webhook da Meta', () => {
     expect((await post(textPayload('wamid.DUP'))).statusCode).toBe(200);
     expect((await post(textPayload('wamid.DUP'))).statusCode).toBe(200);
     expect(await jobs(db)).toHaveLength(1);
+  });
+
+  it('spam: depois do limite por pessoa o excesso é descartado com 200, e outra pessoa segue normal', async () => {
+    const total = LIMITE_DE_MENSAGENS.max + 15;
+    for (let i = 0; i < total; i++) {
+      expect((await post(textPayload(`wamid.SPAM${String(i)}`))).statusCode).toBe(200);
+    }
+    // Só o máximo entra na fila; o resto nem gasta dedup.
+    expect(await jobs(db)).toHaveLength(LIMITE_DE_MENSAGENS.max);
+    expect(await dedup()).toHaveLength(LIMITE_DE_MENSAGENS.max);
+    expect(logs.filter((l) => l.includes('mensagens demais'))).toHaveLength(1);
+
+    const outra = payloadCom({
+      messaging_product: 'whatsapp',
+      metadata,
+      messages: [{ ...mensagem('wamid.OUTRA'), from: '5582977776666' }],
+    });
+    expect((await post(outra)).statusCode).toBe(200);
+    expect(await jobs(db)).toHaveLength(LIMITE_DE_MENSAGENS.max + 1);
   });
 
   it('evento de status → 200 e nenhuma mensagem enfileirada para a conversa', async () => {
