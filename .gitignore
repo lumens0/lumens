@@ -19,6 +19,7 @@ coverage/
 !.env.backup.example
 !.env.producao.example
 !.env.producao.admin.example
+!.env.producao.minio.example
 
 # Logs
 *.log
@@ -37,7 +38,6 @@ Thumbs.db
 # Tour (edge-tour) — estado de sessão e config pessoal
 .agent/working/
 .agent/policy.local.yaml
-docs/sdd/**/*.bak-*
 
 # Playwright (SCRUM-28)
 test-results/

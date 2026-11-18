@@ -40,6 +40,27 @@ describe('/atividade', () => {
     expect(html).not.toContain('Páginas da atividade');
   });
 
+  it('descreve os ajustes de meta e bloco na atividade', async () => {
+    responder({
+      itens: [
+        {
+          ...CONQUISTA,
+          tipo: 'meta_ajustada',
+          dados: { metaAntes: 60, metaDepois: 45, motivo: 'Base revisada.' },
+        },
+        {
+          ...CONQUISTA,
+          tipo: 'bloco_corrigido',
+          dados: { blocoAntes: 'Bloco A', blocoDepois: 'Bloco B' },
+        },
+      ],
+      proximo: null,
+    });
+    const html = await render();
+    expect(html).toContain('Meta ajustada pela curadoria de 60 para 45: Base revisada.');
+    expect(html).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
+  });
+
   it('a hora não depende do fuso do servidor: 01h UTC ainda é o dia anterior em Maceió', async () => {
     responder({ itens: [{ ...CONQUISTA, criado_em: '2026-03-19T01:30:00.000Z' }], proximo: null });
     expect(await render()).toContain('>18/03/2026, 22:30</time>');

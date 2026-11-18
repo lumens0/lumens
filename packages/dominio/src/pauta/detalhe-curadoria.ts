@@ -19,6 +19,8 @@ import { caminhosDaPauta as listarCaminhosDaPauta } from '../caminhos/caminhos';
 import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 
 export interface RelatoDaCuradoria {
+  /** Vai no formulário de aprovação: `aprovarPauta` confere a foto de cada relato que a tela mostrou. */
+  id: string;
   texto: string;
   achados: Achado[];
   curso: string | null;
@@ -29,6 +31,7 @@ export interface RelatoDaCuradoria {
 }
 
 export interface PromessaDaCuradoria {
+  id: string;
   resumo: string;
   fonte: string;
   dataEntrega: string;
@@ -45,6 +48,7 @@ export interface DetalhePautaDaCuradoria extends PautaDaCuradoria {
   responsaveis: { curso: string | null }[];
   relatos: RelatoDaCuradoria[];
   caminhos: {
+    id: string;
     tipo: 'falabr' | 'comunidade' | 'representante';
     protocolo: string | null;
     prazo: string | null;
@@ -87,6 +91,7 @@ export async function detalharPautaDaCuradoria(
       ),
     db
       .select({
+        id: relatos.id,
         texto: relatos.texto,
         curso: estudantes.curso,
         fotoChave: relatos.fotoChave,
@@ -110,7 +115,7 @@ export async function detalharPautaDaCuradoria(
         id: promessas.id,
       })
       .from(promessas)
-      .where(eq(promessas.pautaId, pautaId))
+      .where(and(eq(promessas.pautaId, pautaId), isNull(promessas.resultado)))
       .orderBy(sql`${promessas.conferenciaAbreEm} DESC`)
       .limit(1),
     db
@@ -148,7 +153,8 @@ export async function detalharPautaDaCuradoria(
     apoios: apoiosContados[0]?.total ?? 0,
     metaBatidaEm: metaBatida[0]?.criadoEm ?? registro[0]?.metaBatidaEm ?? null,
     responsaveis: responsaveis.map(({ curso }) => ({ curso })),
-    relatos: relatosDaPauta.map(({ texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+    relatos: relatosDaPauta.map(({ id, texto, curso, fotoChave, moderacao, moderadoEm }) => ({
+      id,
       texto,
       achados: conferirAnonimato(texto).achados,
       curso,
@@ -158,7 +164,12 @@ export async function detalharPautaDaCuradoria(
       // owner não serve, porque ele pode mandar outros relatos depois de criar a pauta.
       data: moderadoEm,
     })),
-    caminhos: caminhosDaPauta.map(({ tipo, protocolo, prazo }) => ({ tipo, protocolo, prazo })),
+    caminhos: caminhosDaPauta.map(({ id, tipo, protocolo, prazo }) => ({
+      id,
+      tipo,
+      protocolo,
+      prazo,
+    })),
     promessa: promessa ? { ...promessa, votos } : null,
   };
 }

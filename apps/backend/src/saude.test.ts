@@ -2,8 +2,8 @@ import { type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import type { FastifyInstance } from 'fastify';
 import { pino } from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildApp } from './app';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VALIDADE_DO_ESTADO_MS, buildApp } from './app';
 import type { Chaves } from './cripto/cifra';
 import { FakeQueue, prepararFilaFalsa } from './infra/queue.fake';
 
@@ -90,5 +90,98 @@ describe('GET /saude', () => {
     const resposta = await (await montar(db)).inject({ method: 'GET', url: '/health' });
 
     expect(resposta.statusCode).toBe(404);
+  });
+});
+
+/**
+ * SCRUM-341: o chip da Evolution numa rota própria. O oráculo é o critério do ticket (o estado da
+ * conexão aparece numa checagem automática) mais a regra de não derrubar o /saude por ele.
+ */
+describe('GET /saude/whatsapp', () => {
+  let db: Db;
+  let logs: string[];
+  let app: FastifyInstance | undefined;
+
+  async function montar(evolution?: { estadoDaConexao?: () => Promise<string> }) {
+    const logger = pino({ level: 'warn' }, { write: (linha: string) => logs.push(linha) });
+    app = await buildApp({
+      db,
+      queue: new FakeQueue(),
+      logger,
+      chaves,
+      leitura: { db, origensCors: [] },
+      ...(evolution ? { evolution: { segredo: 'segredo-webhook', ...evolution } } : {}),
+    });
+    return app;
+  }
+
+  const pedir = (servidor: FastifyInstance) =>
+    servidor.inject({ method: 'GET', url: '/saude/whatsapp' });
+
+  beforeEach(async () => {
+    db = await criarBancoEmMemoria();
+    await prepararFilaFalsa(db);
+    logs = [];
+    app = undefined;
+  }, 20_000);
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    await app?.close();
+  });
+
+  it('responde 200 com o chip conectado', async () => {
+    const resposta = await pedir(await montar({ estadoDaConexao: () => Promise.resolve('open') }));
+
+    expect(resposta.statusCode).toBe(200);
+    expect(resposta.json()).toEqual({ ok: true });
+  });
+
+  it.each([
+    ['sessão caída', 'close'],
+    ['reconectando', 'connecting'],
+    ['chave errada', 'http_401'],
+    ['Evolution fora do ar', 'sem_resposta'],
+  ])('%s: 503 com corpo genérico, e o motivo só no log', async (_caso, estado) => {
+    const resposta = await pedir(await montar({ estadoDaConexao: () => Promise.resolve(estado) }));
+
+    expect(resposta.statusCode).toBe(503);
+    expect(resposta.json()).toEqual({ ok: false });
+    expect(logs.join('')).toContain(`"estado":"${estado}"`);
+  });
+
+  it('canal da Evolution sem consulta ligada responde 503, não 404', async () => {
+    const resposta = await pedir(await montar({}));
+
+    expect(resposta.statusCode).toBe(503);
+  });
+
+  it('pedidos seguidos dividem uma consulta, e ela vale 10 s', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let consultas = 0;
+    const servidor = await montar({
+      estadoDaConexao: () => {
+        consultas += 1;
+        return Promise.resolve('close');
+      },
+    });
+
+    await Promise.all([pedir(servidor), pedir(servidor), pedir(servidor)]);
+    expect(consultas).toBe(1);
+    expect(logs).toHaveLength(1);
+
+    vi.setSystemTime(Date.now() + VALIDADE_DO_ESTADO_MS);
+    await pedir(servidor);
+    expect(consultas).toBe(2);
+  });
+
+  it('chip caído não derruba o /saude, que é o healthcheck do contêiner', async () => {
+    const servidor = await montar({ estadoDaConexao: () => Promise.resolve('close') });
+
+    expect((await servidor.inject({ method: 'GET', url: '/saude' })).statusCode).toBe(200);
+  });
+
+  it('com o WhatsApp pela Meta ou pelo Telegram, a rota não existe', async () => {
+    expect((await pedir(await montar())).statusCode).toBe(404);
   });
 });

@@ -203,6 +203,23 @@ describe('gerarTextoFalaBr (SCRUM-213)', () => {
     it('zero apoio não impede o texto', () => {
       expect(() => gerarTextoFalaBr(pauta({ apoios: 0 }))).not.toThrow();
     });
+
+    // SCRUM-344: o owner pode protocolar antes de qualquer apoio (RN05).
+    it.each([0, 1])('com %i apoio, o texto não fala em coletivo e não diz o número', (apoios) => {
+      const { texto } = gerarTextoFalaBr(pauta({ apoios }));
+
+      expect(texto).not.toContain('estudantes');
+      expect(texto).not.toMatch(/^Apoio$/m);
+      // O resto do documento continua inteiro.
+      expect(texto).toContain('Descrição');
+      expect(texto).toContain('Pedido');
+    });
+
+    it('com dois apoios, o parágrafo de apoio volta', () => {
+      const { texto } = gerarTextoFalaBr(pauta({ apoios: 2, meta: 120 }));
+
+      expect(texto).toContain('coletivamente por 2 estudantes que registraram apoio a ela');
+    });
   });
 });
 

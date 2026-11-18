@@ -170,7 +170,11 @@ describe('registrarProtocolo ligado ao status (RN08)', () => {
     );
 
     const evento = (await eventosDa(pauta.id)).find((e) => e.tipo === 'protocolo_registrado');
-    expect(evento?.dados).toEqual({ caminho_id: caminhoId, protocolo: '23546.000006/2026-11' });
+    expect(evento?.dados).toEqual({
+      caminho_id: caminhoId,
+      protocolo: '23546.000006/2026-11',
+      prorrogado: false,
+    });
   });
 });
 

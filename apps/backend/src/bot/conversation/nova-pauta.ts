@@ -6,8 +6,12 @@
  *                              │ sim
  *                              ▼
  *   NEW_ASK_TITLE ──▶ NEW_ASK_PLACE ──▶ NEW_ASK_DESCRIPTION ──▶ NEW_ASK_PHOTO ──▶ criarPauta + resumo
- *        │  (lista de blocos)                                       ▲
+ *        │  (lista de blocos) │            ▲                        ▲
+ *        │                    └─ parecida? ─▶ NEW_PICK_SIMILAR ─"É outro"   "É essa" → apoio (2.7)
  *        └── veio da 2.5: o bloco e o relato já estão nos dados ────┘
+ *
+ * Pelo menu, o título e o bloco passam pela mesma busca de pautas parecidas do relato (SCRUM-346):
+ * sem ela, a pauta repetida dividia os apoios. Quem vem da 2.5 já viu a lista e não passa de novo.
  *
  * Tudo o que a pessoa escreve fica cifrado nos dados da conversa, como o relato da 2.5: a tabela
  * `conversa` guarda o passo de cada telefone por 24h. A pauta só é gravada no último passo, por
@@ -18,6 +22,7 @@ import {
   DESCRICAO_MAXIMA,
   PRAZO_DE_CURADORIA_MS,
   TITULO_MAXIMO,
+  buscarPautasParecidas,
   criarPauta,
   listarBlocos,
   type ResultadoCriacao,
@@ -27,22 +32,25 @@ import type { MotivoFotoRecusada } from '../../fotos/servico';
 import { BLOCK_NOT_FOUND_TEXT, blocoEscolhido, listaDeBlocos } from './blocos';
 import { estudanteVerificado } from './estudante';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
+import { listaDeParecidas, type Parecida } from './parecidas';
 import type { Resposta } from './resposta';
 import { NEW_TITLE_TEXT, normalize } from './texto';
 
 export const VERIFY_FIRST_TEXT =
-  'Para criar uma pauta, você precisa ser estudante verificado. Vamos verificar o seu e-mail institucional: qual é ele?';
+  'Para criar uma pauta, você precisa verificar o seu e-mail institucional. Qual é ele?';
 export const TITLE_EMPTY_TEXT = `O título não pode ficar em branco. ${NEW_TITLE_TEXT}`;
 export const DESCRIPTION_QUESTION_TEXT =
   'Agora descreva o problema: o que acontece, onde (sala, andar) e desde quando.';
 export const DESCRIPTION_EMPTY_TEXT = `A descrição não pode ficar em branco. ${DESCRIPTION_QUESTION_TEXT}`;
+export const NEW_SIMILAR_LIST_TEXT =
+  'Já existem pautas abertas parecidas com a sua. Se uma delas for o mesmo problema, apoie a que já existe: pauta com mais apoio tem mais força.';
 export const FROM_REPORT_DESCRIPTION_TEXT = 'Vou usar o seu relato como descrição da pauta.';
 export const PHOTO_ASK_TEXT =
   "Envie uma foto do problema (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
 export const PHOTO_RECEIVED_TEXT = 'Foto recebida, obrigado!';
 export const NO_PHOTO_TEXT = 'Ok, sem foto.';
 export const NOT_VERIFIED_AT_END_TEXT =
-  'Não consegui criar a pauta: o seu cadastro de estudante não está verificado. Escolha 3 no menu para verificar o e-mail.';
+  'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Escolha 3 no menu para verificar.';
 export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Escolha 2 no menu para começar de novo.';
 export const DATA_LOST_TEXT =
@@ -50,7 +58,11 @@ export const DATA_LOST_TEXT =
 
 /** Foto que não deu para usar: a pessoa continua no passo da foto, para mandar outra ou pular. */
 export function photoRefusedText(motivo: MotivoFotoRecusada): string {
-  const porque: Record<MotivoFotoRecusada, string> = {
+  // Storage fora do ar: outra foto falharia igual, então o texto não sugere mandar outra (SCRUM-330).
+  if (motivo === 'armazenamento') {
+    return "Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda 'pular' para seguir sem foto.";
+  }
+  const porque: Record<Exclude<MotivoFotoRecusada, 'armazenamento'>, string> = {
     formato: 'ela precisa ser JPEG ou PNG',
     tamanho: 'ela passa de 5 MB',
     invalida: 'o arquivo não abriu como imagem',
@@ -96,6 +108,7 @@ const LIMPAR: DataPatch = {
   descricaoCifrada: undefined,
   blocoId: undefined,
   relatoCifrado: undefined,
+  parecidas: undefined,
   fotoMediaId: undefined,
   pendingCommand: undefined,
 };
@@ -153,17 +166,35 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
   return { next: 'NEW_ASK_PHOTO', data, replies: [FROM_REPORT_DESCRIPTION_TEXT, PHOTO_ASK_TEXT] };
 };
 
-export const newAskPlace: StepHandler = async ({ input, db }) => {
+export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) => {
   const lista = await listarBlocos(db);
   const escolha = blocoEscolhido(input.text, lista);
   if (escolha === undefined) {
     return { next: 'NEW_ASK_PLACE', replies: [BLOCK_NOT_FOUND_TEXT, listaDeBlocos(lista)] };
   }
-  return {
-    next: 'NEW_ASK_DESCRIPTION',
-    data: { blocoId: escolha.blocoId },
-    replies: [DESCRIPTION_QUESTION_TEXT],
-  };
+  const data: DataPatch = { blocoId: escolha.blocoId };
+
+  // O título faz o papel do relato na busca. Sem ele (dado perdido), segue: o fim avisa.
+  const tituloDaPauta = decifrado(segredo, dadosDaPauta(state.data).tituloCifrado);
+  if (tituloDaPauta !== undefined) {
+    const achadas = await buscarPautasParecidas(db, {
+      relato: tituloDaPauta,
+      blocoId: escolha.blocoId,
+    });
+    const parecidas: Parecida[] = achadas.map(({ id, titulo, descricao }) => ({
+      id,
+      titulo,
+      descricao,
+    }));
+    if (parecidas.length > 0) {
+      return {
+        next: 'NEW_PICK_SIMILAR',
+        data: { ...data, parecidas },
+        replies: [listaDeParecidas(parecidas, NEW_SIMILAR_LIST_TEXT)],
+      };
+    }
+  }
+  return { next: 'NEW_ASK_DESCRIPTION', data, replies: [DESCRIPTION_QUESTION_TEXT] };
 };
 
 export const newAskDescription: StepHandler = ({ input, segredo }) => {
