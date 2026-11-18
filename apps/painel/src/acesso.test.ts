@@ -1,7 +1,14 @@
 import { curadores, eq, verificacoesLogin, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { adaptador, curadorAtivo, curadorAtivoPorId, hmacDoEmail } from './acesso';
+import {
+  VALIDADE_DO_LINK_S,
+  adaptador,
+  curadorAtivo,
+  curadorAtivoPorId,
+  hmacDoEmail,
+  pedidoRecente,
+} from './acesso';
 import { destino } from './destino';
 
 const CHAVE = Buffer.alloc(32, 7);
@@ -115,6 +122,40 @@ describe('link de acesso', () => {
     expect(
       await a.useVerificationToken?.({ identifier: 'intruso@ufal.br', token: 'hash-2' }),
     ).toBeNull();
+  });
+});
+
+describe('limite de um link por minuto (SCRUM-305)', () => {
+  const grava = async (email: string, criadoHa: number) => {
+    const agora = Date.now();
+    await adaptador(db, CHAVE).createVerificationToken?.({
+      identifier: email,
+      token: `t-${email}-${criadoHa}`,
+      expires: new Date(agora - criadoHa * 1000 + VALIDADE_DO_LINK_S * 1000),
+    });
+  };
+
+  it('link criado há menos de 60 s conta como pedido recente, em qualquer caixa', async () => {
+    await grava('recente@ufal.br', 10);
+    expect(await pedidoRecente(db, 'Recente@UFAL.br ', CHAVE)).toBe(true);
+  });
+
+  it('link criado há mais de 60 s, ou e-mail sem link, libera um novo pedido', async () => {
+    await grava('antigo@ufal.br', 90);
+    expect(await pedidoRecente(db, 'antigo@ufal.br', CHAVE)).toBe(false);
+    expect(await pedidoRecente(db, 'nunca@ufal.br', CHAVE)).toBe(false);
+  });
+
+  it('com `depois`, a resposta não espera a gravação, que termina em seguida', async () => {
+    let gravacao: Promise<void> | undefined;
+    const a = adaptador(db, CHAVE, (_id, g) => {
+      gravacao = g;
+    });
+    const expires = new Date(Date.now() + VALIDADE_DO_LINK_S * 1000);
+    await a.createVerificationToken?.({ identifier: 'adiado@ufal.br', token: 'adiado', expires });
+    await gravacao;
+
+    expect(await pedidoRecente(db, 'adiado@ufal.br', CHAVE)).toBe(true);
   });
 });
 

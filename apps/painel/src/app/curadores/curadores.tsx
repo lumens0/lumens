@@ -1,5 +1,6 @@
 import type { CuradorListado } from '@lumens/dominio';
 import estilos from '../painel.module.css';
+import { Enviar } from '../enviar';
 
 const FEITO: Record<string, string> = {
   adicionado: 'Pessoa adicionada. Ela já pode pedir o link de acesso na tela de login.',
@@ -64,9 +65,7 @@ export function Curadores({
         <input id="email" name="email" type="email" required maxLength={120} />
         <label htmlFor="nome">Nome</label>
         <input id="nome" name="nome" required maxLength={120} />
-        <button className={estilos.botao} type="submit">
-          Adicionar curador
-        </button>
+        <Enviar className={estilos.botao}>Adicionar curador</Enviar>
       </form>
       <ul className={estilos.lista}>
         {curadores.map((c) => (
@@ -79,9 +78,9 @@ export function Curadores({
             {c.id !== eu && (
               <form action={c.ativo ? desativar : reativar}>
                 <input type="hidden" name="curadorId" value={c.id} />
-                <button className={c.ativo ? estilos.botaoPerigo : estilos.botao} type="submit">
+                <Enviar className={c.ativo ? estilos.botaoPerigo : estilos.botao}>
                   {c.ativo ? 'Desativar' : 'Reativar'}
-                </button>
+                </Enviar>
               </form>
             )}
           </li>

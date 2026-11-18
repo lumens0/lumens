@@ -643,3 +643,9 @@
   border: 1px solid var(--borda);
   border-radius: var(--raio-controle);
 }
+
+.botao:disabled,
+.botaoPerigo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

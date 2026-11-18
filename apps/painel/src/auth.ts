@@ -10,11 +10,22 @@ import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
 import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
-import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
+import {
+  VALIDADE_DO_LINK_S,
+  adaptador,
+  curadorAtivo,
+  curadorAtivoPorId,
+  normalizarEmail,
+  pedidoRecente,
+} from './acesso';
 import { configBase } from './auth.config';
 import { opcoesSmtp } from './smtp';
 
-const QUINZE_MINUTOS = 15 * 60;
+/**
+ * Gravações do link ainda em andamento, por e-mail. O e-mail só sai depois de a gravação terminar,
+ * para o clique nunca chegar antes do token.
+ */
+const gravacoes = new Map<string, Promise<void>>();
 
 /**
  * A mesma URL que o Auth.js devolve depois de mandar o link: o redirecionamento de quem não é
@@ -67,19 +78,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   });
   return {
     ...configBase,
-    adapter: adaptador(db, chave),
+    adapter: adaptador(db, chave, (identificador, gravacao) => {
+      const segura = gravacao.catch((erro: unknown) => {
+        console.error('Link de acesso do painel não foi gravado:', erro);
+      });
+      gravacoes.set(identificador, segura);
+      after(() => segura);
+    }),
     providers: [
       // Cast: o tipo do Nodemailer não fecha com `exactOptionalPropertyTypes` (o `server` dele é
       // opcional no tipo genérico e obrigatório no próprio); em tempo de execução é o mesmo objeto.
       Nodemailer({
         server: smtp,
         from: exigir('EMAIL_REMETENTE'),
-        maxAge: QUINZE_MINUTOS,
+        maxAge: VALIDADE_DO_LINK_S,
         // O e-mail sai depois da resposta (`after`). Esperar o SMTP aqui deixaria o pedido de um
         // curador segundos mais lento que o de quem não é, e a demora entregaria quem é curador.
         sendVerificationRequest({ identifier, url, provider }) {
-          after(() =>
-            createTransport(smtp)
+          after(async () => {
+            await gravacoes.get(normalizarEmail(identifier));
+            gravacoes.delete(normalizarEmail(identifier));
+            await createTransport(smtp)
               .sendMail({
                 to: identifier,
                 from: provider.from,
@@ -90,8 +109,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
               })
               .catch((erro: unknown) => {
                 console.error('Link de acesso do painel não saiu:', erro);
-              }),
-          );
+              });
+          });
         },
       }) as Provider,
     ],
@@ -100,9 +119,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       // No pedido do link: não curador não recebe nada, mas vê a mesma tela. No clique: confere
       // de novo, para um curador desativado nesse meio-tempo não entrar.
       async signIn({ user, email }) {
-        const curador = user.email ? await curadorAtivo(db, user.email, chave) : undefined;
-        if (curador) return true;
-        return email?.verificationRequest ? VERIFIQUE : false;
+        const pedido = email?.verificationRequest === true;
+        const endereco = user.email ?? '';
+        // As duas consultas rodam sempre, para curador ou não: o tempo da resposta não separa um
+        // do outro. Curador com link de menos de 60 s recebe a mesma tela, sem novo e-mail.
+        const [curador, recente] = await Promise.all([
+          endereco ? curadorAtivo(db, endereco, chave) : undefined,
+          pedido && endereco ? pedidoRecente(db, endereco, chave) : false,
+        ]);
+        if (curador && !(pedido && recente)) return true;
+        return pedido ? VERIFIQUE : false;
       },
     },
   };
