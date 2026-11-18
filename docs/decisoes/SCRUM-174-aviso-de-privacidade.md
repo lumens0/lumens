@@ -1,7 +1,7 @@
 # SCRUM-174 · Texto do aviso de privacidade e base legal
 
 Decisão · Parte 5 · 2026-11-10 · @sthefanyblima
-**Situação:** proposta. A equipe aprova (ou ajusta) na revisão da PR; aprovada, vira decidida.
+**Situação:** decidida. Aprovada em 17/11/2026 na PR da SCRUM-342 (ver "O que a equipe precisa confirmar na PR").
 
 > Não é parecer jurídico. É a leitura da equipe sobre o que a LGPD pede para um projeto acadêmico
 > deste tamanho. Se a disciplina ou a UFAL indicar um encarregado de dados, ele tem a última
