@@ -50,6 +50,9 @@ export interface PautaNaFila {
   restanteMs: number;
   apoios: number;
   meta: number;
+  urgente: boolean;
+  /** Só para o painel: o evento público e o site não levam o motivo. */
+  urgenteMotivo: string | null;
 }
 
 /** A pauta como a curadoria vê na tela dela (SCRUM-168), em qualquer status. */
@@ -79,6 +82,8 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
         limit 1)`,
       apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
       meta: pautas.meta,
+      urgente: pautas.urgente,
+      urgenteMotivo: pautas.urgenteMotivo,
       criadaEm: pautas.criadaEm,
       status: pautas.status,
       motivoRecusa: pautas.motivoRecusa,
@@ -330,6 +335,7 @@ export async function aprovarPauta(
     curadorId,
     categoria,
     fotosVistas,
+    urgente = false,
     agora = new Date(),
   }: {
     pautaId: string;
@@ -337,6 +343,7 @@ export async function aprovarPauta(
     categoria: string;
     /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
     fotosVistas: Readonly<Record<string, string | null>>;
+    urgente?: boolean;
     agora?: Date;
   },
 ): Promise<ResultadoDecisao> {
@@ -357,7 +364,23 @@ export async function aprovarPauta(
   if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (resultado.decidida) {
-    await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
+    await tx
+      .update(pautas)
+      .set({
+        categoria,
+        urgente,
+        urgenteDesde: urgente ? agora : null,
+        urgentePor: urgente ? curadorId : null,
+      })
+      .where(eq(pautas.id, pautaId));
+    if (urgente) {
+      await registrarEvento(tx, {
+        pautaId,
+        tipo: 'pauta_urgente',
+        dados: { urgente: true },
+        origem: 'curadoria',
+      });
+    }
     // As linhas estão travadas desde a conferência: a foto de cada relato é a que a tela mostrou.
     for (const relato of origem) {
       await aprovarRelato(tx, {
@@ -370,6 +393,68 @@ export async function aprovarPauta(
     await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   }
   return resultado;
+}
+
+export type ResultadoUrgencia =
+  | { atualizada: true }
+  | { atualizada: false; motivo: 'pauta_inexistente' | 'pauta_nao_publica' | 'motivo_invalido' };
+
+/** Marca ou remove a urgência de uma pauta já pública e registra a mudança na linha do tempo. */
+export async function marcarUrgencia(
+  tx: Tx,
+  {
+    pautaId,
+    curadorId,
+    urgente,
+    motivo,
+    agora = new Date(),
+  }: { pautaId: string; curadorId: string; urgente: boolean; motivo?: string; agora?: Date },
+): Promise<ResultadoUrgencia> {
+  if (
+    motivo !== undefined &&
+    (Array.from(motivo.trim()).length > 200 || /[\r\n\u2028\u2029]/u.test(motivo))
+  ) {
+    return { atualizada: false, motivo: 'motivo_invalido' };
+  }
+  const [pauta] = await tx
+    .select({
+      status: pautas.status,
+      urgente: pautas.urgente,
+      urgenteMotivo: pautas.urgenteMotivo,
+    })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
+  if (pauta === undefined) return { atualizada: false, motivo: 'pauta_inexistente' };
+  if (pauta.status === 'em_curadoria' || pauta.status === 'recusada') {
+    return { atualizada: false, motivo: 'pauta_nao_publica' };
+  }
+  const motivoLimpo = motivo?.trim();
+  const novoMotivo = urgente && motivoLimpo ? motivoLimpo : null;
+  if (pauta.urgente === urgente) {
+    if (urgente && motivo !== undefined && pauta.urgenteMotivo !== novoMotivo) {
+      await tx.update(pautas).set({ urgenteMotivo: novoMotivo }).where(eq(pautas.id, pautaId));
+    }
+    return { atualizada: true };
+  }
+
+  await tx
+    .update(pautas)
+    .set({
+      urgente,
+      urgenteDesde: urgente ? agora : null,
+      urgentePor: urgente ? curadorId : null,
+      // O motivo fica na pauta, só para o painel: o evento é público e vai à linha do tempo do site.
+      urgenteMotivo: novoMotivo,
+    })
+    .where(eq(pautas.id, pautaId));
+  await registrarEvento(tx, {
+    pautaId,
+    tipo: 'pauta_urgente',
+    dados: { urgente },
+    origem: 'curadoria',
+  });
+  return { atualizada: true };
 }
 
 export type ResultadoCategoria =

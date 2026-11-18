@@ -25,6 +25,7 @@ const ROTULOS: Record<TipoEvento, string> = {
   owner_entrou: 'Novo owner',
   owner_removido: 'Owner saiu',
   relato_aprovado: 'Relato publicado',
+  pauta_urgente: 'Urgência da pauta alterada',
   categoria_alterada: 'Categoria alterada',
 };
 
@@ -78,6 +79,10 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
   switch (tipo) {
     case 'status_alterado':
       return `De “${nomeado(STATUS, dados.de)}” para “${nomeado(STATUS, dados.para)}”.`;
+    case 'pauta_urgente':
+      return dados.urgente === true
+        ? 'Marcada como urgente pela curadoria.'
+        : 'Deixou de ser urgente.';
     case 'meta_batida':
       return `${texto(dados.apoios)} apoios, para uma meta de ${texto(dados.meta)}.`;
     case 'caminho_aberto':

@@ -3,6 +3,7 @@
 import {
   aprovarPauta,
   definirCategoria as gravarCategoria,
+  marcarUrgencia,
   recusarPauta,
   recusarRelatoDeOrigem as recusarRelatoNoDominio,
 } from '@lumens/dominio';
@@ -12,9 +13,9 @@ import { criarDecisoes, fotosVistasDoFormulario, UUID } from './decisoes';
 
 const decisoes = criarDecisoes({
   curador: curadorDaSessao,
-  aprovar: (pautaId, curadorId, categoria, fotosVistas) =>
+  aprovar: (pautaId, curadorId, categoria, fotosVistas, urgente = false) =>
     servidor().db.transaction((tx) =>
-      aprovarPauta(tx, { pautaId, curadorId, categoria, fotosVistas }),
+      aprovarPauta(tx, { pautaId, curadorId, categoria, fotosVistas, urgente }),
     ),
   recusar: (pautaId, curadorId, motivo) =>
     servidor().db.transaction((tx) => recusarPauta(tx, { pautaId, curadorId, motivo })),
@@ -31,7 +32,29 @@ export async function aprovar(formulario: FormData) {
       texto(formulario, 'pautaId'),
       texto(formulario, 'categoria'),
       fotosVistasDoFormulario(formulario),
+      formulario.get('urgente') === 'on',
     ),
+  );
+}
+
+export async function atualizarUrgencia(formulario: FormData) {
+  const pautaId = texto(formulario, 'pautaId');
+  const quem = await curadorDaSessao();
+  if (!quem) redirect('/login');
+  if (!UUID.test(pautaId)) redirect('/fila');
+  const urgente = formulario.get('urgente') === 'on';
+  const resultado = await servidor().db.transaction((tx) =>
+    marcarUrgencia(tx, {
+      pautaId,
+      curadorId: quem.id,
+      urgente,
+      motivo: texto(formulario, 'motivo'),
+    }),
+  );
+  redirect(
+    resultado.atualizada
+      ? `/pautas/${pautaId}?feito=urgencia`
+      : `/pautas/${pautaId}?erro=${resultado.motivo}`,
   );
 }
 
