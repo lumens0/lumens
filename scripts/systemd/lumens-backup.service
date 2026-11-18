@@ -16,6 +16,9 @@ TimeoutStartSec=1h
 User=azureuser
 Environment=REPO_DIR=/opt/lumens
 Environment=BACKUP_DIR=/var/backups/lumens
+# Falha do espelho das fotos não impede o envio do dump: o backup-banco.sh a registra e sai com
+# sucesso, o enviar-backup.sh manda o dump e então falha, e o alerta sai do mesmo jeito.
+Environment=ESPELHO_NAO_ABORTA=1
 ExecStart=/opt/lumens/scripts/backup-banco.sh
 # Só roda se o backup acima passou: num oneshot, os ExecStart seguem em ordem e param no primeiro
 # que falha.

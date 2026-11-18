@@ -30,7 +30,11 @@ gerenciado. Então o backup é próprio:
 `/var/backups/lumens/arquivos` com `mc mirror`. É espelho, não cópia datada: as fotos não mudam
 depois de gravadas, e um arquivo apagado no bucket (a saída de um estudante, por exemplo) some do
 espelho no backup seguinte. Por isso, um arquivo apagado por engano só se recupera até a próxima
-rodada. Se o MinIO estiver fora do ar, o dump do banco já foi salvo, e o serviço termina com erro.
+rodada. Se o MinIO estiver fora do ar, o dump do banco já foi salvo, e o serviço termina com erro,
+mas só depois de enviar o dump para fora da VM: o `backup-banco.sh` registra a falha em
+`/var/backups/lumens/.espelho-falhou` e sai com sucesso (`ESPELHO_NAO_ABORTA=1`, definido no
+serviço), o `enviar-backup.sh` manda o dump, deixa as fotos desta rodada de fora e então falha, e o
+alerta sai. Numa rodada na mão, sem essa variável, o `backup-banco.sh` falha na hora.
 Volume perdido ou recriado por um deploy também é erro, e o espelho fica intacto: o bucket guarda
 um marcador (`.lumens-volume-id`) com a identidade do volume, que o espelho recebe junto. Se o
 marcador do bucket faltar ou não bater com o do espelho, o backup não apaga nada, mesmo que o bucket
