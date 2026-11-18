@@ -7,6 +7,8 @@ import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { Numero } from '../componentes/Numero';
 import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
 import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
+import { PautasPorGrupo } from '../componentes/PautasPorGrupo';
+import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { FiltroStatus } from '../componentes/FiltroStatus';
@@ -125,6 +127,21 @@ export default async function Home({
         <div className={estilos.dashboard}>
           <CaminhoDasPautas pautas={todas} />
           <ApoiosPorSemana semanas={semanas} />
+          <PautasPorGrupo
+            id="categorias-titulo"
+            titulo="Apoios por categoria"
+            vazio="Nenhum apoio por categoria ainda."
+            grupos={apoiosPorCategoria(todas)}
+          />
+          {/* Com um bloco escolhido, o gráfico por bloco teria uma barra só. */}
+          {!bloco && (
+            <PautasPorGrupo
+              id="blocos-titulo"
+              titulo="Blocos mais ativos"
+              vazio="Nenhum apoio por bloco ainda."
+              grupos={blocosMaisAtivos(todas)}
+            />
+          )}
         </div>
       )}
       {lista.length === 0 ? (

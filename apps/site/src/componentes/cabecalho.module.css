@@ -26,6 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 44px;
   font:
     700 21px var(--fonte-titulo),
     sans-serif;
@@ -58,7 +59,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 8px;
   font-weight: 500;
