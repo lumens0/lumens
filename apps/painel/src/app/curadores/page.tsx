@@ -9,7 +9,7 @@ import { Curadores } from './curadores';
 export default async function PaginaDosCuradores({
   searchParams,
 }: {
-  searchParams: Promise<{ feito?: string; erro?: string }>;
+  searchParams: Promise<{ feito?: string; erro?: string; desativados?: string }>;
 }) {
   const curador = await curadorDaSessao();
   if (!curador) redirect('/login');
@@ -17,12 +17,13 @@ export default async function PaginaDosCuradores({
   if (curador.papel !== 'administrador') notFound();
 
   const lista = await listarCuradores(servidor().db, chavesDeCurador());
-  const { feito, erro } = await searchParams;
+  const { feito, erro, desativados } = await searchParams;
   return (
     <Moldura nome={curador.nome} administrador sair={sair}>
       <Curadores
         curadores={lista}
         eu={curador.id}
+        mostrarDesativados={desativados === '1'}
         feito={feito}
         erro={erro}
         adicionar={adicionar}

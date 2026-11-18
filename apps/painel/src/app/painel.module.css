@@ -649,3 +649,57 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Lista de curadores (SCRUM-351): no celular, empilhado e com a ação em largura cheia, separada
+   do texto; de 640 px em diante, colunas (quem, selos, data, ação). */
+.filtro {
+  margin: 20px 0 12px;
+}
+
+.curador {
+  display: grid;
+  gap: 12px;
+}
+
+.curador .selos,
+.curador .detalhes,
+.curador h2 {
+  margin: 0;
+}
+
+.curadorQuem {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.curadorQuem .detalhes {
+  overflow-wrap: anywhere;
+}
+
+.curadorAcao {
+  padding-top: 12px;
+  border-top: 1px solid var(--borda);
+}
+
+.curadorAcao button {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .curador {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .curadorAcao {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .curadorAcao button {
+    width: auto;
+    min-width: 112px;
+  }
+}
