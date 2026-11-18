@@ -15,7 +15,6 @@ import {
   adaptador,
   curadorAtivo,
   curadorAtivoPorId,
-  decidirPedidoDeLink,
   normalizarEmail,
 } from './acesso';
 import { configBase } from './auth.config';
@@ -25,7 +24,7 @@ import { opcoesSmtp } from './smtp';
  * Gravações do link ainda em andamento, por e-mail. O e-mail só sai depois de a gravação terminar,
  * para o clique nunca chegar antes do token.
  */
-const gravacoes = new Map<string, Promise<void>>();
+const gravacoes = new Map<string, Promise<boolean>>();
 
 /**
  * A mesma URL que o Auth.js devolve depois de mandar o link: o redirecionamento de quem não é
@@ -81,6 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     adapter: adaptador(db, chave, (identificador, gravacao) => {
       const segura = gravacao.catch((erro: unknown) => {
         console.error('Link de acesso do painel não foi gravado:', erro);
+        return false;
       });
       gravacoes.set(identificador, segura);
       after(() => segura);
@@ -96,8 +96,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         // curador segundos mais lento que o de quem não é, e a demora entregaria quem é curador.
         sendVerificationRequest({ identifier, url, provider }) {
           after(async () => {
-            await gravacoes.get(normalizarEmail(identifier));
+            const gravado = await gravacoes.get(normalizarEmail(identifier));
             gravacoes.delete(normalizarEmail(identifier));
+            // Barrado pelo limite de um link por minuto (ou gravação que falhou): não envia.
+            if (gravado !== true) return;
             await createTransport(smtp)
               .sendMail({
                 to: identifier,
@@ -116,17 +118,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     ],
     callbacks: {
       ...configBase.callbacks,
-      // No pedido do link: não curador não recebe nada, mas vê a mesma tela. No clique: confere
-      // de novo, para um curador desativado nesse meio-tempo não entrar.
+      // No pedido do link: não curador não recebe nada, mas vê a mesma tela. O limite de um link
+      // por minuto é aplicado depois da resposta, em `reservarEnvio`. No clique: confere de novo,
+      // para um curador desativado nesse meio-tempo não entrar.
       async signIn({ user, email }) {
-        const endereco = user.email ?? '';
-        // No clique do link: só confere que ainda é curador ativo.
-        if (email?.verificationRequest !== true) {
-          return endereco !== '' && (await curadorAtivo(db, endereco, chave)) !== undefined;
-        }
-        // No pedido: curador recebe o link, ou a mesma tela sem e-mail se pediu há menos de 60 s.
-        const decisao = await decidirPedidoDeLink(db, endereco, chave);
-        return decisao === 'enviar' ? true : VERIFIQUE;
+        const curador = user.email ? await curadorAtivo(db, user.email, chave) : undefined;
+        if (curador) return true;
+        return email?.verificationRequest ? VERIFIQUE : false;
       },
     },
   };
