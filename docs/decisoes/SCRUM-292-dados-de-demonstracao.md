@@ -54,6 +54,13 @@ homologação: as ações abaixo são da pessoa que opera a VM.
 4. **CSAU entra como bloco próprio; Residência Universitária fica fora** (deve ficar fora do campus,
    a confirmar).
 
+## Executado em 18/11/2026
+
+Autorizado pela Sthefany. Backup do dia gerado antes (`/var/backups/lumens/diario`), banco do Lumens
+recriado, migrações aplicadas, os 31 blocos reais cadastrados e a tabela `curador` restaurada (7
+linhas, para o painel não ficar sem login). Resultado: 31 blocos, 0 "(fictício)", 0 pautas. A Evolution
+e o chip não foram tocados. A migração 0024 (limite de link do painel) entra no próximo deploy.
+
 ## O que continua pendente
 
 - Ligar os blocos reais aos prédios do mapa (`BLOCOS_DO_PREDIO`, site, SCRUM-284, outra frente).
