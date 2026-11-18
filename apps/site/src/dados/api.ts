@@ -88,6 +88,24 @@ export async function buscarPauta(
   return lerJson<PautaDetalhe>(resposta, caminho, fresca);
 }
 
+/**
+ * Foto de relato aprovado, pelo back-end (SCRUM-263): ele só entrega a foto que está na view
+ * pública. `null` para qualquer 404 (pendente, recusada ou inexistente, sem distinguir).
+ */
+export async function buscarFoto(
+  ano: string,
+  mes: string,
+  arquivo: string,
+): Promise<{ bytes: ArrayBuffer; tipo: string } | null> {
+  const caminho = `/fotos/${[ano, mes, arquivo].map(encodeURIComponent).join('/')}`;
+  const resposta = await buscar(caminho);
+  if (resposta.status === 404 || resposta.status === 400) return null;
+  if (!resposta.ok)
+    throw new Error(`API de leitura respondeu ${String(resposta.status)} para a foto.`);
+  const tipo = resposta.headers.get('content-type') ?? '';
+  return { bytes: await resposta.arrayBuffer(), tipo };
+}
+
 export async function buscarBlocos(): Promise<Bloco[]> {
   return (await buscarJson<Blocos>('/blocos', 'os blocos')).itens;
 }

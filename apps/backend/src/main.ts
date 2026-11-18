@@ -19,7 +19,7 @@ import { criarEmailSmtp, logEmail } from './email/codigo';
 import { baixarMidiaDaMeta } from './fotos/meta-midia';
 import { TAMANHO_MAXIMO_PDF, criarServicoDeRespostas } from './fotos/resposta-pdf';
 import { criarServicoDeFotos } from './fotos/servico';
-import { criarStorageS3 } from './fotos/storage';
+import { criarLeitorS3, criarStorageS3 } from './fotos/storage';
 import { baixarMidiaDoTelegram } from './fotos/telegram-midia';
 import { criarLogger, resumoDoErro } from './infra/logger';
 import { criarPgBossRuntime } from './infra/pg-boss';
@@ -229,7 +229,15 @@ async function iniciar(env: Env): Promise<void> {
       queue,
       logger,
       chaves,
-      leitura: { db: criarDb(poolLeitura), origensCors: env.CORS_ORIGENS },
+      leitura: {
+        db: criarDb(poolLeitura),
+        origensCors: env.CORS_ORIGENS,
+        lerFoto: criarLeitorS3({
+          bucket: env.S3_BUCKET_FOTOS,
+          regiao: env.AWS_REGION,
+          endpoint: env.S3_ENDPOINT,
+        }),
+      },
       ...(env.LUMENS_VERSAO === undefined ? {} : { versao: env.LUMENS_VERSAO }),
     });
     await app.listen({ port: env.PORT, host: '0.0.0.0' });

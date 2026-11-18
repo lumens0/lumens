@@ -97,9 +97,26 @@ describe('página da pauta: seções', () => {
     expect(html).not.toContain('null');
   });
 
-  it('sem URL de foto (T20 pendente), não há <img>', () => {
-    expect(urlFoto('relatos/1.jpg')).toBeNull();
-    expect(renderToStaticMarkup(<Relatos relatos={fixture.relatos} />)).not.toContain('<img');
+  it('a foto do relato aprovado aponta para a rota /fotos do site, com o alt do relato', () => {
+    expect(urlFoto('fotos/2026/11/abc-1.jpg')).toBe('/fotos/2026/11/abc-1.jpg');
+    const relato = { ...fixture.relatos[0]!, foto_chave: 'fotos/2026/11/abc-1.jpg' };
+    const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
+    expect(html).toContain('src="/fotos/2026/11/abc-1.jpg"');
+    expect(html).toContain('alt="Foto do relato: A saída das aulas noturnas fica muito escura."');
+  });
+
+  it('chave fora do formato do bot não vira endereço, e relato sem foto não tem <img>', () => {
+    for (const chave of [
+      'relatos/1.jpg',
+      'fotos/../x.jpg',
+      'respostas/2026/11/a.pdf',
+      '//evil.com/x',
+      '',
+    ]) {
+      expect(urlFoto(chave)).toBeNull();
+    }
+    const relato = { ...fixture.relatos[0]!, foto_chave: 'relatos/1.jpg' };
+    expect(renderToStaticMarkup(<Relatos relatos={[relato]} />)).not.toContain('<img');
   });
 
   it('com URL de foto, a imagem tem alt tirado do relato', () => {
