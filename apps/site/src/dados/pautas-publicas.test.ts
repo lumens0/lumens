@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { CATEGORIAS } from '@lumens/contratos';
 import { describe, expect, it } from 'vitest';
 import { PAUTAS_TESTE } from './pautas-teste';
 import exemplo from './blocos-teste.json';
@@ -31,6 +32,15 @@ describe('pautasPublicas', () => {
     const antiga = { ...base, slug: 'antiga', criada_em: '2026-01-01T10:00:00-03:00' };
     const nova = { ...base, slug: 'nova', criada_em: '2026-09-01T10:00:00-03:00' };
     expect(pautasPublicas([antiga, nova]).map((p) => p.slug)).toEqual(['nova', 'antiga']);
+  });
+
+  it('urgentes vêm antes das demais mesmo com menos apoios', () => {
+    const [base] = PAUTAS_TESTE.filter((p) => p.status === 'cobrando');
+    const [naoUrgente] = PAUTAS_TESTE.filter((p) => p.status === 'juntando_apoios');
+    if (!base || !naoUrgente) throw new Error('faltou pauta de teste');
+    const urgente = { ...base, slug: 'urgente', urgente: true, apoios: 1 };
+    const popular = { ...naoUrgente, slug: 'popular', apoios: 500 };
+    expect(pautasPublicas([popular, urgente]).map((p) => p.slug)).toEqual(['urgente', 'popular']);
   });
 
   it('no empate, compara o instante e não o texto da data (fusos diferentes)', () => {
@@ -121,8 +131,17 @@ describe('SEM_APOIO', () => {
 });
 
 describe('contextoDaPauta', () => {
-  it('mostra categoria e bloco; sem bloco, "Todo o campus"', () => {
-    expect(contextoDaPauta('seguranca', 'Bloco de Artes')).toBe('seguranca · Bloco de Artes');
-    expect(contextoDaPauta('seguranca', null)).toBe('seguranca · Todo o campus');
+  it('mostra o rótulo da categoria e o bloco; sem bloco, "Todo o campus"', () => {
+    expect(contextoDaPauta('seguranca', 'Bloco de Artes')).toBe('Segurança · Bloco de Artes');
+    expect(contextoDaPauta('seguranca', null)).toBe('Segurança · Todo o campus');
+  });
+
+  it.each(Object.entries(CATEGORIAS))('%s aparece como "%s"', (chave, rotulo) => {
+    expect(contextoDaPauta(chave, 'Bloco X')).toBe(`${rotulo} · Bloco X`);
+  });
+
+  it.each(['a_classificar', 'desconhecida'])('%s mostra só o bloco (SCRUM-291)', (categoria) => {
+    expect(contextoDaPauta(categoria, 'Bloco X')).toBe('Bloco X');
+    expect(contextoDaPauta(categoria, null)).toBe('Todo o campus');
   });
 });

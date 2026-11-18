@@ -38,6 +38,12 @@ describe('CSV de dados abertos', () => {
     );
   });
 
+  it('categoria a_classificar sai como célula vazia, nunca o slug', () => {
+    const linha = linhas(csvDe([{ ...base, slug: 'x', categoria: 'a_classificar' }]))[1] ?? '';
+    expect(linha).toContain('/p/x;;');
+    expect(linha).not.toContain('a_classificar');
+  });
+
   it('texto com ponto e vírgula, aspas ou quebra de linha vai entre aspas', () => {
     const csv = csvDe([{ ...base, titulo: 'Bebedouro "novo"; já' }]);
     expect(linhas(csv)[1]?.startsWith('"Bebedouro ""novo""; já";')).toBe(true);

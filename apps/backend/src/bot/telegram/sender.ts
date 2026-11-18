@@ -16,7 +16,7 @@
 import { decifrar, type Chaves } from '../../cripto/cifra';
 import { resumoDoErro, type Logger } from '../../infra/logger';
 import { MENU_PERGUNTA, MENU_TEXT, OPCOES_DO_MENU } from '../conversation/handlers';
-import type { Resposta } from '../conversation/resposta';
+import { cortar, type Resposta } from '../conversation/resposta';
 import { respostasDoJob, type ReplySender } from '../worker';
 import { classificarErro, destinoPerdido, ErroDaApiDoTelegram, type ApiDoTelegram } from './api';
 import { cortes, dividirFormatado, negritoDoWhatsapp, type Entidade } from './formatacao';
@@ -27,6 +27,12 @@ export const LIMITE_DO_TEXTO = 4096;
 export const LIMITE_DA_LEGENDA = 1024;
 /** Limite do `callback_data` de um botão inline, em bytes UTF-8. */
 export const LIMITE_DO_CALLBACK_BYTES = 64;
+/**
+ * Descrição de cada linha da lista, no corpo da mensagem (SCRUM-323). O Telegram aceita mais, mas a
+ * descrição da pauta pode ser longa e três delas encheriam a tela. Os títulos vão inteiros: não há
+ * limite da Meta aqui (o `dentroDosLimitesDaMeta` é só do WhatsApp).
+ */
+export const LIMITE_DA_DESCRICAO = 200;
 
 export interface BotaoInline {
   text: string;
@@ -112,7 +118,7 @@ export function paraTelegram(resposta: Resposta, chatId: number): EnvioDeMensage
   } else {
     const descricoes = resposta.linhas
       .filter((l) => l.descricao !== undefined)
-      .map((l) => `• ${l.titulo}: ${l.descricao ?? ''}`);
+      .map((l) => `• ${l.titulo}: ${cortar(l.descricao ?? '', LIMITE_DA_DESCRICAO)}`);
     texto =
       descricoes.length === 0 ? resposta.corpo : [resposta.corpo, '', ...descricoes].join('\n');
     teclado = resposta.linhas.map((l) => botao(l.id, l.titulo));

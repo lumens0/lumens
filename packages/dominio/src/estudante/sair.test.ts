@@ -101,7 +101,8 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       /^saiu:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
     expect(estudanteApos.telefoneCifrado).toBe(estudanteApos.telefoneHmac);
-    expect(estudanteApos.emailHmac).toBeNull();
+    // SCRUM-331: o HMAC do e-mail fica, só para reativar esta linha na volta.
+    expect(estudanteApos.emailHmac).not.toBeNull();
     expect(estudanteApos.emailCifrado).toBeNull();
     // SCRUM-275: o instante da última mensagem também sai.
     expect(estudanteApos.ultimaMensagemEm).toBeNull();
@@ -392,7 +393,7 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
     expect(antes).toEqual([1, 1, 1]);
   });
 
-  it('depois de sair nenhuma coluna guarda telefone ou e-mail, e o HMAC antigo não acha ninguém', async () => {
+  it('depois de sair nenhuma coluna guarda telefone ou e-mail; o HMAC do telefone não acha ninguém', async () => {
     const estudante = await criarEstudanteVerificado(db);
     await db
       .update(estudantes)
@@ -403,24 +404,16 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       .where(eq(estudantes.id, estudante.id));
     const [antes] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
     if (!antes) throw new Error('estudante não encontrado');
-    const identidade = [
-      antes.telefoneHmac,
-      antes.telefoneCifrado,
-      antes.emailHmac,
-      antes.emailCifrado,
-    ] as string[];
+    // O HMAC do e-mail fica de fora: ele não revela o e-mail e fica para a volta (SCRUM-331).
+    const identidade = [antes.telefoneHmac, antes.telefoneCifrado, antes.emailCifrado] as string[];
 
     await executarSaida(estudante.id);
 
     const [depois] = await db.select().from(estudantes).where(eq(estudantes.id, estudante.id));
     if (!depois) throw new Error('estudante não encontrado');
-    const valores = [
-      depois.telefoneHmac,
-      depois.telefoneCifrado,
-      depois.emailHmac,
-      depois.emailCifrado,
-    ];
+    const valores = [depois.telefoneHmac, depois.telefoneCifrado, depois.emailCifrado];
     for (const antigo of identidade) expect(valores).not.toContain(antigo);
+    expect(depois.emailHmac).toBe(antes.emailHmac);
 
     const achados = await db
       .select()
