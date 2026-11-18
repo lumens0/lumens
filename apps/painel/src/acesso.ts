@@ -97,7 +97,7 @@ export function adaptador(
    * link foi gravado e pode ser enviado, `false` se o limite de um por minuto o barrou. Sem ele
    * (testes), reserva e grava na hora.
    */
-  depois?: (identificador: string, gravacao: Promise<boolean>) => void,
+  depois?: (tokenEmHash: string, gravacao: Promise<boolean>) => void,
 ): Adapter {
   const comoUsuario = (id: string, nome: string, email: string): AdapterUser => ({
     id,
@@ -133,7 +133,7 @@ export function adaptador(
         });
         return true;
       };
-      if (depois) depois(normalizarEmail(v.identifier), gravar());
+      if (depois) depois(v.token, gravar());
       else await gravar();
       return v;
     },

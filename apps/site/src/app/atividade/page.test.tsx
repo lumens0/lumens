@@ -129,6 +129,13 @@ describe('/atividade', () => {
     expect(html).toContain('Responsável saiu');
   });
 
+  it('dois relatos aprovados no mesmo minuto continuam em duas linhas', async () => {
+    const relato = { ...CONQUISTA, tipo: 'relato_aprovado', dados: {} };
+    responder({ itens: [relato, relato], proximo: null });
+    const html = await render();
+    expect(html.match(/<li /g)).toHaveLength(2);
+  });
+
   it('erro da API sobe para o error.tsx', async () => {
     vi.mocked(buscarAtividade).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');

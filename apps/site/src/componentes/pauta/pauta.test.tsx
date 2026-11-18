@@ -66,6 +66,13 @@ describe('página da pauta: seções', () => {
     expect(html.match(/<li>/g)).toHaveLength(1);
   });
 
+  it('dois relatos aprovados no mesmo minuto continuam em duas linhas na linha do tempo', () => {
+    const relato = { tipo: 'relato_aprovado', dados: {}, criado_em: '2026-11-15T18:40:00.000Z' };
+    const html = renderToStaticMarkup(<LinhaDoTempo eventos={[relato, relato]} />);
+    expect(html.match(/<li>/g)).toHaveLength(2);
+    expect(html.match(/Relato publicado/g)).toHaveLength(2);
+  });
+
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');

@@ -39,6 +39,14 @@ describe('agruparEventosIguais', () => {
     expect(grupos.map((g) => g.quantidade)).toEqual([1, 1, 1]);
   });
 
+  it('eventos de outro tipo, mesmo idênticos, nunca se juntam (dois relatos aprovados)', () => {
+    const grupos = agruparEventosIguais([
+      ev('relato_aprovado', '15:40:01', {}, 'curadoria'),
+      ev('relato_aprovado', '15:40:02', {}, 'curadoria'),
+    ]);
+    expect(grupos.map((g) => g.quantidade)).toEqual([1, 1]);
+  });
+
   it('lista vazia dá lista vazia', () => {
     expect(agruparEventosIguais([])).toEqual([]);
   });
