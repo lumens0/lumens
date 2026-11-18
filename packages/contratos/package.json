@@ -2,7 +2,7 @@
   "name": "@lumens/contratos",
   "version": "0.0.0",
   "private": true,
-  "description": "Contrato (esquemas zod e tipos) da API de leitura pública, usado pelo back-end e pelo site.",
+  "description": "Contrato (esquemas zod e tipos) da API de leitura pública, usado pelo back-end e pelo site, e vocabulário comum a site, painel e domínio (como a lista oficial de categorias).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

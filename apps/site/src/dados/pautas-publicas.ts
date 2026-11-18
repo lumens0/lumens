@@ -1,3 +1,4 @@
+import { rotuloDaCategoria } from '@lumens/contratos';
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 // Pautas em curadoria ou recusadas nunca aparecem no site.
@@ -18,9 +19,15 @@ export function aceitaApoio(status: StatusPauta): boolean {
   return !SEM_APOIO.has(status);
 }
 
-/** Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus. */
+/**
+ * Rótulo "categoria · bloco" do card e da página; sem bloco, a pauta é de todo o campus.
+ * A categoria sai pelo rótulo da lista oficial (SCRUM-291); `a_classificar` ou valor fora da lista
+ * mostra só o bloco, nunca o valor gravado.
+ */
 export function contextoDaPauta(categoria: string, blocoNome: string | null | undefined): string {
-  return `${categoria} · ${blocoNome ?? 'Todo o campus'}`;
+  const onde = blocoNome ?? 'Todo o campus';
+  const rotulo = rotuloDaCategoria(categoria);
+  return rotulo === undefined ? onde : `${rotulo} · ${onde}`;
 }
 
 /**
@@ -31,7 +38,12 @@ export function contextoDaPauta(categoria: string, blocoNome: string | null | un
 export function pautasPublicas(pautas: readonly Pauta[], bloco?: Bloco): Pauta[] {
   return pautas
     .filter((p) => !FORA_DO_SITE.has(p.status) && (!bloco || p.bloco_slug === bloco.slug))
-    .sort((a, b) => b.apoios - a.apoios || Date.parse(b.criada_em) - Date.parse(a.criada_em));
+    .sort(
+      (a, b) =>
+        Number(b.urgente) - Number(a.urgente) ||
+        b.apoios - a.apoios ||
+        Date.parse(b.criada_em) - Date.parse(a.criada_em),
+    );
 }
 
 /** Bloco do `?bloco=`; slug que não existe ou repetido na URL vale como "Todos os blocos". */

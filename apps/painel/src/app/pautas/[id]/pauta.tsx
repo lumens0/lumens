@@ -13,7 +13,10 @@ import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { STATUS } from '../status';
 
 const ERRO: Record<string, string> = {
+  pauta_inexistente: 'A pauta não foi encontrada.',
   motivo_obrigatorio: 'Para recusar, escreva o motivo. Ele é enviado a quem criou a pauta.',
+  motivo_invalido: 'O motivo da urgência deve ter até 200 caracteres e uma única linha.',
+  pauta_nao_publica: 'A urgência só pode ser alterada em pautas públicas.',
   motivo_longo: `O motivo passou de ${String(MOTIVO_RECUSA_MAXIMO)} caracteres. Resuma e recuse de novo.`,
   ja_decidida: 'Outra pessoa da curadoria já decidiu esta pauta.',
   categoria_invalida: 'Escolha uma categoria válida para esta pauta.',
@@ -50,6 +53,7 @@ export function Pauta({
   aprovar,
   recusar,
   definirCategoria = async () => {},
+  atualizarUrgencia = async () => {},
   recusarRelatoDeOrigem = async () => {},
   linhaAberta = false,
   categoriaSalva,
@@ -63,6 +67,7 @@ export function Pauta({
   aprovar: Acao;
   recusar: Acao;
   definirCategoria?: Acao;
+  atualizarUrgencia?: Acao;
   recusarRelatoDeOrigem?: Acao;
   linhaAberta?: boolean;
   categoriaSalva?: boolean;
@@ -136,6 +141,11 @@ export function Pauta({
         )}
       </dl>
       <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
+      {feito === 'urgencia' && (
+        <p className={estilos.aviso} role="status">
+          Urgência atualizada.
+        </p>
+      )}
 
       <section aria-labelledby="numeros-pauta">
         <h2 id="numeros-pauta">Apoios e meta</h2>
@@ -274,6 +284,9 @@ export function Pauta({
                 </option>
               ))}
             </select>
+            <label>
+              <input type="checkbox" name="urgente" /> Marcar como urgente
+            </label>
             <button className={estilos.botao} type="submit" style={{ marginTop: 10 }}>
               Aprovar pauta
             </button>
@@ -288,6 +301,29 @@ export function Pauta({
             </button>
           </form>
         </div>
+      )}
+      {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
+        <form action={atualizarUrgencia} className={estilos.cartao}>
+          <h2>Urgência</h2>
+          <input type="hidden" name="pautaId" value={pauta.id} />
+          <label>
+            <input type="checkbox" name="urgente" defaultChecked={pauta.urgente} /> Marcar como
+            urgente
+          </label>
+          <label htmlFor="motivo-urgencia">Motivo curto (opcional)</label>
+          <input
+            id="motivo-urgencia"
+            name="motivo"
+            maxLength={200}
+            defaultValue={pauta.urgenteMotivo ?? ''}
+          />
+          <p className={estilos.detalhes}>
+            O motivo fica só no painel. No site aparece apenas que a pauta é urgente.
+          </p>
+          <button className={estilos.botao} type="submit">
+            Salvar urgência
+          </button>
+        </form>
       )}
       {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
         <form action={definirCategoria} className={estilos.cartao}>

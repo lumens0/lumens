@@ -25,7 +25,7 @@ import {
 export const ASK_PDF_TEXT =
   'Mande aqui o PDF da resposta que a ouvidoria deu no Fala.BR (o arquivo, não uma foto). A curadoria vai ler e registrar o resumo, e aí quem apoiou a pauta recebe a resposta.';
 export const PDF_RECEIVED_TEXT =
-  'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta pelo WhatsApp.';
+  'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta por aqui.';
 export const NEED_PDF_TEXT =
   'Preciso do arquivo PDF da resposta. Mande o arquivo ou responda *menu*.';
 /** SCRUM-307: a foto (da tela ou do papel) não serve; a curadoria precisa do PDF original. */
