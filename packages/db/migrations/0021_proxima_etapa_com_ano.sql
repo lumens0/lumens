@@ -3,7 +3,8 @@
 -- A 0006 mostrava o prazo do Fala.BR e a entrega prometida como 'DD/MM': um prazo que já passou
 -- parecia o do ano seguinte. Agora a data sai sempre como 'DD/MM/YYYY' e, quando já passou, o
 -- texto diz que venceu. Só os ramos `cobrando` e `prometido` mudam; colunas, joins e filtro são os
--- mesmos da 0006, e CREATE OR REPLACE mantém o owner e o GRANT para `lumens_site`.
+-- mesmos da 0020 (que acrescentou `urgente`), e CREATE OR REPLACE mantém o owner e o GRANT para
+-- `lumens_site`.
 CREATE OR REPLACE VIEW "v_pauta_publica" WITH (security_barrier = true) AS
 SELECT
 	p.slug,
@@ -42,7 +43,8 @@ SELECT
 		END
 		WHEN 'entregue_em_parte' THEN 'Cobrar o restante'
 		WHEN 'descumprida' THEN 'Retomar a cobrança'
-	END AS proxima_etapa
+	END AS proxima_etapa,
+	p.urgente AS urgente
 FROM "pauta" p
 LEFT JOIN "bloco" b ON b.id = p.bloco_id
 CROSS JOIN LATERAL (

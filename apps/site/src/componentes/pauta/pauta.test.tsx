@@ -25,11 +25,16 @@ const CAMINHO: Caminho = {
 describe('página da pauta: seções', () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it('cabeçalho mostra selo urgente junto do status', () => {
+    const html = renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, urgente: true }} />);
+    expect(html).toContain('Urgente');
+  });
+
   it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');
     expect(html).toContain('Iluminação no entorno do Bloco de Artes');
-    expect(html).toContain('seguranca · Bloco de Artes');
+    expect(html).toContain('Segurança · Bloco de Artes');
     expect(html).toContain('Cobrando');
     expect(html).toContain('Owner · Enfermagem');
     expect(html).toContain('Owner · Jornalismo');
@@ -39,7 +44,7 @@ describe('página da pauta: seções', () => {
     const html = renderToStaticMarkup(
       <CabecalhoPauta pauta={{ ...fixture, bloco_nome: null, bloco_slug: null }} />,
     );
-    expect(html).toContain('seguranca · Todo o campus');
+    expect(html).toContain('Segurança · Todo o campus');
   });
 
   it('"Apoiar" abre o bot com o slug, e some em pauta conquistada', () => {
