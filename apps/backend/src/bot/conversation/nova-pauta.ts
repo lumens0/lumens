@@ -58,7 +58,11 @@ export const DATA_LOST_TEXT =
 
 /** Foto que não deu para usar: a pessoa continua no passo da foto, para mandar outra ou pular. */
 export function photoRefusedText(motivo: MotivoFotoRecusada): string {
-  const porque: Record<MotivoFotoRecusada, string> = {
+  // Storage fora do ar: outra foto falharia igual, então o texto não sugere mandar outra (SCRUM-330).
+  if (motivo === 'armazenamento') {
+    return "Não consegui guardar a foto: o envio de fotos está fora do ar agora. Responda 'pular' para seguir sem foto.";
+  }
+  const porque: Record<Exclude<MotivoFotoRecusada, 'armazenamento'>, string> = {
     formato: 'ela precisa ser JPEG ou PNG',
     tamanho: 'ela passa de 5 MB',
     invalida: 'o arquivo não abriu como imagem',
