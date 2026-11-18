@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
 import { PREDIOS, siglaDe } from './predios';
+import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
 let n = 0;
@@ -104,6 +105,12 @@ describe('mapa do campus', () => {
     expect(html).toContain('A mesma informação, em lista');
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Escolha um bloco');
+    expect(html).toContain(
+      'aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight + - N"',
+    );
+    expect(html).toContain('aria-describedby="atalhos-mapa"');
+    expect(html).toContain('Fechar ajuda do mapa');
+    expect(html).toContain('Atalhos do mapa: setas movem');
   });
 });
 
@@ -124,5 +131,23 @@ describe('prédios do OpenStreetMap', () => {
       'engenharias',
       'saude',
     ]);
+  });
+});
+
+describe('legenda do mapa', () => {
+  it('mostra a cor de toda etapa que o mapa pinta, cada uma uma vez', () => {
+    const cores = LEGENDA.map((l) => l.cor);
+    for (const status of [
+      'juntando_apoios',
+      'meta_batida',
+      'cobrando',
+      'prometido',
+      'entregue_em_parte',
+      'descumprida',
+      'conquistada',
+    ] as const) {
+      expect(cores).toContain(STATUS[status].ponto);
+    }
+    expect(new Set(cores).size).toBe(cores.length);
   });
 });

@@ -2,6 +2,10 @@
 
 SCRUM-193 · RNF04 · Parte 3.
 
+> **Histórico.** A Meta deixou de ser o canal da demonstração: o WhatsApp sai pela Evolution
+> ([decisão](../decisoes/SCRUM-275-canal-evolution.md)). Esta página fica como registro do que foi
+> feito com a Meta e vale se o canal voltar a ser ela.
+
 Fora da janela de atendimento de 24h, o bot só escreve primeiro com uma mensagem modelo aprovada pela
 Meta. São sete, todas da categoria **UTILITY** e em `pt_BR`. A fonte da verdade é
 [`apps/backend/src/bot/whatsapp/modelos.ts`](../../apps/backend/src/bot/whatsapp/modelos.ts); este
@@ -12,16 +16,17 @@ documento só mostra os textos para revisão e registra o andamento da aprovaç�
 Todas levam o rodapé "Lumens · pautas estudantis da UFAL". "Ver a pauta" é um botão de link para
 `<site>/p/{slug}`.
 
-| Modelo                    | Para quem    | Texto                                                                                                                                                                                 | Botões                       |
-| ------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `lumens_meta_batida`      | apoiadores   | A pauta "{{1}}", que você apoiou, chegou à meta de {{2}} apoios. Agora ela segue para os responsáveis na universidade, e você recebe aqui a resposta oficial quando ela chegar.       | Ver a pauta                  |
-| `lumens_resposta_oficial` | apoiadores   | A pauta "{{1}}", que você apoiou, recebeu resposta oficial de {{2}}: {{3}} A resposta completa está na página da pauta.                                                               | Ver a pauta                  |
-| `lumens_conferencia`      | apoiadores   | A pauta "{{1}}", que você apoiou, tinha uma promessa para {{2}}: {{3}}. Foi feito? Você pode responder até {{4}}, e a resposta de quem apoiou decide o resultado que aparece no site. | Sim · Em parte · Não         |
-| `lumens_lembrete_prazo`   | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
-| `lumens_owner_inativo`    | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
-| `lumens_pauta_recusada`   | responsáveis | A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                  | (nenhum)                     |
-| `lumens_pauta_aprovada`   | responsáveis | A pauta "{{1}}", pela qual você é responsável, foi aprovada pela curadoria e já está no site, recebendo apoios.                                                                       | Ver a pauta                  |
-| `lumens_conquista`        | apoiadores   | A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem respondeu confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta. | Ver a pauta                  |
+| Modelo                      | Para quem    | Texto                                                                                                                                                                                 | Botões                       |
+| --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `lumens_meta_batida`        | apoiadores   | A pauta "{{1}}", que você apoiou, chegou à meta de {{2}} apoios. Agora ela segue para os responsáveis na universidade, e você recebe aqui a resposta oficial quando ela chegar.       | Ver a pauta                  |
+| `lumens_resposta_oficial`   | apoiadores   | A pauta "{{1}}", que você apoiou, recebeu resposta oficial de {{2}}: {{3}} A resposta completa está na página da pauta.                                                               | Ver a pauta                  |
+| `lumens_conferencia`        | apoiadores   | A pauta "{{1}}", que você apoiou, tinha uma promessa para {{2}}: {{3}}. Foi feito? Você pode responder até {{4}}, e a resposta de quem apoiou decide o resultado que aparece no site. | Sim · Em parte · Não         |
+| `lumens_lembrete_prazo`     | responsáveis | Lembrete da pauta "{{1}}": o prazo da UFAL para responder à manifestação no Fala.BR vence em {{2}}. Avisamos aqui quando a resposta chegar.                                           | Ver a pauta                  |
+| `lumens_owner_inativo`      | responsáveis | Você é responsável pela pauta "{{1}}" e não vemos atividade sua nela desde {{2}}. Quer continuar como responsável?                                                                    | Quero continuar · Quero sair |
+| `lumens_pauta_recusada`     | responsáveis | A pauta "{{1}}", pela qual você é responsável, não foi publicada pela curadoria. Motivo: {{2}}. Se quiser, você pode mandar um novo relato por aqui.                                  | (nenhum)                     |
+| `lumens_pauta_aprovada`     | responsáveis | A pauta "{{1}}", pela qual você é responsável, foi aprovada pela curadoria e já está no site, recebendo apoios.                                                                       | Ver a pauta                  |
+| `lumens_promessa_remarcada` | apoiadores   | A data prometida para a pauta "{{1}}", que você apoiou, mudou de {{2}} para {{3}}. A pergunta "Foi feito?" chega na nova data.                                                        | Ver a pauta                  |
+| `lumens_conquista`          | apoiadores   | A pauta "{{1}}", que você apoiou, virou conquista: na conferência, a maioria de quem respondeu confirmou que a promessa foi cumprida. O resultado fica registrado na página da pauta. | Ver a pauta                  |
 
 `lumens_pauta_aprovada` (SCRUM-300) sai para quem é responsável pela pauta quando a curadoria
 aprova. Só relata o fato, sem convite para compartilhar, pela mesma regra dos outros modelos.

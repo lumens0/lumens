@@ -99,6 +99,27 @@ describe('montarMensagemModelo', () => {
     ]);
   });
 
+  it('remarcação: informa o título e as datas anterior e nova', () => {
+    const mensagem = montarMensagemModelo(
+      {
+        tipo: 'remarcacao',
+        aviso: 'promessa-1',
+        modelo: 'lumens_promessa_remarcada',
+        parametros: ['Bebedouro do bloco 12', '15/10/2026', '22/10/2026', 'bebedouro-bloco-12'],
+      },
+      TELEFONE,
+    );
+    expect(mensagem.template.name).toBe('lumens_promessa_remarcada');
+    expect(mensagem.template.components[0]).toMatchObject({
+      type: 'body',
+      parameters: [
+        { type: 'text', text: 'Bebedouro do bloco 12' },
+        { type: 'text', text: '15/10/2026' },
+        { type: 'text', text: '22/10/2026' },
+      ],
+    });
+  });
+
   it('sem imagem no modelo, nenhum cabeçalho', () => {
     const mensagem = montarMensagemModelo(
       {

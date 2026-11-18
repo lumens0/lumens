@@ -27,6 +27,22 @@ permissions:
   contents: read
 
 jobs:
+  # SCRUM-303: o Caddyfile só era testado no deploy, e um erro nele derruba a homologação inteira
+  # (API, webhook e painel). Aqui a imagem do próprio Caddy carrega a configuração em cada PR.
+  caddy:
+    name: caddy
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validar o Caddyfile
+        run: |
+          docker run --rm -e DOMINIO=homologacao.example.com \
+            -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 \
+            caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
   check:
     # ATENÇÃO: este nome é o contexto exigido pelo ruleset `protecao-main`
     # (Settings → Rules → Rulesets → Required status checks → `check`).
@@ -406,6 +422,30 @@ jobs:
             if [[ "$tentativa" -eq 20 ]]; then
               echo "::error::painel.$DOMINIO não respondeu depois de 20 tentativas. Confira o DNS do nome, o AUTH_SECRET do .env.producao e o log do Caddy (docker compose -f docker-compose.prod.yml logs caddy)."
               exit 1
+            fi
+            sleep 6
+          done
+
+          # WhatsApp pela Evolution (SCRUM-341): com a sessão do chip caída o bot fica mudo, e nada
+          # mais avisa. 404 = o canal é Meta ou Telegram (ou o back-end ainda é anterior à rota): nada
+          # a conferir; com a Evolution configurada a rota sempre existe. A Evolution pode estar
+          # reconectando depois do deploy, daí a espera de até 2 min.
+          #
+          # Anota erro, mas não reprova o job: o deploy já foi feito e o chip caído é problema de
+          # operação, como a VM desligada acima. O aviso fica no resumo da execução.
+          for tentativa in $(seq 1 20); do
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 "https://$DOMINIO/saude/whatsapp" || true)
+            if [[ "$status" == 404 ]]; then
+              echo "WhatsApp não sai pela Evolution: nada a conferir."
+              break
+            fi
+            if [[ "$status" == 200 ]]; then
+              echo "Chip da Evolution conectado."
+              break
+            fi
+            if [[ "$tentativa" -eq 20 ]]; then
+              echo "::error title=WhatsApp desconectado::O chip da Evolution não está conectado (/saude/whatsapp respondeu $status): o bot não responde. Na VM, veja o log do back-end e docs/operacao/evolution.md (VM desligada)."
+              break
             fi
             sleep 6
           done

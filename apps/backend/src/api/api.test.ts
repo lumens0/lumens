@@ -194,6 +194,14 @@ describe('API de leitura pública com o seed', () => {
       conferirContrato(pautas, body);
     });
 
+    it('filtra por status e combina status e bloco', async () => {
+      expect(slugs(await corpo('/pautas?status=prometido'))).toEqual(['sala-de-descanso-na-saude']);
+      expect(slugs(await corpo('/pautas?status=prometido&bloco=saude'))).toEqual([
+        'sala-de-descanso-na-saude',
+      ]);
+      expect(await corpo('/pautas?status=prometido&bloco=artes')).toMatchObject({ itens: [] });
+    });
+
     it('bloco desconhecido, com formato válido, devolve lista vazia', async () => {
       expect(await corpo('/pautas?bloco=bloco-que-nao-existe')).toEqual({
         itens: [],
@@ -295,6 +303,7 @@ describe('API de leitura pública com o seed', () => {
             status: 'em análise',
             protocolo: 'SEED-FALABR-2026-0001',
             prazo: '2026-03-20',
+            prorrogado: false,
             aberto_em: '2026-02-10T12:00:00.000Z',
             descricao: null,
             pessoas_necessarias: null,
@@ -306,6 +315,7 @@ describe('API de leitura pública com o seed', () => {
             status: 'executada',
             protocolo: null,
             prazo: null,
+            prorrogado: false,
             aberto_em: null,
             descricao: 'Fazer caminhada noturna e registrar os pontos sem iluminação.',
             pessoas_necessarias: 6,
@@ -449,6 +459,8 @@ describe('API de leitura pública com o seed', () => {
       '/pautas?bloco=Bloco-18',
       '/pautas?bloco=bloco_18',
       '/pautas?bloco=',
+      '/pautas?status=em_curadoria',
+      '/pautas?status=nao_existe',
       '/pautas?limit=0',
       '/pautas?limit=101',
       '/pautas?limit=1.5',
