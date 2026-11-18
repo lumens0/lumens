@@ -41,6 +41,7 @@ describe.each([
   ['/', () => import('./page')],
   ['/conquistas', () => import('./conquistas/page')],
   ['/atividade', () => import('./atividade/page')],
+  ['/manual', () => import('./manual/page')],
   ['/privacidade', () => import('./privacidade/page')],
 ])('prévia da página %s', (caminho, carregar) => {
   it('tem og:url própria e a imagem da marca', async () => {

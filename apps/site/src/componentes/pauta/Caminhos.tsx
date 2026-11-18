@@ -1,5 +1,6 @@
 import type { Caminho } from '@lumens/contratos';
 import Link from 'next/link';
+import { linkDoManual } from '../../app/manual/secoes';
 import { BotaoVouAjudar } from '../BotaoWhatsApp';
 import { formatarDia, prazoVencido, textoDoPrazo } from './prazos';
 
@@ -121,7 +122,7 @@ export function Caminhos({
                   {caminho.tipo === 'falabr' && (
                     <>
                       {' '}
-                      <Link href="/privacidade#fala-br" aria-label="Saiba mais sobre o Fala.BR">
+                      <Link href={linkDoManual('falabr')} aria-label="Saiba mais sobre o Fala.BR">
                         Saiba mais
                       </Link>
                     </>

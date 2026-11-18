@@ -218,8 +218,8 @@ describe('página da pauta: seções', () => {
     expect(html).toContain('Estudantes resolvendo o problema por conta própria.');
     expect(html).toContain('Alguém que representa os estudantes');
     expect(html).toContain('Precisa de voluntários: toque em Vou ajudar.');
-    // O Fala.BR leva à seção da política de privacidade, e só ele; o link diz para onde vai.
-    expect(html.match(/href="\/privacidade#fala-br"/g)).toHaveLength(1);
+    // O Fala.BR leva à seção do manual, e só ele; o link diz para onde vai.
+    expect(html.match(/href="\/manual#fala-br"/g)).toHaveLength(1);
     expect(html).toContain('aria-label="Saiba mais sobre o Fala.BR"');
   });
 

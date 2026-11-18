@@ -188,7 +188,8 @@ export default function Privacidade() {
         </p>
         <p>
           O bot já entrega esse texto pronto a quem cuida da pauta, que o protocola no site do
-          Fala.BR e informa o número do protocolo ao bot. O protocolo fica público na pauta.
+          Fala.BR e informa o número do protocolo ao bot. O protocolo fica público na pauta. Os
+          passos estão no <Link href="/manual#fala-br">manual</Link>.
         </p>
       </section>
 
