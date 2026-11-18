@@ -57,12 +57,8 @@
           "name": "apoio_pauta_id_pauta_id_fk",
           "tableFrom": "apoio",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -70,12 +66,8 @@
           "name": "apoio_estudante_id_estudante_id_fk",
           "tableFrom": "apoio",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -83,10 +75,7 @@
       "compositePrimaryKeys": {
         "apoio_pauta_id_estudante_id_pk": {
           "name": "apoio_pauta_id_estudante_id_pk",
-          "columns": [
-            "pauta_id",
-            "estudante_id"
-          ]
+          "columns": ["pauta_id", "estudante_id"]
         }
       },
       "uniqueConstraints": {},
@@ -131,9 +120,7 @@
         "bloco_slug_unique": {
           "name": "bloco_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -230,12 +217,8 @@
           "name": "caminho_pauta_id_pauta_id_fk",
           "tableFrom": "caminho",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -395,12 +378,8 @@
           "name": "curador_auditoria_autor_id_curador_id_fk",
           "tableFrom": "curador_auditoria",
           "tableTo": "curador",
-          "columnsFrom": [
-            "autor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["autor_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -408,12 +387,8 @@
           "name": "curador_auditoria_alvo_id_curador_id_fk",
           "tableFrom": "curador_auditoria",
           "tableTo": "curador",
-          "columnsFrom": [
-            "alvo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["alvo_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -483,9 +458,7 @@
         "curador_email_hmac_unique": {
           "name": "curador_email_hmac_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email_hmac"
-          ]
+          "columns": ["email_hmac"]
         }
       },
       "policies": {},
@@ -674,12 +647,8 @@
           "name": "disparo_estudante_id_estudante_id_fk",
           "tableFrom": "disparo",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -806,12 +775,8 @@
           "name": "documento_resposta_pauta_id_pauta_id_fk",
           "tableFrom": "documento_resposta",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -819,12 +784,8 @@
           "name": "documento_resposta_caminho_id_caminho_id_fk",
           "tableFrom": "documento_resposta",
           "tableTo": "caminho",
-          "columnsFrom": [
-            "caminho_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["caminho_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -832,12 +793,8 @@
           "name": "documento_resposta_enviado_por_estudante_id_fk",
           "tableFrom": "documento_resposta",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "enviado_por"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["enviado_por"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -845,12 +802,8 @@
           "name": "documento_resposta_promessa_id_promessa_id_fk",
           "tableFrom": "documento_resposta",
           "tableTo": "promessa",
-          "columnsFrom": [
-            "promessa_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["promessa_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -860,9 +813,7 @@
         "documento_resposta_arquivo_chave_unique": {
           "name": "documento_resposta_arquivo_chave_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "arquivo_chave"
-          ]
+          "columns": ["arquivo_chave"]
         }
       },
       "policies": {},
@@ -936,16 +887,12 @@
         "estudante_telefone_hmac_unique": {
           "name": "estudante_telefone_hmac_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "telefone_hmac"
-          ]
+          "columns": ["telefone_hmac"]
         },
         "estudante_email_hmac_unique": {
           "name": "estudante_email_hmac_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email_hmac"
-          ]
+          "columns": ["email_hmac"]
         }
       },
       "policies": {},
@@ -1065,12 +1012,8 @@
           "name": "evento_pauta_id_pauta_id_fk",
           "tableFrom": "evento",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1195,12 +1138,8 @@
           "name": "papel_pauta_pauta_id_pauta_id_fk",
           "tableFrom": "papel_pauta",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1208,12 +1147,8 @@
           "name": "papel_pauta_estudante_id_estudante_id_fk",
           "tableFrom": "papel_pauta",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1221,11 +1156,7 @@
       "compositePrimaryKeys": {
         "papel_pauta_pauta_id_estudante_id_desde_pk": {
           "name": "papel_pauta_pauta_id_estudante_id_desde_pk",
-          "columns": [
-            "pauta_id",
-            "estudante_id",
-            "desde"
-          ]
+          "columns": ["pauta_id", "estudante_id", "desde"]
         }
       },
       "uniqueConstraints": {},
@@ -1407,12 +1338,8 @@
           "name": "pauta_bloco_id_bloco_id_fk",
           "tableFrom": "pauta",
           "tableTo": "bloco",
-          "columnsFrom": [
-            "bloco_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["bloco_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1420,12 +1347,8 @@
           "name": "pauta_decidida_por_curador_id_fk",
           "tableFrom": "pauta",
           "tableTo": "curador",
-          "columnsFrom": [
-            "decidida_por"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["decidida_por"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1433,12 +1356,8 @@
           "name": "pauta_urgente_por_curador_id_fk",
           "tableFrom": "pauta",
           "tableTo": "curador",
-          "columnsFrom": [
-            "urgente_por"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["urgente_por"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1448,9 +1367,7 @@
         "pauta_slug_unique": {
           "name": "pauta_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -1579,12 +1496,8 @@
           "name": "promessa_pauta_id_pauta_id_fk",
           "tableFrom": "promessa",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1592,12 +1505,8 @@
           "name": "promessa_registrada_por_curador_id_fk",
           "tableFrom": "promessa",
           "tableTo": "curador",
-          "columnsFrom": [
-            "registrada_por"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["registrada_por"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1683,12 +1592,8 @@
           "name": "proposta_pauta_id_pauta_id_fk",
           "tableFrom": "proposta",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1905,12 +1810,8 @@
           "name": "relato_pauta_id_pauta_id_fk",
           "tableFrom": "relato",
           "tableTo": "pauta",
-          "columnsFrom": [
-            "pauta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pauta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1918,12 +1819,8 @@
           "name": "relato_estudante_id_estudante_id_fk",
           "tableFrom": "relato",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1931,12 +1828,8 @@
           "name": "relato_moderado_por_curador_id_fk",
           "tableFrom": "relato",
           "tableTo": "curador",
-          "columnsFrom": [
-            "moderado_por"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["moderado_por"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2000,12 +1893,8 @@
           "name": "resposta_conferencia_promessa_id_promessa_id_fk",
           "tableFrom": "resposta_conferencia",
           "tableTo": "promessa",
-          "columnsFrom": [
-            "promessa_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["promessa_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2013,12 +1902,8 @@
           "name": "resposta_conferencia_estudante_id_estudante_id_fk",
           "tableFrom": "resposta_conferencia",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2026,10 +1911,7 @@
       "compositePrimaryKeys": {
         "resposta_conferencia_promessa_id_estudante_id_pk": {
           "name": "resposta_conferencia_promessa_id_estudante_id_pk",
-          "columns": [
-            "promessa_id",
-            "estudante_id"
-          ]
+          "columns": ["promessa_id", "estudante_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2065,10 +1947,7 @@
       "compositePrimaryKeys": {
         "verificacao_login_identificador_token_pk": {
           "name": "verificacao_login_identificador_token_pk",
-          "columns": [
-            "identificador",
-            "token"
-          ]
+          "columns": ["identificador", "token"]
         }
       },
       "uniqueConstraints": {},
@@ -2122,12 +2001,8 @@
           "name": "voluntario_proposta_id_proposta_id_fk",
           "tableFrom": "voluntario",
           "tableTo": "proposta",
-          "columnsFrom": [
-            "proposta_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["proposta_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -2135,12 +2010,8 @@
           "name": "voluntario_estudante_id_estudante_id_fk",
           "tableFrom": "voluntario",
           "tableTo": "estudante",
-          "columnsFrom": [
-            "estudante_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["estudante_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -2148,10 +2019,7 @@
       "compositePrimaryKeys": {
         "voluntario_proposta_id_estudante_id_pk": {
           "name": "voluntario_proposta_id_estudante_id_pk",
-          "columns": [
-            "proposta_id",
-            "estudante_id"
-          ]
+          "columns": ["proposta_id", "estudante_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2164,62 +2032,37 @@
     "public.acao_curador": {
       "name": "acao_curador",
       "schema": "public",
-      "values": [
-        "adicionou",
-        "desativou",
-        "reativou"
-      ]
+      "values": ["adicionou", "desativou", "reativou"]
     },
     "public.moderacao_relato": {
       "name": "moderacao_relato",
       "schema": "public",
-      "values": [
-        "pendente",
-        "aprovado",
-        "recusado"
-      ]
+      "values": ["pendente", "aprovado", "recusado"]
     },
     "public.origem_apoio": {
       "name": "origem_apoio",
       "schema": "public",
-      "values": [
-        "bot",
-        "site"
-      ]
+      "values": ["bot", "site"]
     },
     "public.origem_evento": {
       "name": "origem_evento",
       "schema": "public",
-      "values": [
-        "bot",
-        "curadoria",
-        "agendador"
-      ]
+      "values": ["bot", "curadoria", "agendador"]
     },
     "public.papel_curador": {
       "name": "papel_curador",
       "schema": "public",
-      "values": [
-        "curador",
-        "administrador"
-      ]
+      "values": ["curador", "administrador"]
     },
     "public.papel_na_pauta": {
       "name": "papel_na_pauta",
       "schema": "public",
-      "values": [
-        "owner",
-        "co_owner"
-      ]
+      "values": ["owner", "co_owner"]
     },
     "public.resposta_conferencia_valor": {
       "name": "resposta_conferencia_valor",
       "schema": "public",
-      "values": [
-        "sim",
-        "em_parte",
-        "nao"
-      ]
+      "values": ["sim", "em_parte", "nao"]
     },
     "public.status_pauta": {
       "name": "status_pauta",
@@ -2239,19 +2082,12 @@
     "public.status_proposta": {
       "name": "status_proposta",
       "schema": "public",
-      "values": [
-        "aberta",
-        "executada"
-      ]
+      "values": ["aberta", "executada"]
     },
     "public.tipo_caminho": {
       "name": "tipo_caminho",
       "schema": "public",
-      "values": [
-        "falabr",
-        "comunidade",
-        "representante"
-      ]
+      "values": ["falabr", "comunidade", "representante"]
     },
     "public.tipo_disparo": {
       "name": "tipo_disparo",
