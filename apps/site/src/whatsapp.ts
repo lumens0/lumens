@@ -87,7 +87,11 @@ export function payloadTelegram(comando: string): string | null {
   if (comando === COMANDO_NOVA_PAUTA) return 'nova';
   if (!/^(apoiar|ajudar) \S+$/.test(comando)) return null;
   const payload = comando.replace(' ', '_');
-  return PAYLOAD_VALIDO.test(payload) ? payload : null;
+  if (PAYLOAD_VALIDO.test(payload)) return payload;
+  // SCRUM-293: slug gerado vai até 69 caracteres, e `apoiar_` mais ele passa dos 64 do `start`.
+  // Todo slug gerado termina com os 8 primeiros caracteres do id, que o bot também entende.
+  const idCurto = /^(apoiar|ajudar)_\S*-([0-9a-f]{8})$/.exec(payload);
+  return idCurto ? `${idCurto[1] ?? ''}_${idCurto[2] ?? ''}` : null;
 }
 
 /**

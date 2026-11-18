@@ -9,9 +9,15 @@ import { STATUS, StatusPill } from './StatusPill';
 export function CardPauta({ pauta }: { pauta: Pauta }) {
   const id = `pauta-${pauta.slug}`;
   return (
-    <article className={estilos.card} aria-labelledby={id}>
+    <article
+      className={pauta.urgente ? [estilos.card, estilos.cardUrgente].join(' ') : estilos.card}
+      aria-labelledby={id}
+    >
       <div className={estilos.topo}>
-        <StatusPill status={pauta.status} />
+        <span className={estilos.statusComUrgencia}>
+          <StatusPill status={pauta.status} />
+          {pauta.urgente && <span className={estilos.seloUrgente}>Urgente</span>}
+        </span>
         <span className={estilos.onde}>{contextoDaPauta(pauta.categoria, pauta.bloco_nome)}</span>
       </div>
       <h2 id={id} className={estilos.titulo}>

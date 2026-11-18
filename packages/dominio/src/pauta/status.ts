@@ -15,7 +15,9 @@ export const TRANSICOES: Readonly<Record<StatusPauta, readonly StatusPauta[]>> =
   juntando_apoios: ['meta_batida', 'cobrando'],
   meta_batida: ['cobrando'],
   cobrando: ['prometido'],
-  prometido: ['conquistada', 'entregue_em_parte', 'descumprida'],
+  // `cobrando`: a conferência ficou sem quórum duas vezes e a pauta volta a ser cobrada
+  // (SCRUM-308). Só a apuração faz essa volta, como os três resultados.
+  prometido: ['conquistada', 'entregue_em_parte', 'descumprida', 'cobrando'],
   entregue_em_parte: ['prometido'],
   // Promessa descumprida volta a ser cobrada, ou recebe uma promessa nova.
   descumprida: ['cobrando', 'prometido'],
@@ -28,6 +30,15 @@ const RESULTADOS: ReadonlySet<StatusPauta> = new Set([
   'entregue_em_parte',
   'descumprida',
 ]);
+
+/**
+ * Transições que só o agendador faz: os resultados e a volta de `prometido` a `cobrando` depois de
+ * duas conferências sem quórum. A curadoria desfazer uma promessa na mão tiraria da base a decisão
+ * que a RN10 dá a ela.
+ */
+function soDoAgendador(de: StatusPauta, para: StatusPauta): boolean {
+  return RESULTADOS.has(para) || (de === 'prometido' && para === 'cobrando');
+}
 
 /** A transição está na tabela? Pura: o painel usa para saber quais botões mostrar. */
 export function podeTransicionar(de: StatusPauta, para: StatusPauta): boolean {
@@ -69,7 +80,7 @@ export async function transicionarStatus(
   if (!podeTransicionar(de, para)) {
     throw new ErroDeRegra('transicao_invalida', `A pauta não pode ir de ${de} para ${para}.`);
   }
-  if (RESULTADOS.has(para) && origem !== 'agendador') {
+  if (soDoAgendador(de, para) && origem !== 'agendador') {
     throw new ErroDeRegra(
       'transicao_invalida',
       'Só a apuração da conferência define o resultado de uma promessa.',
