@@ -5,7 +5,7 @@ import { STATUS_PAUTA } from '../dados/tipos';
 import { PAUTAS_TESTE } from '../dados/pautas-teste';
 import { BarraApoios, formatarNumero, percentual } from './BarraApoios';
 import { CardPauta } from './CardPauta';
-import { contarAte } from './Numero';
+import { Numero, contarAte } from './Numero';
 import { STATUS, StatusPill } from './StatusPill';
 
 // Contraste WCAG 2.x entre duas cores #RRGGBB.
@@ -115,5 +115,13 @@ describe('contarAte', () => {
     expect(vistos.at(-1)).toBe(120);
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+});
+
+describe('Numero', () => {
+  it('esconde o número animado do leitor de tela e entrega só o valor final', () => {
+    const html = renderToStaticMarkup(<Numero valor={1240} />);
+    expect(html).toMatch(/<span aria-hidden="true">1\.240<\/span>/);
+    expect(html).toMatch(/<span class="[^"]*somenteLeitor[^"]*">1\.240<\/span>/);
   });
 });

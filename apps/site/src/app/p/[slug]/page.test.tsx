@@ -73,4 +73,17 @@ describe('página /p/[slug]', () => {
     vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, status } as never);
     await expect(PaginaPauta(props(fixture.slug))).rejects.toBe(NAO_ENCONTRADO);
   });
+
+  it('a descrição só convida a apoiar quando a pauta ainda aceita apoio', async () => {
+    vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, status: 'conquistada' });
+    const conquistada = await generateMetadata(props(fixture.slug));
+    expect(conquistada.description).toBe('84 de 80 apoios. Veja a pauta.');
+    expect(conquistada.openGraph?.description).toBe('84 de 80 apoios. Veja a pauta.');
+    expect(conquistada.twitter?.description).toBe('84 de 80 apoios. Veja a pauta.');
+
+    vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, status: 'juntando_apoios' });
+    const juntando = await generateMetadata(props(fixture.slug));
+    expect(juntando.description).toBe('84 de 80 apoios. Apoie você também.');
+    expect(juntando.twitter?.description).toBe('84 de 80 apoios. Apoie você também.');
+  });
 });
