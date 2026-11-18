@@ -164,6 +164,8 @@ export type {
 
 export { listarLinhaDoTempo } from './pauta/linha-do-tempo';
 export type { EventoDaLinha } from './pauta/linha-do-tempo';
+export { agruparEventosIguais } from './pauta/agrupar-eventos';
+export type { EventoAgrupavel, GrupoDeEventos } from './pauta/agrupar-eventos';
 export { detalharPautaDaCuradoria } from './pauta/detalhe-curadoria';
 export type {
   DetalhePautaDaCuradoria,
