@@ -34,6 +34,7 @@ import {
   abrirCaminho,
   adicionarRelato,
   aprovarPauta,
+  detalharPautaDaCuradoria,
   aprovarRelato,
   criarPauta,
   diaEmMaceio,
@@ -99,6 +100,16 @@ const FONTE = 'Superintendência de Infraestrutura';
 const PDF = Buffer.from('%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF', 'ascii');
 
 let db: Db;
+
+/** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */
+async function fotosDaTela(banco: Db, pautaId: string) {
+  const detalhe = await detalharPautaDaCuradoria(banco, pautaId);
+  return Object.fromEntries(
+    (detalhe?.relatos ?? [])
+      .filter(({ moderacao }) => moderacao === 'pendente')
+      .map(({ id, fotoChave }) => [id, fotoChave]),
+  );
+}
 // Opcionais: se o beforeAll falhar no meio, o afterAll fecha só o que chegou a abrir.
 let pool: ReturnType<typeof criarPool> | undefined;
 let poolLeitura: ReturnType<typeof criarPool> | undefined;
@@ -264,14 +275,22 @@ async function montarFimDoRoteiro2() {
   pautaId = criada.pautaId;
   slug = criada.slug;
   meta = criada.meta;
+  const fotosVistas = await fotosDaTela(admin, pautaId);
   const aprovada = await admin.transaction((tx) =>
-    aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura', agora: diasAtras(15) }),
+    aprovarPauta(tx, {
+      pautaId,
+      curadorId,
+      categoria: 'infraestrutura',
+      fotosVistas,
+      agora: diasAtras(15),
+    }),
   );
   expect(aprovada).toEqual({ decidida: true });
 
-  // Os três apoiadores e mais quantos faltarem para a meta; o último apoio a bate.
+  // Os três apoiadores e mais quantos faltarem para a meta; o último apoio a bate. Quem criou a
+  // pauta já conta como o primeiro apoio (SCRUM-344), então falta um a menos.
   const extras = Array.from(
-    { length: meta - TELEFONES_DOS_APOIADORES.length },
+    { length: meta - TELEFONES_DOS_APOIADORES.length - 1 },
     (_, i) => `55829777710${String(i).padStart(2, '0')}`,
   );
   for (const telefone of [...TELEFONES_DOS_APOIADORES, ...extras]) {
@@ -453,7 +472,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
           TELEFONE_DA_RESPONSAVEL,
           n,
         );
-      await texto('oi', 3);
+      // Quem já tem cadastro recebe a saudação curta e o menu (SCRUM-333).
+      await texto('oi', 2);
 
       // Uma pauta só: o "4" vai direto ao estado dos caminhos, com o botão do PDF.
       const [caminhos] = await texto('4', 1);
@@ -710,7 +730,10 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
         ['meta_batida', { meta, apoios: meta }],
         ['status_alterado', { de: 'juntando_apoios', para: 'meta_batida' }],
         ['caminho_aberto', { caminho_id: caminhoId, tipo: 'falabr' }],
-        ['protocolo_registrado', { caminho_id: caminhoId, protocolo: '23546.012345/2026-11' }],
+        [
+          'protocolo_registrado',
+          { caminho_id: caminhoId, protocolo: '23546.012345/2026-11', prorrogado: false },
+        ],
         ['status_alterado', { de: 'meta_batida', para: 'cobrando' }],
         // Passo 1: só a aprovação vira evento; a recusa fica no relato.
         ['relato_aprovado', { relato_id: relatoParaAprovar }],
