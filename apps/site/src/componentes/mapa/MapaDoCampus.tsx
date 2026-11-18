@@ -329,7 +329,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             {PONTOS.map((p) => (
               <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
                 <title>{p.nome}</title>
-                <circle className={estilos.pontoLocal} />
+                <rect x={-14} y={-14} width={28} height={28} className={estilos.pontoLocal} />
               </g>
             ))}
             {/* Os nomes ficam numa camada por cima de todos os prédios; só vão os que cabem sem
