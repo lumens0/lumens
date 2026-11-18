@@ -25,6 +25,7 @@ import {
 import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
+import { registrarApoio } from './apoio';
 import { aprovarRelato, recusarRelato } from './moderacao';
 import { conferirAnonimato } from '../compartilhado/anonimato';
 import { transicionarStatus } from './status';
@@ -320,6 +321,12 @@ export async function recusarRelatoDeOrigem(
  * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
  * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
  * avisado.
+ *
+ * Quem cuida da pauta conta como o primeiro apoio, também na mesma transação (SCRUM-344). Na
+ * aprovação esse é só quem a criou: virar co-owner exige ter apoiado, e apoio só existe depois de
+ * aprovada. Sem isto a pauta nascia com 0 apoios, o texto do Fala.BR falava em "0 estudantes"
+ * quando o owner protocolava cedo, e quem criou ficava fora do aviso da promessa e da
+ * conferência, que vão para quem apoiou.
  */
 export async function aprovarPauta(
   tx: Tx,
@@ -340,36 +347,50 @@ export async function aprovarPauta(
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
   }
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
-  if (resultado.decidida) {
-    await tx
-      .update(pautas)
-      .set({
-        categoria,
-        urgente,
-        urgenteDesde: urgente ? agora : null,
-        urgentePor: urgente ? curadorId : null,
-      })
-      .where(eq(pautas.id, pautaId));
-    if (urgente) {
-      await registrarEvento(tx, {
-        pautaId,
-        tipo: 'pauta_urgente',
-        dados: { urgente: true },
-        origem: 'curadoria',
-      });
-    }
-    for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
-      // A foto lida aqui, na mesma transação travada pela decisão da pauta: o relato de origem sai
-      // como estava no momento da aprovação (SCRUM-301 exige `fotoVista` em toda aprovação).
-      await aprovarRelato(tx, {
-        relatoId: relato.id,
-        curadorId,
-        agora,
-        fotoVista: relato.fotoChave,
-      });
-    }
-    await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
+  if (!resultado.decidida) return resultado;
+
+  await tx
+    .update(pautas)
+    .set({
+      categoria,
+      urgente,
+      urgenteDesde: urgente ? agora : null,
+      urgentePor: urgente ? curadorId : null,
+    })
+    .where(eq(pautas.id, pautaId));
+  if (urgente) {
+    await registrarEvento(tx, {
+      pautaId,
+      tipo: 'pauta_urgente',
+      dados: { urgente: true },
+      origem: 'curadoria',
+    });
   }
+  for (const relato of await relatosDeOrigemPendentes(tx, pautaId)) {
+    // A foto lida aqui, na mesma transação travada pela decisão da pauta: o relato de origem sai
+    // como estava no momento da aprovação (SCRUM-301 exige `fotoVista` em toda aprovação).
+    await aprovarRelato(tx, {
+      relatoId: relato.id,
+      curadorId,
+      agora,
+      fotoVista: relato.fotoChave,
+    });
+  }
+  const responsaveis = await tx
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .where(
+      and(
+        eq(papeisPauta.pautaId, pautaId),
+        eq(papeisPauta.papel, 'owner'),
+        isNull(papeisPauta.ate),
+      ),
+    );
+  for (const { estudanteId } of responsaveis) {
+    // Quem saiu do Lumens enquanto a pauta esperava a curadoria volta recusado, sem erro.
+    await registrarApoio(tx, { pautaId, estudanteId, origem: 'bot', agora });
+  }
+  await enfileirarAvisoDeAprovacao(tx, { pautaId, agora });
   return resultado;
 }
 
