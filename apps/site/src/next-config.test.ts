@@ -61,15 +61,15 @@ describe('next.config', () => {
       expect(valor(todas, 'Content-Security-Policy-Report-Only')).toContain("default-src 'self'");
     });
 
-    it('home, mapa, conquistas e atividade vão para a CDN por 30 s', async () => {
+    it('home, mapa, conquistas, atividade e pauta vão para a CDN por 15 s', async () => {
       const regrasDeCache = (await regras()).filter((r) =>
         r.headers.some((c) => c.key === 'Cache-Control'),
       );
       expect(regrasDeCache.map((r) => r.source).sort()).toEqual(
-        ['/', '/atividade', '/conquistas', '/mapa'].sort(),
+        ['/', '/atividade', '/conquistas', '/mapa', '/p/:slug'].sort(),
       );
       for (const regra of regrasDeCache)
-        expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=30');
+        expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=15');
     });
   });
 });

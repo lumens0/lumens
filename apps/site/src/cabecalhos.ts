@@ -33,10 +33,11 @@ export const CABECALHOS_DE_SEGURANCA: Cabecalho[] = [
 /**
  * Cache curto das páginas públicas (SCRUM-379): o Next responde `private, no-store` nas páginas
  * dinâmicas (a home lê `searchParams`), e no pico do QR Code cada visita chamaria a API. A CDN
- * guarda por 30 s por URL (o filtro de bloco entra na chave) e serve a cópia antiga por até 60 s
- * enquanto renova. Os dados mudam em minutos, então uma pauta nova aparece em até 1 minuto.
+ * guarda por 15 s por URL (o filtro de bloco entra na chave) e serve a cópia antiga por mais 15 s
+ * enquanto renova. Somado aos 30 s do cache da API (`revalidate` em dados/api.ts), o pior caso é
+ * 60 s: uma pauta ou apoio novo aparece em até 1 minuto.
  */
-export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=30, stale-while-revalidate=60';
+export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=15, stale-while-revalidate=15';
 
-/** Páginas sem sessão que podem ir para a CDN. `/p/*` e `/dados.csv` já têm o cache delas. */
-export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade'];
+/** Páginas sem sessão que podem ir para a CDN. `/dados.csv` já tem o cache dele; `/p/:slug` é só a pauta (o card e o og.png ficam de fora). */
+export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade', '/p/:slug'];
