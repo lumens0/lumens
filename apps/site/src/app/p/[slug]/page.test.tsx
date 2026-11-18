@@ -40,6 +40,7 @@ describe('página /p/[slug]', () => {
     expect(await generateMetadata(props(fixture.slug))).toEqual({
       title: fixture.titulo,
       description,
+      alternates: { canonical: `/p/${fixture.slug}` },
       openGraph: {
         siteName: 'Lumens',
         locale: 'pt_BR',

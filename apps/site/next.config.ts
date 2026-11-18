@@ -1,11 +1,22 @@
 import type { NextConfig } from 'next';
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
+import { CABECALHOS_DE_SEGURANCA, CACHE_PUBLICO, PAGINAS_EM_CACHE } from './src/cabecalhos';
 import { exigirBotDoCanal } from './src/whatsapp';
 
 const nextConfig: NextConfig = {
   agentRules: false,
   // As fontes e a marca do card da pauta são lidas do disco na hora de gerar a imagem (SCRUM-104).
   outputFileTracingIncludes: { '/p/**': ['./src/fontes/card/*.ttf', './public/lumens-marca.svg'] },
+  // Cabeçalhos de segurança (SCRUM-377) e cache curto das páginas públicas (SCRUM-379).
+  headers() {
+    return Promise.resolve([
+      { source: '/:path*', headers: CABECALHOS_DE_SEGURANCA },
+      ...PAGINAS_EM_CACHE.map((source) => ({
+        source,
+        headers: [{ key: 'Cache-Control', value: CACHE_PUBLICO }],
+      })),
+    ]);
+  },
 };
 
 /**
