@@ -36,32 +36,50 @@ export interface LimitadorPorTelefone {
   registrar(chave: string): ResultadoDoLimite;
   /** Esquece todas as contagens (os testes compartilham o limitador do processo). */
   limpar(): void;
+  /** Quantos instantes estão guardados para a chave (para os testes de memória). */
+  retidos(chave: string): number;
 }
 
 export function criarLimitadorPorTelefone(
   { max, janelaMs }: LimiteDeMensagens = LIMITE_DE_MENSAGENS,
   agora: () => number = Date.now,
 ): LimitadorPorTelefone {
-  const instantes = new Map<string, number[]>();
+  /**
+   * Por pessoa: só as últimas `max + 1` tentativas (aceitas ou não) e se a pessoa já estava
+   * bloqueada. Tem mais de `max` tentativas na janela exatamente quando a `max + 1`-ésima mais
+   * recente ainda cabe nela, então o resto nunca precisa ser guardado: o custo de cada mensagem é
+   * fixo, mesmo no meio de uma enxurrada, e a memória por pessoa é limitada.
+   */
+  interface Estado {
+    ultimas: number[];
+    bloqueada: boolean;
+  }
+  const estados = new Map<string, Estado>();
 
   const limpar = (t: number) => {
-    for (const [chave, lista] of instantes) {
-      if ((lista.at(-1) ?? 0) <= t - janelaMs) instantes.delete(chave);
+    for (const [chave, estado] of estados) {
+      if ((estado.ultimas.at(-1) ?? 0) <= t - janelaMs) estados.delete(chave);
     }
   };
 
   return {
     limpar: () => {
-      instantes.clear();
+      estados.clear();
     },
+    retidos: (chave) => estados.get(chave)?.ultimas.length ?? 0,
     registrar(chave) {
       const t = agora();
-      if (instantes.size >= MAX_CHAVES) limpar(t);
-      const recentes = (instantes.get(chave) ?? []).filter((instante) => instante > t - janelaMs);
-      recentes.push(t);
-      instantes.set(chave, recentes);
-      const permitida = recentes.length <= max;
-      return { permitida, primeiraRecusa: !permitida && recentes.length === max + 1 };
+      if (estados.size >= MAX_CHAVES) limpar(t);
+      const estado = estados.get(chave) ?? { ultimas: [], bloqueada: false };
+      estado.ultimas.push(t);
+      if (estado.ultimas.length > max + 1) estado.ultimas.shift();
+      const permitida = !(
+        estado.ultimas.length === max + 1 && (estado.ultimas[0] ?? 0) > t - janelaMs
+      );
+      const primeiraRecusa = !permitida && !estado.bloqueada;
+      estado.bloqueada = !permitida;
+      estados.set(chave, estado);
+      return { permitida, primeiraRecusa };
     },
   };
 }
