@@ -366,7 +366,9 @@ export interface NovoVinculo {
  * - E-mail de outra identidade, e esta identidade ainda sem cadastro: é a mesma pessoa chegando por
  *   outro canal (o bot trocou de WhatsApp para Telegram, por exemplo; SCRUM-267). O cadastro do
  *   dono passa para esta identidade: apoios, pautas, curso e `verificado_em` continuam no mesmo
- *   estudante, sem voto duplicado, e os avisos pendentes saem para o endereço novo.
+ *   estudante, sem voto duplicado, e os avisos pendentes saem para o endereço novo. É também a
+ *   volta de quem saiu (SCRUM-331): o `sair` guarda o HMAC do e-mail, e a mesma linha volta, com os
+ *   apoios de antes; `concluirVerificacao` limpa o `saiu_em`.
  * - E-mail de outra identidade que já tem cadastro também: recusa (`email_em_uso`) e não mexe em
  *   nada. Juntar dois cadastros pediria uma regra para os apoios dos dois.
  * - Telefone novo: cria o estudante, ainda sem `verificado_em` (quem marca é o fim da 2.4).
@@ -381,7 +383,7 @@ export interface NovoVinculo {
  */
 export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<ResultadoVinculo> {
   const [dono] = await db
-    .select({ id: estudantes.id, telefoneHmac: estudantes.telefoneHmac })
+    .select({ id: estudantes.id, telefoneHmac: estudantes.telefoneHmac, saiuEm: estudantes.saiuEm })
     .from(estudantes)
     .where(eq(estudantes.emailHmac, vinculo.emailHmac))
     .for('update');
@@ -398,8 +400,16 @@ export async function vincularEmail(db: Db, vinculo: NovoVinculo): Promise<Resul
     // do e-mail. O UNIQUE de `telefone_hmac` não choca: esta identidade não tem cadastro.
     await db
       .update(estudantes)
-      .set({ telefoneHmac: vinculo.telefoneHmac, telefoneCifrado: vinculo.telefoneCifrado })
+      .set({
+        telefoneHmac: vinculo.telefoneHmac,
+        telefoneCifrado: vinculo.telefoneCifrado,
+        // Quem saiu não tem mais o e-mail cifrado (SCRUM-331); nos outros casos é o mesmo e-mail.
+        emailCifrado: vinculo.emailCifrado,
+      })
       .where(eq(estudantes.id, dono.id));
+    // Quem saiu e volta é o próprio dono (o código provou o e-mail): não há o que avisar. O aviso
+    // de transferência é para o cadastro ativo que muda de identidade.
+    if (dono.saiuEm !== null) return { vinculado: true, estudanteId: dono.id };
     return { vinculado: true, estudanteId: dono.id, transferido: true };
   }
 

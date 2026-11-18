@@ -59,6 +59,8 @@ function textoValido(valor: string, limite: number): boolean {
 
 export interface RegistrarProrrogacao {
   caminhoId: string;
+  /** A pauta do formulário: se informada, o item tem de ser dela (o servidor não confia no redirect). */
+  pautaId?: string;
   curadorId: string;
   motivo: string;
   fonte: string;
@@ -68,7 +70,7 @@ export interface RegistrarProrrogacao {
 /** Prorroga uma vez o prazo do Fala.BR, enquanto ainda está vigente. */
 export async function registrarProrrogacao(
   tx: Tx,
-  { caminhoId, motivo, fonte, agora = new Date() }: RegistrarProrrogacao,
+  { caminhoId, pautaId, motivo, fonte, agora = new Date() }: RegistrarProrrogacao,
 ): Promise<ResultadoAjusteDePrazo> {
   if (!textoValido(motivo, 200) || !textoValido(fonte, 120)) {
     return { feito: false, motivo: 'entrada_invalida' };
@@ -85,7 +87,8 @@ export async function registrarProrrogacao(
     .from(caminhos)
     .where(eq(caminhos.id, caminhoId))
     .for('update');
-  if (!caminho) return { feito: false, motivo: 'caminho_inexistente' };
+  if (!caminho || (pautaId !== undefined && caminho.pautaId !== pautaId))
+    return { feito: false, motivo: 'caminho_inexistente' };
   if (caminho.tipo !== 'falabr' || caminho.protocolo === null || caminho.prazo === null)
     return { feito: false, motivo: 'caminho_sem_protocolo' };
   if (caminho.prorrogado) return { feito: false, motivo: 'ja_prorrogado' };
@@ -118,6 +121,8 @@ export async function registrarProrrogacao(
 
 export interface CorrigirDataDoProtocolo {
   caminhoId: string;
+  /** A pauta do formulário: se informada, o item tem de ser dela (o servidor não confia no redirect). */
+  pautaId?: string;
   curadorId: string;
   data: string;
   motivo: string;
@@ -128,7 +133,7 @@ export interface CorrigirDataDoProtocolo {
 /** Corrige o dia de protocolo e recalcula o vencimento, preservando eventual prorrogação. */
 export async function corrigirDataDoProtocolo(
   tx: Tx,
-  { caminhoId, data, motivo, fonte, agora = new Date() }: CorrigirDataDoProtocolo,
+  { caminhoId, pautaId, data, motivo, fonte, agora = new Date() }: CorrigirDataDoProtocolo,
 ): Promise<ResultadoAjusteDePrazo> {
   if (!textoValido(motivo, 200) || !textoValido(fonte, 120)) {
     return { feito: false, motivo: 'entrada_invalida' };
@@ -148,7 +153,8 @@ export async function corrigirDataDoProtocolo(
     .from(caminhos)
     .where(eq(caminhos.id, caminhoId))
     .for('update');
-  if (!caminho) return { feito: false, motivo: 'caminho_inexistente' };
+  if (!caminho || (pautaId !== undefined && caminho.pautaId !== pautaId))
+    return { feito: false, motivo: 'caminho_inexistente' };
   if (caminho.tipo !== 'falabr' || caminho.protocolo === null || caminho.prazo === null)
     return { feito: false, motivo: 'caminho_sem_protocolo' };
   const [pauta] = await tx
@@ -178,6 +184,8 @@ export async function corrigirDataDoProtocolo(
 
 export interface RemarcarDataPrometida {
   promessaId: string;
+  /** A pauta do formulário: se informada, o item tem de ser dela (o servidor não confia no redirect). */
+  pautaId?: string;
   curadorId: string;
   dataEntrega: string;
   motivo: string;
@@ -188,7 +196,7 @@ export interface RemarcarDataPrometida {
 /** Remarca a promessa e a conferência em uma transação; notifica os apoiadores ativos. */
 export async function remarcarDataPrometida(
   tx: Tx,
-  { promessaId, dataEntrega, motivo, fonte, agora = new Date() }: RemarcarDataPrometida,
+  { promessaId, pautaId, dataEntrega, motivo, fonte, agora = new Date() }: RemarcarDataPrometida,
 ): Promise<ResultadoAjusteDePrazo> {
   if (!textoValido(motivo, 200) || !textoValido(fonte, 120)) {
     return { feito: false, motivo: 'entrada_invalida' };
@@ -205,7 +213,11 @@ export async function remarcarDataPrometida(
     .from(promessas)
     .where(eq(promessas.id, promessaId))
     .for('update');
-  if (!promessa || promessa.resultado !== null)
+  if (
+    !promessa ||
+    promessa.resultado !== null ||
+    (pautaId !== undefined && promessa.pautaId !== pautaId)
+  )
     return { feito: false, motivo: 'promessa_inexistente' };
   if (agora >= promessa.conferenciaAbreEm) return { feito: false, motivo: 'conferencia_aberta' };
   if (dataEntrega <= hojeEmMaceio(agora)) return { feito: false, motivo: 'data_no_passado' };

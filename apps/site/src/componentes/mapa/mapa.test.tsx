@@ -104,6 +104,12 @@ describe('mapa do campus', () => {
     expect(html).toContain('A mesma informação, em lista');
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Escolha um bloco');
+    expect(html).toContain(
+      'aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight + - N"',
+    );
+    expect(html).toContain('aria-describedby="atalhos-mapa"');
+    expect(html).toContain('Fechar ajuda do mapa');
+    expect(html).toContain('Atalhos do mapa: setas movem');
   });
 });
 

@@ -193,8 +193,12 @@ export default function Privacidade() {
         {/* Comando 'sair': apps/backend/src/bot/conversation/privacidade.ts → sairDoLumens */}
         <p>
           Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
-          hora, apagamos seu telefone e seu e-mail (inclusive as versões cifradas), sua conversa e o
-          código de verificação, e você deixa de ser responsável pelas pautas que cuidava.
+          hora, apagamos seu telefone e seu e-mail, sua conversa e o código de verificação, e você
+          deixa de ser responsável pelas pautas que cuidava. Do e-mail fica só uma marca (um HMAC)
+          que não permite recuperá-lo. Ela serve para uma coisa: se você voltar com o mesmo e-mail,
+          o Lumens reconhece o mesmo cadastro e não conta seus apoios, votos na conferência e
+          inscrições como voluntário duas vezes (prevenção de fraude). Ela não é usada para mais
+          nada.
         </p>
         <p>
           As cópias cifradas das suas mensagens recentes na fila de processamento não são apagadas
