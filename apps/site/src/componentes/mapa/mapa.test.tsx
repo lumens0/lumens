@@ -1,5 +1,5 @@
 import { blocosSeed } from '../../../../../packages/db/seed/data';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
@@ -171,6 +171,28 @@ describe('lugares que faltavam no mapa (SCRUM-284)', () => {
     );
   });
 
+  it('o NEES (RIEH) é um quadro ao lado do IC, na posição do Google Maps', () => {
+    const nees = PONTOS.find((p) => p.nome === 'NEES (RIEH)');
+    const ic = PREDIOS.find((p) => p.id === 202492816);
+    expect(nees).toBeDefined();
+    const [x = 0, y = 0, w = 0, h = 0] = ic?.caixa ?? [];
+    const dx = Math.max(x - (nees?.x ?? 0), 0, (nees?.x ?? 0) - (x + w));
+    const dy = Math.max(y - (nees?.y ?? 0), 0, (nees?.y ?? 0) - (y + h));
+    expect(Math.hypot(dx, dy)).toBeLessThan(60);
+  });
+
+  it('a Reitoria (relação multipolygon do OSM) aparece com pátio e nome', () => {
+    const reitoria = PREDIOS.find((p) => p.nome === 'Reitoria Universitária');
+    expect(reitoria?.sigla).toBe('Reitoria');
+    // Dois contornos: o de fora e o pátio.
+    expect(reitoria?.d.match(/M/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('a EENF fica no prédio ao norte da FANUT, e não no do CSAU', () => {
+    expect(PREDIOS.find((p) => p.blocos.includes('eenf'))?.id).toBe(404594001);
+    expect(PREDIOS.find((p) => p.id === 64974284)?.blocos).not.toContain('eenf');
+  });
+
   it('o COS aparece com nome e sigla', () => {
     const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
     expect(cos?.sigla).toBe('COS B');
@@ -228,5 +250,20 @@ describe('legenda do mapa', () => {
       expect(cores).toContain(STATUS[status].ponto);
     }
     expect(new Set(cores).size).toBe(cores.length);
+  });
+});
+
+describe('lista do mapa: cartões da mesma altura (SCRUM-284)', () => {
+  const css = readFileSync(new URL('./mapa.module.css', import.meta.url), 'utf8');
+
+  it('a lista é uma grade e o cartão ocupa a altura da linha da grade', () => {
+    expect(css).toMatch(/\.lista\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/\.linha\s*\{[^}]*height:\s*100%/);
+    expect(css).toMatch(/\.linha\s*\{[^}]*width:\s*100%/);
+  });
+
+  it('o crédito do OpenStreetMap no celular ocupa uma linha só, para cobrir poucos nomes', () => {
+    const celular = css.slice(css.indexOf('@media (max-width: 720px)'));
+    expect(celular).toMatch(/\.credito\s*\{[^}]*white-space:\s*nowrap/);
   });
 });

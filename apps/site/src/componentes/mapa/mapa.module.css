@@ -64,6 +64,8 @@
 .predio,
 .escolhido {
   fill: #2b3577;
+  /* Prédio com pátio (a Reitoria) vem como contorno externo e interno: o pátio fica vazio. */
+  fill-rule: evenodd;
   stroke: rgb(255 255 255 / 12%);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
@@ -90,6 +92,13 @@
 
 .predio[role='button']:hover {
   opacity: 0.8;
+}
+
+/* Bloco sem pauta: só a cor apagada, sem brilho nem entrada. O brilho cinza borrava o contorno. */
+.predio.semPautas,
+.escolhido.semPautas {
+  filter: none;
+  animation: none;
 }
 
 /* Com o mapa em movimento o brilho desfocado sai (é caro de redesenhar a cada quadro); o halo fica. */
@@ -260,13 +269,15 @@
   gap: 8px;
 }
 
+/* O cartão ocupa a altura da linha da grade: nome de uma ou de duas linhas, todos do mesmo tamanho. */
 .linha {
   width: 100%;
+  height: 100%;
   min-height: 56px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--borda);
   border-radius: 12px;
   background: var(--superficie);
@@ -614,10 +625,11 @@
   .credito {
     bottom: 270px;
     right: 16px;
-    max-width: 180px;
-    text-align: right;
-    background: rgb(15 19 48 / 75%);
-    padding: 4px 7px;
+    /* Uma linha só e mais baixa: cobre bem menos nomes de prédio atrás dela. */
+    font-size: 10px;
+    white-space: nowrap;
+    background: rgb(15 19 48 / 55%);
+    padding: 2px 6px;
     border-radius: 6px;
   }
 
@@ -637,11 +649,11 @@
   }
 }
 
-/* Ponto de um lugar que o OSM não tem: do mesmo tamanho na tela em qualquer zoom. */
+/* Lugar que o OSM não tem (a EDGE Academy): um quadro de 28 m, como um prédio. */
 .pontoLocal {
-  r: calc(var(--k) * 6px);
-  fill: #ffc23d;
-  stroke: #0f1330;
-  stroke-width: calc(var(--k) * 2px);
+  fill: #2b3577;
+  stroke: rgb(255 255 255 / 35%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
 }

@@ -106,7 +106,8 @@ export function matrizDaCamada(
  */
 export function criarCamera(
   base: Visao,
-  aoMudar: (v: Visao) => void,
+  /** A visão nova, os metros do desenho por pixel da tela e o giro em radianos. */
+  aoMudar: (v: Visao, k: number, giro: number) => void,
   aoGesto?: (dedos: number) => void,
 ) {
   let svg: SVGSVGElement | null = null;
@@ -149,7 +150,7 @@ export function criarCamera(
     const moldura = svg.parentElement ?? svg;
     moldura.style.setProperty('--k', String(vista.w / largura));
     moldura.style.setProperty('--giro', String(giro));
-    aoMudar(vista);
+    aoMudar(vista, vista.w / largura, giro);
   };
 
   /** Pinta no próximo quadro e marca o mapa como "em movimento" (o CSS desliga o brilho caro). */
