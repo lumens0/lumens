@@ -1,3 +1,4 @@
+import { CATEGORIAS } from '@lumens/contratos';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { STATUS_PAUTA } from '../dados/tipos';
@@ -48,6 +49,25 @@ describe('BarraApoios', () => {
   it.each(PAUTAS_TESTE)('no card de $slug, o nome da barra identifica a pauta', (pauta) => {
     const html = renderToStaticMarkup(<CardPauta pauta={pauta} />);
     expect(html).toContain(`aria-label="Apoios: ${pauta.titulo}"`);
+  });
+
+  const [base] = PAUTAS_TESTE;
+  if (base === undefined) throw new Error('PAUTAS_TESTE vazio');
+
+  it.each(Object.entries(CATEGORIAS))(
+    'card com categoria %s mostra "%s" (SCRUM-291)',
+    (chave, rotulo) => {
+      const html = renderToStaticMarkup(<CardPauta pauta={{ ...base, categoria: chave }} />);
+      expect(html).toContain(rotulo);
+    },
+  );
+
+  it('card de pauta a_classificar não mostra o valor cru, só o bloco', () => {
+    const html = renderToStaticMarkup(
+      <CardPauta pauta={{ ...base, categoria: 'a_classificar', bloco_nome: 'Bloco X' }} />,
+    );
+    expect(html).not.toMatch(/a_classificar/i);
+    expect(html).toContain('Bloco X');
   });
 });
 

@@ -1,5 +1,5 @@
 {
-  "id": "5b6f91ad-6a32-4b45-beb7-944edf8e713e",
+  "id": "df7bb67d-07a2-468f-bea7-ec396c08530e",
   "prevId": "f22162a4-181b-4ff1-b427-bf7cbecbb59d",
   "version": "7",
   "dialect": "postgresql",
@@ -1237,6 +1237,31 @@
           "primaryKey": false,
           "notNull": false
         },
+        "urgente": {
+          "name": "urgente",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "urgente_desde": {
+          "name": "urgente_desde",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "urgente_por": {
+          "name": "urgente_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "urgente_motivo": {
+          "name": "urgente_motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "busca": {
           "name": "busca",
           "type": "tsvector",
@@ -1313,6 +1338,15 @@
           "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "pauta_urgente_por_curador_id_fk": {
+          "name": "pauta_urgente_por_curador_id_fk",
+          "tableFrom": "pauta",
+          "tableTo": "curador",
+          "columnsFrom": ["urgente_por"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1328,6 +1362,10 @@
         "pauta_meta_positiva": {
           "name": "pauta_meta_positiva",
           "value": "\"pauta\".\"meta\" > 0"
+        },
+        "pauta_urgencia_consistente": {
+          "name": "pauta_urgencia_consistente",
+          "value": "(\"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NOT NULL AND \"pauta\".\"urgente_por\" IS NOT NULL)\n        OR (NOT \"pauta\".\"urgente\" AND \"pauta\".\"urgente_desde\" IS NULL AND \"pauta\".\"urgente_por\" IS NULL)"
         }
       },
       "isRLSEnabled": false

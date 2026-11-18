@@ -183,6 +183,11 @@ describe('views públicas com o seed', () => {
         /telefone|email|hmac|cifrado|estudante_id|(^|_)id$/.test(column_name),
       );
       expect(proibidas).toEqual([]);
+      const publicas = colunas
+        .filter((c) => c.table_name === 'v_pauta_publica')
+        .map((c) => c.column_name);
+      expect(publicas).toContain('urgente');
+      expect(publicas).not.toContain('urgente_por');
     });
 
     it('marca todas como security_barrier e nenhuma como security_invoker', async () => {
@@ -232,7 +237,7 @@ describe('views públicas com o seed', () => {
     it('v_pauta_publica entrega bloco, meta, apoios e cursos dos responsáveis', async () => {
       const linhas = await comoSite(
         db,
-        sql`SELECT slug, status, meta, apoios, bloco_slug, bloco_nome, cursos_responsaveis
+        sql`SELECT slug, status, meta, apoios, bloco_slug, bloco_nome, cursos_responsaveis, urgente
             FROM v_pauta_publica WHERE slug IN ('bebedouros-no-bloco-18', 'biblioteca-aberta-aos-sabados')
             ORDER BY slug`,
       );
@@ -246,6 +251,7 @@ describe('views públicas com o seed', () => {
           bloco_slug: 'bloco-18',
           bloco_nome: 'Bloco 18 (fictício)',
           cursos_responsaveis: ['Jornalismo', 'Pedagogia'],
+          urgente: false,
         },
         {
           slug: 'biblioteca-aberta-aos-sabados',
@@ -255,6 +261,7 @@ describe('views públicas com o seed', () => {
           bloco_slug: 'biblioteca-central',
           bloco_nome: 'Biblioteca Central',
           cursos_responsaveis: ['Arquitetura e Urbanismo', 'Ciência da Computação'],
+          urgente: false,
         },
       ]);
     });
