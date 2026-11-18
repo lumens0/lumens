@@ -119,7 +119,8 @@ async function responder(
     return [MENU_TEXT];
   }
   const ctxBase = { input: { text: msg.text }, db, segredo, phoneHmac };
-  if (cmd === 'sair') {
+  // SCRUM-334: na confirmação, o 'sair' repetido é a resposta, e não um pedido novo de saída.
+  if (cmd === 'sair' && current?.step !== 'LEAVE_CONFIRM') {
     // 5.7: 'sair' larga o fluxo atual. Sem cadastro, a conversa já é apagada aqui.
     const result = await pedirSaida({ ...ctxBase, state: { step: 'GREETING', data: {} } });
     if (result.apagarConversa) await store.delete(phoneHmac);

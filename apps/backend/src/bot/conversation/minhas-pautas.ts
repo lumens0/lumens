@@ -68,7 +68,7 @@ export const PICK_PAUTA_TEXT = 'De qual pauta você quer ver os caminhos?';
 export const PAUTA_NOT_FOUND_TEXT = 'Não achei essa pauta. Escolha uma na lista.';
 export const PICK_PATH_AGAIN_TEXT = 'Escolha um caminho nos botões ou responda *menu*.';
 export const LOST_OWNER_TEXT =
-  'Você não é mais owner desta pauta, então não pode abrir caminhos nela.';
+  'Você não é mais responsável por esta pauta, então não pode abrir caminhos nela.';
 export const PAUTA_CLOSED_TEXT = 'Esta pauta não aceita caminhos novos agora.';
 export const DATA_LOST_TEXT =
   'Não consegui recuperar a pauta escolhida. Escolha 4 no menu de novo.';

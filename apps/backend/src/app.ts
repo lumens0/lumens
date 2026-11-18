@@ -10,6 +10,9 @@ import { webhookPlugin, type WebhookConfig, type WebhookPluginOptions } from './
 import { LIMITE_DA_API, LIMITE_DOS_WEBHOOKS, opcoesDoLimite, type Limite } from './infra/limite';
 import { resumoDoErro } from './infra/logger';
 
+/** Quanto tempo o estado do chip consultado na Evolution vale para o `/saude/whatsapp`. */
+export const VALIDADE_DO_ESTADO_MS = 10_000;
+
 export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
   /** Webhook da Meta (WhatsApp). Sem ele, `/webhook` não existe (404): o WhatsApp está desligado. */
   config?: WebhookConfig;
@@ -22,7 +25,15 @@ export type AppDeps = Omit<WebhookPluginOptions, 'config'> & {
    * Webhook da Evolution (`/webhook/evolution`, SCRUM-275), quando o WhatsApp sai por ela
    * (`CANAL_WHATSAPP=evolution`). O segredo vem no header `Authorization`.
    */
-  evolution?: { segredo: string };
+  evolution?: {
+    segredo: string;
+    /**
+     * Estado da sessão do chip (`open` = conectada), para o `/saude/whatsapp` (SCRUM-341). Sem
+     * ele (dev sem `EVOLUTION_URL`), a rota existe e responde 503: o canal é a Evolution, mas não
+     * há chip para conferir.
+     */
+    estadoDaConexao?: () => Promise<string>;
+  };
   /** API de leitura pública: conexão só de leitura (`lumens_site`) e origens do CORS. */
   leitura: ApiPluginOptions;
   /** Limite de requisições por IP (SCRUM-310). O padrão é o de produção; os testes baixam. */
@@ -70,6 +81,39 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(503).send({ ok: false });
     }
   });
+  // O chip da Evolution (SCRUM-341), fora do /saude: o /saude é o healthcheck do contêiner, e o
+  // WhatsApp caído não é motivo para dar o back-end por doente. Sem esta rota, a sessão que não
+  // volta depois de religar a VM deixa o bot mudo sem nenhum aviso. O smoke test do CI olha aqui.
+  //
+  // Existe sempre que o canal é a Evolution: o 404 fica só para Meta e Telegram, e uma ligação
+  // perdida no `main.ts` aparece como 503, não como "nada a conferir". O corpo é genérico como o
+  // do /saude; o estado vai só para o log. A rota é pública: a resposta vale por 10 s e é
+  // dividida entre os pedidos, para ninguém de fora transformar cada GET numa chamada à
+  // Evolution (que é quem envia as respostas do bot) e numa linha de log.
+  if (deps.evolution) {
+    const consultar = deps.evolution.estadoDaConexao ?? (() => Promise.resolve('sem_consulta'));
+    let ultima: { em: number; estado: Promise<string> } | undefined;
+    const estadoRecente = (): Promise<string> => {
+      const agora = Date.now();
+      if (ultima === undefined || agora - ultima.em >= VALIDADE_DO_ESTADO_MS) {
+        const estado = consultar();
+        void estado.then((e) => {
+          if (e !== 'open') {
+            deps.logger.warn(
+              { estado: e },
+              'healthcheck: WhatsApp da Evolution não está conectado',
+            );
+          }
+        });
+        ultima = { em: agora, estado };
+      }
+      return ultima.estado;
+    };
+    app.get('/saude/whatsapp', async (_req, reply) => {
+      if ((await estadoRecente()) === 'open') return { ok: true };
+      return reply.code(503).send({ ok: false });
+    });
+  }
   const { leitura, config, telegram, evolution, limites, versao: _versao, ...bot } = deps;
   // SCRUM-310: um limite por escopo, com contagem própria. O /saude fica de fora: é o healthcheck
   // do compose e o smoke test do deploy.

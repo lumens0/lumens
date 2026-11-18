@@ -52,3 +52,24 @@ reter "$BACKUP_DIR/diario" "$DIARIOS"
 reter "$BACKUP_DIR/semanal" "$SEMANAIS"
 
 echo "--> Backup pronto: $(du -h "$destino" | cut -f1)"
+
+# Fotos e PDFs da resposta oficial (SCRUM-330), quando o storage é o MinIO do compose: espelha o
+# bucket em $BACKUP_DIR/arquivos. Espelho, não cópia datada: as fotos não mudam depois de gravadas,
+# e o `--remove` leva para o backup a remoção de quem saiu (SCRUM-314) no backup seguinte. O
+# preço: um arquivo apagado por engano só é recuperável até a próxima rodada. Volume perdido (ou
+# recriado pelo deploy) não é remoção: o bucket guarda um marcador com a identidade do volume, e se
+# ele não bater com o do espelho o espelho para com erro em vez de apagar o único backup das fotos
+# (scripts/minio/espelhar-fotos.sh).
+#
+# Depois do dump de propósito: se o MinIO estiver fora, o banco já está salvo, e o script ainda
+# termina com erro para o systemd marcar a falha.
+if grep -qsE '^[[:space:]]*S3_ENDPOINT=["'\'']?http://minio:9000/?["'\'']?[[:space:]]*$' .env.producao; then
+  mkdir -p "$BACKUP_DIR/arquivos"
+  echo "--> Espelhando o bucket das fotos em $BACKUP_DIR/arquivos"
+  # Roda como o dono do $BACKUP_DIR, para os arquivos não ficarem de root. --no-deps: o MinIO
+  # parado tem de virar falha do backup, não ser ligado por ele.
+  "${COMPOSE[@]}" --profile minio run --rm --no-deps -T --user "$(id -u):$(id -g)" \
+    -e ADOTAR_BUCKET="${ADOTAR_BUCKET:-}" -v "$BACKUP_DIR/arquivos:/backup" \
+    --entrypoint bash minio-preparar /scripts/espelhar-fotos.sh
+  echo "--> Arquivos espelhados: $(du -sh "$BACKUP_DIR/arquivos" | cut -f1)"
+fi
