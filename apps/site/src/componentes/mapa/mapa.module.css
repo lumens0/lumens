@@ -649,11 +649,11 @@
   }
 }
 
-/* Ponto de um lugar que o OSM não tem: do mesmo tamanho na tela em qualquer zoom. */
+/* Lugar que o OSM não tem (a EDGE Academy): um quadro de 28 m, como um prédio. */
 .pontoLocal {
-  r: calc(var(--k) * 6px);
-  fill: #ffc23d;
-  stroke: #0f1330;
-  stroke-width: calc(var(--k) * 2px);
+  fill: #2b3577;
+  stroke: rgb(255 255 255 / 35%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
