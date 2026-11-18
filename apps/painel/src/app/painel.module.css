@@ -274,6 +274,41 @@
   font-weight: 600;
 }
 
+/* Visão geral (SCRUM-363): linhas de rótulo, barra e número; o número é o dado, a barra só ajuda. */
+.barras {
+  display: grid;
+  gap: var(--esp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barras li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem;
+  column-gap: var(--esp-3);
+  align-items: center;
+}
+
+.barras li progress {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: var(--esp-1);
+}
+
+.barrasRotulo {
+  overflow-wrap: anywhere;
+}
+
+.barrasNumero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumo ~ .cartao {
+  margin-top: var(--esp-3);
+}
+
 .cartao,
 .formulario {
   padding: var(--esp-4);
