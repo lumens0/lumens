@@ -1,0 +1,13 @@
+# Dispara o lumens-restauracao.service uma vez por semana (SCRUM-309).
+[Unit]
+Description=Teste de restauração semanal do backup do Lumens
+
+[Timer]
+# Quarta, meia hora depois do backup diário: restaura o dump do próprio dia.
+OnCalendar=Wed *-*-* 12:30:00 America/Maceio
+# Com a VM desligada na quarta, roda logo depois do próximo boot.
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

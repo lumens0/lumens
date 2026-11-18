@@ -1,13 +1,22 @@
-# Backup diário do Postgres da homologação (SCRUM-95). Instalação: docs/operacao/backup.md.
+# Backup diário do Postgres da homologação (SCRUM-95) e cópia cifrada fora da VM (SCRUM-309).
+# Instalação: docs/operacao/backup.md.
 [Unit]
 Description=Backup do banco do Lumens
 Requires=docker.service
 After=docker.service
+# Qualquer falha (dump, conferência ou envio) avisa o time por e-mail (SCRUM-309).
+OnFailure=lumens-alerta@%n.service
 
 [Service]
 Type=oneshot
+# Num oneshot o padrão é esperar para sempre: um envio ou um `docker exec` travado nunca falharia
+# nem avisaria.
+TimeoutStartSec=1h
 # O mesmo usuário que roda o deploy (dono de /opt/lumens e do grupo docker).
 User=azureuser
 Environment=REPO_DIR=/opt/lumens
 Environment=BACKUP_DIR=/var/backups/lumens
 ExecStart=/opt/lumens/scripts/backup-banco.sh
+# Só roda se o backup acima passou: num oneshot, os ExecStart seguem em ordem e param no primeiro
+# que falha.
+ExecStart=/opt/lumens/scripts/enviar-backup.sh
