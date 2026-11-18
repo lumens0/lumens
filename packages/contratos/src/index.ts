@@ -202,6 +202,14 @@ export function rotuloDaCategoria(valor: string): string | undefined {
 }
 
 /**
+ * Só entrada e saída de responsável se juntam: o evento não leva quem entrou ou saiu, então as
+ * linhas são mesmo idênticas. Outros tipos parecem iguais nas views públicas (que tiram o id do
+ * relato, por exemplo) mas são acontecimentos diferentes, como dois relatos aprovados no mesmo
+ * minuto: cada um continua com a sua linha.
+ */
+const TIPOS_DE_RESPONSAVEL: ReadonlySet<string> = new Set(['owner_entrou', 'owner_removido']);
+
+/**
  * Junta eventos iguais seguidos (SCRUM-355). Quando várias pessoas saem de uma pauta de uma vez (a
  * rotina de inatividade do agendador tira todos os responsáveis inativos na mesma rodada), cada
  * saída é um `owner_removido` com o mesmo papel e o mesmo minuto: o evento não leva quem saiu
@@ -217,6 +225,7 @@ export function agruparEventosIguais<E extends { tipo: string; dados: Record<str
 ): { evento: E; quantidade: number }[] {
   const minuto = (e: E) => Math.floor(new Date(instante(e)).getTime() / 60_000);
   const mesmo = (a: E, b: E) =>
+    TIPOS_DE_RESPONSAVEL.has(a.tipo) &&
     a.tipo === b.tipo &&
     origem(a) === origem(b) &&
     minuto(a) === minuto(b) &&
