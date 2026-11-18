@@ -183,7 +183,8 @@ describe('lugares que faltavam no mapa (SCRUM-284)', () => {
 
   it('o COS aparece com nome e sigla', () => {
     const cos = PREDIOS.find((p) => p.nome === 'Comunicação Social');
-    expect(cos?.sigla).toBe('COS');
+    expect(cos?.sigla).toBe('COS B');
+    expect(PREDIOS.find((p) => p.id === 493988335)).toMatchObject({ sigla: 'COS A' });
   });
 
   it('a pista de atletismo aparece com nome, uma vez só, sem rótulo nas outras raias', () => {

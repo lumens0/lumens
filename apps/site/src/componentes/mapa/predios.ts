@@ -23,8 +23,8 @@ export interface Predio {
 }
 
 // Slugs do catálogo real de blocos (`packages/db/seed/blocos-ufal.ts`, SCRUM-292). Bloco sem prédio
-// aqui aparece só na lista: faltam IQB, FANUT, EENF, FOUFAL, ICF, FALE, ICS, IEFE, FAU e FDA, que o
-// OpenStreetMap não traz como prédio nomeado.
+// aqui aparece só na lista: faltam IQB, EENF, IEFE e FAU, cujo pino no Google Maps não cai com
+// segurança em um prédio do OpenStreetMap.
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
   1341542148: ['im'], // Instituto de Matemática
@@ -39,7 +39,7 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64962904: ['igdema'],
   493988328: ['ip'],
   64974358: ['cedu'],
-  64974284: ['csau'], // Centro de Ciências da Saúde - CSAU
+  64974284: ['csau', 'fanut', 'foufal'], // CSAU abriga a FANUT e a FOUFAL (pinos do Google Maps)
   202492922: ['biblioteca-central'],
   288827034: ['ru'], // Restaurante Universitário
   544426692: ['praca-de-alimentacao'],
@@ -47,6 +47,10 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64980223: ['bloco-07'], // Bloco 07 - Salas de Aula
   64963507: ['bloco-13'],
   64963326: ['ginasio'], // Ginásio da UFAL
+  404593999: ['icf'],
+  404593997: ['fda'],
+  493988324: ['fale'],
+  493988321: ['ics'],
 };
 
 /**
@@ -56,6 +60,13 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
  */
 const NOMES_LOCAIS: Record<number, { nome: string; sigla: string }> = {
   404591641: { nome: 'Centro de Interesse Comunitário', sigla: 'CIC' }, // `description` e `ref` no OSM
+  // Conferidos no Google Maps: o pino de cada unidade cai dentro (ou a poucos metros) do prédio.
+  404593999: { nome: 'Instituto de Ciências Farmacêuticas', sigla: 'ICF' },
+  404593997: { nome: 'Faculdade de Direito de Alagoas', sigla: 'FDA' },
+  493988324: { nome: 'Faculdade de Letras', sigla: 'FALE' },
+  493988321: { nome: 'Instituto de Ciências Sociais', sigla: 'ICS' },
+  493988323: { nome: 'Bloco de Salas de Aula 2', sigla: 'BSA 2' },
+  493988335: { nome: 'Comunicação Social - Bloco A', sigla: 'COS A' },
 };
 
 const SIGLAS: Record<string, string> = {
@@ -75,7 +86,7 @@ const SIGLAS: Record<string, string> = {
   'Praça de Alimentação UFAL': 'Praça de alimentação',
   'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)': 'CPTEC',
   'Posto de Meteorologia': 'Posto meteorológico',
-  'Comunicação Social': 'COS',
+  'Comunicação Social': 'COS B', // o Bloco A é o prédio ao lado (NOMES_LOCAIS)
   'Bloco 06 - IGDEMA': 'Bloco 06',
   'Ginásio da UFAL': 'Ginásio',
 };
