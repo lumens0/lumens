@@ -15,6 +15,7 @@ import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
 import { entradaDeConferencia, responderConferencia } from './conferencia';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
+import { temCadastro } from './estudante';
 import { assertTransition, type Step } from './steps';
 import type { ConversationData, ConversationStore } from './store';
 
@@ -90,7 +91,8 @@ export async function handleIncoming(
   const { phoneHmac } = msg;
   await store.lock(phoneHmac);
   const current = await store.get(phoneHmac);
-  const primeiroContato = current === null;
+  // SCRUM-333: conversa expirada de quem tem cadastro não é primeiro contato (já viu o aviso).
+  const primeiroContato = current === null && !(await temCadastro(deps.db, phoneHmac));
   return comAviso(primeiroContato, await responder(msg, deps, current));
 }
 

@@ -17,6 +17,7 @@ arquivo novo que diz qual substitui.
 | [SCRUM-257](SCRUM-257-seed-pelo-dominio.md)      | Seed com inserções diretas e teste das regras do domínio |
 | [SCRUM-267](SCRUM-267-canal-telegram.md)         | Telegram como canal reserva do bot                       |
 | [SCRUM-275](SCRUM-275-canal-evolution.md)        | WhatsApp pela Evolution API para a demonstração          |
+| [SCRUM-308](SCRUM-308-pauta-sem-quorum.md)       | Pauta depois de duas conferências sem quórum             |
 | [SCRUM-314](SCRUM-314-sair-relatos-e-fotos.md)   | O que o `sair` apaga dos relatos, fotos e PDFs           |
 | [SCRUM-330](SCRUM-330-storage-minio.md)          | Storage das fotos e dos PDFs num MinIO dentro da VM      |
 

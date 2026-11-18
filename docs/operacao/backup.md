@@ -43,7 +43,9 @@ novo já tenha recebido fotos (`scripts/minio/espelhar-fotos.sh`).
 
 ## Instalar na VM
 
-Uma vez, depois do primeiro deploy:
+Uma vez, depois do primeiro deploy. O `scripts/deploy-homologacao.sh` deixa um aviso no log do CI
+a cada deploy enquanto o timer não estiver ativo, o último backup tiver falhado ou não houver
+dump das últimas 72 h:
 
 ```bash
 sudo mkdir -p /var/backups/lumens && sudo chown azureuser:azureuser /var/backups/lumens && sudo chmod 700 /var/backups/lumens
@@ -86,9 +88,10 @@ confere:
 Registre cada teste na tabela abaixo. O critério da SCRUM-95 pede um feito por alguém além de
 quem escreveu este procedimento.
 
-| Data       | Quem | Backup (data, tamanho) | Origem → restaurado                      | Resultado                    |
-| ---------- | ---- | ---------------------- | ---------------------------------------- | ---------------------------- |
-| 2026-11-10 | —    | local, 152 KB          | 9 pautas, 982 apoios, 35 eventos → igual | ok, no Postgres local (seed) |
+| Data       | Quem | Backup (data, tamanho) | Origem → restaurado                       | Resultado                    |
+| ---------- | ---- | ---------------------- | ----------------------------------------- | ---------------------------- |
+| 2026-11-10 | —    | local, 152 KB          | 9 pautas, 982 apoios, 35 eventos → igual  | ok, no Postgres local (seed) |
+| 2026-11-17 | —    | VM, 784 KB             | 13 pautas, 983 apoios, 70 eventos → igual | ok, na homologação (timer)   |
 
 Para testar na sua máquina, contra o Postgres do `docker-compose.yml`:
 
