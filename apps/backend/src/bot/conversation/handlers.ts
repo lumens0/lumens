@@ -8,6 +8,7 @@ import { temCadastro } from './estudante';
 import {
   entrarNaPautaNova,
   newAskCategory,
+  newConfirmCategory,
   newAskDescription,
   newAskPhoto,
   newAskPlace,
@@ -219,6 +220,7 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PLACE: newAskPlace,
   NEW_PICK_SIMILAR: newPickSimilar,
   NEW_ASK_CATEGORY: newAskCategory,
+  NEW_CONFIRM_CATEGORY: newConfirmCategory,
   NEW_ASK_DESCRIPTION: newAskDescription,
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,

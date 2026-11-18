@@ -195,3 +195,21 @@ relato vira a descrição quando cabe nela.
 A resposta vale tocada na lista (`categoria:seguranca`) ou digitada, com ou sem acento ("Segurança",
 "seguranca"). As categorias são as de `CATEGORIAS` em `@lumens/contratos`, as mesmas do site, do
 painel e do CSV de dados abertos; a curadoria continua podendo trocá-la ao aprovar.
+
+### Sugestão de categoria (SCRUM-365)
+
+Ao abrir o passo da categoria, o servidor compara o título (e, vindo da 2.5, o relato) com as palavras
+de cada categoria, `PALAVRAS_DA_CATEGORIA` em
+[`categoria-sugerida.ts`](../../packages/dominio/src/pauta/categoria-sugerida.ts). Nenhum texto sai do
+sistema: sem serviço externo nem IA. Só o id da categoria sugerida fica na conversa; o texto segue
+cifrado.
+
+| Situação                                | Passo                  | Mensagem                                                                      |
+| --------------------------------------- | ---------------------- | ----------------------------------------------------------------------------- |
+| Uma categoria vence com clareza         | `NEW_CONFIRM_CATEGORY` | "Parece ser Infraestrutura. Confirma?", botões _Confirmar_ · _Escolher outra_ |
+| Empate ou nenhuma palavra reconhecida   | `NEW_ASK_CATEGORY`     | A lista completa, sem sugerir nada.                                           |
+| _Escolher outra_ (ou texto equivalente) | `NEW_ASK_CATEGORY`     | A lista completa; a escolha manual vale.                                      |
+
+_Confirmar_ e _Escolher outra_ cabem no limite de 20 caracteres por botão da Meta. Digitar o nome de
+uma categoria no lugar de tocar nos botões também vale. A sugestão nunca classifica sozinha: a pauta só
+recebe a categoria depois da confirmação ou da escolha do estudante.

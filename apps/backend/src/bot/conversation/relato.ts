@@ -17,9 +17,13 @@ import { eq, pautas, type Db } from '@lumens/db';
 import { z } from 'zod';
 import { entrarNoApoio } from './apoio';
 import { BLOCK_NOT_FOUND_TEXT, blocoCitado, blocoEscolhido, listaDeBlocos } from './blocos';
-import { listaDeCategorias } from './categorias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
-import { NEW_SIMILAR_LIST_TEXT, entrarNaPautaNova } from './nova-pauta';
+import {
+  NEW_SIMILAR_LIST_TEXT,
+  entrarNaPautaNova,
+  perguntarCategoria,
+  textoDaPauta,
+} from './nova-pauta';
 import {
   escolheuOutro,
   listaDeParecidas,
@@ -167,11 +171,7 @@ export const newPickSimilar: StepHandler = async (ctx) => {
   const parecidas = dadosDoRelato(state.data).parecidas ?? [];
 
   if (parecidas.length === 0 || escolheuOutro(input.text)) {
-    return {
-      next: 'NEW_ASK_CATEGORY',
-      data: { parecidas: undefined },
-      replies: [listaDeCategorias()],
-    };
+    return perguntarCategoria(textoDaPauta(ctx.segredo, state.data), { parecidas: undefined });
   }
 
   const escolhida = pautaEscolhida(input.text, parecidas);
@@ -190,11 +190,9 @@ export const newPickSimilar: StepHandler = async (ctx) => {
     .from(pautas)
     .where(eq(pautas.id, escolhida.id));
   if (pauta === undefined || SEM_APOIO.has(pauta.status)) {
-    return {
-      next: 'NEW_ASK_CATEGORY',
-      data: { parecidas: undefined },
-      replies: [NEW_SUPPORT_FAILED_TEXT, listaDeCategorias()],
-    };
+    return perguntarCategoria(textoDaPauta(ctx.segredo, state.data), { parecidas: undefined }, [
+      NEW_SUPPORT_FAILED_TEXT,
+    ]);
   }
 
   const resultado = await entrarNoApoio(ctx, escolhida.id);
