@@ -636,3 +636,12 @@
     padding: 8px 16px 48px;
   }
 }
+
+/* Ponto de um lugar que o OSM não tem: do mesmo tamanho na tela em qualquer zoom. */
+.pontoLocal {
+  r: calc(var(--k) * 6px);
+  fill: #ffc23d;
+  stroke: #0f1330;
+  stroke-width: calc(var(--k) * 2px);
+  pointer-events: none;
+}

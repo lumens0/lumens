@@ -96,6 +96,12 @@ def tipo_aberto(t):
     return None
 
 
+# Lugares que o OSM não tem, com a posição conferida no Google Maps (SCRUM-284). O melhor lugar
+# para corrigir é o próprio OSM; quando entrarem lá, saem daqui.
+LOCAIS_EXTRAS = {
+    'EDGE Academy': (-9.5535183, -35.779648),  # junto à pista de atletismo, na Av. Longitudinal
+}
+
 predios, linhas, abertas = [], [], []
 for id_, w in vias.items():
     t = tags(w)
@@ -165,6 +171,11 @@ saida = [
         f"  [{i}, {n!r}, '{d}', [{', '.join(f'{v:g}' for v in c)}], {sg!r}],"
         for i, n, d, c, sg in predios
     ],
+    '];',
+    '',
+    '/** Lugares fora do OSM: `[nome, x, y]` em metros, no mesmo desenho. */',
+    'export const PONTOS_LOCAIS: readonly (readonly [string, number, number])[] = [',
+    *[f"  [{n!r}, {plano(p)[0]:g}, {plano(p)[1]:g}]," for n, p in LOCAIS_EXTRAS.items()],
     '];',
     '',
     '/** Áreas abertas: `[id do OSM, tipo, nome, contorno, caixa]`. Nome vazio: sem rótulo. */',

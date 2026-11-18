@@ -5,7 +5,7 @@
  * `BLOCOS_DO_PREDIO` liga o prédio aos blocos do banco pelo slug. Bloco sem prédio aqui aparece só
  * na lista; quando os blocos oficiais forem cadastrados, é só acrescentar o slug.
  */
-import { AREAS_OSM, PREDIOS_OSM } from './campus-osm';
+import { AREAS_OSM, PONTOS_LOCAIS, PREDIOS_OSM } from './campus-osm';
 
 export { ALTURA_DO_CAMPUS, CAMINHOS, CONTORNO, LARGURA_DO_CAMPUS } from './campus-osm';
 
@@ -128,3 +128,12 @@ export const AREAS: readonly Area[] = AREAS_OSM.map(([id, tipo, nome, d, caixa])
   d,
   caixa,
 }));
+
+/** Lugar que o OpenStreetMap não tem (a EDGE Academy), marcado por um ponto. */
+export interface PontoLocal {
+  nome: string;
+  x: number;
+  y: number;
+}
+
+export const PONTOS: readonly PontoLocal[] = PONTOS_LOCAIS.map(([nome, x, y]) => ({ nome, x, y }));
