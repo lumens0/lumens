@@ -15,7 +15,7 @@ describe('GET /fotos/[ano]/[mes]/[arquivo]', () => {
 
   it('foto aprovada: devolve a imagem com o tipo e sem deixar o navegador adivinhar', async () => {
     vi.mocked(buscarFoto).mockResolvedValue({
-      bytes: new TextEncoder().encode('img').buffer as ArrayBuffer,
+      bytes: new TextEncoder().encode('img').buffer,
       tipo: 'image/jpeg',
     });
     const res = await pedir();
