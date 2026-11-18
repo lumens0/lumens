@@ -61,8 +61,18 @@ recriado, migrações aplicadas, os 31 blocos reais cadastrados e a tabela `cura
 linhas, para o painel não ficar sem login). Resultado: 31 blocos, 0 "(fictício)", 0 pautas. A Evolution
 e o chip não foram tocados. A migração 0024 (limite de link do painel) entra no próximo deploy.
 
+## Estado depois da apresentação (18/11/2026)
+
+Conferido na VM: backend, painel, Postgres, Caddy e Evolution saudáveis; 31 blocos reais, nenhum
+"(fictício)". O banco já recebeu dados novos depois do reset (1 pauta, 2 estudantes), então nada mais
+foi apagado. A VM ainda roda a main anterior ao PR 209: o deploy foi pulado porque o check da main
+estava vermelho (roteiros de integração, SCRUM-340), o que o PR 211 corrigiu.
+
 ## O que continua pendente
 
-- Ligar os blocos reais aos prédios do mapa (`BLOCOS_DO_PREDIO`, site, SCRUM-284, outra frente).
-- Conferir as bases de estudantes e a localização da Residência.
-- A recriação do banco da VM: não foi feita por esta entrega.
+- Deploy da main na homologação (aplica a migração 0024), com o check da main verde.
+- Base de demonstração coerente para a conquista completa (SCRUM-352,
+  `docs/operacao/demonstracao-conquista.md`).
+- Conferir as bases de estudantes com a PROGRAD e a localização da Residência.
+
+Os blocos reais já estão ligados aos prédios do mapa (`BLOCOS_DO_PREDIO`, SCRUM-284).
