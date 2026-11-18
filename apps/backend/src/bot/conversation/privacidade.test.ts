@@ -15,7 +15,7 @@ import { hmacHex, segredoCom } from '../../cripto/cifra';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import { estudanteVerificado } from './estudante';
-import { GREETING_TEXT, MENU_TEXT } from './handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './handlers';
 import { hashPhone } from './phone';
 import {
   LEAVE_CONFIRM_TEXT,
@@ -86,16 +86,16 @@ beforeEach(async () => {
 
 describe('aviso de privacidade (SCRUM-175)', () => {
   it('o primeiro contato mostra o aviso entre a saudação e o menu', async () => {
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 
   it('só no primeiro contato: a mensagem seguinte não repete o aviso', async () => {
     await send('oi');
-    expect(await send('menu')).toEqual([MENU_TEXT]);
+    expect(await send('menu')).toEqual([MENU_PRINCIPAL]);
   });
 
   it('primeira mensagem que é comando global também leva o aviso', async () => {
-    expect(await send('menu')).toEqual([PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('menu')).toEqual([PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 
   it('o aviso diz como sair e onde está a política completa', () => {
@@ -157,7 +157,7 @@ describe("comando 'sair' (SCRUM-176)", () => {
     await send('oi');
     await send('sair');
     await send('sim');
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 
   it('qualquer outra resposta cancela e volta ao menu sem mexer no cadastro', async () => {
@@ -165,7 +165,7 @@ describe("comando 'sair' (SCRUM-176)", () => {
     await send('oi');
     await send('sair');
 
-    expect(await send('não')).toEqual([STAYED_TEXT, MENU_TEXT]);
+    expect(await send('não')).toEqual([STAYED_TEXT, MENU_PRINCIPAL]);
     expect((await conversa())?.passo).toBe('MENU');
     expect(await estudanteVerificado(db, H)).toBe(estudanteId);
   });

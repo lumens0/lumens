@@ -25,11 +25,11 @@ import {
 import {
   defaultHandlers,
   GREETING_TEXT,
-  MENU_TEXT,
+  MENU_PRINCIPAL,
   type HandlerRegistry,
 } from './conversation/handlers';
 import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
-import { lista, type Resposta } from './conversation/resposta';
+import { lista, textoDaResposta, type Resposta } from './conversation/resposta';
 import { CONFERENCIA_REGISTRADA_TEXT } from './conversation/conferencia';
 import { PRIVACY_NOTICE_TEXT } from './conversation/privacidade';
 import { ConversationStore } from './conversation/store';
@@ -244,7 +244,7 @@ describe('processIncomingJob', () => {
     expect(await processIncomingJob(entrada, deps)).toEqual([
       GREETING_TEXT,
       PRIVACY_NOTICE_TEXT,
-      MENU_TEXT,
+      MENU_PRINCIPAL,
     ]);
 
     expect(await passo()).toBe('MENU');
@@ -255,7 +255,7 @@ describe('processIncomingJob', () => {
       phoneNumberId: 'PNID',
       wamidHmac: entrada.data.wamidHmac,
     });
-    expect(await respostas()).toEqual([[GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]]);
+    expect(await respostas()).toEqual([[GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]]);
     expect(await jobsConcluidos(db)).toEqual([{ name: JOBS.incomingMessage, id: entrada.id }]);
   });
 
@@ -826,10 +826,12 @@ describe('logSender', () => {
       phoneCifrado: 'c',
       phoneNumberId: 'P',
       wamidHmac: 'w',
-      repliesCifradas: cifrar(JSON.stringify([GREETING_TEXT, MENU_TEXT]), chaves.cifra),
+      repliesCifradas: cifrar(JSON.stringify([GREETING_TEXT, MENU_PRINCIPAL]), chaves.cifra),
     };
     await logSender(logger, chaves, { mostrarTexto: true }).send(mensagem);
-    expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({ texto: [GREETING_TEXT, MENU_TEXT] });
+    expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({
+      texto: [GREETING_TEXT, textoDaResposta(MENU_PRINCIPAL)],
+    });
   });
 });
 

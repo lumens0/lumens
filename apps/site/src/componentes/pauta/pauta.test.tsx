@@ -159,6 +159,12 @@ describe('página da pauta: seções', () => {
     expect(rotuloDoPapel('owner_removido', { papel: 'owner' })).toBe('Responsável saiu');
     expect(rotuloDoPapel('owner_removido', { papel: 'co_owner' })).toBe('Corresponsável saiu');
     expect(rotuloDoPapel('owner_entrou', { papel: 'co_owner' })).toBe('Novo corresponsável');
+    expect(rotuloDoPapel('owner_removido', { papel: 'owner', motivo: 'inatividade' })).toBe(
+      'Responsável removido por inatividade',
+    );
+    expect(rotuloDoPapel('owner_removido', { papel: 'co_owner', motivo: 'inatividade' })).toBe(
+      'Corresponsável removido por inatividade',
+    );
     expect(rotuloDoPapel('owner_entrou', {})).toBeUndefined();
   });
 

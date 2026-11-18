@@ -25,8 +25,8 @@ const ROTULOS: Record<TipoEvento, string> = {
   conferencia_aberta: 'Conferência aberta',
   conferencia_apurada: 'Conferência apurada',
   status_alterado: 'Status alterado',
-  owner_entrou: 'Novo owner',
-  owner_removido: 'Owner saiu',
+  owner_entrou: 'Novo responsável',
+  owner_removido: 'Responsável saiu',
   relato_aprovado: 'Relato publicado',
   pauta_urgente: 'Urgência da pauta alterada',
   bloco_corrigido: 'Bloco corrigido pela curadoria',
@@ -117,7 +117,7 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
       return `Resultado: ${nomeado(RESULTADO, dados.resultado)}, com ${texto(dados.total_respostas)} respostas.`;
     case 'owner_entrou':
     case 'owner_removido':
-      return `Papel: ${texto(dados.papel)}.`;
+      return `Papel: ${texto(dados.papel)}.${dados.motivo === 'inatividade' ? ' Removido por inatividade.' : ''}`;
     default:
       // Tipo do catálogo sem detalhe não mostra nada; tipo desconhecido mostra o `dados` cru,
       // para a curadoria não perder informação.

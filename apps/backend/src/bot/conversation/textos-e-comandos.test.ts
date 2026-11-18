@@ -94,7 +94,7 @@ describe('textos para estudante (SCRUM-334)', () => {
 
   it('a verificação concluída fala da verificação, não da pessoa', () => {
     expect(verificacao.VERIFIED_TEXT).toMatch(/^Pronto, sua verificação está feita ✅/);
-    expect(verificacao.ALREADY_VERIFIED_TEXT).toMatch(/^Sua verificação já está feita ✅/);
+    expect(verificacao.ALREADY_VERIFIED_TEXT).toMatch(/^Sua verificação já está feita\./);
   });
 });
 
@@ -106,7 +106,7 @@ describe('confirmação de saída (SCRUM-334)', () => {
     await noMenu();
     expect(await send('sair')).toEqual([privacidade.LEAVE_CONFIRM_TEXT]);
 
-    expect(await send('s')).toEqual([privacidade.STAYED_TEXT, handlers.MENU_TEXT]);
+    expect(await send('s')).toEqual([privacidade.STAYED_TEXT, handlers.MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
     const [linha] = await db.select({ saiuEm: estudantes.saiuEm }).from(estudantes);
     expect(linha?.saiuEm).toBeNull();
@@ -130,7 +130,7 @@ describe('menu (SCRUM-334)', () => {
     '"%s" no menu mostra o menu, sem "Não entendi"',
     async (texto) => {
       await noMenu();
-      expect(await send(texto)).toEqual([handlers.MENU_TEXT]);
+      expect(await send(texto)).toEqual([handlers.MENU_PRINCIPAL]);
       expect(await passo()).toBe('MENU');
     },
   );
@@ -139,7 +139,7 @@ describe('menu (SCRUM-334)', () => {
     '"%s" explica os comandos e mostra o menu',
     async (texto) => {
       await noMenu();
-      expect(await send(texto)).toEqual([handlers.HELP_TEXT, handlers.MENU_TEXT]);
+      expect(await send(texto)).toEqual([handlers.HELP_TEXT, handlers.MENU_PRINCIPAL]);
       expect(await passo()).toBe('MENU');
     },
   );
@@ -151,7 +151,7 @@ describe('menu (SCRUM-334)', () => {
 
   it('o resto continua sendo "Não entendi", que agora lembra da ajuda', async () => {
     await noMenu();
-    expect(await send('banana')).toEqual([handlers.MENU_INVALID_TEXT, handlers.MENU_TEXT]);
+    expect(await send('banana')).toEqual([handlers.MENU_INVALID_TEXT, handlers.MENU_PRINCIPAL]);
     expect(handlers.MENU_INVALID_TEXT).toContain('*ajuda*');
   });
 
@@ -159,13 +159,16 @@ describe('menu (SCRUM-334)', () => {
     '"%s" manda o link das pautas abertas e fica no menu',
     async (texto) => {
       await noMenu();
-      expect(await send(texto)).toEqual([handlers.OPEN_PAUTAS_TEXT, handlers.MENU_TEXT]);
+      expect(await send(texto)).toEqual([handlers.OPEN_PAUTAS_TEXT, handlers.MENU_PRINCIPAL]);
       expect(await passo()).toBe('MENU');
     },
   );
 
   it('o menu lista a opção 5 e o texto dela leva ao site', () => {
-    expect(handlers.MENU_TEXT).toContain('5 Ver pautas abertas');
+    expect(handlers.MENU_PRINCIPAL.linhas).toContainEqual({
+      id: '5',
+      titulo: 'Ver pautas abertas',
+    });
     expect(handlers.OPEN_PAUTAS_TEXT).toContain(ORIGEM_SITE_PRODUCAO);
   });
 });

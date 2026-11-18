@@ -11,23 +11,27 @@ Telegram, com o mesmo texto: escreva sempre para os dois.
 
 ## Não nomeie o canal nem o dado do canal
 
-- Nada de "WhatsApp", "Telegram", "telefone" ou "número" como identidade. Use "pelo bot", "na
-  conversa com o Lumens", "o identificador desta conversa".
+- Nada de "WhatsApp", "Telegram", "telefone" ou "número" como identidade, nem no aviso de
+  privacidade do bot. Use "pelo bot", "na conversa com o Lumens", "o identificador desta conversa,
+  cifrado".
 - Só cite o canal onde o texto já varia por canal (ex.: a política de privacidade do site).
 - `textos-do-canal.test.ts` barra as expressões mais comuns.
 
 ## Comandos e opções
 
-- Palavra de comando sempre em negrito: responda _sim_, _pular_, _menu_, _cancelar_, _sair_.
+- Palavra de comando sempre em negrito: responda `*sim*`, `*pular*`, `*menu*`, `*cancelar*`, `*sair*`.
 - Nunca cite o número de uma opção do menu ("Escolha 2 no menu"): se a ordem mudar, o texto mente.
-  Cite o nome: "mande _menu_ e escolha _Nova pauta_".
-- Listas numeradas saem de `renderizarEmTexto` (`canais/menu-em-texto.ts`), para os dois canais
-  desenharem do mesmo jeito.
+  Cite o nome: "mande `*menu*` e escolha `*Nova pauta*`".
+- O menu principal é uma lista (`MENU_PRINCIPAL`, em `handlers.ts`), como as outras: cada canal a
+  desenha do seu jeito (lista da Meta, teclado do Telegram, linhas numeradas em texto na Evolution).
+- Fim de fluxo: o menu volta inteiro; se a última resposta já for longa (mais de 280 caracteres),
+  vai só "Mande `*menu*` para ver as opções.".
 
 ## Emoji
 
 - ✅ só para confirmar uma ação que gravou algo (verificado, caminho aberto, proposta publicada,
-  apoio contado).
+  apoio contado, relato enviado). Mensagem que não grava nada ("já está feita") fica sem emoji.
+- 🎉 só quando a pauta bate a meta.
 - 🔒 só no aviso de privacidade.
 - Sem emoji em erro, pedido ou explicação.
 

@@ -48,7 +48,7 @@ import {
   supportedText,
 } from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT, coOwnerText } from './bot/conversation/co-owner';
-import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { FALABR_TEXT_INTRO, OPENED_TEXT } from './bot/conversation/minhas-pautas';
 import {
   DESCRIPTION_QUESTION_TEXT,
@@ -387,7 +387,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(await texto(RESPONSAVEL, 'oi', 3)).toEqual([
         GREETING_TEXT,
         PRIVACY_NOTICE_TEXT,
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
       // Sem verificação, a pauta nova passa por ela antes e retoma no título.
       expect(await texto(RESPONSAVEL, '2', 1)).toEqual([VERIFY_FIRST_TEXT]);
@@ -405,7 +405,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(resumo).toContain(`*Título:* ${TITULO}`);
       expect(resumo).toContain(`*Local:* ${BLOCO.nome}`);
       expect(resumo).toContain(`*Meta:* ${String(META)} apoios`);
-      expect(menu).toBe(MENU_TEXT);
+      expect(menu).toBe(MENU_PRINCIPAL);
 
       const [pauta] = await admin
         .select({ id: pautas.id, slug: pautas.slug, status: pautas.status })
@@ -454,7 +454,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
           corpo: COOWNER_INVITE_TEXT,
           botoes: [{ id: `cuidar ${pautaId}`, titulo: 'Quero cuidar' }],
         },
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
       // O relato ficou gravado nesta pauta, em nome dele, esperando a curadoria.
       const doApoiador = await admin
@@ -470,7 +470,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
 
       expect(await botao(APOIADOR, `cuidar ${pautaId}`, 2)).toEqual([
         coOwnerText(TITULO),
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
       const owners = await admin
         .select({ estudanteId: papeisPauta.estudanteId })
@@ -504,7 +504,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       ]);
       const fimDoApoio = await texto(TERCEIRO, 'pular', 3);
       expect(fimDoApoio[0]).toBe(SUPPORT_DONE_TEXT);
-      expect(fimDoApoio.at(-1)).toBe(MENU_TEXT);
+      expect(fimDoApoio.at(-1)).toBe(MENU_PRINCIPAL);
 
       const naApi = await pautaNaApi();
       expect(naApi).toMatchObject({ status: 'meta_batida', apoios: META });
@@ -636,11 +636,11 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
             { id: 'menu', titulo: 'Voltar ao menu' },
           ],
         },
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
       expect(await botao(APOIADOR, `ajudar ${propostaId}`, 2)).toEqual([
         volunteerText({ descricao: PROPOSTA, pessoasNecessarias: PESSOAS, voluntarios: 1 }),
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
 
       expect((await pautaNaApi()).caminhos).toContainEqual(

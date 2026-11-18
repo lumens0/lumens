@@ -12,7 +12,7 @@ import {
 import { BOTAO_PROPOR, botaoFeita } from '../conversation/proposta';
 import { listaDeParecidas, OTHER_ROW_ID } from '../conversation/relato';
 import { botoes, lista, type Resposta } from '../conversation/resposta';
-import { MENU_TEXT } from '../conversation/handlers';
+import { MENU_PRINCIPAL } from '../conversation/handlers';
 import { PRIVACY_NOTICE_TEXT } from '../conversation/privacidade';
 import { idDoCurso, listaDeCursos } from '../conversation/verificacao';
 import type { OutgoingReplies } from '../worker';
@@ -34,18 +34,18 @@ describe('paraTelegram', () => {
     expect(paraTelegram('oi', CHAT)).toEqual([{ chat_id: CHAT, text: 'oi' }]);
   });
 
-  it('o menu principal vem com 5 botões, que mandam o número da opção (SCRUM-324)', () => {
-    expect(paraTelegram(MENU_TEXT, CHAT)).toEqual([
+  it('o menu principal vem com 5 botões, que mandam o número da opção (SCRUM-324, SCRUM-340)', () => {
+    expect(paraTelegram(MENU_PRINCIPAL, CHAT)).toEqual([
       {
         chat_id: CHAT,
         text: 'O que você quer fazer?',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '1 Relatar problema', callback_data: '1' }],
-            [{ text: '2 Nova pauta', callback_data: '2' }],
-            [{ text: '3 Verificar e-mail', callback_data: '3' }],
-            [{ text: '4 Minhas pautas', callback_data: '4' }],
-            [{ text: '5 Ver pautas abertas', callback_data: '5' }],
+            [{ text: 'Relatar problema', callback_data: '1' }],
+            [{ text: 'Nova pauta', callback_data: '2' }],
+            [{ text: 'Verificar e-mail', callback_data: '3' }],
+            [{ text: 'Minhas pautas', callback_data: '4' }],
+            [{ text: 'Ver pautas abertas', callback_data: '5' }],
           ],
         },
       },
