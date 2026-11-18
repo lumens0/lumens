@@ -1,8 +1,7 @@
 # SCRUM-80 · Esquema e contratos para validação
 
 > **Estado: PREPARAÇÃO.** Este material ainda não representa a versão estável da T7. A validação
-> das partes 2 a 5 e as decisões pendentes devem ser registradas em
-> [`decisoes.md`](../decisoes/SCRUM-80-decisoes-da-equipe.md) antes do congelamento.
+> das partes 2 a 5 e as decisões pendentes devem acontecer antes do congelamento.
 
 Fontes executáveis: [`schema.ts`](../../packages/db/src/schema.ts),
 [`migrations/`](../../packages/db/migrations/) e [`index.ts` do domínio](../../packages/dominio/src/index.ts).
@@ -116,7 +115,7 @@ de escrita abaixo são a proposta de contrato a fechar com as partes; os nomes e
 | `removerOwner`             | encerrar um mandato sem apagar o histórico                     | `owner_removido`                |
 | `aprovarRelato`            | concluir a moderação e liberar o relato                        | `relato_aprovado`               |
 
-A auditoria técnica dos consumidores está em [`decisoes.md`](../decisoes/SCRUM-80-decisoes-da-equipe.md). A confirmação humana de
+A confirmação humana de
 cada parte continua obrigatória antes de declarar que a apresentação ocorreu.
 
 ### Contrato de escrita

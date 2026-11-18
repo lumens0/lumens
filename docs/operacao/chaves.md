@@ -125,7 +125,7 @@ sem o `--env-file`, o Compose não acha o `DOMINIO` e para antes de fazer qualqu
    SCRUM-307, `outgoing-replies-dead`) ficam de fora: nenhum
    consumidor as lê, então subir o back-end não as esvazia. Elas guardam mensagens que o bot já
    descartou, só para investigar, e saem sozinhas em até 14 dias
-   ([retenção nas filas](../decisoes/SCRUM-174-aviso-de-privacidade.md)). Depois da troca não
+   (retenção nas filas). Depois da troca não
    decifram mais. Confira quantas há:
 
    ```sql

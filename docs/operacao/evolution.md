@@ -1,7 +1,7 @@
 # Canal do WhatsApp pela Evolution API
 
 Como ligar, parear, trocar o chip e desligar o canal não oficial do bot (SCRUM-275). Por que ele
-existe e quando deixa de valer: [decisão SCRUM-275](../decisoes/SCRUM-275-canal-evolution.md).
+existe e quando deixa de valer: SCRUM-275.
 
 O bot continua o mesmo; muda só por onde as mensagens entram e saem. A Evolution API (v2.3.7, com a
 Baileys 7.0.0-rc.9) se conecta ao WhatsApp como um **aparelho conectado** do chip, igual ao

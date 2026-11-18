@@ -26,7 +26,7 @@ import { JOBS } from '../infra/queue';
  *
  * Cada rodada pergunta ao banco o que está vencido e ainda não foi feito, nunca "o que vence agora".
  * Por isso uma rodada perdida (deploy, queda, máquina desligada) não perde nada: a seguinte faz o
- * que faltou, e rodar duas vezes não faz nada duas vezes (`docs/decisoes/SCRUM-239-janela-perdida.md`).
+ * que faltou, e rodar duas vezes não faz nada duas vezes (SCRUM-239).
  */
 
 /** A cada dez minutos: a abertura da conferência atrasa no máximo isso, o resto é por dia. */

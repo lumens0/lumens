@@ -4,7 +4,7 @@
  * O seed (`packages/db/seed`) insere direto nas tabelas, de propósito: ele precisa de ids, slugs e
  * datas fixos (o e2e e os testes da API dependem deles) e de reaplicar sem duplicar, e as funções
  * do domínio geram id e slug novos a cada chamada. Além disso, o pacote `db` não pode importar o
- * `dominio`, que depende dele. A decisão está em docs/decisoes/SCRUM-257-seed-pelo-dominio.md.
+ * `dominio`, que depende dele. A decisão é a SCRUM-257.
  *
  * O preço é o risco que a task apontou: o seed pode montar um estado que o domínio nunca
  * produziria, e o site e o e2e passariam em cima dele. Este teste fecha esse risco: carrega o seed

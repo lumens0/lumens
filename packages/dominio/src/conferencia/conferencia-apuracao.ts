@@ -78,7 +78,7 @@ export async function encerrarConferencia(
 
   await tx.update(promessas).set({ resultado }).where(eq(promessas.id, promessaId));
 
-  // Sem quórum, a pauta volta a `cobrando` (SCRUM-308, docs/decisoes/SCRUM-308-pauta-sem-quorum.md):
+  // Sem quórum, a pauta volta a `cobrando` (SCRUM-308):
   // a promessa fica registrada como `sem_quorum` e a curadoria pode registrar outra. Na primeira
   // rodada isto também roda, mas o `fecharConferencia` desfaz o savepoint e reabre a conferência.
   await transicionarStatus(tx, {

@@ -189,7 +189,7 @@ docker run --rm node:24-slim node -e "console.log(require('crypto').randomBytes(
 ### Storage das fotos e dos PDFs (MinIO)
 
 As fotos do relato e os PDFs da resposta oficial ficam num MinIO dentro do próprio compose
-(serviço `minio`, perfil `minio`, [decisão SCRUM-330](../decisoes/SCRUM-330-storage-minio.md)).
+(serviço `minio`, perfil `minio`, SCRUM-330).
 Ele não tem porta publicada: só o back-end e o painel falam com ele, pela rede interna.
 
 No `.env.producao`, deixe como no modelo `S3_ENDPOINT=http://minio:9000`,

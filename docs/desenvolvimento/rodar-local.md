@@ -85,7 +85,7 @@ pnpm --filter @lumens/painel dev   # http://localhost:3002
 
 ## Bot pelo Telegram, na sua máquina
 
-O Telegram é o canal reserva do bot ([decisão](../decisoes/SCRUM-267-canal-telegram.md)) e o único
+O Telegram é o canal reserva do bot e o único
 que dá para testar no celular sem a Meta nem a Evolution.
 
 1. No Telegram, abra o `@BotFather`, mande `/newbot` e crie um bot **só seu**, de
@@ -187,4 +187,3 @@ estado estranho, `pnpm db:fresh` recria do zero — **destrutivo**, apaga o volu
 - [Como usar o domínio](../../packages/dominio/README.md)
 - [API de leitura pública](../arquitetura/api.md)
 - [Contrato do banco](../arquitetura/banco.md) e [`@lumens/db`](../../packages/db/README.md)
-- [Decisões do projeto](../decisoes/SCRUM-80-decisoes-da-equipe.md)

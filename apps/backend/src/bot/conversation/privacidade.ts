@@ -14,7 +14,7 @@ import { apagarCodigo, sairDoLumens } from '@lumens/dominio';
 import type { StepContext, StepHandler, StepResult } from './handlers';
 import { normalize } from './texto';
 
-// SCRUM-174: texto e base legal em docs/decisoes/SCRUM-174-aviso-de-privacidade.md. Ele descreve
+// SCRUM-174: texto e base legal. Ele descreve
 // só o que o sistema faz hoje, igual à página /privacidade: mudou o comportamento, mude os dois.
 export const PRIVACY_NOTICE_TEXT = [
   '🔒 *Sua privacidade no Lumens*',
@@ -24,7 +24,7 @@ export const PRIVACY_NOTICE_TEXT = [
   `Política completa, com o que fica depois da saída: ${ORIGEM_SITE_PRODUCAO}/privacidade`,
 ].join('\n');
 
-// SCRUM-314: o que sai e o que fica, como o `sairDoLumens` faz (docs/decisoes/SCRUM-314-...).
+// SCRUM-314: o que sai e o que fica, como o `sairDoLumens` faz.
 export const LEAVE_CONFIRM_TEXT = [
   'Quer mesmo sair do Lumens?',
   'O seu identificador e o seu e-mail serão apagados, e você deixa de ser responsável pelas pautas que cuidava. Os relatos que ainda não foram publicados também são apagados, com as fotos.',

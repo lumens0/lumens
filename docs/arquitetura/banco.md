@@ -209,7 +209,7 @@ SQLSTATE e constraint, além da busca, metadados e consumo de tipos pelo domíni
 - T6 concluída: `pnpm db:fresh` aplica as migrations e carrega o seed com uma pauta por status.
 - T7 em validação: o [material da apresentação](esquema-e-contratos.md) consolida o diagrama, status,
   transições, funções e eventos decididos. Participantes e pedidos devem ser registrados
-  na [ata de decisões](../decisoes/SCRUM-80-decisoes-da-equipe.md); enquanto ela estiver pendente, o contrato não está congelado.
+  na ata de decisões; enquanto ela estiver pendente, o contrato não está congelado.
 - Confirmar nomes reais dos blocos e base DIACOM antes do seed definitivo.
 - Domínio/agendador: expiração em dez minutos, máximo de tentativas, retenção de 24h,
   máximo de responsáveis ativos e transições. Os campos existem; as rotinas não estão nesta task.

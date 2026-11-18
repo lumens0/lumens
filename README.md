@@ -66,7 +66,6 @@ O índice completo está em [docs/README.md](docs/README.md). Os mais usados:
 | [API de leitura pública](docs/arquitetura/api.md)            | rotas, campos e exemplos que o site consome                              |
 | [Contrato do banco](docs/arquitetura/banco.md)               | diagrama ER, campos, status e decisões da primeira versão                |
 | [`@lumens/db`](packages/db/README.md)                        | papéis, views públicas e seed em detalhe                                 |
-| [Decisões do projeto](docs/decisoes/README.md)               | o que já foi decidido, e por quê                                         |
 | [Homologação](docs/operacao/homologacao.md)                  | a VM, os secrets e o deploy                                              |
 | [Backup do banco](docs/operacao/backup.md)                   | backup diário, teste de restauração e o que fazer num incidente          |
 | [Chaves de criptografia](docs/operacao/chaves.md)            | para que serve cada chave, como gerar, rotacionar e o que fazer se vazar |
@@ -368,11 +367,10 @@ Pendências da parte 2:
   é texto, lista ou botões (`src/bot/conversation/resposta.ts`), que viram
   `interactive.type = "list"` (uma seção só) e `interactive.type = "button"` (os caminhos da 3.3).
 - **E-mail do código numa segunda conta:** o envio foi testado numa conta real da UFAL
-  (SCRUM-139) e sai pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo
-  ([decisão](docs/decisoes/SCRUM-139-email-pelo-google.md)).
+  (SCRUM-139) e sai pelo SMTP do Google da conta `@ic.ufal.br`, não pela Brevo.
 - **Bucket das fotos:** o código baixa a foto da Meta, tira os metadados e grava no
   `S3_BUCKET_FOTOS`, mas a homologação ainda não tem bucket, então a foto é recusada com aviso e o
-  "pular" continua funcionando ([SCRUM-251](docs/decisoes/SCRUM-251-fotos-sem-storage.md)).
+  "pular" continua funcionando (SCRUM-251).
 
 ## API de leitura pública
 
