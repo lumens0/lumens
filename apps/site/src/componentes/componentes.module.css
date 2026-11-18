@@ -147,6 +147,16 @@
   cursor: pointer;
 }
 
+@media (max-width: 520px) {
+  .filtro {
+    justify-content: space-between;
+  }
+  .filtro select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .estado {
   padding: 40px var(--espaco);
   background: var(--superficie);
