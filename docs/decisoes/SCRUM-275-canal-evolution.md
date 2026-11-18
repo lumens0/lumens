@@ -138,6 +138,17 @@ letras com a instância criada já com o número; os três códigos do dia anter
 - [ ] **Sessão que não volta:** não aconteceu neste teste, então o `close` do `/saude/whatsapp`
       nesse caso segue sem conferência com o chip.
 
+**Foto num relato com o chip, em 2026-11-18** (SCRUM-341, back-end da `main` em `74bc1654`):
+
+- [x] **A Evolution entrega a foto e ela é guardada.** A primeira tentativa baixou a foto pelo
+      `getBase64FromMediaMessage`, mas o bot avisou que o envio de fotos estava fora do ar: o
+      `.env.producao` da VM ainda tinha o bucket de fachada (`S3_ENDPOINT` vazio) e o MinIO nunca
+      tinha sido ligado. Depois de configurar o MinIO e rodar o deploy (procedimento de
+      `docs/operacao/homologacao.md`), a foto foi recebida e o objeto `fotos/2026/11/<uuid>.jpg`
+      apareceu no bucket `lumens-arquivos`, sem `foto: storage falhou` no log.
+- [ ] **Sessão que não volta** continua sem conferência: derrubar a sessão de propósito exigiria
+      repareamento, que o chip não pode sofrer.
+
 ## O risco que esta decisão aceita
 
 - **Banimento do número.** O uso é fora dos termos do WhatsApp. Mitigações: as regras de ritmo
