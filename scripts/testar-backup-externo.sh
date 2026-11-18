@@ -10,6 +10,7 @@
 #      espelho das fotos, só o dump vai;
 #   1b. com o espelho das fotos, vai também um `.tar` cifrado que decifra com os mesmos arquivos;
 #   2. a chave da VM só grava: não lê o que enviou;
+#   2b. com o marcador de espelho que falhou, o dump novo vai, as fotos não, e o envio FALHA;
 #   3. destino fora do ar: o envio FALHA;
 #   4. sem chave pública do age: FALHA;
 #   5. sem .env.backup: FALHA;
@@ -154,6 +155,16 @@ cenario '1b. o .tar de fora decifra com os mesmos arquivos' passou arquivos_igua
 cenario '1b. nenhum temporário ficou para trás' passou bash -c '[[ -z $(find "$BACKUP_DIR" -name ".envio-*") ]]'
 cenario '2. a chave da VM não lê o bucket' falhou env CHAVE_ID=chave-da-vm CHAVE=senha-da-vm-de-teste \
   bash -c "$(declare -f ler_do_b2); ler_do_b2 lumens-2026-11-17T150000Z.dump.age"
+
+# Espelho que falhou depois do dump (o backup-banco.sh deixa o marcador): o dump do dia vai para
+# fora mesmo assim, as fotos velhas não vão com o carimbo novo, e o envio termina com erro.
+head -c 300000 /dev/urandom >"$BACKUP_DIR/diario/lumens-2026-11-18T150000Z.dump"
+: >"$BACKUP_DIR/.espelho-falhou"
+cenario '2b. espelho que falhou: o envio FALHA' falhou /repo/scripts/enviar-backup.sh
+cenario '2b. diz que as fotos ficaram de fora' passou grep -q 'espelho das fotos falhou' /tmp/anterior
+cenario '2b. o dump novo foi para fora' passou bash -c "$(declare -f listar_b2); listar_b2 | grep -q '^diario/lumens-2026-11-18T150000Z.dump.age$'"
+cenario '2b. as fotos velhas não foram com o carimbo novo' passou bash -c "$(declare -f listar_b2); ! listar_b2 | grep -q 'lumens-arquivos-2026-11-18'"
+rm -f "$BACKUP_DIR/.espelho-falhou"
 
 configurar http://b2:9999 "$publica"
 cenario '3. destino fora do ar' falhou /repo/scripts/enviar-backup.sh

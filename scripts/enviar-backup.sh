@@ -85,7 +85,14 @@ enviar "$cifrado" "diario/$(basename "$arquivo").age"
 # até 60 dias. O preço é reenviar tudo todo dia, o que cabe enquanto o volume for pequeno
 # (docs/operacao/backup.md). O nome leva o carimbo do dump: é o par a restaurar junto.
 espelho=$BACKUP_DIR/arquivos
-if [[ -n $(find "$espelho" -mindepth 1 -print -quit 2>/dev/null) ]]; then
+# O backup-banco.sh deixa este marcador quando o espelho falhou depois de gerar o dump. O espelho
+# que sobrou é o de antes: não vai com o carimbo de hoje, para o par dump + fotos não mentir. O
+# dump já foi, e o script termina com erro no fim, para o alerta sair.
+espelho_falhou=0
+[[ -e $BACKUP_DIR/.espelho-falhou ]] && espelho_falhou=1
+if ((espelho_falhou)); then
+  echo "ERRO: o espelho das fotos falhou na última rodada do backup; só o banco vai." >&2
+elif [[ -n $(find "$espelho" -mindepth 1 -print -quit 2>/dev/null) ]]; then
   carimbo=$(basename "$arquivo" .dump)
   carimbo=${carimbo#lumens-}
   cifrado_arquivos=$(mktemp "$BACKUP_DIR/.envio-XXXXXX")
@@ -96,4 +103,8 @@ else
   echo "--> Sem espelho de fotos em $espelho (storage fora do MinIO ou vazio): só o banco vai."
 fi
 
+if ((espelho_falhou)); then
+  echo "--> Dump copiado para fora da VM, cifrado; as fotos e os PDFs desta rodada ficaram de fora." >&2
+  exit 1
+fi
 echo "--> Cópia fora da VM pronta, cifrada"
