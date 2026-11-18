@@ -100,6 +100,11 @@ def tipo_aberto(t):
 # para corrigir é o próprio OSM; quando entrarem lá, saem daqui.
 LOCAIS_EXTRAS = {
     'EDGE Academy': (-9.5535183, -35.779648),  # junto à pista de atletismo, na Av. Longitudinal
+    # Observatório da Rede de Inovação para a Educação Híbrida (RIEH), sede do NEES: o prédio à
+    # esquerda do IC, na Av. Longitudinal 1. O OSM ainda não o desenha.
+    'NEES (RIEH)': (-9.553674, -35.7771764),
+    # CRAD/UFAL: no Google Maps o pino cai em terreno sem prédio desenhado no OSM.
+    'CRAD': (-9.5546314, -35.7710587),
 }
 
 # Unidades que o OSM desenha como área `amenity=university` (sem `building`), e não como prédio. O
@@ -140,6 +145,30 @@ for id_, w in vias.items():
         abertas.append([int(id_), ABERTAS[chave], nome, caminho(pl, True), caixa, chave])
     elif t.get('highway') in CAMINHOS and any(dentro(p, borda) for p in em_metros):
         linhas.append(caminho([plano(p) for p in pts], False))
+
+# Prédios desenhados como relação `multipolygon` (a Reitoria, com pátio interno): o contorno externo
+# mais os anéis de dentro, num `d` só. O preenchimento par-ímpar (no CSS) deixa o pátio vazio.
+for rel in raiz.iter('relation'):
+    t = {x.get('k'): x.get('v') for x in rel.findall('tag')}
+    if t.get('type') != 'multipolygon' or 'building' not in t:
+        continue
+    aneis = []
+    for m in rel.findall('member'):
+        w = vias.get(m.get('ref')) if m.get('type') == 'way' else None
+        if w is not None and m.get('role') in ('outer', 'inner') and len(pontos(w)) >= 4:
+            aneis.append((m.get('role'), pontos(w)))
+    externos = [pts for papel, pts in aneis if papel == 'outer']
+    if not externos:
+        continue
+    cx = sum(p[0] for p in externos[0]) / len(externos[0])
+    cy = sum(p[1] for p in externos[0]) / len(externos[0])
+    if not dentro(metros((cx, cy)), borda):
+        continue
+    d = ''.join(caminho([plano(p) for p in pts[:-1]], True) for _, pts in aneis)
+    px = [x for _, pts in aneis if _ == 'outer' for x, _y in (plano(p) for p in pts)]
+    py = [y for _, pts in aneis if _ == 'outer' for _x, y in (plano(p) for p in pts)]
+    caixa = [min(px), min(py), round(max(px) - min(px), 1), round(max(py) - min(py), 1)]
+    predios.append((int(rel.get('id')), t.get('name', ''), d, caixa, t.get('short_name') or t.get('ref', '')))
 
 predios.sort()
 linhas.sort()
