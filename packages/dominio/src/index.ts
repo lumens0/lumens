@@ -153,6 +153,14 @@ export type {
   ResumoDaCuradoria,
 } from './pauta/curadoria';
 
+export {
+  DIAS_DO_TEMPO_MEDIO,
+  JANELA_DE_PRAZO_PROXIMO_MS,
+  SEMANAS_DE_APOIO,
+  visaoGeralDaCuradoria,
+} from './pauta/visao-geral';
+export type { ApoiosDaSemana, VisaoGeralDaCuradoria } from './pauta/visao-geral';
+
 export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
 export type {
   AprovacaoDeRelato,
