@@ -69,6 +69,11 @@ function statusNovo(item: AtividadeItem): StatusPauta | undefined {
 
 /** "Status alterado para Conquistada" em vez de só "Status alterado"; os outros tipos, o rótulo. */
 function textoDoEvento(item: AtividadeItem): string {
+  if (item.tipo === 'pauta_urgente') {
+    return item.dados.urgente === true
+      ? 'Marcada como urgente pela curadoria'
+      : 'Deixou de ser urgente';
+  }
   const novo = statusNovo(item);
   return novo ? `${rotuloEvento(item.tipo)} para ${STATUS[novo].rotulo}` : rotuloEvento(item.tipo);
 }

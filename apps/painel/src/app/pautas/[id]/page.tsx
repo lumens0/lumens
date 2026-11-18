@@ -3,7 +3,13 @@ import { notFound, redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
 import { sair } from '../../acoes';
 import { Moldura } from '../../moldura';
-import { aprovar, definirCategoria, recusar, recusarRelatoDeOrigem } from './acoes';
+import {
+  aprovar,
+  atualizarUrgencia,
+  definirCategoria,
+  recusar,
+  recusarRelatoDeOrigem,
+} from './acoes';
 import { UUID } from './decisoes';
 import { Pauta } from './pauta';
 
@@ -36,6 +42,7 @@ export default async function PaginaDaPauta({
         aprovar={aprovar}
         recusar={recusar}
         definirCategoria={definirCategoria}
+        atualizarUrgencia={atualizarUrgencia}
         recusarRelatoDeOrigem={recusarRelatoDeOrigem}
         linhaAberta={linha === 'aberta'}
       />
