@@ -33,7 +33,7 @@ import {
 import { PAUTA_NOT_FOUND_TEXT, parseComandoDoSite } from './comandos-do-site';
 import { AVISO_SEM_RESPOSTA_TEXT } from './conferencia';
 import {
-  MENU_TEXT,
+  MENU_PRINCIPAL,
   defaultHandlers,
   type HandlerRegistry,
   type StepContext,
@@ -244,14 +244,14 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     const p = pessoa('5582999990010');
     await p.send('oi');
 
-    expect(await p.send('apoiar 0000aaaa')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_TEXT]);
+    expect(await p.send('apoiar 0000aaaa')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_PRINCIPAL]);
   });
 
   it('pauta que não existe, no menu, avisa sem mandar verificar', async () => {
     const p = pessoa('5582999990004');
     await p.send('oi');
 
-    expect(await p.send('apoiar nao-existe')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_TEXT]);
+    expect(await p.send('apoiar nao-existe')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_PRINCIPAL]);
     expect(await p.passo()).toBe('MENU');
   });
 
@@ -260,7 +260,7 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     expect(await p.send('apoiar nao-existe')).toEqual([
       PRIVACY_NOTICE_TEXT,
       PAUTA_NOT_FOUND_TEXT,
-      MENU_TEXT,
+      MENU_PRINCIPAL,
     ]);
   });
 
@@ -278,7 +278,7 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     const p = pessoa('5582999990007');
     await p.send('oi');
 
-    expect(await p.send(`apoiar ${SLUG}`)).toEqual([SUPPORT_CLOSED_TEXT, MENU_TEXT]);
+    expect(await p.send(`apoiar ${SLUG}`)).toEqual([SUPPORT_CLOSED_TEXT, MENU_PRINCIPAL]);
     expect(await p.passo()).toBe('MENU');
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
   });
@@ -310,7 +310,7 @@ describe('"ajudar <slug>" sem proposta aberta (2.8)', () => {
     const p = pessoa('5582999990020');
     await p.send('oi');
 
-    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_PRINCIPAL]);
     expect(await p.passo()).toBe('MENU');
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
   });
@@ -360,7 +360,7 @@ describe('virar co-owner (2.8, RN06)', () => {
     const fim = await apoiarEPular(p);
     expect(fim).toContainEqual(convite());
 
-    expect(await p.send(`cuidar ${pautaId}`)).toEqual([coOwnerText(TITULO), MENU_TEXT]);
+    expect(await p.send(`cuidar ${pautaId}`)).toEqual([coOwnerText(TITULO), MENU_PRINCIPAL]);
     expect(await papeisDaPauta()).toMatchObject([{ estudanteId, papel: 'co_owner', ate: null }]);
     const tipos = (await db.select().from(eventos).where(eq(eventos.pautaId, pautaId))).map(
       (e) => e.tipo,
@@ -380,7 +380,7 @@ describe('virar co-owner (2.8, RN06)', () => {
     await p.send('oi');
 
     expect(await apoiarEPular(p)).not.toContainEqual(convite());
-    expect(await p.send(`cuidar ${SLUG}`)).toEqual([ownersFullText(TITULO), MENU_TEXT]);
+    expect(await p.send(`cuidar ${SLUG}`)).toEqual([ownersFullText(TITULO), MENU_PRINCIPAL]);
     expect(await papeisDaPauta()).toHaveLength(3);
   });
 
@@ -404,7 +404,7 @@ describe('virar co-owner (2.8, RN06)', () => {
     await db.insert(papeisPauta).values({ pautaId, estudanteId, papel: 'owner' });
     await p.send('oi');
 
-    expect(await p.send(`cuidar ${pautaId}`)).toEqual([alreadyOwnerText(TITULO), MENU_TEXT]);
+    expect(await p.send(`cuidar ${pautaId}`)).toEqual([alreadyOwnerText(TITULO), MENU_PRINCIPAL]);
     expect(await papeisDaPauta()).toHaveLength(1);
   });
 
@@ -492,7 +492,7 @@ describe('comandos e botões de aviso no meio de um fluxo (SCRUM-299)', () => {
 
   it('"ajudar <endereço de pauta>" continua sendo o comando do site, mesmo no meio de um fluxo', async () => {
     const p = await noPasso('NEW_ASK_TITLE');
-    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
+    expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_PRINCIPAL]);
     expect(p.recebidos).toEqual([]);
   });
 

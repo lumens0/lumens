@@ -54,11 +54,11 @@ export const SUPPORT_PHOTO_ASK_TEXT =
   'Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*.';
 export const PHOTO_NOT_ATTACHED_TEXT =
   'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
-export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado.';
+export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado ✅';
 export const REPORT_SENT_TEXT =
-  'Relato enviado para a moderação. Ele aparece no site depois de aprovado, sem o seu nome.';
+  'Relato enviado para a moderação ✅ Ele aparece no site depois de aprovado, sem o seu nome.';
 export const REPORT_SENT_WITH_PHOTO_TEXT =
-  'Relato e foto enviados para a moderação. Eles aparecem no site depois de aprovados, sem o seu nome.';
+  'Relato e foto enviados para a moderação ✅ Eles aparecem no site depois de aprovados, sem o seu nome.';
 export const SUPPORT_DATA_LOST_TEXT =
   'Não consegui recuperar o seu relato. O seu apoio continua contado.';
 export const REPORT_REFUSED_TEXT =

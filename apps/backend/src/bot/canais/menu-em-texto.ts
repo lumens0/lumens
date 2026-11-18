@@ -46,7 +46,7 @@ export function menuDoTurno(respostas: readonly Resposta[]): MenuEmTexto | null 
 }
 
 /**
- * Tira o menu principal (`menuPrincipal`, o `MENU_TEXT`) que venha depois de um menu numerado.
+ * Tira o menu principal (`MENU_PRINCIPAL`) que venha depois de um menu numerado.
  * O router o acrescenta quando um fluxo termina no menu, e no "Vou ajudar" isso acontece logo
  * depois dos botões. Com botões nativos não há confusão; em texto seriam duas numerações seguidas
  * e o "1" ficaria ambíguo. As opções desses botões são comandos globais (`ajudar <id>`, `menu`),
@@ -54,12 +54,13 @@ export function menuDoTurno(respostas: readonly Resposta[]): MenuEmTexto | null 
  */
 export function semMenuPrincipalDepoisDoMenu(
   respostas: readonly Resposta[],
-  menuPrincipal: string,
+  ehMenuPrincipal: (resposta: Resposta) => boolean,
 ): Resposta[] {
   let depoisDeMenu = false;
   return respostas.filter((resposta) => {
+    if (depoisDeMenu && ehMenuPrincipal(resposta)) return false;
     if (menuDaResposta(resposta) !== null) depoisDeMenu = true;
-    return !(depoisDeMenu && resposta === menuPrincipal);
+    return true;
   });
 }
 

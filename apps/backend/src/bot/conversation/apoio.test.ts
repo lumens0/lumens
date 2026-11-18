@@ -33,7 +33,7 @@ import {
   supportedText,
 } from './apoio';
 import { COOWNER_INVITE_TEXT } from './co-owner';
-import { MENU_TEXT } from './handlers';
+import { MENU_PRINCIPAL } from './handlers';
 import { photoRefusedText } from './nova-pauta';
 import { hashPhone } from './phone';
 import { CANCEL_PHOTO_TEXT, handleIncoming } from './router';
@@ -180,7 +180,7 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     await send(RELATO);
     // A pauta saiu de `juntando_apoios` enquanto a pessoa escolhia.
     await db.update(pautas).set({ status: 'conquistada' }).where(eq(pautas.id, pautaId));
-    expect(await send(`pauta:${pautaId}`)).toEqual([SUPPORT_CLOSED_TEXT, MENU_TEXT]);
+    expect(await send(`pauta:${pautaId}`)).toEqual([SUPPORT_CLOSED_TEXT, MENU_PRINCIPAL]);
     expect(await apoiosDaPauta()).toHaveLength(0);
     expect(await passo()).toBe('MENU');
     expect(await dados()).toEqual({});
@@ -206,7 +206,7 @@ describe('relato e foto do apoio (2.7)', () => {
   it('"sim" e foto gravam o relato pendente com a foto', async () => {
     expect(await send('sim')).toEqual([REPORT_SENT_TEXT, SUPPORT_PHOTO_ASK_TEXT]);
     expect(await passo()).toBe('SUPPORT_ASK_PHOTO');
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     const [relato, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
     expect(relato).toMatchObject({
@@ -220,13 +220,13 @@ describe('relato e foto do apoio (2.7)', () => {
 
   it("'pular' a foto deixa só o relato, pendente", async () => {
     await send('sim');
-    expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_TEXT]);
+    expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_PRINCIPAL]);
     const [relato] = await relatosDaPauta();
     expect(relato).toMatchObject({ texto: RELATO, fotoChave: null, moderacao: 'pendente' });
   });
 
   it('"não" encerra sem relato, com o apoio contado', async () => {
-    expect(await send('não')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_TEXT]);
+    expect(await send('não')).toEqual([SUPPORT_DONE_TEXT, convite(), MENU_PRINCIPAL]);
     expect(await relatosDaPauta()).toEqual([]);
     expect(await apoiosDaPauta()).toHaveLength(1);
     expect(await dados()).toEqual({});
@@ -286,7 +286,7 @@ describe('apoio sem relato da 2.5 (pedido guardado)', () => {
   });
 
   it("'pular' encerra sem relato", async () => {
-    expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, MENU_TEXT]);
+    expect(await send('pular')).toEqual([SUPPORT_DONE_TEXT, MENU_PRINCIPAL]);
     expect(await relatosDaPauta()).toEqual([]);
   });
 
@@ -325,7 +325,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
   );
 
   it('"cancelar" no passo da foto não diz que cancelou o relato, que já foi enviado', async () => {
-    expect(await send('cancelar')).toEqual([CANCEL_PHOTO_TEXT, MENU_TEXT]);
+    expect(await send('cancelar')).toEqual([CANCEL_PHOTO_TEXT, MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
   });
 
@@ -353,7 +353,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
 
   it('a foto enviada depois é juntada ao mesmo relato', async () => {
     const [antes] = await relatosDaPauta();
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     const [depois, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
     expect(depois).toMatchObject({ id: antes?.id, fotoChave: 'fotos/2026/11/abc.jpg' });
@@ -361,7 +361,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
 
   it('relato moderado antes da foto chegar: a foto não entra e a pessoa é avisada', async () => {
     await db.update(relatos).set({ moderacao: 'aprovado', moderadoEm: new Date() });
-    expect(await sendFoto()).toEqual([PHOTO_NOT_ATTACHED_TEXT, convite(), MENU_TEXT]);
+    expect(await sendFoto()).toEqual([PHOTO_NOT_ATTACHED_TEXT, convite(), MENU_PRINCIPAL]);
     expect(await relatosDaPauta()).toMatchObject([{ moderacao: 'aprovado', fotoChave: null }]);
   });
 
@@ -371,7 +371,7 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
       apoioPautaId: pautaId,
       relatoCifrado: segredo.cifrar(RELATO),
     });
-    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_TEXT]);
+    expect(await sendFoto()).toEqual([REPORT_SENT_WITH_PHOTO_TEXT, convite(), MENU_PRINCIPAL]);
     expect(await relatosDaPauta()).toMatchObject([
       { texto: RELATO, fotoChave: 'fotos/2026/11/abc.jpg', moderacao: 'pendente' },
     ]);

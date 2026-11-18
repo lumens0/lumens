@@ -66,13 +66,15 @@ WhatsApp.
 No bot (`PRIVACY_NOTICE_TEXT`, `apps/backend/src/bot/conversation/privacidade.ts`):
 
 > 🔒 _Sua privacidade no Lumens_
-> Guardamos seu telefone cifrado para continuar esta conversa. Se você se verificar, guardamos
-> também seu e-mail @ufal.br (cifrado) e seu curso.
-> No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome,
+> Guardamos o identificador desta conversa, cifrado. Se você se verificar, guardamos também seu
+> e-mail @ufal.br (cifrado) e seu curso.
+> No site aparecem as pautas, os relatos aprovados e o curso de quem participa, nunca nome,
 > telefone ou e-mail. Quem apoia não aparece: só o total.
 > Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie _sair_ a
-> qualquer momento. ("e apagar seu vínculo" saiu na SCRUM-314: relatos publicados e PDFs ficam.)
-> Política completa: https://lumens-ufal.vercel.app/privacidade
+> qualquer momento.
+> Política completa, com o que fica depois da saída: https://lumens-ufal.vercel.app/privacidade
+
+_Encurtado na SCRUM-340 (eram cinco parágrafos): a marca do e-mail depois da saída fica só na política._
 
 No site, a página `/privacidade` ganha a seção "Base legal" e deixa de dizer que a verificação e a
 remoção de metadados não existem — as duas já estão no ar.

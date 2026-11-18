@@ -6,7 +6,7 @@ import { estudantes, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
-import { GREETING_TEXT, MENU_TEXT, WELCOME_BACK_TEXT } from './handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL, WELCOME_BACK_TEXT } from './handlers';
 import { hashPhone } from './phone';
 import { PRIVACY_NOTICE_TEXT } from './privacidade';
 import { REPORT_PROMPT_TEXT } from './relato';
@@ -68,7 +68,7 @@ describe('volta depois de 24 h (SCRUM-333)', () => {
     await verificadoQueVoltou();
 
     const respostas = await send('oi');
-    expect(respostas).toEqual([WELCOME_BACK_TEXT, MENU_TEXT]);
+    expect(respostas).toEqual([WELCOME_BACK_TEXT, MENU_PRINCIPAL]);
     expect(respostas).not.toContain(PRIVACY_NOTICE_TEXT);
     expect(await passo()).toBe('MENU');
   });
@@ -79,13 +79,13 @@ describe('volta depois de 24 h (SCRUM-333)', () => {
       telefoneCifrado: segredo.cifrar('5582999993330'),
     });
 
-    expect(await send('oi')).toEqual([WELCOME_BACK_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([WELCOME_BACK_TEXT, MENU_PRINCIPAL]);
   });
 });
 
 describe('primeiro contato de verdade continua com o aviso (SCRUM-333)', () => {
   it('sem cadastro, "oi" recebe saudação, aviso e menu', async () => {
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 
   it('sem cadastro, "1" é atendido, com o aviso de privacidade antes', async () => {
@@ -100,6 +100,6 @@ describe('primeiro contato de verdade continua com o aviso (SCRUM-333)', () => {
       saiuEm: new Date('2026-11-01T12:00:00Z'),
     });
 
-    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+    expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
   });
 });

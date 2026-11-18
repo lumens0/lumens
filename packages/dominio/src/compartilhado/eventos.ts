@@ -50,7 +50,8 @@ export interface DadosPorTipo {
   };
   status_alterado: { de: StatusPauta; para: StatusPauta };
   owner_entrou: { papel: PapelPauta['papel'] };
-  owner_removido: { papel: PapelPauta['papel'] };
+  /** `motivo: 'inatividade'` quando o agendador remove; sair por conta própria não leva motivo (SCRUM-345). */
+  owner_removido: { papel: PapelPauta['papel']; motivo?: 'inatividade' };
   relato_aprovado: { relato_id: string };
   bloco_corrigido: {
     blocoAntes: string | null;

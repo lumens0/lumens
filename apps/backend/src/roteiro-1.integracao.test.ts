@@ -25,7 +25,7 @@ import {
 } from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT } from './bot/conversation/co-owner';
 import { estudanteVerificado } from './bot/conversation/estudante';
-import { GREETING_TEXT, MENU_TEXT } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { PRIVACY_NOTICE_TEXT } from './bot/conversation/privacidade';
 import { REPORT_PROMPT_TEXT } from './bot/conversation/relato';
 import { hashPhone } from './bot/conversation/phone';
@@ -207,7 +207,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
   { timeout: 30_000 },
   () => {
     it('primeiro contato recebe a saudação, o aviso de privacidade e o menu', async () => {
-      expect(await texto('oi', 3)).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
+      expect(await texto('oi', 3)).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_PRINCIPAL]);
     });
 
     it('verifica com o e-mail da UFAL, o código e o curso', async () => {
@@ -262,7 +262,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
           corpo: COOWNER_INVITE_TEXT,
           botoes: [{ id: `cuidar ${pautaId}`, titulo: 'Quero cuidar' }],
         },
-        MENU_TEXT,
+        MENU_PRINCIPAL,
       ]);
     });
 

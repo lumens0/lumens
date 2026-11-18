@@ -177,7 +177,7 @@ describe('removerOwnerInativo (RF-A03)', () => {
       .where(eq(papeisPauta.pautaId, pauta.id));
     expect(linhas).toEqual([{ ate: AGORA }]);
     expect(await eventosDa(pauta.id)).toEqual([
-      { tipo: 'owner_removido', dados: { papel: 'owner' } },
+      { tipo: 'owner_removido', dados: { papel: 'owner', motivo: 'inatividade' } },
     ]);
   });
 

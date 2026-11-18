@@ -2,7 +2,7 @@ import { blocos, conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { segredoCom } from '../../cripto/cifra';
-import { MENU_TEXT } from './handlers';
+import { MENU_PRINCIPAL } from './handlers';
 import { hashPhone } from './phone';
 import {
   BLOCK_NOT_FOUND_TEXT,
@@ -228,7 +228,7 @@ describe('relatar (2.5)', () => {
     });
 
     it('"não" volta ao menu sem criar nada', async () => {
-      expect(await send('não')).toEqual([NOTHING_CREATED_TEXT, MENU_TEXT]);
+      expect(await send('não')).toEqual([NOTHING_CREATED_TEXT, MENU_PRINCIPAL]);
       expect(await dados()).toEqual({});
     });
 
@@ -241,7 +241,7 @@ describe('relatar (2.5)', () => {
   it('relato que não decifra mais (chave trocada) volta ao menu pedindo de novo', async () => {
     await send('o banheiro ta sem papel');
     await store.save(H, 'REPORT_ASK_BLOCK', { relatoCifrado: 'nao-e-cifra' });
-    expect(await send(CAMPUS_ROW_ID)).toEqual([REPORT_LOST_TEXT, MENU_TEXT]);
+    expect(await send(CAMPUS_ROW_ID)).toEqual([REPORT_LOST_TEXT, MENU_PRINCIPAL]);
     expect(await passo()).toBe('MENU');
   });
 });
