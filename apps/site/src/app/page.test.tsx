@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buscarBlocos, buscarPautas } from '../dados/api';
+import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
 import exemplo from '../dados/blocos-teste.json';
 import { PAUTAS_TESTE } from '../dados/pautas-teste';
 import Home from './page';
@@ -12,7 +12,11 @@ vi.mock('../componentes/FiltroStatus', () => ({
   FiltroStatus: ({ contagens }: { contagens: Record<string, number> }) =>
     createElement('pre', { id: 'contagens' }, JSON.stringify(contagens)),
 }));
-vi.mock('../dados/api', () => ({ buscarBlocos: vi.fn(), buscarPautas: vi.fn() }));
+vi.mock('../dados/api', () => ({
+  buscarApoiosPorSemana: vi.fn(),
+  buscarBlocos: vi.fn(),
+  buscarPautas: vi.fn(),
+}));
 
 const render = async (bloco?: string, status?: string) =>
   renderToStaticMarkup(
@@ -31,6 +35,7 @@ describe('home', () => {
   beforeEach(() => {
     vi.mocked(buscarBlocos).mockResolvedValue(exemplo.blocos);
     vi.mocked(buscarPautas).mockResolvedValue([]);
+    vi.mocked(buscarApoiosPorSemana).mockResolvedValue([]);
   });
   afterEach(() => {
     vi.unstubAllEnvs();

@@ -5,13 +5,14 @@ import componentes from '../componentes/componentes.module.css';
 import { MapaResumo } from '../componentes/mapa/MapaResumo';
 import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { Numero } from '../componentes/Numero';
+import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
 import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { FiltroStatus } from '../componentes/FiltroStatus';
 import { STATUS } from '../componentes/StatusPill';
 import { ListaVazia } from '../componentes/ListaVazia';
-import { buscarBlocos, buscarPautas } from '../dados/api';
+import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
 import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
 import { STATUS_PUBLICOS } from '@lumens/contratos';
 import { nomeDoCanal } from '../whatsapp';
@@ -39,7 +40,11 @@ export default async function Home({
   // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
   // segunda barreira. O status filtra a lista aqui; as contagens do filtro e o mapa do hero usam as
   // pautas do bloco inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
-  const todas = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
+  const [pautasDaApi, semanas] = await Promise.all([
+    buscarPautas(bloco?.slug),
+    buscarApoiosPorSemana(bloco?.slug),
+  ]);
+  const todas = pautasPublicas(pautasDaApi, bloco);
   const lista = status ? todas.filter((pauta) => pauta.status === status) : todas;
   const contagens = Object.fromEntries(
     STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
@@ -116,7 +121,12 @@ export default async function Home({
           </div>
         </dl>
       </section>
-      {todas.length > 0 && <CaminhoDasPautas pautas={todas} />}
+      {todas.length > 0 && (
+        <div className={estilos.dashboard}>
+          <CaminhoDasPautas pautas={todas} />
+          <ApoiosPorSemana semanas={semanas} />
+        </div>
+      )}
       {lista.length === 0 ? (
         <ListaVazia bloco={bloco} status={status} />
       ) : (
