@@ -15,6 +15,7 @@ import { PREFIXO_FOTO_VISTA } from './decisoes';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
+import { Enviar } from '../../enviar';
 
 const ERRO: Record<string, string> = {
   pauta_inexistente: 'A pauta não foi encontrada.',
@@ -306,9 +307,7 @@ export function Pauta({
             recuse só o relato e depois aprove a pauta sem ele.
           </p>
           <input type="hidden" name="pautaId" value={pauta.id} />
-          <button className={estilos.botaoPerigo} type="submit">
-            Recusar só o relato
-          </button>
+          <Enviar className={estilos.botaoPerigo}>Recusar só o relato</Enviar>
         </form>
       )}
 
@@ -348,9 +347,7 @@ export function Pauta({
             <label className={estilos.marcar}>
               <input type="checkbox" name="urgente" /> Marcar como urgente
             </label>
-            <button className={estilos.botao} type="submit">
-              Aprovar pauta
-            </button>
+            <Enviar className={estilos.botao}>Aprovar pauta</Enviar>
           </form>
           <details
             className={estilos.recusa}
@@ -361,9 +358,7 @@ export function Pauta({
               <input type="hidden" name="pautaId" value={pauta.id} />
               <label htmlFor="motivo">Motivo (vai pelo WhatsApp para quem criou a pauta)</label>
               <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
-              <button className={estilos.botaoPerigo} type="submit">
-                Confirmar recusa
-              </button>
+              <Enviar className={estilos.botaoPerigo}>Confirmar recusa</Enviar>
             </form>
           </details>
         </section>
@@ -386,9 +381,7 @@ export function Pauta({
           <p className={estilos.detalhes}>
             O motivo fica só no painel. No site aparece apenas que a pauta é urgente.
           </p>
-          <button className={estilos.botao} type="submit">
-            Salvar urgência
-          </button>
+          <Enviar className={estilos.botao}>Salvar urgência</Enviar>
         </form>
       )}
       {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
@@ -406,9 +399,7 @@ export function Pauta({
               </option>
             ))}
           </select>
-          <button className={estilos.botao} type="submit">
-            Salvar categoria
-          </button>
+          <Enviar className={estilos.botao}>Salvar categoria</Enviar>
         </form>
       )}
     </>

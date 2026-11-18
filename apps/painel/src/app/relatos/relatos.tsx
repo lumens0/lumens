@@ -2,6 +2,7 @@ import type { PautaComRelatosPendentes } from '@lumens/dominio';
 import Link from 'next/link';
 import { Foto } from '../arquivos';
 import estilos from '../painel.module.css';
+import { Enviar } from '../enviar';
 
 const FEITO: Record<string, string> = {
   aprovado:
@@ -92,15 +93,11 @@ export function Relatos({
                     <form action={aprovar}>
                       <input type="hidden" name="relatoId" value={relato.id} />
                       <input type="hidden" name="fotoVista" value={relato.fotoChave ?? ''} />
-                      <button className={estilos.botao} type="submit">
-                        Aprovar relato
-                      </button>
+                      <Enviar className={estilos.botao}>Aprovar relato</Enviar>
                     </form>
                     <form action={recusar}>
                       <input type="hidden" name="relatoId" value={relato.id} />
-                      <button className={estilos.botaoPerigo} type="submit">
-                        Recusar relato
-                      </button>
+                      <Enviar className={estilos.botaoPerigo}>Recusar relato</Enviar>
                     </form>
                   </div>
                 </li>

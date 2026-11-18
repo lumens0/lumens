@@ -3,8 +3,13 @@
  * achado pelo HMAC, nunca em claro. Fica fora do `auth.ts` para os testes não carregarem o Auth.js.
  */
 import { createHmac } from 'node:crypto';
-import { and, curadores, eq, lt, verificacoesLogin, type Db } from '@lumens/db';
+import { and, curadores, eq, gt, lt, verificacoesLogin, type Db } from '@lumens/db';
 import type { Adapter, AdapterUser } from 'next-auth/adapters';
+
+/** Quanto o link vale, em segundos. */
+export const VALIDADE_DO_LINK_S = 15 * 60;
+/** Intervalo mínimo entre dois links para o mesmo e-mail (SCRUM-305). */
+export const ESPERA_ENTRE_LINKS_S = 60;
 
 export const normalizarEmail = (email: string) => email.trim().toLowerCase();
 
@@ -26,6 +31,31 @@ export async function curadorAtivo(
 }
 
 /**
+ * Já saiu um link para este e-mail há menos de `ESPERA_ENTRE_LINKS_S`? O link vence
+ * `VALIDADE_DO_LINK_S` depois de criado, então "criado há menos de 60 s" é o mesmo que "vence daqui
+ * a mais de 14 min": dispensa uma coluna de criação na tabela.
+ */
+export async function pedidoRecente(
+  db: Db,
+  email: string,
+  chave: Buffer,
+  agora: Date = new Date(),
+): Promise<boolean> {
+  const corte = new Date(agora.getTime() + (VALIDADE_DO_LINK_S - ESPERA_ENTRE_LINKS_S) * 1000);
+  const [achado] = await db
+    .select({ token: verificacoesLogin.token })
+    .from(verificacoesLogin)
+    .where(
+      and(
+        eq(verificacoesLogin.identificador, hmacDoEmail(email, chave)),
+        gt(verificacoesLogin.expiraEm, corte),
+      ),
+    )
+    .limit(1);
+  return achado !== undefined;
+}
+
+/**
  * O curador da sessão, se ainda estiver ativo, com o papel de agora (não o do login). Desativar
  * ou rebaixar tira o acesso já no pedido seguinte.
  */
@@ -44,7 +74,15 @@ export async function curadorAtivoPorId(
  * Adapter mínimo do Auth.js: só o que o login por link pede com sessão em JWT. O "usuário" é o
  * curador; ninguém é criado pelo login (curador é adicionado pela tela /curadores; o primeiro, pelo script).
  */
-export function adaptador(db: Db, chave: Buffer): Adapter {
+export function adaptador(
+  db: Db,
+  chave: Buffer,
+  /**
+   * Quando informado, a gravação do link sai do caminho da resposta: o pedido de um curador não
+   * gasta mais tempo que o de quem não é (SCRUM-305). Sem ele (testes), grava e espera.
+   */
+  depois?: (identificador: string, gravacao: Promise<void>) => void,
+): Adapter {
   const comoUsuario = (id: string, nome: string, email: string): AdapterUser => ({
     id,
     name: nome,
@@ -69,12 +107,16 @@ export function adaptador(db: Db, chave: Buffer): Adapter {
     // O e-mail entra como HMAC, nunca em claro. E cada link novo leva junto os vencidos que
     // ninguém usou: a tabela não acumula pedidos esquecidos.
     async createVerificationToken(v) {
-      await db.delete(verificacoesLogin).where(lt(verificacoesLogin.expiraEm, new Date()));
-      await db.insert(verificacoesLogin).values({
-        identificador: hmacDoEmail(v.identifier, chave),
-        token: v.token,
-        expiraEm: v.expires,
-      });
+      const gravar = async () => {
+        await db.delete(verificacoesLogin).where(lt(verificacoesLogin.expiraEm, new Date()));
+        await db.insert(verificacoesLogin).values({
+          identificador: hmacDoEmail(v.identifier, chave),
+          token: v.token,
+          expiraEm: v.expires,
+        });
+      };
+      if (depois) depois(normalizarEmail(v.identifier), gravar());
+      else await gravar();
       return v;
     },
     // Apaga ao ler: o link vale uma vez só, mesmo com dois cliques ao mesmo tempo.
