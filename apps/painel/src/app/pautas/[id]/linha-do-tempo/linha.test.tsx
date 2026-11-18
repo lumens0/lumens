@@ -160,6 +160,19 @@ describe('eventos iguais seguidos (SCRUM-355)', () => {
 
   it('uma saída sozinha mantém o rótulo de sempre', () => {
     const html = tela([evento({ tipo: 'owner_removido', dados: { papel: 'owner' } })]);
-    expect(html).toContain('Owner saiu');
+    expect(html).toContain('Responsável saiu');
+  });
+});
+
+describe('rótulos de responsável por papel (SCRUM-355)', () => {
+  it('três corresponsáveis que saem viram uma linha com o papel no rótulo', () => {
+    const saida = () =>
+      evento({ tipo: 'owner_removido', dados: { papel: 'co_owner' }, origem: 'agendador' });
+    expect(tela([saida(), saida(), saida()])).toContain('3 corresponsáveis saíram');
+  });
+
+  it('um corresponsável sozinho: "Corresponsável saiu"', () => {
+    const html = tela([evento({ tipo: 'owner_removido', dados: { papel: 'co_owner' } })]);
+    expect(html).toContain('Corresponsável saiu');
   });
 });

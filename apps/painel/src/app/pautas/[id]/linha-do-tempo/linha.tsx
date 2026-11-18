@@ -1,6 +1,7 @@
 import {
   agruparEventosIguais,
   type EventoDaLinha,
+  rotuloDeResponsaveis,
   type OrigemEvento,
   type TipoEvento,
 } from '@lumens/dominio';
@@ -30,8 +31,8 @@ const ROTULOS: Record<TipoEvento, string> = {
   conferencia_aberta: 'Conferência aberta',
   conferencia_apurada: 'Conferência apurada',
   status_alterado: 'Status alterado',
-  owner_entrou: 'Novo owner',
-  owner_removido: 'Owner saiu',
+  owner_entrou: 'Novo responsável',
+  owner_removido: 'Responsável saiu',
   relato_aprovado: 'Relato publicado',
   pauta_urgente: 'Urgência da pauta alterada',
   bloco_corrigido: 'Bloco corrigido pela curadoria',
@@ -132,11 +133,22 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
 }
 
 /** O rótulo de um grupo de eventos iguais: "3 responsáveis saíram" no lugar de três linhas idênticas. */
-export function rotuloDoGrupo(tipo: string, quantidade: number): string {
-  if (quantidade === 1) return rotuloEvento(tipo);
-  if (tipo === 'owner_removido') return `${String(quantidade)} responsáveis saíram`;
-  if (tipo === 'owner_entrou') return `${String(quantidade)} novos responsáveis`;
-  return `${rotuloEvento(tipo)} (${String(quantidade)} vezes)`;
+export function rotuloDoGrupo(
+  tipo: string,
+  dados: Record<string, unknown>,
+  quantidade: number,
+): string {
+  if (quantidade === 1) {
+    return tipo === 'owner_removido' && dados.papel === 'co_owner'
+      ? 'Corresponsável saiu'
+      : tipo === 'owner_entrou' && dados.papel === 'co_owner'
+        ? 'Novo corresponsável'
+        : rotuloEvento(tipo);
+  }
+  return (
+    rotuloDeResponsaveis(tipo, dados, quantidade) ??
+    `${rotuloEvento(tipo)} (${String(quantidade)} vezes)`
+  );
 }
 
 function Evento({ evento, quantidade }: { evento: EventoDaLinha; quantidade: number }) {
@@ -147,7 +159,7 @@ function Evento({ evento, quantidade }: { evento: EventoDaLinha; quantidade: num
         {dataHora(evento.criadoEm)}
       </time>
       <div>
-        <h2 className={estilos.rotulo}>{rotuloDoGrupo(evento.tipo, quantidade)}</h2>
+        <h2 className={estilos.rotulo}>{rotuloDoGrupo(evento.tipo, evento.dados, quantidade)}</h2>
         {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
         <p className={estilos.marcas}>
           <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>

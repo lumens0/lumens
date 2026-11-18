@@ -26,7 +26,7 @@
   max-width: 1120px;
   min-height: 64px;
   margin: 0 auto;
-  padding: 0 clamp(16px, 4vw, 24px);
+  padding: 0 clamp(var(--esp-4), 4vw, var(--esp-5));
 }
 
 .marca {
@@ -187,7 +187,8 @@
 .conteudo {
   width: min(100%, 880px);
   margin: 0 auto;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 64px;
+  padding: clamp(var(--esp-5), 4vw, var(--esp-6)) clamp(var(--esp-4), 4vw, var(--esp-6))
+    var(--esp-7);
 }
 
 .conteudo h1 {
@@ -287,7 +288,7 @@
 .selo {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--esp-2);
   min-height: 26px;
   padding: 0 var(--esp-3);
   border-radius: 999px;
@@ -374,7 +375,7 @@
   width: 100%;
   min-width: 0;
   min-height: 42px;
-  padding: 9px var(--esp-3);
+  padding: var(--esp-2) var(--esp-3);
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio-controle);
   background: var(--superficie);
@@ -397,7 +398,7 @@
 .aviso,
 .erro {
   margin: 0 0 var(--esp-5);
-  padding: var(--esp-4) var(--esp-4);
+  padding: var(--esp-4);
   border: 1px solid rgb(143 76 0 / 18%);
   border-radius: var(--raio-controle);
   background: var(--luz-fundo);
@@ -533,7 +534,7 @@
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  padding: 0 18px;
+  padding: 0 var(--esp-4);
   border: 1px solid transparent;
   border-radius: var(--raio-controle);
   font: inherit;
@@ -688,7 +689,7 @@
 
 @media (min-width: 640px) {
   .curador {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-columns: minmax(0, 1fr) 12rem 7rem 7.5rem;
     align-items: center;
     gap: var(--esp-5);
   }

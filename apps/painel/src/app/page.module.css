@@ -8,7 +8,7 @@
 
 .cartao {
   width: min(100%, 520px);
-  padding: clamp(32px, 8vw, 56px);
+  padding: clamp(var(--esp-6), 8vw, var(--esp-7));
   border: 1px solid var(--borda);
   border-radius: 20px;
   background: var(--superficie);
@@ -64,7 +64,7 @@
 .formulario {
   display: grid;
   gap: var(--esp-2);
-  margin-top: 28px;
+  margin-top: var(--esp-6);
 }
 
 .formulario input {
