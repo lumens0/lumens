@@ -153,6 +153,8 @@ describe('prédios do OpenStreetMap', () => {
       for (const slug of ligados) expect(conhecidos, slug).toContain(slug);
       for (const slug of reais) expect(ligados, slug).toContain(slug);
     },
+    // O import dinâmico transforma o catálogo na hora; em runner frio estourava os 5 s padrão (SCRUM-378).
+    20_000,
   );
 });
 
