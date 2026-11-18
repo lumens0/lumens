@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
-import { nomesQueCabem, pontoDoNome, type Nome } from './nomes';
+import { larguraDoTexto, nomesQueCabem, pontoDoNome, type Nome } from './nomes';
 import { PREDIOS } from './predios';
 import { marcadoresDoMapa } from './urgencia';
 
@@ -73,5 +73,42 @@ describe('brilho dos prédios (SCRUM-284)', () => {
     const html = renderToStaticMarkup(<MapaDoCampus marcadores={marcadores} />);
     expect(html.match(/class="[^"]*halo[^"]*"/g)).toHaveLength(1);
     expect(html.match(/class="[^"]*semPautas[^"]*"/g)).toHaveLength(1);
+  });
+});
+
+describe('largura do texto (SCRUM-284)', () => {
+  // Larguras medidas no navegador (canvas.measureText, fonte do site, peso 500, 15 px).
+  const MEDIDAS: Record<string, number> = {
+    NPM: 34.4,
+    Copeve: 53.8,
+    'EDGE Academy': 110.8,
+    CPMAT: 53.6,
+    CEDU: 42.6,
+    FAMED: 53.1,
+    IC: 15,
+    'IC e IM': 46.7,
+    IP: 13.7,
+    IF: 12.8,
+  };
+
+  it.each(Object.entries(MEDIDAS))(
+    '%s: estimativa dentro de 3 px da medida real, nunca abaixo',
+    (texto, real) => {
+      // A soma letra a letra ignora o kerning do navegador: erra para mais (seguro para o encontro).
+      const diferenca = larguraDoTexto(texto) - real;
+      expect(diferenca).toBeGreaterThan(-0.5);
+      expect(diferenca).toBeLessThan(3);
+    },
+  );
+
+  it('acento não muda a largura e letra desconhecida não quebra', () => {
+    expect(larguraDoTexto('Ginásio')).toBeCloseTo(larguraDoTexto('Ginasio'), 5);
+    expect(larguraDoTexto('Ω')).toBeGreaterThan(0);
+  });
+
+  it('nenhuma sigla de prédio passa de 160 px', () => {
+    for (const { sigla } of PREDIOS.filter((p) => p.sigla)) {
+      expect(larguraDoTexto(sigla), sigla).toBeLessThan(160);
+    }
   });
 });

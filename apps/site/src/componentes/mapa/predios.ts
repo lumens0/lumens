@@ -74,6 +74,8 @@ const NOMES_LOCAIS: Record<number, { nome: string; sigla: string }> = {
   493988321: { nome: 'Instituto de Ciências Sociais', sigla: 'ICS' },
   493988323: { nome: 'Bloco de Salas de Aula 2', sigla: 'BSA 2' },
   493988335: { nome: 'Comunicação Social - Bloco A', sigla: 'COS A' },
+  466361733: { nome: 'Colégio de Aplicação Telma Vitória', sigla: 'CAp' }, // pino a 3 m, dentro do prédio
+  263722474: { nome: 'Farmácia Escola', sigla: 'Farmácia Escola' }, // pino dentro do prédio
 };
 
 const SIGLAS: Record<string, string> = {

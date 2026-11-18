@@ -1,5 +1,5 @@
 import { blocosSeed } from '../../../../../packages/db/seed/data';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
@@ -228,5 +228,20 @@ describe('legenda do mapa', () => {
       expect(cores).toContain(STATUS[status].ponto);
     }
     expect(new Set(cores).size).toBe(cores.length);
+  });
+});
+
+describe('lista do mapa: cartões da mesma altura (SCRUM-284)', () => {
+  const css = readFileSync(new URL('./mapa.module.css', import.meta.url), 'utf8');
+
+  it('a lista é uma grade e o cartão ocupa a altura da linha da grade', () => {
+    expect(css).toMatch(/\.lista\s*\{[^}]*display:\s*grid/);
+    expect(css).toMatch(/\.linha\s*\{[^}]*height:\s*100%/);
+    expect(css).toMatch(/\.linha\s*\{[^}]*width:\s*100%/);
+  });
+
+  it('o crédito do OpenStreetMap no celular ocupa uma linha só, para cobrir poucos nomes', () => {
+    const celular = css.slice(css.indexOf('@media (max-width: 720px)'));
+    expect(celular).toMatch(/\.credito\s*\{[^}]*white-space:\s*nowrap/);
   });
 });
