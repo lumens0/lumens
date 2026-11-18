@@ -38,4 +38,9 @@ describe('layout do painel (SCRUM-358)', () => {
   it('o respiro entre blocos não dobra depois dos filtros', () => {
     expect(css).toContain(':not(.filtros, .filtros + *)');
   });
+
+  it('o link do rótulo das barras segue o padrão dos títulos: tinta e sublinhado só no hover (SCRUM-368)', () => {
+    expect(css).toMatch(/\.cartao h2 a,\s+\.barrasRotulo a \{/);
+    expect(css).toMatch(/\.cartao h2 a:hover,\s+\.barrasRotulo a:hover \{/);
+  });
 });

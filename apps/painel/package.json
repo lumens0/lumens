@@ -16,7 +16,7 @@
     "@lumens/db": "workspace:*",
     "@lumens/dominio": "workspace:*",
     "@lumens/marca": "workspace:*",
-    "next": "^16.4.2",
+    "next": "^16.4.5",
     "next-auth": "5.0.0-beta.32",
     "nodemailer": "10.6.0",
     "react": "^19.3.1",

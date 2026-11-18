@@ -33,6 +33,8 @@ export function metadadosDaMarca({
   return {
     ...(title && { title }),
     description,
+    // Endereço canônico a partir do `metadataBase`: os filtros da home (?bloco=) apontam para a raiz.
+    ...(caminho && { alternates: { canonical: caminho } }),
     openGraph: {
       ...OPEN_GRAPH_BASE,
       type: 'website',
