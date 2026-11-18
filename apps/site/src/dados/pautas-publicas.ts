@@ -1,19 +1,11 @@
-import { rotuloDaCategoria } from '@lumens/contratos';
+import { rotuloDaCategoria, STATUS_SEM_APOIO } from '@lumens/contratos';
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 // Pautas em curadoria ou recusadas nunca aparecem no site.
 export const FORA_DO_SITE: ReadonlySet<StatusPauta> = new Set(['em_curadoria', 'recusada']);
 
-/**
- * Status que não recebem apoio. Espelha `SEM_APOIO` de `packages/dominio/src/pauta/apoio.ts`, que não é
- * exportado e puxa `@lumens/db` (servidor). Um teste lê o fonte do domínio e falha se as listas
- * divergirem. `em_curadoria` e `recusada` nem chegam ao site, mas ficam aqui para a regra ser a mesma.
- */
-export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set([
-  'em_curadoria',
-  'recusada',
-  'conquistada',
-]);
+/** Status que não recebem apoio: a mesma lista do domínio, vinda de `@lumens/contratos` (SCRUM-294). */
+export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set<StatusPauta>(STATUS_SEM_APOIO);
 
 export function aceitaApoio(status: StatusPauta): boolean {
   return !SEM_APOIO.has(status);

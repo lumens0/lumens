@@ -326,6 +326,17 @@ export const verificacoesLogin = pgTable(
   (t) => [primaryKey({ columns: [t.identificador, t.token] })],
 );
 
+/**
+ * Último link de login enviado por e-mail do curador, pelo HMAC do e-mail (SCRUM-305). Guarda só
+ * o instante, em registro próprio: o token some ao ser usado, e o limite de um link por minuto
+ * tem de continuar valendo depois disso. A reserva é um INSERT ... ON CONFLICT condicional, então
+ * dois pedidos simultâneos não passam juntos. Linhas com mais de um dia são apagadas no pedido.
+ */
+export const pedidosLinkLogin = pgTable('pedido_link_login', {
+  identificador: text('identificador').primaryKey(),
+  ultimoEnvioEm: instante('ultimo_envio_em').notNull(),
+});
+
 export const promessas = pgTable(
   'promessa',
   {

@@ -6,6 +6,7 @@
  * RN05: bater a meta não bloqueia nada; grava `meta_batida_em`, emite o evento e avisa quem chamou,
  * mesmo com a pauta já em `cobrando`. RN12: o apoio conta na hora, só em pauta aprovada.
  */
+import { STATUS_SEM_APOIO } from '@lumens/contratos';
 import { apoios, eq, estudantes, pautas, sql, type StatusPauta, type Tx } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
 import { transicionarStatus } from './status';
@@ -15,11 +16,7 @@ import { transicionarStatus } from './status';
  * `entregue_em_parte` e `descumprida` continuam recebendo: seguem sendo cobradas, e apoio novo é
  * o que dá força para cobrar de novo.
  */
-export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set([
-  'em_curadoria',
-  'recusada',
-  'conquistada',
-]);
+export const SEM_APOIO: ReadonlySet<StatusPauta> = new Set<StatusPauta>(STATUS_SEM_APOIO);
 
 export interface NovoApoio {
   pautaId: string;

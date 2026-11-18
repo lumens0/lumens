@@ -1,4 +1,9 @@
-import type { Evento, PautaDetalhe } from '@lumens/contratos';
+import {
+  agruparEventosIguais,
+  rotuloDeResponsaveis,
+  type Evento,
+  type PautaDetalhe,
+} from '@lumens/contratos';
 import { STATUS } from '../StatusPill';
 import estilos from './pauta.module.css';
 
@@ -95,8 +100,10 @@ export function rotuloDoPapel(tipo: string, dados: Record<string, unknown>): str
     : `${comMaiuscula} saiu`;
 }
 
-function textoDoEvento(evento: Evento, todos: readonly Evento[]): string {
+function textoDoEvento(evento: Evento, todos: readonly Evento[], quantidade = 1): string {
   const { tipo, dados } = evento;
+  const grupo = rotuloDeResponsaveis(tipo, dados, quantidade);
+  if (grupo !== undefined) return grupo;
   const doPapel = rotuloDoPapel(tipo, dados);
   if (doPapel !== undefined) return doPapel;
   if (tipo === 'status_alterado') return textoDoStatus(dados, motivoDoStatus(evento, todos));
@@ -158,6 +165,8 @@ export function LinhaDoTempo({
   /** Na pauta conquistada, a resposta, a promessa e a conquista saem em destaque. */
   destacar?: boolean;
 }) {
+  // Entradas e saídas de responsável iguais seguidas viram uma linha (SCRUM-355).
+  const grupos = agruparEventosIguais(eventos, (e) => e.criado_em);
   return (
     <section className={estilos.secao} aria-labelledby="linha-titulo">
       <h2 id="linha-titulo" className={estilos.secaoTitulo}>
@@ -167,16 +176,16 @@ export function LinhaDoTempo({
         <p className={estilos.vazio}>Ainda não tem acontecimento registrado.</p>
       ) : (
         <ol className={estilos.tempo}>
-          {eventos.map((evento, i) => (
+          {grupos.map(({ evento, quantidade }, i) => (
             <li key={i} className={destacar && ehMarco(evento) ? estilos.tempoMarco : undefined}>
               <span
-                className={i === eventos.length - 1 ? estilos.marcoAtual : estilos.marco}
+                className={i === grupos.length - 1 ? estilos.marcoAtual : estilos.marco}
                 aria-hidden="true"
               >
-                {i === eventos.length - 1 ? '•' : '✓'}
+                {i === grupos.length - 1 ? '•' : '✓'}
               </span>
               <div>
-                <p className={estilos.texto}>{textoDoEvento(evento, eventos)}</p>
+                <p className={estilos.texto}>{textoDoEvento(evento, eventos, quantidade)}</p>
                 <time dateTime={evento.criado_em} className={estilos.data}>
                   {formatarData(evento.criado_em)}
                 </time>

@@ -1,4 +1,10 @@
-import type { EventoDaLinha, OrigemEvento, TipoEvento } from '@lumens/dominio';
+import {
+  agruparEventosIguais,
+  type EventoDaLinha,
+  rotuloDeResponsaveis,
+  type OrigemEvento,
+  type TipoEvento,
+} from '@lumens/dominio';
 import Link from 'next/link';
 import { dataHora } from '../../../prazo';
 import { STATUS } from '../../status';
@@ -126,6 +132,46 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
   }
 }
 
+/** O rótulo de um grupo de eventos iguais: "3 responsáveis saíram" no lugar de três linhas idênticas. */
+export function rotuloDoGrupo(
+  tipo: string,
+  dados: Record<string, unknown>,
+  quantidade: number,
+): string {
+  if (quantidade === 1) {
+    return tipo === 'owner_removido' && dados.papel === 'co_owner'
+      ? 'Corresponsável saiu'
+      : tipo === 'owner_entrou' && dados.papel === 'co_owner'
+        ? 'Novo corresponsável'
+        : rotuloEvento(tipo);
+  }
+  return (
+    rotuloDeResponsaveis(tipo, dados, quantidade) ??
+    `${rotuloEvento(tipo)} (${String(quantidade)} vezes)`
+  );
+}
+
+function Evento({ evento, quantidade }: { evento: EventoDaLinha; quantidade: number }) {
+  const detalhe = detalheDoEvento(evento.tipo, evento.dados);
+  return (
+    <li className={estilos.evento}>
+      <time dateTime={evento.criadoEm.toISOString()} className={estilos.data}>
+        {dataHora(evento.criadoEm)}
+      </time>
+      <div>
+        <h2 className={estilos.rotulo}>{rotuloDoGrupo(evento.tipo, evento.dados, quantidade)}</h2>
+        {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
+        <p className={estilos.marcas}>
+          <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>
+          <span className={evento.publico ? estilos.marca : estilos.marcaInterna}>
+            {evento.publico ? 'Aparece no site' : 'Só a curadoria vê'}
+          </span>
+        </p>
+      </div>
+    </li>
+  );
+}
+
 /** Vai dentro da `Moldura`, que já traz o cabeçalho e o `<main>`. */
 export function LinhaDoTempo({
   pautaId,
@@ -153,26 +199,9 @@ export function LinhaDoTempo({
           <p className={estilos.vazio}>Esta pauta ainda não tem nenhum evento registrado.</p>
         ) : (
           <ol className={estilos.lista}>
-            {eventos.map((evento) => {
-              const detalhe = detalheDoEvento(evento.tipo, evento.dados);
-              return (
-                <li key={evento.id} className={estilos.evento}>
-                  <time dateTime={evento.criadoEm.toISOString()} className={estilos.data}>
-                    {dataHora(evento.criadoEm)}
-                  </time>
-                  <div>
-                    <h2 className={estilos.rotulo}>{rotuloEvento(evento.tipo)}</h2>
-                    {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
-                    <p className={estilos.marcas}>
-                      <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>
-                      <span className={evento.publico ? estilos.marca : estilos.marcaInterna}>
-                        {evento.publico ? 'Aparece no site' : 'Só a curadoria vê'}
-                      </span>
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
+            {agruparEventosIguais(eventos).map(({ evento, quantidade }) => (
+              <Evento key={evento.id} evento={evento} quantidade={quantidade} />
+            ))}
           </ol>
         )}
       </details>
@@ -194,26 +223,9 @@ export function LinhaDoTempo({
         <p className={estilos.vazio}>Esta pauta ainda não tem nenhum evento registrado.</p>
       ) : (
         <ol className={estilos.lista}>
-          {eventos.map((evento) => {
-            const detalhe = detalheDoEvento(evento.tipo, evento.dados);
-            return (
-              <li key={evento.id} className={estilos.evento}>
-                <time dateTime={evento.criadoEm.toISOString()} className={estilos.data}>
-                  {dataHora(evento.criadoEm)}
-                </time>
-                <div>
-                  <h2 className={estilos.rotulo}>{rotuloEvento(evento.tipo)}</h2>
-                  {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
-                  <p className={estilos.marcas}>
-                    <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>
-                    <span className={evento.publico ? estilos.marca : estilos.marcaInterna}>
-                      {evento.publico ? 'Aparece no site' : 'Só a curadoria vê'}
-                    </span>
-                  </p>
-                </div>
-              </li>
-            );
-          })}
+          {agruparEventosIguais(eventos).map(({ evento, quantidade }) => (
+            <Evento key={evento.id} evento={evento} quantidade={quantidade} />
+          ))}
         </ol>
       )}
     </>

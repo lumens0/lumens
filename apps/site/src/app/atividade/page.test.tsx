@@ -119,6 +119,23 @@ describe('/atividade', () => {
     expect(html).not.toContain('Páginas da atividade');
   });
 
+  it('saídas iguais seguidas da mesma pauta viram uma linha só (SCRUM-355)', async () => {
+    const saida = { ...CONQUISTA, tipo: 'owner_removido', dados: { papel: 'owner' } };
+    const outra = { ...saida, pauta_slug: 'outra-pauta', pauta_titulo: 'Outra pauta' };
+    responder({ itens: [saida, saida, saida, outra], proximo: null });
+    const html = await render();
+    expect(html).toContain('3 responsáveis saíram');
+    expect(html.match(/<li /g)).toHaveLength(2);
+    expect(html).toContain('Responsável saiu');
+  });
+
+  it('dois relatos aprovados no mesmo minuto continuam em duas linhas', async () => {
+    const relato = { ...CONQUISTA, tipo: 'relato_aprovado', dados: {} };
+    responder({ itens: [relato, relato], proximo: null });
+    const html = await render();
+    expect(html.match(/<li /g)).toHaveLength(2);
+  });
+
   it('erro da API sobe para o error.tsx', async () => {
     vi.mocked(buscarAtividade).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');

@@ -10,11 +10,10 @@ import type { Provider } from 'next-auth/providers';
 import Nodemailer from 'next-auth/providers/nodemailer';
 import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
-import { adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
+import { VALIDADE_DO_LINK_S, adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
 import { configBase } from './auth.config';
+import { criarEnvioDoLink } from './envio';
 import { opcoesSmtp } from './smtp';
-
-const QUINZE_MINUTOS = 15 * 60;
 
 /**
  * A mesma URL que o Auth.js devolve depois de mandar o link: o redirecionamento de quem não é
@@ -59,46 +58,59 @@ export function chavesDeCurador(): ChavesDeCurador {
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const { db, chave } = servidor();
+  const segredo = exigir('AUTH_SECRET');
   const smtp = opcoesSmtp({
     host: exigir('EMAIL_HOST'),
     porta: Number(exigir('EMAIL_PORT')),
     usuario: exigir('EMAIL_USUARIO'),
     senha: exigir('EMAIL_SENHA'),
   });
+  const envio = criarEnvioDoLink(segredo, (pedido) =>
+    createTransport(smtp)
+      .sendMail({
+        to: pedido.identifier,
+        from: pedido.from,
+        subject: 'Seu link de acesso ao painel do Lumens',
+        text:
+          'Para entrar no painel de curadoria, abra este link:\n\n' +
+          pedido.url +
+          '\n\nEle vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
+      })
+      .then(() => undefined),
+  );
   return {
     ...configBase,
-    adapter: adaptador(db, chave),
+    adapter: adaptador(db, chave, (tokenEmHash, gravacao) => {
+      const guardada = envio.guardar(tokenEmHash, gravacao);
+      // Mantém o processo vivo até a gravação acabar; o erro é tratado no envio.
+      after(() =>
+        guardada.then(
+          () => undefined,
+          () => undefined,
+        ),
+      );
+    }),
     providers: [
       // Cast: o tipo do Nodemailer não fecha com `exactOptionalPropertyTypes` (o `server` dele é
       // opcional no tipo genérico e obrigatório no próprio); em tempo de execução é o mesmo objeto.
       Nodemailer({
         server: smtp,
         from: exigir('EMAIL_REMETENTE'),
-        maxAge: QUINZE_MINUTOS,
+        maxAge: VALIDADE_DO_LINK_S,
+        // O mesmo segredo que o Auth.js usa para o hash do token: `envio` o refaz para achar o pedido.
+        secret: segredo,
         // O e-mail sai depois da resposta (`after`). Esperar o SMTP aqui deixaria o pedido de um
         // curador segundos mais lento que o de quem não é, e a demora entregaria quem é curador.
-        sendVerificationRequest({ identifier, url, provider }) {
-          after(() =>
-            createTransport(smtp)
-              .sendMail({
-                to: identifier,
-                from: provider.from,
-                subject: 'Seu link de acesso ao painel do Lumens',
-                text:
-                  `Para entrar no painel de curadoria, abra este link:\n\n${url}\n\n` +
-                  'Ele vale por 15 minutos e uma vez só. Se não foi você quem pediu, ignore este e-mail.',
-              })
-              .catch((erro: unknown) => {
-                console.error('Link de acesso do painel não saiu:', erro);
-              }),
-          );
+        sendVerificationRequest({ identifier, url, provider, token }) {
+          after(() => envio.enviar({ identifier, url, from: provider.from, token }));
         },
       }) as Provider,
     ],
     callbacks: {
       ...configBase.callbacks,
-      // No pedido do link: não curador não recebe nada, mas vê a mesma tela. No clique: confere
-      // de novo, para um curador desativado nesse meio-tempo não entrar.
+      // No pedido do link: não curador não recebe nada, mas vê a mesma tela. O limite de um link
+      // por minuto é aplicado depois da resposta, em `reservarEnvio`. No clique: confere de novo,
+      // para um curador desativado nesse meio-tempo não entrar.
       async signIn({ user, email }) {
         const curador = user.email ? await curadorAtivo(db, user.email, chave) : undefined;
         if (curador) return true;

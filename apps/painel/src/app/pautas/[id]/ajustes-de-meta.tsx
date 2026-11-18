@@ -1,5 +1,6 @@
 import type { BlocoParaRelato } from '@lumens/dominio';
 import estilos from '../../painel.module.css';
+import { Enviar } from '../../enviar';
 
 type Acao = (formulario: FormData) => Promise<void>;
 
@@ -64,9 +65,7 @@ export function AjustesDeMeta({
           </select>
           <label htmlFor="motivo-bloco">Motivo</label>
           <textarea id="motivo-bloco" name="motivo" required maxLength={200} />
-          <button className={estilos.botao} type="submit">
-            Salvar bloco e recalcular meta
-          </button>
+          <Enviar className={estilos.botao}>Salvar bloco e recalcular meta</Enviar>
         </form>
         <form action={ajustarMeta} className={estilos.cartao}>
           <h3>Ajustar meta</h3>
@@ -75,9 +74,7 @@ export function AjustesDeMeta({
           <input id="meta-ajustada" name="meta" type="number" min={30} max={300} required />
           <label htmlFor="motivo-meta">Motivo</label>
           <textarea id="motivo-meta" name="motivo" required maxLength={200} />
-          <button className={estilos.botao} type="submit">
-            Salvar meta
-          </button>
+          <Enviar className={estilos.botao}>Salvar meta</Enviar>
         </form>
       </div>
     </section>
