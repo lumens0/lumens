@@ -1,4 +1,4 @@
-import { ALTURA_DO_CAMPUS, CAMINHOS, CONTORNO, LARGURA_DO_CAMPUS, PREDIOS } from './predios';
+import { ALTURA_DO_CAMPUS, AREAS, CAMINHOS, CONTORNO, LARGURA_DO_CAMPUS, PREDIOS } from './predios';
 import type { MarcadorDoBloco } from './urgencia';
 import estilos from './mapa.module.css';
 
@@ -41,6 +41,10 @@ export function MapaResumo({ marcadores }: { marcadores: readonly MarcadorDoBloc
       aria-hidden="true"
     >
       <path d={CONTORNO} className={estilos.terreno} />
+      {/* As áreas abertas (pista, quadras, parques) também aparecem no resumo (SCRUM-284). */}
+      {AREAS.map((a) => (
+        <path key={a.id} d={a.d} className={[estilos.area, estilos[a.tipo]].join(' ')} />
+      ))}
       {CAMINHOS.map((d) => (
         <path key={d} d={d} className={estilos.caminho} />
       ))}

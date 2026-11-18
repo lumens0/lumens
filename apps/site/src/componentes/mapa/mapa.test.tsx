@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
+import { MapaResumo } from './MapaResumo';
 import { AREAS, PONTOS, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
@@ -265,5 +266,15 @@ describe('lista do mapa: cartões da mesma altura (SCRUM-284)', () => {
   it('o crédito do OpenStreetMap no celular ocupa uma linha só, para cobrir poucos nomes', () => {
     const celular = css.slice(css.indexOf('@media (max-width: 720px)'));
     expect(celular).toMatch(/\.credito\s*\{[^}]*white-space:\s*nowrap/);
+  });
+});
+
+describe('resumo do mapa na home (SCRUM-284)', () => {
+  it('desenha as áreas abertas, como a pista de atletismo, sob os caminhos e os prédios', () => {
+    const html = renderToStaticMarkup(<MapaResumo marcadores={[]} />);
+    const pista = AREAS.find((a) => a.tipo === 'pista');
+    expect(pista).toBeDefined();
+    expect(html).toContain(`d="${pista?.d ?? ''}"`);
+    expect(html.match(/class="[^"]*area[^"]*"/g)?.length).toBe(AREAS.length);
   });
 });
