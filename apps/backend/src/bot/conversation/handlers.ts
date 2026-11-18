@@ -1,3 +1,4 @@
+import { ORIGEM_SITE_PRODUCAO } from '@lumens/contratos';
 import type { Db } from '@lumens/db';
 import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
@@ -97,13 +98,26 @@ export const OPCOES_DO_MENU = [
   { id: '2', titulo: 'Nova pauta' },
   { id: '3', titulo: 'Verificar e-mail' },
   { id: '4', titulo: 'Minhas pautas' },
+  // SCRUM-334: as pautas abertas também pelo menu.
+  { id: '5', titulo: 'Ver pautas abertas' },
 ] as const;
 
 export const MENU_TEXT = [MENU_PERGUNTA, ...OPCOES_DO_MENU.map((o) => `${o.id} ${o.titulo}`)].join(
   '\n',
 );
 
-export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
+export const MENU_INVALID_TEXT = 'Não entendi. Responda com um número de 1 a 5, ou *ajuda*.';
+
+/** SCRUM-334: pelo menu também se chega às pautas para apoiar, sem precisar do link de uma delas. */
+export const OPEN_PAUTAS_TEXT = `As pautas abertas estão em ${ORIGEM_SITE_PRODUCAO}. Abra uma e toque em *Apoiar*: a conversa volta para cá com a pauta certa.`;
+
+/** SCRUM-334: os comandos que valem em qualquer momento da conversa (os globais do router). */
+export const HELP_TEXT = [
+  'Para escolher, responda com o número de uma opção do menu. A qualquer momento, você pode mandar:',
+  '*menu*: mostra as opções de novo',
+  '*cancelar*: larga o que você estava fazendo e volta ao menu',
+  '*sair*: sai do Lumens e apaga o seu cadastro (eu peço confirmação antes)',
+].join('\n');
 
 /**
  * Sem conversa guardada (primeiro contato ou conversa expirada em 24 h).
@@ -122,8 +136,9 @@ const greeting: StepHandler = async (ctx) => {
 };
 
 /** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
-const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
-  '1': { next: 'REPORT_ASK_TEXT', reply: REPORT_PROMPT_TEXT },
+const MENU_OPTIONS: Record<string, { next: Step; replies: Resposta[] }> = {
+  '1': { next: 'REPORT_ASK_TEXT', replies: [REPORT_PROMPT_TEXT] },
+  '5': { next: 'MENU', replies: [OPEN_PAUTAS_TEXT, MENU_TEXT] },
 };
 const MENU_ALIASES: Record<string, string> = {
   relatar: '1',
@@ -135,13 +150,22 @@ const MENU_ALIASES: Record<string, string> = {
   'verificar email': '3',
   'minhas pautas': '4',
   caminhos: '4',
+  'ver pautas abertas': '5',
+  'pautas abertas': '5',
 };
 
-/** A opção do menu ("1" a "4") que o texto escolhe, pelo número ou pelo nome; `undefined` se nenhuma. */
+/**
+ * SCRUM-334: no menu, cumprimento e pedido de volta não são "Não entendi": mostram o menu. A
+ * "ajuda" explica antes os comandos. Comparados já sem acento (`normalize`): "olá" vale "ola".
+ */
+const PEDE_O_MENU = new Set(['oi', 'ola', 'voltar', 'inicio', 'comecar']);
+const PEDE_AJUDA = new Set(['ajuda', 'help', 'socorro', 'comandos']);
+
+/** A opção do menu ("1" a "5") que o texto escolhe, pelo número ou pelo nome; `undefined` se nenhuma. */
 function opcaoDoMenu(texto: string): string | undefined {
   const t = normalize(texto);
   const escolha = MENU_ALIASES[t] ?? t;
-  return ['1', '2', '3', '4'].includes(escolha) ? escolha : undefined;
+  return ['1', '2', '3', '4', '5'].includes(escolha) ? escolha : undefined;
 }
 
 function menu(ctx: StepContext): StepResult | Promise<StepResult> {
@@ -150,8 +174,11 @@ function menu(ctx: StepContext): StepResult | Promise<StepResult> {
   if (escolha === '3') return entrarNaVerificacao(ctx);
   if (escolha === '4') return entrarEmMinhasPautas(ctx);
   const opt = escolha === undefined ? undefined : MENU_OPTIONS[escolha];
-  if (!opt) return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
-  return { next: opt.next, replies: [opt.reply] };
+  if (opt) return { next: opt.next, replies: opt.replies };
+  const t = normalize(ctx.input.text);
+  if (PEDE_AJUDA.has(t)) return { next: 'MENU', replies: [HELP_TEXT, MENU_TEXT] };
+  if (PEDE_O_MENU.has(t)) return { next: 'MENU', replies: [MENU_TEXT] };
+  return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
 }
 
 export const defaultHandlers: HandlerRegistry = {

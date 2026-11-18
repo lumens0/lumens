@@ -162,10 +162,10 @@ describe('página da pauta: seções', () => {
     expect(html).toMatch(/<a[^>]*href="\/"[^>]*>.*Voltar<\/a>/);
   });
 
-  it('sem caminhos, explica que o owner ainda vai escolher', () => {
+  it('sem caminhos, explica que quem cuida da pauta ainda vai escolher', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, caminhos: [] }} />);
     expect(html).toContain('Caminhos</h2>');
-    expect(html).toContain('O owner ainda vai escolher os caminhos');
+    expect(html).toContain('Quem cuida da pauta ainda vai escolher os caminhos');
   });
 
   it('próxima etapa mostra o texto da API e o prazo do Fala.BR', () => {
