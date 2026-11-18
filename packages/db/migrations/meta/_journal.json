@@ -141,6 +141,13 @@
       "when": 1794947352365,
       "tag": "0019_papel_pauta_ativo_unico",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794950418762,
+      "tag": "0020_pauta_urgente",
+      "breakpoints": true
     }
   ]
 }

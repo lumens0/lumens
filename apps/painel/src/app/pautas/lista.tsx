@@ -51,6 +51,11 @@ export function ListaDePautas({
                 <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
               </h2>
               <p className={estilos.detalhes}>
+                {pauta.urgente && (
+                  <>
+                    <span className={estilos.seloUrgente}>Urgente</span> ·{' '}
+                  </>
+                )}
                 {pauta.bloco ?? 'Campus inteiro'} · {STATUS[pauta.status]} · {pauta.apoios} de{' '}
                 {pauta.meta} apoios
               </p>
