@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@lumens/contratos": "workspace:*",
     "@lumens/db": "workspace:*"
   },
   "scripts": {

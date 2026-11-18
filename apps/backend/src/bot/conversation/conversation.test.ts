@@ -88,6 +88,8 @@ describe('steps', () => {
 
 describe('router', () => {
   it('usuário novo recebe saudação + menu e fica em MENU', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     expect(await send('oi')).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
     const st = await store.get(H);
     expect(st?.step).toBe('MENU');
@@ -153,6 +155,8 @@ describe('router', () => {
   });
 
   it('estado expirado (25h) é tratado como novo', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     await store.save(H, 'NEW_ASK_PLACE', { title: 'x' });
     advance(25 * HOUR);
     expect(await store.get(H)).toBeNull();
@@ -323,6 +327,8 @@ describe('experiência da pessoa', () => {
   });
 
   it('foto como primeira mensagem recebe a saudação', async () => {
+    // Primeiro contato de verdade: sem o cadastro que o beforeEach cria (SCRUM-333).
+    await db.delete(estudantes);
     expect(await sendFoto()).toEqual([GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT]);
   });
 });

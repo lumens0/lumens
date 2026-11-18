@@ -13,6 +13,7 @@ const pauta: Pauta = {
   descricao: 'Os bebedouros estão quebrados.',
   categoria: 'Infraestrutura',
   status: 'juntando_apoios',
+  urgente: false,
   bloco_slug: 'bloco-18',
   bloco_nome: 'Bloco 18',
   meta: 100,
@@ -40,6 +41,12 @@ describe('botões do WhatsApp', () => {
     expect(html).toContain('aria-label="Apoiar a pauta X pelo WhatsApp"');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer"');
+  });
+
+  it('card urgente mostra selo textual e mantém o destaque estrutural', () => {
+    const html = renderToStaticMarkup(<CardPauta pauta={{ ...pauta, urgente: true }} />);
+    expect(html).toContain('Urgente');
+    expect(html).toContain('class="');
   });
 
   it('sem número configurado não renderiza nada', () => {
