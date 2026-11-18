@@ -1,55 +1,215 @@
+/* Visual do painel alinhado ao site (SCRUM-285): tokens de `@lumens/marca`, topo noite, papel claro. */
+
 .moldura {
   min-height: 100vh;
 }
 
+/* Cabeçalho: faixa noite, como no site. Logo, menu e sessão numa linha, inclusive em 375 px. */
 .cabecalho {
+  --tinta: #f5f3ff;
+  --tinta-2: #c9cbe3;
+  --superficie-2: rgb(255 255 255 / 8%);
+
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--noite);
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  color: var(--tinta);
+}
+
+.faixa {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px 24px;
-  padding: 14px clamp(16px, 4vw, 40px);
-  border-bottom: 1px solid var(--borda);
-  background: var(--superficie);
+  gap: 24px;
+  max-width: 1120px;
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 24px);
 }
 
 .marca {
-  color: var(--primaria);
-  font-weight: 700;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--tinta);
+  font:
+    700 20px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
   text-decoration: none;
 }
 
-.navegacao {
-  display: flex;
-  flex: 1;
-  gap: 16px;
+/* O arquivo traz o brilho em volta do círculo; a margem negativa devolve o espaço (como no site). */
+.logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: -10px -6px -10px -10px;
 }
 
-.navegacao a {
+.marcaArea {
+  color: var(--luz);
+  font-weight: 600;
+}
+
+.navegacao,
+.menuLinks {
+  display: flex;
+  gap: 4px;
+}
+
+.navegacao {
+  flex: 1;
+  min-width: 0;
+}
+
+.navegacao a,
+.menuLinks a {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--tinta-2);
+  font-size: 14.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navegacao a:hover,
+.menuLinks a:hover {
+  background: var(--superficie-2);
   color: var(--tinta);
 }
 
 .sessao {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 12px;
-  color: var(--tinta-secundaria);
+  color: var(--tinta-2);
+  font-size: 14.5px;
 }
 
+.menu {
+  display: none;
+}
+
+.menu summary {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 8px;
+  color: var(--tinta);
+  font-size: 14.5px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+
+.menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu[open] summary {
+  background: var(--superficie-2);
+}
+
+.menuNome {
+  padding: 8px 12px 0;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  color: var(--tinta-2);
+  font-size: 14px;
+}
+
+/* Os quatro links e o nome só cabem juntos em telas largas; abaixo disso o nome fica no menu. */
+@media (max-width: 1040px) {
+  .nome {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .faixa {
+    gap: 12px;
+  }
+
+  .navegacao {
+    display: none;
+  }
+
+  .menu {
+    display: block;
+    margin-left: auto;
+  }
+
+  .menuLinks {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    flex-direction: column;
+    padding: 8px 16px 16px;
+    border-bottom: 1px solid rgb(255 255 255 / 12%);
+    background: var(--noite);
+  }
+}
+
+@media (max-width: 360px) {
+  .marcaArea {
+    display: none;
+  }
+}
+
+.botaoNoite {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botaoNoite:hover {
+  background: var(--superficie-2);
+}
+
+/* Conteúdo */
 .conteudo {
-  width: min(100%, 860px);
+  width: min(100%, 880px);
   margin: 0 auto;
-  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px);
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 64px;
 }
 
 .conteudo h1 {
-  margin: 0 0 8px;
-  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin: 0 0 12px;
+  font-size: clamp(1.625rem, 4.5vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.conteudo section {
+  margin-top: 32px;
+}
+
+.conteudo section > h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
 }
 
 .apoio {
   margin: 0 0 24px;
-  color: var(--tinta-secundaria);
-  line-height: 1.5;
+  color: var(--tinta-2);
 }
 
 .lista {
@@ -64,12 +224,34 @@
 .formulario {
   padding: 20px;
   border: 1px solid var(--borda);
-  border-radius: 14px;
+  border-radius: var(--raio);
   background: var(--superficie);
+}
+
+/* Hierarquia do cartão: título em destaque, selos, e os metadados menores. */
+.cartao h2 {
+  margin: 0 0 8px;
+  font-size: 1.1875rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.cartao h2 a {
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.cartao h2 a:hover {
+  text-decoration: underline;
 }
 
 .cartaoClicavel {
   position: relative;
+  transition: border-color var(--rapido) var(--curva);
+}
+
+.cartaoClicavel:hover {
+  border-color: var(--borda-forte);
 }
 
 .cartaoClicavel h2 a::after {
@@ -78,9 +260,71 @@
   content: '';
 }
 
+.cartaoClicavel h2 a:focus-visible {
+  outline: none;
+}
+
 .cartaoClicavel h2 a:focus-visible::after {
-  outline: 3px solid var(--primaria);
+  border-radius: var(--raio);
+  outline: 2px solid var(--luz-forte);
   outline-offset: 3px;
+}
+
+.detalhes {
+  margin: 0;
+  color: var(--tinta-3);
+  font-size: 0.9375rem;
+}
+
+/* Selos de status, prazo e urgência: legíveis de relance, a cor nunca é o único sinal. */
+.selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--tinta-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.janela {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 10%);
+}
+
+.prazoOk {
+  background: #e3f4ea;
+  color: #1f5c39;
+}
+
+.prazoHoje {
+  background: var(--luz-fundo);
+  color: var(--luz-tinta);
+}
+
+.prazoAtrasado {
+  background: #fbe4e2;
+  color: var(--urgente);
+}
+
+.seloUrgente {
+  background: var(--urgente);
+  color: #fff;
 }
 
 .filtros {
@@ -91,13 +335,10 @@
   margin-bottom: 20px;
 }
 
-.filtros input,
-.filtros select {
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--borda);
-  border-radius: 8px;
-  font: inherit;
+.filtros label {
+  color: var(--tinta-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .filtros label:nth-of-type(2) {
@@ -126,42 +367,56 @@
   }
 }
 
-.cartao h2 {
-  margin: 0 0 6px;
-  font-size: 1.125rem;
-}
-
-.cartao h2 a {
+/* Campos de formulário em qualquer tela do painel. */
+.conteudo input:not([type='checkbox'], [type='hidden']),
+.conteudo select,
+.conteudo textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
   color: var(--tinta);
+  font: inherit;
 }
 
-.detalhes {
-  margin: 0;
-  color: var(--tinta-secundaria);
-  font-size: 0.9375rem;
+.conteudo textarea {
+  min-height: 96px;
 }
 
-.atrasada {
-  color: #a3261b;
-  font-weight: 600;
+.conteudo input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0 6px 0 0;
+  accent-color: var(--luz-tinta);
+  vertical-align: -3px;
 }
 
 .aviso,
 .erro {
   margin: 0 0 20px;
   padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--destaque-suave);
-  line-height: 1.5;
+  border: 1px solid rgb(143 76 0 / 18%);
+  border-radius: var(--raio-controle);
+  background: var(--luz-fundo);
+  color: var(--tinta);
+}
+
+.aviso p {
+  margin: 0 0 10px;
 }
 
 .erro {
-  background: #fbe9e7;
-  color: #7a1c13;
+  border-color: rgb(166 27 27 / 20%);
+  background: #fbe4e2;
+  color: #7a1414;
 }
 
 .descricaoDaPauta {
-  margin: 16px 0;
+  margin: 20px 0;
+  font-size: 1.0625rem;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -170,68 +425,159 @@
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 6px 16px;
-  margin: 0 0 8px;
+  margin: 16px 0 8px;
+  font-size: 0.9375rem;
 }
 
 .ficha dt {
-  color: var(--tinta-secundaria);
+  color: var(--tinta-3);
 }
 
 .ficha dd {
   margin: 0;
 }
 
-.decisoes {
+/* Formulários lado a lado no desktop (ajustes de bloco e meta). */
+.grade {
   display: grid;
-  gap: 16px;
-  margin-top: 24px;
+  gap: 12px;
 }
 
-.decisoes h2 {
+@media (min-width: 720px) {
+  .grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.grade h2,
+.grade h3 {
   margin: 0 0 8px;
   font-size: 1.0625rem;
 }
 
-.decisoes label {
+.grade label {
   display: block;
-  margin-bottom: 6px;
+  margin: 8px 0 6px;
+  color: var(--tinta-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
-.decisoes textarea {
-  width: 100%;
-  min-height: 96px;
-  padding: 12px 14px;
-  border: 1px solid var(--borda);
-  border-radius: 10px;
+.grade button {
+  margin-top: 12px;
+}
+
+/* Decisão da pauta: uma barra de ações; recusar é secundária e abre o motivo. */
+.decisoes {
+  padding: 20px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio);
+  background: var(--superficie);
+}
+
+.decisoes > .detalhes {
+  margin-bottom: 16px;
+}
+
+.barraDeAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.campo {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 6px;
+  color: var(--tinta-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.marcar {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+}
+
+.recusa {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borda);
+}
+
+.recusa summary {
+  list-style: none;
+}
+
+.recusa summary::-webkit-details-marker {
+  display: none;
+}
+
+.recusa[open] summary {
+  margin-bottom: 12px;
+}
+
+.recusa .formulario {
+  padding: 0;
+  border: 0;
+}
+
+/* Botões, como os do site: a ação principal é a luz (âmbar com texto escuro). */
+.botao,
+.botaoSecundario,
+.botaoPerigo,
+.acao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--raio-controle);
   font: inherit;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--rapido) var(--curva),
+    border-color var(--rapido) var(--curva);
 }
 
 .botao,
-.botaoSecundario,
-.botaoPerigo {
-  padding: 10px 18px;
-  border: 0;
-  border-radius: 10px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+.acao {
+  border-color: var(--luz);
+  background: var(--luz);
+  color: #161a2e;
 }
 
-.botao {
-  background: var(--primaria);
-  color: #fff;
+.botao:hover,
+.acao:hover {
+  border-color: var(--luz-forte);
+  background: var(--luz-forte);
 }
 
 .botaoSecundario {
-  border: 1px solid var(--borda);
-  background: var(--superficie);
+  width: fit-content;
+  border-color: var(--borda-forte);
+  background: transparent;
   color: var(--tinta);
 }
 
+.botaoSecundario:hover {
+  background: var(--superficie-2);
+}
+
 .botaoPerigo {
-  margin-top: 10px;
-  background: #a3261b;
-  color: #fff;
+  border-color: var(--urgente);
+  background: transparent;
+  color: var(--urgente);
+}
+
+.botaoPerigo:hover {
+  background: #fbe4e2;
 }
 
 .formulario {
@@ -244,33 +590,13 @@
   font-weight: 600;
 }
 
-.formulario input,
-.formulario textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--borda);
-  border-radius: 10px;
-  font: inherit;
-}
-
-.formulario textarea {
-  min-height: 96px;
-}
-
 .formulario button {
   justify-self: start;
   margin-top: 16px;
 }
 
 .acao {
-  display: inline-block;
-  margin-top: 8px;
-  padding: 10px 18px;
-  border-radius: 10px;
-  background: var(--primaria);
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
+  margin-top: 24px;
 }
 
 /* Foto do relato (SCRUM-262): pequena na ficha, inteira ao tocar. */
@@ -284,7 +610,7 @@
   max-width: min(100%, 360px);
   max-height: 360px;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
   object-fit: contain;
 }
 
@@ -306,16 +632,6 @@
   gap: 12px;
 }
 
-.seloUrgente {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 5px;
-  background: #a61b1b;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .documentos h2 {
   margin: 0;
 }
@@ -325,5 +641,5 @@
   height: 70vh;
   min-height: 420px;
   border: 1px solid var(--borda);
-  border-radius: 10px;
+  border-radius: var(--raio-controle);
 }

@@ -1,0 +1,14 @@
+{
+  "name": "@lumens/marca",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Identidade visual do Lumens (cores, raio, ritmo e cores de status) usada pelo site e pelo painel.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

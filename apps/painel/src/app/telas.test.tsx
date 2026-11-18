@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
 import { ListaDePautas } from './pautas/lista';
+import { situacaoDoPrazo } from './pautas/selos';
 import { textoDoPrazo } from './prazo';
 import { Relatos } from './relatos/relatos';
 
@@ -33,6 +34,20 @@ const pauta = (campos: Partial<DetalhePautaDaCuradoria> = {}): DetalhePautaDaCur
   caminhos: [],
   promessa: null,
   ...campos,
+});
+
+describe('situacaoDoPrazo', () => {
+  // Prazo às 12h UTC (9h em Maceió) de 10/11.
+  const prazo = new Date('2026-11-10T12:00:00.000Z');
+  it.each([
+    [-1, 'atrasada'],
+    [0, 'vence_hoje'],
+    [9 * HORA, 'vence_hoje'], // agora: 0h de 10/11 em Maceió
+    [9 * HORA + 1, 'no_prazo'], // agora: 23h59 de 9/11 em Maceió
+    [20 * HORA, 'no_prazo'],
+  ])('com %d ms restantes, %s', (restanteMs, situacao) => {
+    expect(situacaoDoPrazo(prazo, restanteMs)).toBe(situacao);
+  });
 });
 
 describe('textoDoPrazo', () => {
@@ -92,8 +107,13 @@ describe('tela da pauta', () => {
     expect(html).toContain('<details id="linha-do-tempo"');
     expect(html).toContain('Linha do tempo');
     expect(html).toContain('Aprovar pauta');
-    expect(html).toContain('também publica o relato de quem a criou');
+    expect(html).toContain('junto com o relato de quem a criou');
     expect(html).toContain('Recusar pauta');
+    // Situação e prazo como selos; recusar é secundária e só abre o motivo quando pedido.
+    expect(html).toContain('Esperando decisão da curadoria');
+    expect(html).toContain('faltam 5 h');
+    expect(html).toContain('<details class=');
+    expect(html).not.toContain('open=""><summary');
     // Aprovar, recusar, corrigir o bloco e ajustar a meta (SCRUM-326).
     expect(html.match(/name="pautaId" value="5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"/g)).toHaveLength(
       4,
@@ -340,6 +360,8 @@ describe('tela da pauta', () => {
 
     expect(sem).toContain('role="alert"');
     expect(sem).toContain('escreva o motivo');
+    // O formulário de recusa volta aberto, com o campo do motivo à vista.
+    expect(sem).toMatch(/<details class="[^"]*" open="">/);
     expect(ja).toContain('já decidiu esta pauta');
   });
 
@@ -466,7 +488,7 @@ describe('lista de todas as pautas', () => {
     expect(html).toContain('name="q"');
     expect(html).toContain('value="bebedouro"');
     expect(html).toContain('de 300 apoios');
-    expect(html).toContain('atrasada há 1 h');
+    expect(html).toContain('Atrasada · há 1 h');
     expect(html).toContain('selected');
   });
 });
