@@ -94,7 +94,7 @@ describe('relato depois do apoio (SCRUM-343)', () => {
 
   it('a pergunta pede o texto direto e ensina a pular', () => {
     expect(ASK_WRITE_REPORT_TEXT).toContain('Escreva numa mensagem o que aconteceu e onde');
-    expect(ASK_WRITE_REPORT_TEXT).toContain("'pular'");
-    expect(SUPPORT_REPORT_TOO_SHORT_TEXT).toContain("'pular'");
+    expect(ASK_WRITE_REPORT_TEXT).toContain('*pular*');
+    expect(SUPPORT_REPORT_TOO_SHORT_TEXT).toContain('*pular*');
   });
 });

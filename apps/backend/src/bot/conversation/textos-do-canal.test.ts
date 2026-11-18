@@ -1,7 +1,7 @@
 /**
  * SCRUM-323: o bot fala pelo WhatsApp e pelo Telegram. No Telegram a identidade é o chat, e a pessoa
  * nunca informou telefone: nenhum texto pode tratar "este número" como quem ela é, nem prometer
- * resposta "pelo WhatsApp". Os textos de privacidade ficam de fora: são da SCRUM-283.
+ * resposta "pelo WhatsApp". Os de privacidade entram desde a SCRUM-283.
  */
 import { describe, expect, it } from 'vitest';
 import * as apoio from './apoio';
@@ -11,6 +11,7 @@ import * as comandosDoSite from './comandos-do-site';
 import * as handlers from './handlers';
 import * as minhasPautas from './minhas-pautas';
 import * as novaPauta from './nova-pauta';
+import * as privacidade from './privacidade';
 import * as proposta from './proposta';
 import * as protocoloFalabr from './protocolo-falabr';
 import * as relato from './relato';
@@ -27,6 +28,7 @@ const MODULOS = {
   handlers,
   minhasPautas,
   novaPauta,
+  privacidade,
   proposta,
   protocoloFalabr,
   relato,
@@ -60,5 +62,23 @@ describe('mensagem de bloqueio da verificação (SCRUM-323)', () => {
   const liberaEm = new Date('2026-11-18T15:00:00Z');
   it.each(['envios', 'erros'] as const)('motivo %s não fala em número', (motivo) => {
     expect(verificacao.blockedText({ motivo, liberaEm })).not.toMatch(SO_DO_WHATSAPP);
+  });
+});
+
+describe('textos de privacidade e de números de opção (SCRUM-283, SCRUM-340)', () => {
+  it('o aviso e o sair não dizem que o Lumens guarda o telefone', () => {
+    for (const texto of [
+      privacidade.PRIVACY_NOTICE_TEXT,
+      privacidade.LEAVE_CONFIRM_TEXT,
+      privacidade.LEFT_TEXT,
+    ]) {
+      expect(texto).not.toMatch(
+        /(?:guardamos|apagamos|apagados)[^.]*telefone|telefone[^.]*apagados/i,
+      );
+    }
+  });
+
+  it.each(textos)('%s não cita o número de uma opção do menu', (_nome, valor) => {
+    expect(valor).not.toMatch(/escolha \d/i);
   });
 });

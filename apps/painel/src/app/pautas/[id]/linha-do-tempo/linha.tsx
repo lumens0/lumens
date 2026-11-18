@@ -35,7 +35,7 @@ const ROTULOS: Record<TipoEvento, string> = {
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
-  bot: 'Bot do WhatsApp',
+  bot: 'Bot do Lumens',
   curadoria: 'Curadoria',
   agendador: 'Automático',
 };
