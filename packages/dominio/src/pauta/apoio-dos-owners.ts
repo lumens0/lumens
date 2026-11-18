@@ -33,13 +33,7 @@ export interface Conferencia {
  * aprovação (evento `pauta_aprovada`) ou, sem o evento, o ativo hoje.
  */
 export async function conferirApoioDosOwners(db: Db): Promise<Conferencia> {
-  const { rows } = await db.execute<{
-    pauta_id: string;
-    titulo: string;
-    status: string;
-    estudante_id: string;
-    verificado: boolean;
-  }>(sql`
+  const resultado: unknown = await db.execute(sql`
     SELECT DISTINCT p.id AS pauta_id, p.titulo, p.status, pa.estudante_id,
            (e.verificado_em IS NOT NULL AND e.saiu_em IS NULL) AS verificado
       FROM pauta p
@@ -57,6 +51,15 @@ export async function conferirApoioDosOwners(db: Db): Promise<Conferencia> {
            )
   ORDER BY p.titulo, p.id, pa.estudante_id
   `);
+  const { rows } = resultado as {
+    rows: {
+      pauta_id: string;
+      titulo: string;
+      status: string;
+      estudante_id: string;
+      verificado: boolean;
+    }[];
+  };
 
   const conferencia: Conferencia = { aplicaveis: [], ignorados: [] };
   for (const r of rows) {
