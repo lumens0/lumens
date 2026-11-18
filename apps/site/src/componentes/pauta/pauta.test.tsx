@@ -233,12 +233,12 @@ describe('página da pauta: seções', () => {
   it('próxima etapa mostra o texto da API e o prazo do Fala.BR', () => {
     const pauta = {
       ...fixture,
-      proxima_etapa: 'Prazo do Fala.BR venceu em 10/03/2026',
+      proxima_etapa: 'Aguardando resposta',
       caminhos: [{ ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' }],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={AGORA} />);
     expect(html).toContain('Próxima etapa</h2>');
-    expect(html).toContain('Prazo do Fala.BR venceu em 10/03/2026');
+    expect(html).toContain('Aguardando resposta');
     expect(html).toContain('Prazo de resposta do Fala.BR: 10/03/2026');
   });
 
@@ -621,6 +621,16 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={HOJE} />)).toContain(
       'Aguardando resposta. Prazo venceu em 20/03/2026.',
     );
+  });
+
+  it('não repete o prazo quando o texto da API já o traz', () => {
+    const pauta = {
+      ...fixture,
+      proxima_etapa: 'Prazo do Fala.BR venceu em 20/03/2026',
+      caminhos: [falabr()],
+    };
+    const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={HOJE} />);
+    expect(html.match(/20\/03\/2026/g)).toHaveLength(1);
   });
 
   it('o dia do prazo ainda conta como em dia; o dia seguinte, não', () => {

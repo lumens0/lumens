@@ -100,7 +100,7 @@ export function ProximaEtapa({
         Próxima etapa
       </h2>
       <p className={estilos.texto}>{pauta.proxima_etapa ?? 'A definir.'}</p>
-      {prazo && (
+      {prazo && !pauta.proxima_etapa?.includes(formatarDia(prazo)) && (
         <p className={prazoVencido(prazo, agora) ? estilos.vencido : estilos.vazio}>
           {prazoVencido(prazo, agora)
             ? `Prazo de resposta do Fala.BR ${textoDoPrazo(prazo, agora, true)}`

@@ -89,6 +89,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const geral = useMemo(() => enquadrar([...porPredio.keys()]), [porPredio]);
   // Com o campus inteiro na tela, os nomes se amontoam; aparecem quando o mapa aproxima.
   const [comNomes, setComNomes] = useState(false);
+  // Bem de perto cabem todos os nomes; antes disso, só os dos prédios com bloco (sem se atropelarem).
+  const [todosOsNomes, setTodosOsNomes] = useState(false);
   const [ajudaVisivel, setAjudaVisivel] = useState(true);
   const [avisoToque, setAvisoToque] = useState(false);
   useEffect(() => {
@@ -108,6 +110,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       base,
       (v) => {
         setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
+        setTodosOsNomes(v.w < LARGURA_DO_CAMPUS * 0.12);
       },
       (dedos) => {
         if (!ajudaFechada) {
@@ -270,7 +273,12 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
             <g aria-hidden="true">
               {PREDIOS.filter(
-                (p) => p.sigla && (porPredio.has(p.id) || comNomes || sel?.predio?.id === p.id),
+                (p) =>
+                  p.sigla &&
+                  (porPredio.has(p.id) ||
+                    todosOsNomes ||
+                    (comNomes && p.blocos.length > 0) ||
+                    sel?.predio?.id === p.id),
               ).map((p) => (
                 <Sigla key={p.id} predio={p} />
               ))}

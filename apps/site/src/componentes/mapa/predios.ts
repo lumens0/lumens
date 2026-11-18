@@ -137,10 +137,13 @@ export interface Area {
   caixa: readonly number[];
 }
 
+// Área que repete o nome de um prédio (a Praça de Alimentação é parque e prédio no OSM) fica sem rótulo.
+const NOMES_DE_PREDIO = new Set(PREDIOS_OSM.map(([, nome]) => nome));
+
 export const AREAS: readonly Area[] = AREAS_OSM.map(([id, tipo, nome, d, caixa]) => ({
   id,
   tipo: tipo as TipoDeArea,
-  nome,
+  nome: NOMES_DE_PREDIO.has(nome) ? '' : nome,
   d,
   caixa,
 }));
