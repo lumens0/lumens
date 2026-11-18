@@ -15,7 +15,8 @@
     "db:generate": "drizzle-kit generate",
     "db:provision": "tsx --env-file-if-exists=../../.env.database src/provision-app-role.ts",
     "db:migrate": "tsx --env-file-if-exists=../../.env.database src/migrate.ts",
-    "db:seed": "tsx --env-file-if-exists=../../.env seed/run.ts"
+    "db:seed": "tsx --env-file-if-exists=../../.env seed/run.ts",
+    "db:blocos-ufal": "tsx --env-file-if-exists=../../.env seed/run-blocos-ufal.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",
