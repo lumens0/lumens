@@ -1,4 +1,4 @@
-# Imagem do back-end para a homologação da AWS (SCRUM-93).
+# Imagem do back-end para a homologação, que roda numa VM do Azure (SCRUM-93).
 #
 # Uma imagem só serve aos dois comandos do deploy: `db:migrate` e o `start`. Separar em
 # duas economizaria pouco e abriria a chance de migrar com uma versão e servir com outra.

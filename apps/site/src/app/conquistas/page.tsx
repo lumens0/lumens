@@ -6,6 +6,7 @@ import { formatarNumero } from '../../componentes/BarraApoios';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarDia } from '../../componentes/pauta/LinhaDoTempo';
 import { buscarConquistas } from '../../dados/api';
+import { anoEmMaceio, diasEntre, textoDias } from '../../dados/dias';
 import { metadadosDaMarca } from '../../metadados';
 import estilos from '../page.module.css';
 
@@ -15,32 +16,14 @@ export const metadata: Metadata = metadadosDaMarca({
   description: 'Pautas estudantis da UFAL que viraram conquista.',
 });
 
-const DIA_EM_MS = 24 * 60 * 60 * 1000;
-
-// `en-CA` formata como AAAA-MM-DD, que o `Date.parse` lê como meia-noite UTC daquele dia.
-const diaEmMaceio = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Maceio' });
-const diaDoCalendario = (instante: string) =>
-  Date.parse(diaEmMaceio.format(new Date(instante))) / DIA_EM_MS;
-
-/**
- * Dias de calendário (em Maceió) entre a criação da pauta e a conquista, para bater com as datas
- * mostradas. `null` sem uma das datas: API antiga sem `criada_em` não vira "NaN dias".
- */
-function diasAteEntrega({ criada_em, conquistada_em }: Conquista): number | null {
-  if (!conquistada_em || !criada_em) return null;
-  const dias = Math.round(diaDoCalendario(conquistada_em) - diaDoCalendario(criada_em));
-  return Number.isFinite(dias) ? dias : null;
-}
-
-function textoDias(dias: number): string {
-  if (dias === 0) return 'No mesmo dia';
-  return dias === 1 ? '1 dia' : `${formatarNumero(dias)} dias`;
-}
+/** Dias de calendário entre a criação da pauta e a conquista. `null` sem uma das datas. */
+const diasAteEntrega = ({ criada_em, conquistada_em }: Conquista) =>
+  diasEntre(criada_em, conquistada_em);
 
 /** O ano da conquista, que abre o item como num memorial. Sem data, a da criação da pauta. */
 function anoDaConquista({ conquistada_em, criada_em }: Conquista): string {
   const instante = conquistada_em ?? criada_em;
-  return instante ? diaEmMaceio.format(new Date(instante)).slice(0, 4) : '';
+  return instante ? anoEmMaceio(instante) : '';
 }
 
 function ItemConquista({ conquista }: { conquista: Conquista }) {

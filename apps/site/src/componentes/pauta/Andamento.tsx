@@ -1,6 +1,7 @@
 import type { Evento, PautaDetalhe } from '@lumens/contratos';
-import { formatarDia } from './Caminhos';
+import { caminhoRespondido } from './Caminhos';
 import { formatarData } from './LinhaDoTempo';
+import { formatarDia, prazoVencido, textoDoPrazo } from './prazos';
 import estilos from './pauta.module.css';
 
 // A resposta e a promessa chegam pela linha do tempo pública: o contrato não tem campos próprios
@@ -54,8 +55,18 @@ function prazoFalabr(pauta: PautaDetalhe): string | undefined {
   return ultimoFalabr(pauta)?.prazo ?? undefined;
 }
 
-/** Resposta oficial chegou depois que o Fala.BR mais recente foi aberto: o prazo já não importa. */
+/** O Fala.BR mais recente consta como respondido: vale mesmo sem o evento de resposta. */
+function falabrRespondido(pauta: PautaDetalhe): boolean {
+  const falabr = ultimoFalabr(pauta);
+  return falabr !== undefined && caminhoRespondido(falabr);
+}
+
+/**
+ * Resposta oficial chegou depois que o Fala.BR mais recente foi aberto, ou o Fala.BR já consta
+ * como respondido: o prazo já não importa.
+ */
 function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
+  if (falabrRespondido(pauta)) return true;
   const abertoEm = ultimoFalabr(pauta)?.aberto_em;
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
   return (
@@ -63,8 +74,16 @@ function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
   );
 }
 
-/** O que acontece agora com a pauta e quando. */
-export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
+/** O que acontece agora com a pauta e quando. Pauta conquistada não tem próxima etapa. */
+export function ProximaEtapa({
+  pauta,
+  agora = new Date(),
+}: {
+  pauta: PautaDetalhe;
+  /** O "hoje" dos prazos vencidos; nos testes, uma data fixa. */
+  agora?: Date;
+}) {
+  if (pauta.status === 'conquistada') return null;
   const falabr = respondidoDepoisDoFalabr(pauta) ? undefined : ultimoFalabr(pauta);
   const prazo = falabr?.prazo ?? undefined;
   const aberta = ultimo(pauta.linha_do_tempo, 'conferencia_aberta');
@@ -73,21 +92,27 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
     aberta && (!apurada || apurada.criado_em < aberta.criado_em)
       ? texto(aberta, 'fecha_em')
       : undefined;
+  const conferenciaVencida =
+    conferenciaAte !== undefined && Date.parse(conferenciaAte) < agora.getTime();
   return (
     <section className={estilos.proxima} aria-labelledby="proxima-titulo">
       <h2 id="proxima-titulo" className={estilos.proximaTitulo}>
         Próxima etapa
       </h2>
-      <p className={estilos.texto}>
-        {pauta.proxima_etapa ??
-          (pauta.status === 'conquistada' ? 'Pauta conquistada.' : 'A definir.')}
-      </p>
-      {prazo && <p className={estilos.vazio}>Prazo de resposta do Fala.BR: {formatarDia(prazo)}</p>}
+      <p className={estilos.texto}>{pauta.proxima_etapa ?? 'A definir.'}</p>
+      {prazo && !pauta.proxima_etapa?.includes(formatarDia(prazo)) && (
+        <p className={prazoVencido(prazo, agora) ? estilos.vencido : estilos.vazio}>
+          {prazoVencido(prazo, agora)
+            ? `Prazo de resposta do Fala.BR ${textoDoPrazo(prazo, agora, true)}`
+            : `Prazo de resposta do Fala.BR: ${formatarDia(prazo)}`}
+        </p>
+      )}
       {prazo && falabr?.prorrogado && <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>}
       {conferenciaAte && (
-        <p className={estilos.vazio}>
-          Conferência aberta até{' '}
+        <p className={conferenciaVencida ? estilos.vencido : estilos.vazio}>
+          {conferenciaVencida ? 'Conferência encerrada em ' : 'Conferência aberta até '}
           <time dateTime={conferenciaAte}>{formatarData(conferenciaAte)}</time>
+          {conferenciaVencida ? ', aguardando a apuração' : ''}
         </p>
       )}
     </section>
@@ -95,7 +120,14 @@ export function ProximaEtapa({ pauta }: { pauta: PautaDetalhe }) {
 }
 
 /** Resposta oficial e promessa com a data prometida; sem resposta, "aguardando" com o prazo. */
-export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
+export function RespostaOficial({
+  pauta,
+  agora = new Date(),
+}: {
+  pauta: PautaDetalhe;
+  /** O "hoje" dos prazos vencidos; nos testes, uma data fixa. */
+  agora?: Date;
+}) {
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
   const indicePromessa = pauta.linha_do_tempo.findLastIndex(
     (e) => e.tipo === 'promessa_registrada',
@@ -108,39 +140,63 @@ export function RespostaOficial({ pauta }: { pauta: PautaDetalhe }) {
       : undefined;
   // Promessa registrada sem evento de resposta ainda conta como resposta recebida.
   const recebida = resposta ?? promessa;
+  // O Fala.BR respondido nunca convive com "aguardando resposta", mesmo sem o evento (SCRUM-354).
+  const respondidoNoFalabr = falabrRespondido(pauta);
+  const conquistada = pauta.status === 'conquistada';
+  // Conquistada sem resposta registrada: nada de "aguardando"; a solução entregue aparece à parte.
+  if (!recebida && !respondidoNoFalabr && conquistada) return null;
   const prazo = prazoFalabr(pauta);
   const entrega = texto(remarcacao, 'data_nova') ?? texto(promessa, 'data_entrega');
+  // Promessa cumprida (pauta conquistada) não é promessa vencida.
+  const entregaVencida = entrega !== undefined && !conquistada && prazoVencido(entrega, agora);
   const resumo = texto(promessa, 'resumo') ?? texto(resposta, 'resumo');
   const fonte = texto(promessa, 'fonte') ?? texto(resposta, 'fonte');
+  const falabr = ultimoFalabr(pauta);
   return (
     <section
-      className={recebida ? [estilos.secao, estilos.resposta].join(' ') : estilos.secao}
+      className={
+        recebida || respondidoNoFalabr ? [estilos.secao, estilos.resposta].join(' ') : estilos.secao
+      }
       aria-labelledby="resposta-titulo"
     >
       <h2 id="resposta-titulo" className={estilos.secaoTitulo}>
         Resposta oficial
       </h2>
-      {!recebida ? (
+      {!recebida && !respondidoNoFalabr && (
         <p className={estilos.texto}>
           Aguardando resposta
-          {prazo ? `. Prazo: ${formatarDia(prazo)}.` : ', ainda sem prazo definido.'}
+          {prazo
+            ? prazoVencido(prazo, agora)
+              ? `. Prazo ${textoDoPrazo(prazo, agora, true)}.`
+              : `. Prazo: ${formatarDia(prazo)}.`
+            : ', ainda sem prazo definido.'}
         </p>
-      ) : (
-        <>
-          <p className={estilos.texto}>
-            Recebida em{' '}
-            <time dateTime={recebida.criado_em}>{formatarData(recebida.criado_em)}</time>
-          </p>
-          {resumo && <p className={estilos.texto}>{resumo}</p>}
-          {entrega && (
-            <p className={estilos.texto}>
-              <strong>Promessa{remarcacao ? ' remarcada' : ''}:</strong> entrega até{' '}
-              {formatarDia(entrega)}
-            </p>
-          )}
-          {fonte && <Fonte fonte={fonte} />}
-        </>
       )}
+      {!recebida && respondidoNoFalabr && (
+        <p className={estilos.texto}>
+          O Fala.BR já foi respondido
+          {falabr?.protocolo ? ` (protocolo ${falabr.protocolo})` : ''}.
+        </p>
+      )}
+      {recebida && (
+        <p className={estilos.texto}>
+          Recebida em <time dateTime={recebida.criado_em}>{formatarData(recebida.criado_em)}</time>
+        </p>
+      )}
+      {resumo && <p className={estilos.texto}>{resumo}</p>}
+      {entrega && (
+        <p className={estilos.texto}>
+          <strong>Promessa{remarcacao ? ' remarcada' : ''}:</strong>{' '}
+          {entregaVencida ? (
+            <span className={estilos.vencidoTexto}>
+              entrega prometida {textoDoPrazo(entrega, agora, true)}
+            </span>
+          ) : (
+            `entrega até ${formatarDia(entrega)}`
+          )}
+        </p>
+      )}
+      {fonte && <Fonte fonte={fonte} />}
     </section>
   );
 }

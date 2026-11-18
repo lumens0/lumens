@@ -80,7 +80,7 @@ export function FormularioDaPromessa({
             <input id="dataEntrega" name="dataEntrega" type="date" required min={hoje} max={ate} />
             <p className={estilos.detalhes}>
               Nesse dia quem apoia a pauta recebe a pergunta &quot;Foi feito?&quot; e tem 7 dias
-              para responder. Ao salvar, os apoiadores são avisados da resposta pelo WhatsApp.
+              para responder. Ao salvar, os apoiadores são avisados da resposta pelo bot.
             </p>
             <Enviar className={estilos.botao}>Registrar promessa</Enviar>
           </form>
