@@ -13,7 +13,7 @@ function pauta(
     slug: `pauta-teste-${status.replaceAll('_', '-')}`,
     titulo: `Pauta de teste · ${status}`,
     descricao: 'Descrição de teste.',
-    categoria: 'Infraestrutura',
+    categoria: 'infraestrutura',
     status,
     bloco_slug: bloco?.slug ?? null,
     bloco_nome: bloco?.nome ?? null,

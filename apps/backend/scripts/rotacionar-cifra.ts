@@ -2,7 +2,7 @@
 // Uso: pnpm --filter @lumens/backend rotacionar-cifra --antiga=<base64> --nova=<base64>
 // Ou via variáveis de ambiente CHAVE_CIFRA_ANTIGA e CHAVE_CIFRA_NOVA.
 import { criarCliente } from '@lumens/db';
-import { rotacionarCifra } from '../src/cripto/rotacao';
+import { FilaComJobsPendentesError, rotacionarCifra } from '../src/cripto/rotacao';
 
 function extrairArg(nome: string): string | undefined {
   const prefixo = `--${nome}=`;
@@ -56,10 +56,12 @@ const { db, pool } = criarCliente(databaseUrl);
 try {
   const resultado = await rotacionarCifra(db, chaveAntiga, chaveNova);
   console.log(
-    `Rotação de chaves concluída com sucesso: ${String(resultado.curadores)} curador(es) e ${String(resultado.estudantes)} estudante(s) recifrado(s).`,
+    `Rotação de chaves concluída com sucesso: ${String(resultado.estudantes)} estudante(s) e ${String(resultado.conversas)} conversa(s) em andamento recifrado(s); ${String(resultado.jobsApagados)} job(s) encerrado(s) do bot apagado(s). O e-mail dos curadores usa a CHAVE_CIFRA_PAINEL e não muda aqui.`,
   );
 } catch (erro) {
-  console.error('Falha na rotação de chaves:', erro);
+  // Recusa esperada (fila com job pendente): só a explicação, sem a pilha.
+  if (erro instanceof FilaComJobsPendentesError) console.error(erro.message);
+  else console.error('Falha na rotação de chaves:', erro);
   process.exit(1);
 } finally {
   await pool.end();

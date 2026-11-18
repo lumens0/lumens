@@ -3,6 +3,7 @@ import type { ServicoDeEmail } from '../../email/codigo';
 import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import { supportAskPhoto, supportAskReport } from './apoio';
+import { temCadastro } from './estudante';
 import {
   entrarNaPautaNova,
   newAskDescription,
@@ -83,21 +84,42 @@ export type StepHandler = (ctx: StepContext) => StepResult | Promise<StepResult>
 export type HandlerRegistry = Record<Step, StepHandler>;
 
 export const GREETING_TEXT = 'Olá! Eu sou o Lumens, o canal para melhorar o campus.';
-export const MENU_TEXT = [
-  'O que você quer fazer?',
-  '1 Relatar problema',
-  '2 Nova pauta',
-  '3 Verificar e-mail',
-  '4 Minhas pautas',
-].join('\n');
+/** SCRUM-333: quem tem cadastro e volta depois de a conversa expirar. */
+export const WELCOME_BACK_TEXT = 'Oi de novo! Que bom ter você de volta ao Lumens.';
+export const MENU_PERGUNTA = 'O que você quer fazer?';
+
+/**
+ * As opções do menu principal, num lugar só: o texto numerado (WhatsApp, Evolution) e o teclado do
+ * Telegram (SCRUM-324) saem daqui. O `id` é o que a pessoa digita e o que o botão manda.
+ */
+export const OPCOES_DO_MENU = [
+  { id: '1', titulo: 'Relatar problema' },
+  { id: '2', titulo: 'Nova pauta' },
+  { id: '3', titulo: 'Verificar e-mail' },
+  { id: '4', titulo: 'Minhas pautas' },
+] as const;
+
+export const MENU_TEXT = [MENU_PERGUNTA, ...OPCOES_DO_MENU.map((o) => `${o.id} ${o.titulo}`)].join(
+  '\n',
+);
 
 export const MENU_INVALID_TEXT = 'Não entendi. Responda com 1, 2, 3 ou 4.';
 
-// 5.7: o aviso de privacidade vai sempre no primeiro contato, antes do menu.
-const greeting: StepHandler = () => ({
-  next: 'MENU',
-  replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT],
-});
+/**
+ * Sem conversa guardada (primeiro contato ou conversa expirada em 24 h).
+ *
+ * SCRUM-333: uma opção do menu ("2", "nova pauta"...) é atendida direto, em vez de ser trocada pela
+ * saudação: quem volta depois de 24 h não perde a mensagem. O aviso de privacidade completo (5.7) é
+ * só de quem não tem cadastro; quem tem recebe uma saudação curta. No primeiro contato de verdade, o
+ * router põe o aviso antes da resposta, mesmo quando ela é uma opção do menu.
+ */
+const greeting: StepHandler = async (ctx) => {
+  if (opcaoDoMenu(ctx.input.text) !== undefined) return menu(ctx);
+  if (await temCadastro(ctx.db, ctx.phoneHmac)) {
+    return { next: 'MENU', replies: [WELCOME_BACK_TEXT, MENU_TEXT] };
+  }
+  return { next: 'MENU', replies: [GREETING_TEXT, PRIVACY_NOTICE_TEXT, MENU_TEXT] };
+};
 
 /** Opções do menu que só mudam de passo. A "2", a "3" e a "4" consultam o banco: veja `menu`. */
 const MENU_OPTIONS: Record<string, { next: Step; reply: string }> = {
@@ -115,16 +137,22 @@ const MENU_ALIASES: Record<string, string> = {
   caminhos: '4',
 };
 
-const menu: StepHandler = (ctx) => {
-  const t = normalize(ctx.input.text);
+/** A opção do menu ("1" a "4") que o texto escolhe, pelo número ou pelo nome; `undefined` se nenhuma. */
+function opcaoDoMenu(texto: string): string | undefined {
+  const t = normalize(texto);
   const escolha = MENU_ALIASES[t] ?? t;
+  return ['1', '2', '3', '4'].includes(escolha) ? escolha : undefined;
+}
+
+function menu(ctx: StepContext): StepResult | Promise<StepResult> {
+  const escolha = opcaoDoMenu(ctx.input.text);
   if (escolha === '2') return entrarNaPautaNova(ctx);
   if (escolha === '3') return entrarNaVerificacao(ctx);
   if (escolha === '4') return entrarEmMinhasPautas(ctx);
-  const opt = MENU_OPTIONS[escolha];
+  const opt = escolha === undefined ? undefined : MENU_OPTIONS[escolha];
   if (!opt) return { next: 'MENU', replies: [MENU_INVALID_TEXT, MENU_TEXT] };
   return { next: opt.next, replies: [opt.reply] };
-};
+}
 
 export const defaultHandlers: HandlerRegistry = {
   GREETING: greeting,

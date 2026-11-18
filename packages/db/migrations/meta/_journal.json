@@ -120,6 +120,27 @@
       "when": 1794779646016,
       "tag": "0016_tipo_disparo_aprovacao",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794781142908,
+      "tag": "0017_papel_do_curador",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794848983333,
+      "tag": "0018_registro_verificacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794947352365,
+      "tag": "0019_papel_pauta_ativo_unico",
+      "breakpoints": true
     }
   ]
 }
