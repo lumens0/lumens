@@ -7,7 +7,7 @@ import { Caminhos, rotuloStatusCaminho } from './Caminhos';
 import { ConteudoPauta } from './ConteudoPauta';
 import { fixture } from '../../dados/pauta-detalhe-teste';
 import { altDaFoto, urlFoto } from './foto';
-import { LinhaDoTempo } from './LinhaDoTempo';
+import { LinhaDoTempo, rotuloDoPapel } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
 
 const CAMINHO: Caminho = {
@@ -55,14 +55,14 @@ describe('página da pauta: seções', () => {
     expect(bloco).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
   });
 
-  it('cabeçalho mostra título, bloco, categoria e owner só pelo curso', () => {
+  it('cabeçalho mostra título, bloco, categoria e responsável só pelo curso', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />);
     expect(html).toContain('<h1');
     expect(html).toContain('Iluminação no entorno do Bloco de Artes');
     expect(html).toContain('Segurança · Bloco de Artes');
     expect(html).toContain('Cobrando');
-    expect(html).toContain('Owner · Enfermagem');
-    expect(html).toContain('Owner · Jornalismo');
+    expect(html).toContain('Responsável · Enfermagem');
+    expect(html).toContain('Responsável · Jornalismo');
   });
 
   it('sem bloco, o cabeçalho mostra "Todo o campus", como o card', () => {
@@ -124,6 +124,13 @@ describe('página da pauta: seções', () => {
     // 12:00 UTC = 09:00 em Maceió (UTC-3).
     expect(html).toContain('08/02/2026');
     expect(html).toContain('09:00');
+  });
+
+  it('entrada e saída de responsável aparecem pelo papel, sem "owner" (SCRUM-345)', () => {
+    expect(rotuloDoPapel('owner_removido', { papel: 'owner' })).toBe('Responsável saiu');
+    expect(rotuloDoPapel('owner_removido', { papel: 'co_owner' })).toBe('Corresponsável saiu');
+    expect(rotuloDoPapel('owner_entrou', { papel: 'co_owner' })).toBe('Novo corresponsável');
+    expect(rotuloDoPapel('owner_entrou', {})).toBeUndefined();
   });
 
   it('tipo fora do catálogo vira texto legível', () => {

@@ -19,7 +19,7 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
         {pauta.cursos_responsaveis.length > 0 && (
           <ul className={estilos.owners} aria-label="Responsáveis pela pauta">
             {pauta.cursos_responsaveis.map((curso) => (
-              <li key={curso}>Owner · {curso}</li>
+              <li key={curso}>Responsável · {curso}</li>
             ))}
           </ul>
         )}

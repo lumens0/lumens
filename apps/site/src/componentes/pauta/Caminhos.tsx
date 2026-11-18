@@ -47,7 +47,7 @@ function detalhes(caminho: Caminho): string[] {
 }
 
 /**
- * Caminhos escolhidos pelo owner, cada um com o status escrito (a cor nunca é o único sinal). A
+ * Caminhos escolhidos por quem cuida da pauta, cada um com o status escrito (a cor nunca é o único sinal). A
  * proposta aberta tem o "Vou ajudar", que leva ao bot com o slug da pauta.
  */
 export function Caminhos({ caminhos, slug }: { caminhos: readonly Caminho[]; slug: string }) {
