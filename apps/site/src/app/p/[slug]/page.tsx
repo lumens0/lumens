@@ -34,6 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: pauta.titulo,
     description,
+    alternates: { canonical: `/p/${pauta.slug}` },
     openGraph: {
       ...OPEN_GRAPH_BASE,
       type: 'article',

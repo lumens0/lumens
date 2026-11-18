@@ -34,7 +34,9 @@ export function Moldura({
           <Link className={estilos.marca} href="/">
             {/* `alt` vazio: o nome vem escrito ao lado. */}
             <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
-            Lumens <span className={estilos.marcaArea}>Curadoria</span>
+            <span>
+              Lumens <span className={estilos.marcaArea}>Curadoria</span>
+            </span>
           </Link>
           <nav aria-label="Seções do painel" className={estilos.navegacao}>
             {links}
