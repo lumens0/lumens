@@ -48,7 +48,7 @@ import {
   supportedText,
 } from './bot/conversation/apoio';
 import { COOWNER_INVITE_TEXT, coOwnerText } from './bot/conversation/co-owner';
-import { GREETING_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
+import { GREETING_TEXT, MENU_DICA_TEXT, MENU_PRINCIPAL } from './bot/conversation/handlers';
 import { FALABR_TEXT_INTRO, OPENED_TEXT } from './bot/conversation/minhas-pautas';
 import {
   DESCRIPTION_QUESTION_TEXT,
@@ -405,7 +405,8 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       expect(resumo).toContain(`*Título:* ${TITULO}`);
       expect(resumo).toContain(`*Local:* ${BLOCO.nome}`);
       expect(resumo).toContain(`*Meta:* ${String(META)} apoios`);
-      expect(menu).toBe(MENU_PRINCIPAL);
+      // SCRUM-340: o resumo é longo, então o fim do fluxo manda só a dica do menu.
+      expect(menu).toBe(MENU_DICA_TEXT);
 
       const [pauta] = await admin
         .select({ id: pautas.id, slug: pautas.slug, status: pautas.status })
@@ -504,7 +505,7 @@ describe.skipIf(!URL_TESTE || !URL_APLICACAO)(
       ]);
       const fimDoApoio = await texto(TERCEIRO, 'pular', 3);
       expect(fimDoApoio[0]).toBe(SUPPORT_DONE_TEXT);
-      expect(fimDoApoio.at(-1)).toBe(MENU_PRINCIPAL);
+      expect(fimDoApoio.at(-1)).toEqual(MENU_PRINCIPAL);
 
       const naApi = await pautaNaApi();
       expect(naApi).toMatchObject({ status: 'meta_batida', apoios: META });
