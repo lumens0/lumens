@@ -65,7 +65,7 @@ export function AjustesDeMeta({
           </select>
           <label htmlFor="motivo-bloco">Motivo</label>
           <textarea id="motivo-bloco" name="motivo" required maxLength={200} />
-          <Enviar className={estilos.botao}>Salvar bloco e recalcular meta</Enviar>
+          <Enviar className={estilos.botaoSecundario}>Salvar bloco e recalcular meta</Enviar>
         </form>
         <form action={ajustarMeta} className={estilos.cartao}>
           <h3>Ajustar meta</h3>
@@ -74,7 +74,7 @@ export function AjustesDeMeta({
           <input id="meta-ajustada" name="meta" type="number" min={30} max={300} required />
           <label htmlFor="motivo-meta">Motivo</label>
           <textarea id="motivo-meta" name="motivo" required maxLength={200} />
-          <Enviar className={estilos.botao}>Salvar meta</Enviar>
+          <Enviar className={estilos.botaoSecundario}>Salvar meta</Enviar>
         </form>
       </div>
     </section>

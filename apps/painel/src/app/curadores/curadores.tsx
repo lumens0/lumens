@@ -93,7 +93,9 @@ export function Curadores({
               <span className={estilos.selo}>{PAPEL[c.papel]}</span>
               <span className={estilos.selo}>{c.ativo ? 'Ativo' : 'Desativado'}</span>
             </p>
-            <p className={estilos.detalhes}>Desde {dataBr.format(c.criadoEm)}</p>
+            <p className={[estilos.detalhes, estilos.curadorDesde].join(' ')}>
+              Desde {dataBr.format(c.criadoEm)}
+            </p>
             {c.id !== eu && (
               <form action={c.ativo ? desativar : reativar} className={estilos.curadorAcao}>
                 <input type="hidden" name="curadorId" value={c.id} />
