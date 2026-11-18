@@ -21,10 +21,12 @@ describe('início do painel de curadoria', () => {
     );
 
     expect(html).toContain('Painel de curadoria');
-    expect(html).toContain('3 esperando decisão; 1 pauta atrasada no prazo de 24 h.');
-    expect(html).toContain('2 relatos em pautas publicadas.');
-    expect(html).toContain('4 pautas.');
-    expect(html).toContain('5 conferências.');
+    // Um número por cartão (SCRUM-358): o número em destaque e a unidade ao lado.
+    expect(html).toContain('<strong>3</strong> esperando decisão');
+    expect(html).toContain('1 pauta atrasada no prazo de 24 h');
+    expect(html).toContain('<strong>2</strong> relatos em pautas publicadas');
+    expect(html).toContain('<strong>4</strong> pautas');
+    expect(html).toContain('<strong>5</strong> conferências');
     expect(html).toContain('href="/pautas?status=em_curadoria"');
     expect(html).toContain('href="/pautas?status=cobrando&amp;pendencia=sem_resposta_oficial"');
     expect(html).toContain('href="/pautas?status=todas&amp;pendencia=conferencia_aberta"');
@@ -37,5 +39,13 @@ describe('início do painel de curadoria', () => {
     expect(html).not.toContain('Todas as pautas');
     expect(html).not.toContain('href="/curadores"');
     expect(html).toContain('Sair');
+  });
+
+  it('concorda no singular e avisa quando nada está atrasado', () => {
+    const html = renderToStaticMarkup(
+      <Inicio resumo={{ ...resumo, pautasAtrasadas: 0, relatosAModerar: 1 }} />,
+    );
+    expect(html).toContain('<strong>1</strong> relato em pautas publicadas');
+    expect(html).toContain('Nenhuma atrasada no prazo de 24 h');
   });
 });

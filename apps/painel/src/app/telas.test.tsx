@@ -231,7 +231,7 @@ describe('tela da pauta', () => {
       />,
     );
 
-    expect(html).toContain('300 de 300 apoios');
+    expect(html).toContain('<strong>300</strong> de 300 apoios');
     expect(html).toContain('Meta batida em');
     expect(html).toContain('O elevador está parado.');
     expect(html).toContain('Situação da moderação: Aprovado');
