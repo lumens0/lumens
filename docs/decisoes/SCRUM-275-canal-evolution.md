@@ -122,9 +122,21 @@ letras com a instância criada já com o número; os três códigos do dia anter
 - [x] **Segunda pessoa:** outro número conversou com o bot pelo menu (Minhas pautas, abrir o
       caminho da comunidade) e recebeu as respostas; a VM registrou duas conversas.
 - [ ] **Não conferido com mensagens reais:** o download da foto (a conversa estava no menu, então
-      a foto não entrou num relato), grupo, "Aguardando mensagem" sem as mensagens gravadas na
-      Evolution e o que chega quando a VM religa. Se a foto falhar, a pessoa recebe o aviso de foto
-      indisponível e o relato segue sem ela.
+      a foto não entrou num relato), grupo e "Aguardando mensagem" sem as mensagens gravadas na
+      Evolution. Se a foto falhar, a pessoa recebe o aviso de foto indisponível e o relato segue
+      sem ela.
+
+**Religando a VM, em 2026-11-17** (`systemctl reboot` às 23:32 UTC, com o chip pareado e o bot da
+`main` no ar):
+
+- [x] **A sessão volta sozinha.** A VM respondeu ao SSH em cerca de 10 s, os contêineres subiram
+      pelo `restart: unless-stopped`, e o `/instance/connectionState/lumens` já dava `open` 80 s
+      depois do boot, na primeira consulta. O restart do Docker, mais cedo no mesmo dia, também
+      tinha voltado `open`.
+- [x] **O bot responde depois do boot.** Uma mensagem mandada ao chip depois da religação chegou
+      pelo `/webhook/evolution`, virou job de entrada e foi respondida no celular.
+- [ ] **Sessão que não volta:** não aconteceu neste teste, então o `close` do `/saude/whatsapp`
+      nesse caso segue sem conferência com o chip.
 
 ## O risco que esta decisão aceita
 
