@@ -51,7 +51,12 @@ export function maisUrgente(
 ): (Pauta & { status: keyof typeof COR }) | undefined {
   return pautas
     .filter(aberta)
-    .sort((a, b) => PESO[b.status] - PESO[a.status] || b.apoios - a.apoios)[0];
+    .sort(
+      (a, b) =>
+        Number(b.urgente) - Number(a.urgente) ||
+        PESO[b.status] - PESO[a.status] ||
+        b.apoios - a.apoios,
+    )[0];
 }
 
 export interface MarcadorDoBloco {
@@ -61,6 +66,7 @@ export interface MarcadorDoBloco {
   predio: number | undefined;
   abertas: number;
   cor: string;
+  urgente: boolean;
   /** "2 pautas abertas · Cobrando quem decide · 1 conquista", ou "Nenhuma pauta aberta". */
   linha: string;
   /** Pautas do bloco para o painel ao lado do mapa: abertas primeiro, a mais urgente no topo. */
@@ -78,7 +84,12 @@ export function marcadoresDoMapa(
     const doBloco = pautas.filter((p) => p.bloco_slug === bloco.slug);
     const abertas = doBloco
       .filter(aberta)
-      .sort((a, b) => PESO[b.status] - PESO[a.status] || b.apoios - a.apoios);
+      .sort(
+        (a, b) =>
+          Number(b.urgente) - Number(a.urgente) ||
+          PESO[b.status] - PESO[a.status] ||
+          b.apoios - a.apoios,
+      );
     const conquistadas = doBloco.filter((p) => p.status === 'conquistada');
     const topo = abertas[0];
     const partes = topo
@@ -92,6 +103,7 @@ export function marcadoresDoMapa(
       predio: PREDIOS.find((p) => p.blocos.includes(bloco.slug))?.id,
       abertas: abertas.length,
       cor: topo ? COR[topo.status] : conquistadas.length > 0 ? SO_CONQUISTAS : SEM_PAUTAS,
+      urgente: abertas.some((p) => p.urgente),
       linha: partes.join(' · '),
       pautas: [...abertas, ...conquistadas],
     };

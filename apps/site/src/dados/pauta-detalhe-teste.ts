@@ -7,6 +7,7 @@ export const fixture: PautaDetalhe = {
   descricao: 'Trocar luminárias apagadas.',
   categoria: 'seguranca',
   status: 'cobrando',
+  urgente: false,
   meta: 80,
   apoios: 84,
   bloco_slug: 'artes',

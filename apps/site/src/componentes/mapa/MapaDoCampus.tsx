@@ -176,6 +176,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                   key={p.id}
                   className={[
                     aberto ? estilos.escolhido : estilos.predio,
+                    m?.urgente ? estilos.predioUrgente : '',
                     p.sigla ? estilos.tocavel : '',
                   ].join(' ')}
                   style={m ? { fill: m.cor, color: m.cor } : undefined}
