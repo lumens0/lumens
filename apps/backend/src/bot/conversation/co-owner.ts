@@ -27,11 +27,11 @@ export const BOTAO_CUIDAR = 'cuidar';
 export const botaoCuidar = (pautaId: string) => `${BOTAO_CUIDAR} ${pautaId}`;
 
 export function coOwnerText(titulo: string): string {
-  return `Pronto ✅ Agora você cuida da pauta *${titulo}*. Escolha 4 no menu (Minhas pautas) para ver os próximos passos.`;
+  return `Pronto ✅ Agora você cuida da pauta *${titulo}*. Mande *menu* e escolha *Minhas pautas* para ver os próximos passos.`;
 }
 
 export function alreadyOwnerText(titulo: string): string {
-  return `Você já cuida da pauta *${titulo}*. Escolha 4 no menu (Minhas pautas) para ver os próximos passos.`;
+  return `Você já cuida da pauta *${titulo}*. Mande *menu* e escolha *Minhas pautas* para ver os próximos passos.`;
 }
 
 export function ownersFullText(titulo: string): string {

@@ -1,9 +1,9 @@
 # HTTPS da homologação (SCRUM-93). O Caddy pede e renova o certificado do Let's Encrypt
-# sozinho, desde que o DOMINIO aponte para o IP desta instância e as portas 80 e 443
-# estejam abertas no security group — a validação usa a 80.
+# sozinho, desde que o DOMINIO aponte para o IP desta VM e as portas 80 e 443
+# estejam abertas no firewall da VM (grupo de segurança de rede do Azure) — a validação usa a 80.
 #
-# A AWS bloqueia emissão para *.amazonaws.com, então o DNS público da instância não serve:
-# precisa de um domínio de verdade (o da UFAL, ou um subdomínio gratuito).
+# O endereço padrão que o provedor dá à VM (DNS público do Azure) não é um domínio nosso, então não
+# serve: precisa de um domínio de verdade (o da UFAL, ou um subdomínio gratuito).
 
 # Cabeçalhos de segurança da API e do painel (SCRUM-303). O HSTS vale para os subdomínios, que são
 # todos HTTPS pelo Caddy. `-Server` e `-X-Powered-By` tiram a versão do software da resposta. Quem

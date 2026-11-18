@@ -74,8 +74,29 @@ function textoDoStatus(dados: Record<string, unknown>, motivo: string | undefine
   return motivo ? `${mudanca}, porque ${motivo}` : mudanca;
 }
 
+/**
+ * SCRUM-345: quem entra ou sai aparece pelo papel ("Corresponsável saiu"). Papel ausente ou
+ * desconhecido cai no rótulo genérico. Quem saiu por inatividade ainda não se distingue: o evento
+ * público não leva a origem.
+ */
+export function rotuloDoPapel(tipo: string, dados: Record<string, unknown>): string | undefined {
+  if (tipo !== 'owner_entrou' && tipo !== 'owner_removido') return undefined;
+  const papel =
+    dados.papel === 'co_owner'
+      ? 'corresponsável'
+      : dados.papel === 'owner'
+        ? 'responsável'
+        : undefined;
+  if (papel === undefined) return undefined;
+  return tipo === 'owner_entrou'
+    ? `Novo ${papel}`
+    : `${papel.charAt(0).toUpperCase()}${papel.slice(1)} saiu`;
+}
+
 function textoDoEvento(evento: Evento, todos: readonly Evento[]): string {
   const { tipo, dados } = evento;
+  const doPapel = rotuloDoPapel(tipo, dados);
+  if (doPapel !== undefined) return doPapel;
   if (tipo === 'status_alterado') return textoDoStatus(dados, motivoDoStatus(evento, todos));
   if (tipo === 'meta_ajustada') {
     const metaAntes = typeof dados.metaAntes === 'number' ? String(dados.metaAntes) : '?';

@@ -35,7 +35,7 @@ export const PROPOSAL_CLOSED_TEXT = 'Esta proposta já foi feita ou não aceita 
 export const ALREADY_DONE_TEXT = 'Esta proposta já estava marcada como feita.';
 export const ALREADY_VOLUNTEER_TEXT = 'Você já está na lista de voluntários desta proposta.';
 export const PROPOSAL_LOST_TEXT =
-  'Não consegui recuperar a pauta da proposta. Escolha 4 no menu de novo.';
+  'Não consegui recuperar a pauta da proposta. Mande *menu* e escolha *Minhas pautas* de novo.';
 export const PICK_PROPOSAL_TEXT = 'Esta pauta tem mais de uma proposta aberta. Em qual vai ajudar?';
 
 /**
@@ -64,7 +64,7 @@ export function volunteerText(p: {
   pessoasNecessarias: number;
   voluntarios: number;
 }) {
-  return `Anotado ✅ Você está na lista de voluntários de: "${p.descricao}". Agora são ${String(p.voluntarios)} de ${String(p.pessoasNecessarias)} pessoas. Seu nome não aparece no site, só a contagem.`;
+  return `Anotado ✅ Você está na lista de voluntários de: "${p.descricao}". Agora temos ${String(p.voluntarios)} de ${String(p.pessoasNecessarias)} pessoas. Seu nome não aparece no site, só a contagem.`;
 }
 
 /** `ajudar <slug ou id>`, digitado ou vindo do link do site; `null` se não é esse comando. */
