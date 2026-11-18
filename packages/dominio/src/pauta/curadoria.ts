@@ -68,8 +68,7 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
       bloco: blocos.nome,
       // O relato de origem é o de quem criou a pauta (o owner): `relato` não guarda data, então
       // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
-      // Relato recusado não conta, e a ordem por id é a de `aprovarPauta`, que confere `fotoVista`
-      // contra esta mesma foto.
+      // Relato recusado não conta; a ordem por id deixa a foto escolhida estável entre leituras.
       fotoChave: sql<string | null>`(
         select ${relatos.fotoChave} from ${relatos}
         join ${papeisPauta} on ${papeisPauta.pautaId} = ${relatos.pautaId}
@@ -288,9 +287,7 @@ function relatosDeOrigemPendentes(tx: Tx, pautaId: string, { travar = false } = 
         eq(papeisPauta.papel, 'owner'),
       ),
     )
-    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')))
-    // A ordem de `lerPautas`: a primeira foto daqui é a que a tela mostra.
-    .orderBy(relatos.id);
+    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
   return travar ? consulta.for('update', { of: relatos }) : consulta;
 }
 
@@ -323,8 +320,8 @@ export async function recusarRelatoDeOrigem(
 /**
  * Aprova: a pauta vai para `juntando_apoios` e passa a aparecer no site. Os responsáveis são
  * avisados pela fila de envio, na mesma transação: se a aprovação não for gravada, ninguém é
- * avisado. Como na moderação de relato (SCRUM-301), só vale aprovar o que a curadoria viu: se a
- * foto do relato de origem mudou desde que a tela abriu (`fotoVista`), nada muda.
+ * avisado. Como na moderação de relato (SCRUM-301), só vale aprovar o que a curadoria viu: se um
+ * relato de origem chegou ou teve a foto trocada desde que a tela abriu (`fotosVistas`), nada muda.
  */
 export async function aprovarPauta(
   tx: Tx,
@@ -332,14 +329,14 @@ export async function aprovarPauta(
     pautaId,
     curadorId,
     categoria,
-    fotoVista,
+    fotosVistas,
     agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
     categoria: string;
-    /** A foto que a tela mostrou (a mesma regra de `lerPautas`); `null` é sem foto. */
-    fotoVista: string | null;
+    /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
+    fotosVistas: Readonly<Record<string, string | null>>;
     agora?: Date;
   },
 ): Promise<ResultadoDecisao> {
@@ -354,8 +351,10 @@ export async function aprovarPauta(
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
   }
-  const fotoAgora = origem.find(({ fotoChave }) => fotoChave !== null)?.fotoChave ?? null;
-  if (fotoAgora !== fotoVista) return { decidida: false, motivo: 'relato_mudou' };
+  // Cada relato publicado aqui precisa ter estado na tela, com a mesma foto.
+  const visto = ({ id, fotoChave }: { id: string; fotoChave: string | null }) =>
+    Object.hasOwn(fotosVistas, id) && fotosVistas[id] === fotoChave;
+  if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (resultado.decidida) {
     await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));

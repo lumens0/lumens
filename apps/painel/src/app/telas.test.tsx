@@ -83,6 +83,28 @@ describe('tela da pauta', () => {
     expect(html).toContain('Permanência');
   });
 
+  it('aprovar manda a foto de cada relato pendente que a tela mostra, e só dos pendentes', () => {
+    const relato = { achados: [], curso: null, data: null };
+    const FOTO = 'fotos/relato.jpg';
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          relatos: [
+            { ...relato, id: 'r1', texto: 'Com foto.', fotoChave: FOTO, moderacao: 'pendente' },
+            { ...relato, id: 'r2', texto: 'Sem foto.', fotoChave: null, moderacao: 'pendente' },
+            { ...relato, id: 'r3', texto: 'Recusado.', fotoChave: FOTO, moderacao: 'recusado' },
+          ],
+        })}
+        aprovar={acao}
+        recusar={acao}
+      />,
+    );
+
+    expect(html).toContain(`name="fotoVista:r1" value="${FOTO}"`);
+    expect(html).toContain('name="fotoVista:r2" value=""');
+    expect(html).not.toContain('fotoVista:r3');
+  });
+
   it('mostra informações operacionais da pauta sem expor identidade de estudante', () => {
     const html = renderToStaticMarkup(
       <Pauta
@@ -93,6 +115,7 @@ describe('tela da pauta', () => {
           metaBatidaEm: new Date('2026-11-10T12:00:00.000Z'),
           relatos: [
             {
+              id: 'r1',
               texto: 'O elevador está parado.',
               achados: [],
               curso: 'Engenharia Civil',
@@ -101,6 +124,7 @@ describe('tela da pauta', () => {
               data: new Date('2026-11-09T12:00:00.000Z'),
             },
             {
+              id: 'r2',
               texto: 'A lâmpada continua apagada.',
               achados: [],
               curso: 'Pedagogia',
@@ -109,6 +133,7 @@ describe('tela da pauta', () => {
               data: null,
             },
             {
+              id: 'r3',
               texto: 'Relato recusado.',
               achados: [],
               curso: null,
@@ -172,6 +197,7 @@ describe('tela da pauta', () => {
         pauta={pauta({
           relatos: [
             {
+              id: 'r4',
               texto: 'Contato: pessoa@ufal.br',
               curso: 'Engenharia Civil',
               fotoChave: null,
