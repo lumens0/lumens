@@ -92,6 +92,13 @@
   opacity: 0.8;
 }
 
+/* Bloco sem pauta: só a cor apagada, sem brilho nem entrada. O brilho cinza borrava o contorno. */
+.predio.semPautas,
+.escolhido.semPautas {
+  filter: none;
+  animation: none;
+}
+
 /* Com o mapa em movimento o brilho desfocado sai (é caro de redesenhar a cada quadro); o halo fica. */
 .desenho[data-movendo] .predio[role='button'],
 .desenho[data-movendo] .escolhido[role='button'] {
@@ -260,13 +267,15 @@
   gap: 8px;
 }
 
+/* O cartão ocupa a altura da linha da grade: nome de uma ou de duas linhas, todos do mesmo tamanho. */
 .linha {
   width: 100%;
+  height: 100%;
   min-height: 56px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border: 1px solid var(--borda);
   border-radius: 12px;
   background: var(--superficie);

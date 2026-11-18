@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatarNumero } from '../BarraApoios';
 import { BotaoRelatar } from '../BotaoWhatsApp';
 import { StatusPill } from '../StatusPill';
@@ -18,6 +18,7 @@ import {
   type Predio,
 } from './predios';
 import { enquadrar } from './MapaResumo';
+import { nomesQueCabem, type Nome } from './nomes';
 import { LEGENDA, type MarcadorDoBloco } from './urgencia';
 import estilos from './mapa.module.css';
 
@@ -31,36 +32,43 @@ function visaoDoPredio(predio: Predio): Visao {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
 
+const DY = { abaixo: '1.15em', centro: '0.35em', acima: '-0.9em' } as const;
+
 /**
- * Sigla do prédio logo abaixo dele. O tamanho e o giro vêm do CSS: o nome não muda com o zoom e
- * fica em pé quando o mapa gira. O grupo põe a origem no pé do prédio, e é em torno dela que o
+ * Nome de um prédio, área ou ponto. O tamanho e o giro vêm do CSS: o nome não muda com o zoom e
+ * fica em pé quando o mapa gira. O grupo põe a origem no ponto do nome, e é em torno dela que o
  * nome gira.
  */
-function Sigla({ predio }: { predio: Predio }) {
-  const [x = 0, y = 0, largura = 0, altura = 0] = predio.caixa;
+function Rotulo({ nome }: { nome: Nome }) {
   return (
-    <g transform={`translate(${String(x + largura / 2)} ${String(y + altura)})`} aria-hidden="true">
-      <text dy="1.15em" className={estilos.sigla}>
-        {predio.sigla}
+    <g transform={`translate(${String(nome.x)} ${String(nome.y)})`}>
+      <text dy={DY[nome.lado]} className={estilos.sigla}>
+        {nome.texto}
       </text>
     </g>
   );
 }
 
-/** Rótulo de uma área aberta (a pista de atletismo, o estádio...): no centro dela. */
-function SiglaDaArea({ area }: { area: Area }) {
-  const [x = 0, y = 0, largura = 0, altura = 0] = area.caixa;
-  return (
-    <g
-      transform={`translate(${String(x + largura / 2)} ${String(y + altura / 2)})`}
-      aria-hidden="true"
-    >
-      <text dy="0.35em" className={estilos.sigla}>
-        {area.nome}
-      </text>
-    </g>
-  );
-}
+const nomeDoPredio = (p: Predio): Nome => ({
+  id: `p${String(p.id)}`,
+  texto: p.sigla,
+  x: p.rotulo[0],
+  y: p.rotulo[1],
+  lado: 'abaixo',
+});
+
+const nomeDaArea = (a: Area): Nome => {
+  const [x = 0, y = 0, largura = 0, altura = 0] = a.caixa;
+  return {
+    id: `a${String(a.id)}`,
+    texto: a.nome,
+    x: x + largura / 2,
+    y: y + altura / 2,
+    lado: 'centro',
+  };
+};
+
+const tamanho = (p: Predio) => (p.caixa[2] ?? 0) * (p.caixa[3] ?? 0);
 
 /**
  * Retângulo invisível em volta do prédio: no celular um prédio tem poucos pixels, e o vão entre
@@ -100,6 +108,55 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       /* armazenamento indisponível */
     }
   }, []);
+  // Nomes que podem aparecer, do mais importante para o menos: o prédio aberto, os com pauta
+  // aberta, os outros com bloco (os maiores antes), e de perto os lugares e os prédios sem bloco.
+  const candidatos = useMemo(() => {
+    const aberto = sel?.predio;
+    const peso = (p: Predio) => {
+      const m = porPredio.get(p.id);
+      if (!m) return 0;
+      return m.abertas > 0 ? 3 : m.pautas.length > 0 ? 2 : 1;
+    };
+    const outros = PREDIOS.filter(
+      (p) =>
+        p.sigla &&
+        p.id !== aberto?.id &&
+        (porPredio.has(p.id) || todosOsNomes || (comNomes && p.blocos.length > 0)),
+    ).sort((a, b) => peso(b) - peso(a) || tamanho(b) - tamanho(a));
+    const comBloco = outros.filter((p) => peso(p) > 0);
+    const semBloco = outros.filter((p) => peso(p) === 0);
+    return [
+      ...(aberto?.sigla ? [nomeDoPredio(aberto)] : []),
+      ...comBloco.map(nomeDoPredio),
+      ...(comNomes
+        ? PONTOS.map((p): Nome => ({
+            id: `n${p.nome}`,
+            texto: p.nome,
+            x: p.x,
+            y: p.y,
+            lado: 'acima',
+          }))
+        : []),
+      ...(comNomes ? AREAS.filter((a) => a.nome).map(nomeDaArea) : []),
+      ...semBloco.map(nomeDoPredio),
+    ];
+  }, [porPredio, sel, comNomes, todosOsNomes]);
+  // Quais candidatos cabem na tela agora; `null` antes da câmera medir a tela (aparecem todos).
+  // A conta roda a cada quadro, mas o React só redesenha quando a lista de nomes muda.
+  const [cabem, setCabem] = useState<ReadonlySet<string> | null>(null);
+  const escala = useRef<{ k: number; giro: number } | null>(null);
+  const candidatosAtuais = useRef(candidatos);
+  const decidirNomes = useCallback(() => {
+    if (!escala.current) return;
+    const novos = nomesQueCabem(candidatosAtuais.current, escala.current.k, escala.current.giro);
+    setCabem((antes) =>
+      antes?.size === novos.size && [...novos].every((id) => antes.has(id)) ? antes : novos,
+    );
+  }, []);
+  useEffect(() => {
+    candidatosAtuais.current = candidatos;
+    decidirNomes();
+  }, [candidatos, decidirNomes]);
   // O `viewBox` fica parado na visão de abertura; a câmera move a camada dentro dele.
   const [base] = useState(geral);
   const [camera] = useState(() => {
@@ -108,9 +165,11 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     let avisoAte = 0;
     return criarCamera(
       base,
-      (v) => {
+      (v, k, giro) => {
         setComNomes(v.w < LARGURA_DO_CAMPUS * 0.3);
         setTodosOsNomes(v.w < LARGURA_DO_CAMPUS * 0.12);
+        escala.current = { k, giro };
+        decidirNomes();
       },
       (dedos) => {
         if (!ajudaFechada) {
@@ -219,6 +278,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             </g>
             {predios.map((p) => {
               const m = porPredio.get(p.id);
+              // Só acende (cor viva e halo) o prédio com pauta; o bloco sem pauta fica apagado.
+              const aceso = m !== undefined && m.pautas.length > 0;
               const aberto = sel?.predio?.id === p.id;
               const rotulo = m ? `${m.nome}: ${m.linha}` : p.nome;
               // Prédio com bloco é botão de verdade (teclado e leitor de tela). Os outros com nome
@@ -244,6 +305,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                     aberto ? estilos.escolhido : estilos.predio,
                     m?.urgente ? estilos.predioUrgente : '',
                     p.sigla ? estilos.tocavel : '',
+                    m && !aceso ? estilos.semPautas : '',
                   ].join(' ')}
                   style={m ? { fill: m.cor, color: m.cor } : undefined}
                   onClick={
@@ -258,7 +320,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                   <title>{rotulo}</title>
                   {p.sigla && <AreaDeToque caixa={p.caixa} />}
                   {/* O halo é só um contorno largo: fica aceso mesmo com o mapa em movimento. */}
-                  {m && <path d={p.d} className={estilos.halo} />}
+                  {aceso && <path d={p.d} className={estilos.halo} />}
                   <path d={p.d} />
                 </g>
               );
@@ -270,28 +332,14 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 <circle className={estilos.pontoLocal} />
               </g>
             ))}
-            {/* Os nomes ficam numa camada por cima de todos os prédios, para nenhum cobrir o outro. */}
+            {/* Os nomes ficam numa camada por cima de todos os prédios; só vão os que cabem sem
+                cobrir outro nome, e aproximar o mapa abre espaço para mais (SCRUM-284). */}
             <g aria-hidden="true">
-              {PREDIOS.filter(
-                (p) =>
-                  p.sigla &&
-                  (porPredio.has(p.id) ||
-                    todosOsNomes ||
-                    (comNomes && p.blocos.length > 0) ||
-                    sel?.predio?.id === p.id),
-              ).map((p) => (
-                <Sigla key={p.id} predio={p} />
-              ))}
-              {comNomes &&
-                PONTOS.map((p) => (
-                  <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
-                    <text dy="-0.9em" className={estilos.sigla}>
-                      {p.nome}
-                    </text>
-                  </g>
+              {candidatos
+                .filter((n) => cabem?.has(n.id) ?? true)
+                .map((n) => (
+                  <Rotulo key={n.id} nome={n} />
                 ))}
-              {comNomes &&
-                AREAS.filter((a) => a.nome).map((a) => <SiglaDaArea key={a.id} area={a} />)}
             </g>
           </g>
         </svg>
