@@ -297,7 +297,7 @@ describe('apoio sem relato da 2.5 (pedido guardado)', () => {
   });
 
   it('a pergunta sem relato convida a escrever', () => {
-    expect(ASK_WRITE_REPORT_TEXT).toContain("'pular'");
+    expect(ASK_WRITE_REPORT_TEXT).toContain('*pular*');
   });
 });
 
