@@ -50,7 +50,7 @@ ação; a chave é o HMAC do wamid, calculado por quem chama.
 | Função                        | O que faz                                                                                |
 | ----------------------------- | ---------------------------------------------------------------------------------------- |
 | `calcularMeta`                | RN04: 10% da base do bloco, entre `META_MINIMA` (30) e `META_MAXIMA` (300)               |
-| `podeTransicionar`            | A transição está na tabela? É o que o painel usa para decidir quais botões mostrar       |
+| `podeTransicionar`            | A transição está na tabela? Não olha a origem: veja a nota sobre `soDoAgendador` abaixo  |
 | `apurarConferencia`           | RN10: com quórum, exige maioria absoluta nos extremos; o resto é `entregue_em_parte`     |
 | `interpretarResposta`         | Traduz o que o apoiador escreveu em `sim`/`em_parte`/`nao`; `null` quando não dá certeza |
 | `planejarEnvio`               | Quais disparos pendentes cabem no limite agora, por prioridade (não envia nada)          |
@@ -165,8 +165,10 @@ await db.transaction(async (tx) => {
 | `conquistada`       | — (fim)                                           | —                         |
 
 Dos nove status, sete são públicos: `em_curadoria` e `recusada` não aparecem no site
-([views públicas](../db/README.md#views-públicas-contrato-com-o-site)). `podeTransicionar(de, para)` é a versão pura, para o
-painel decidir quais botões mostrar. Os resultados da conferência (`conquistada`,
+([views públicas](../db/README.md#views-públicas-contrato-com-o-site)). `podeTransicionar(de, para)` é a versão pura da tabela e
+**não olha a origem**: `prometido → cobrando` está na tabela, mas só o agendador faz essa volta
+(depois de duas conferências sem quórum, SCRUM-308), então um botão do painel não pode se basear só
+nela. Os resultados da conferência (`conquistada`,
 `entregue_em_parte`, `descumprida`) só são aceitos com `origem: 'agendador'`: nem owner nem
 curadoria marcam conquista.
 

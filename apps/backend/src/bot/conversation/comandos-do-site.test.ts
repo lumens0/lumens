@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { apoios, blocos, eq, estudantes, eventos, papeisPauta, pautas, type Db } from '@lumens/db';
+import {
+  apoios,
+  blocos,
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  propostas,
+  type Db,
+} from '@lumens/db';
+import { gerarSlug } from '@lumens/dominio';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hmacHex, segredoCom } from '../../cripto/cifra';
@@ -204,6 +215,38 @@ describe('"apoiar <slug>" vindo do site (2.8)', () => {
     expect(await p.dados()).not.toHaveProperty('tituloCifrado');
   });
 
+  it('slug longo pelo id curto do link do Telegram apoia a pauta certa (SCRUM-293)', async () => {
+    // O maior slug que o gerarSlug produz: 60 caracteres do título, hífen e 8 do id.
+    const titulo = 'Reforma completa dos banheiros do bloco de engenharia e do anexo';
+    const id = '9f8e7d6c-0000-4000-8000-000000000001';
+    const slugLongo = gerarSlug(titulo, id);
+    expect(slugLongo).toHaveLength(69);
+    await db.insert(pautas).values({
+      id,
+      slug: slugLongo,
+      titulo,
+      descricao: 'Os banheiros estão sem porta.',
+      categoria: 'infraestrutura',
+      status: 'juntando_apoios',
+      meta: 30,
+    });
+    const p = pessoa('5582999990009');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    expect((await p.send(`apoiar ${id.slice(0, 8)}`))[0]).toBe(supportedText(titulo, 1, 30));
+    expect(await db.select().from(apoios).where(eq(apoios.pautaId, id))).toHaveLength(1);
+    // A outra pauta não ganhou apoio por engano.
+    expect(await apoiosDaPauta()).toHaveLength(0);
+  });
+
+  it('id curto que não casa com nenhuma pauta avisa que não achou', async () => {
+    const p = pessoa('5582999990010');
+    await p.send('oi');
+
+    expect(await p.send('apoiar 0000aaaa')).toEqual([PAUTA_NOT_FOUND_TEXT, MENU_TEXT]);
+  });
+
   it('pauta que não existe, no menu, avisa sem mandar verificar', async () => {
     const p = pessoa('5582999990004');
     await p.send('oi');
@@ -270,6 +313,35 @@ describe('"ajudar <slug>" sem proposta aberta (2.8)', () => {
     expect(await p.send(`ajudar ${SLUG}`)).toEqual([NO_PROPOSAL_TEXT, MENU_TEXT]);
     expect(await p.passo()).toBe('MENU');
     expect(await p.dados()).not.toHaveProperty('pendingCommand');
+  });
+});
+
+describe('"ajudar" com o id curto do link do Telegram (SCRUM-293)', () => {
+  it('slug longo: acha a pauta pelo id curto e oferece a proposta aberta', async () => {
+    const titulo = 'Reforma completa dos banheiros do bloco de engenharia e do anexo';
+    const id = '9f8e7d6c-0000-4000-8000-000000000002';
+    await db.insert(pautas).values({
+      id,
+      slug: gerarSlug(titulo, id),
+      titulo,
+      descricao: 'Os banheiros estão sem porta.',
+      categoria: 'infraestrutura',
+      status: 'cobrando',
+      meta: 30,
+    });
+    const [proposta] = await db
+      .insert(propostas)
+      .values({ pautaId: id, descricao: 'Mutirão de pintura', pessoasNecessarias: 5 })
+      .returning({ id: propostas.id });
+    if (!proposta) throw new Error('proposta não inserida');
+    const p = pessoa('5582999990021');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    const respostas = await p.send(`ajudar ${id.slice(0, 8)}`);
+
+    expect(ids(respostas)).toContain(`ajudar ${proposta.id}`);
+    expect(respostas).not.toContain(NO_PROPOSAL_TEXT);
   });
 });
 

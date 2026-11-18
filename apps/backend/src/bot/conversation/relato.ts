@@ -79,7 +79,7 @@ function dadosDoRelato(data: unknown): z.infer<typeof dadosSchema> {
 /** Tira os dados do relato da conversa quando o fluxo acaba sem pauta nova. */
 const LIMPAR: DataPatch = { relatoCifrado: undefined, blocoId: undefined, parecidas: undefined };
 
-/** Até 3 pautas e "É outro problema". Título e descrição já cortados por `lista()`. */
+/** Até 3 pautas e "É outro problema", com o texto inteiro: o canal corta (SCRUM-323). */
 export function listaDeParecidas(parecidas: readonly Parecida[]): MensagemDeLista {
   return lista({
     corpo: SIMILAR_LIST_TEXT,

@@ -1,0 +1,79 @@
+# Monitor da homologação (SCRUM-335): confere de fora, de 10 em 10 minutos, se a API responde e se o
+# chip da Evolution está conectado. Quando falha, o GitHub manda e-mail de "workflow falhou" para
+# quem mexeu por último no `cron` deste arquivo (configuração em Settings → Notifications →
+# Actions, no perfil de cada pessoa). Passo a passo: docs/operacao/homologacao.md, "Alerta de
+# indisponibilidade".
+#
+# Desligado por padrão: a VM fica parada fora de uso, e um monitor ligado o tempo todo só falharia.
+# Ligue na semana da demo, junto com o auto-shutdown desligado:
+#   gh variable set MONITOR_HOMOLOGACAO --body ligado
+# e desligue depois:
+#   gh variable delete MONITOR_HOMOLOGACAO
+name: Monitor da homologação
+
+on:
+  schedule:
+    # O GitHub atrasa o agendamento em horário de pico (às vezes 10 a 15 minutos). Para a demo,
+    # serve; não é monitor de minuto a minuto.
+    - cron: '*/10 * * * *'
+  # Roda à mão mesmo com o monitor desligado (Actions → Monitor da homologação → Run workflow).
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: monitor-homologacao
+  cancel-in-progress: false
+
+jobs:
+  saude:
+    if: vars.MONITOR_HOMOLOGACAO == 'ligado' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DOMINIO: ${{ secrets.HOMOLOG_DOMINIO }}
+    steps:
+      - name: API (/saude)
+        run: |
+          if [[ -z $DOMINIO ]]; then
+            echo "::error::Secret HOMOLOG_DOMINIO vazio: o monitor não sabe qual endereço conferir."
+            exit 1
+          fi
+          # Três tentativas espaçadas: um deploy em andamento derruba o back-end por alguns
+          # segundos, e isso não é queda.
+          for tentativa in 1 2 3; do
+            resposta=$(curl --fail --silent --show-error --max-time 15 "https://$DOMINIO/saude" || true)
+            if grep -q '"ok":true' <<<"$resposta"; then
+              echo "/saude respondeu na tentativa $tentativa."
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::A homologação está fora do ar: https://$DOMINIO/saude não respondeu ok em 3 tentativas. VM desligada, crédito do Azure ou back-end caído; veja 'Quando algo falha' no docs/operacao/homologacao.md."
+          echo "### Homologação fora do ar" >>"$GITHUB_STEP_SUMMARY"
+          echo "\`/saude\` não respondeu ok em 3 tentativas. Última resposta: \`${resposta:-nenhuma}\`" >>"$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - name: Chip da Evolution (/saude/whatsapp)
+        run: |
+          # 200 = sessão aberta; 503 = chip desconectado ou Evolution fora; 404 = rota ainda não
+          # publicada (PR 192) ou canal que não é a Evolution: nada a conferir.
+          for tentativa in 1 2 3; do
+            codigo=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 \
+              "https://$DOMINIO/saude/whatsapp" || true)
+            case $codigo in
+              200)
+                echo "Chip conectado (tentativa $tentativa)."
+                exit 0
+                ;;
+              404)
+                echo "::notice::/saude/whatsapp não existe neste deploy: chip sem conferência."
+                exit 0
+                ;;
+            esac
+            sleep 30
+          done
+          echo "::error::O chip da Evolution está desconectado: /saude/whatsapp respondeu $codigo em 3 tentativas. O bot não recebe nem responde. Veja docs/operacao/evolution.md, 'VM desligada'."
+          echo "### Chip do WhatsApp desconectado" >>"$GITHUB_STEP_SUMMARY"
+          echo "\`/saude/whatsapp\` respondeu \`$codigo\` em 3 tentativas." >>"$GITHUB_STEP_SUMMARY"
+          exit 1
