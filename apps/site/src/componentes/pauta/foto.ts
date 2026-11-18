@@ -1,9 +1,13 @@
+/** Chave que o bot grava: `fotos/AAAA/MM/<uuid>.<ext>`. Qualquer outra coisa não vira endereço. */
+const CHAVE_DE_FOTO = /^fotos\/\d{4}\/\d{2}\/[A-Za-z0-9_-]+\.[a-z0-9]{1,5}$/;
+
 /**
- * URL pública da foto de um relato. Ponto de extensão: o armazenamento das fotos (T20, SCRUM-93)
- * ainda não tem endereço público, então por ora não há imagem.
+ * Endereço da foto de um relato aprovado (SCRUM-263). Passa pela rota `/fotos` do próprio site,
+ * que pede ao back-end: ele só entrega a foto que está na view pública, então o storage não
+ * precisa de endereço aberto. Chave fora do formato não vira `src`.
  */
-export function urlFoto(_chave: string): string | null {
-  return null;
+export function urlFoto(chave: string): string | null {
+  return CHAVE_DE_FOTO.test(chave) ? `/${chave}` : null;
 }
 
 const LIMITE_ALT = 120;

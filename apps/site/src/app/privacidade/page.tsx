@@ -14,7 +14,12 @@ export const metadata: Metadata = metadadosDaMarca({
 // afirmação abaixo corresponde a código em produção; a referência está no
 // comentário de cada seção. Ao mudar o comportamento, mude este texto junto —
 // uma política que descreve o que o sistema não faz é pior que não ter uma.
-const ATUALIZADA_EM = '10 de novembro de 2026';
+const ATUALIZADA_EM = '18 de novembro de 2026';
+
+// SCRUM-283: no Telegram a identidade é o chat e o telefone nunca é coletado. O que o bot guarda
+// cifrado é o id do chat (`estudante.telefone_cifrado`), e o HMAC dele é a chave de busca.
+const NO_TELEGRAM = canalAtivo() === 'telegram';
+const DADO_DA_CONVERSA = NO_TELEGRAM ? 'id do seu chat' : 'seu telefone';
 
 export default function Privacidade() {
   return (
@@ -46,7 +51,10 @@ export default function Privacidade() {
         <p>De quem conversa com o bot:</p>
         <ul>
           <li>
-            <strong>Seu número de telefone</strong>, que chega junto com cada mensagem
+            <strong>
+              {NO_TELEGRAM ? 'O id do seu chat no Telegram' : 'Seu número de telefone'}
+            </strong>
+            , que chega junto com cada mensagem
           </li>
           <li>
             <strong>As mensagens que você envia</strong> e as respostas do bot, cifradas. Veja em
@@ -74,13 +82,19 @@ export default function Privacidade() {
         <h2 className={estilos.secaoTitulo}>Como protegemos</h2>
         <ul>
           <li>
-            <strong>Seu telefone e seu e-mail são cifrados</strong> no banco, com AES-256-GCM, assim
-            como o conteúdo das mensagens e as respostas que o bot envia.
+            <strong>
+              {NO_TELEGRAM ? 'O id do seu chat' : 'Seu telefone'} e seu e-mail são cifrados
+            </strong>{' '}
+            no banco, com AES-256-GCM, assim como o conteúdo das mensagens e as respostas que o bot
+            envia.
           </li>
           <li>
-            <strong>A busca pelo seu telefone não decifra nada.</strong> Guardamos também um código
-            irreversível derivado do número (HMAC-SHA256), e é por ele que o sistema reencontra sua
-            conversa.
+            <strong>
+              A busca pelo {NO_TELEGRAM ? 'id do seu chat' : 'seu telefone'} não decifra nada.
+            </strong>{' '}
+            Guardamos também um código irreversível derivado{' '}
+            {NO_TELEGRAM ? 'do id do chat' : 'do número'} (HMAC-SHA256), e é por ele que o sistema
+            reencontra sua conversa.
           </li>
         </ul>
       </section>
@@ -98,14 +112,14 @@ export default function Privacidade() {
           </li>
           <li>
             <strong>Cada mensagem passa por uma fila de processamento</strong>, que guarda uma cópia
-            cifrada dela e do seu telefone. A cópia é apagada automaticamente{' '}
-            <strong>7 dias depois</strong> de a mensagem ser respondida, ou em até{' '}
+            cifrada dela e d{NO_TELEGRAM ? 'o id do seu chat' : 'o seu telefone'}. A cópia é apagada
+            automaticamente <strong>7 dias depois</strong> de a mensagem ser respondida, ou em até{' '}
             <strong>14 dias</strong> se o processamento falhar. O mesmo vale para as respostas do
             bot.
           </li>
           <li>
-            <strong>O cadastro</strong> (telefone, e-mail e curso) fica até você enviar{' '}
-            <strong>sair</strong>.
+            <strong>O cadastro</strong> ({NO_TELEGRAM ? 'id do chat' : 'telefone'}, e-mail e curso)
+            fica até você enviar <strong>sair</strong>.
           </li>
         </ul>
       </section>
@@ -131,10 +145,10 @@ export default function Privacidade() {
           e o código que mandamos para ele.
         </p>
         <p>
-          Antes de se verificar, guardamos só o necessário para responder a quem nos procurou: o
-          telefone e as mensagens, pelos prazos de &ldquo;Quanto tempo guardamos&rdquo;, sem
-          cadastro. Você pode retirar o consentimento a qualquer momento, do mesmo jeito simples:
-          enviando <strong>sair</strong>.
+          Antes de se verificar, guardamos só o necessário para responder a quem nos procurou:{' '}
+          {NO_TELEGRAM ? 'o id do chat' : 'o telefone'} e as mensagens, pelos prazos de
+          &ldquo;Quanto tempo guardamos&rdquo;, sem cadastro. Você pode retirar o consentimento a
+          qualquer momento, do mesmo jeito simples: enviando <strong>sair</strong>.
         </p>
       </section>
 
@@ -193,11 +207,11 @@ export default function Privacidade() {
         {/* Comando 'sair': apps/backend/src/bot/conversation/privacidade.ts → sairDoLumens */}
         <p>
           Para sair do Lumens, envie <strong>sair</strong> na conversa com o bot e confirme. Na
-          hora, apagamos seu telefone e seu e-mail, sua conversa e o código de verificação, e você
-          deixa de ser responsável pelas pautas que cuidava. Do e-mail fica só uma marca (um HMAC)
-          que não permite recuperá-lo. Ela serve para uma coisa: se você voltar com o mesmo e-mail,
-          o Lumens reconhece o mesmo cadastro e não conta seus apoios, votos na conferência e
-          inscrições como voluntário duas vezes (prevenção de fraude). Ela não é usada para mais
+          hora, apagamos {DADO_DA_CONVERSA} e seu e-mail, sua conversa e o código de verificação, e
+          você deixa de ser responsável pelas pautas que cuidava. Do e-mail fica só uma marca (um
+          HMAC) que não permite recuperá-lo. Ela serve para uma coisa: se você voltar com o mesmo
+          e-mail, o Lumens reconhece o mesmo cadastro e não conta seus apoios, votos na conferência
+          e inscrições como voluntário duas vezes (prevenção de fraude). Ela não é usada para mais
           nada.
         </p>
         <p>

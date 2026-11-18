@@ -153,3 +153,12 @@ export async function listarAtividade(db: Db, query: PaginacaoQuery) {
   );
   return paginar(itens, query);
 }
+
+/** Se a chave é a foto de um relato aprovado de pauta pública (`v_relato_publico`). */
+export async function fotoEhPublica(db: Db, chave: string): Promise<boolean> {
+  const achadas = await linhas<{ ok: number }>(
+    db,
+    sql`SELECT 1 AS ok FROM v_relato_publico WHERE foto_chave = ${chave} LIMIT 1`,
+  );
+  return achadas.length > 0;
+}

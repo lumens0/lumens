@@ -2,7 +2,13 @@
  * Guarda as fotos no storage (bucket `S3_BUCKET_FOTOS`). O cliente S3 da AWS também fala com R2 e
  * Supabase Storage: para eles, ou para um emulador local, basta preencher `S3_ENDPOINT`.
  */
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  NoSuchKey,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 export interface Storage {
   guardar(chave: string, bytes: Buffer, contentType: string): Promise<void>;
@@ -40,5 +46,46 @@ export function criarStorageS3({ bucket, regiao, endpoint, cliente }: OpcoesDoSt
     async remover(chave) {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: chave }));
     },
+  };
+}
+
+export interface ArquivoLido {
+  bytes: Buffer;
+  /** Tipo gravado junto com o arquivo; `undefined` quando o storage não guardou um. */
+  contentType: string | undefined;
+}
+
+/** Lê um arquivo do bucket: serve as fotos aprovadas na API de leitura (SCRUM-263). */
+export type LerArquivo = (chave: string) => Promise<ArquivoLido | null>;
+
+/** O pedaço do `S3Client` que a leitura usa: deixa os testes passarem um cliente falso. */
+export interface ClienteS3Leitura {
+  send(comando: GetObjectCommand): Promise<unknown>;
+}
+
+export function criarLeitorS3({
+  bucket,
+  regiao,
+  endpoint,
+  cliente,
+}: Omit<OpcoesDoStorage, 'cliente'> & { cliente?: ClienteS3Leitura }): LerArquivo {
+  const s3: ClienteS3Leitura =
+    cliente ??
+    new S3Client({ region: regiao, ...(endpoint ? { endpoint, forcePathStyle: true } : {}) });
+  return async (chave) => {
+    try {
+      const objeto = (await s3.send(new GetObjectCommand({ Bucket: bucket, Key: chave }))) as {
+        Body?: { transformToByteArray(): Promise<Uint8Array> };
+        ContentType?: string;
+      };
+      if (!objeto.Body) return null;
+      return {
+        bytes: Buffer.from(await objeto.Body.transformToByteArray()),
+        contentType: objeto.ContentType,
+      };
+    } catch (erro) {
+      if (erro instanceof NoSuchKey) return null;
+      throw erro;
+    }
   };
 }

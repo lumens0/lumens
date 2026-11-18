@@ -224,7 +224,7 @@ describe('pauta nova pelo menu', () => {
     const texto = photoRefusedText('armazenamento');
     expect(texto).not.toMatch(/baixar|download/i);
     expect(texto).not.toMatch(/outra foto/i);
-    expect(texto).toContain("'pular'");
+    expect(texto).toContain('*pular*');
   });
 
   it('sem serviço de fotos configurado, a foto é recusada como indisponível', async () => {

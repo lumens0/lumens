@@ -41,17 +41,17 @@ import { normalize } from './texto';
 export const SUPPORT_VERIFY_FIRST_TEXT =
   'Para apoiar uma pauta, você precisa verificar o seu e-mail institucional. Qual é ele?';
 export const SUPPORT_NOT_VERIFIED_TEXT =
-  'Não consegui registrar o apoio: falta verificar o seu e-mail institucional. Escolha 3 no menu para verificar.';
+  'Não consegui registrar o apoio: falta verificar o seu e-mail institucional. Mande *menu* e escolha *Verificar e-mail* para verificar.';
 export const SUPPORT_CLOSED_TEXT =
-  'Essa pauta não está recebendo apoios agora. Escolha 1 no menu para relatar outro problema.';
+  'Essa pauta não está recebendo apoios agora. Mande *menu* e escolha *Relatar problema* para relatar outro problema.';
 export const SUPPORT_NOT_FOUND_TEXT =
-  'Não encontrei essa pauta. Escolha 1 no menu para relatar o problema de novo.';
+  'Não encontrei essa pauta. Mande *menu* e escolha *Relatar problema* para relatar o problema de novo.';
 export const ASK_ATTACH_REPORT_TEXT =
   'Quer juntar o seu relato a esta pauta? Ele ajuda a curadoria e só aparece no site depois da moderação, sem o seu nome.\nResponda *sim* ou *não*.';
 export const ASK_WRITE_REPORT_TEXT =
-  "Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda 'pular'. O relato só aparece no site depois da moderação, sem o seu nome.";
+  'Quer contar o que você viu? Escreva numa mensagem o que aconteceu e onde, ou responda *pular*. O relato só aparece no site depois da moderação, sem o seu nome.';
 export const SUPPORT_PHOTO_ASK_TEXT =
-  "Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda 'pular'.";
+  'Quer mandar uma foto do problema? Envie a foto (JPEG ou PNG, até 5 MB), ou responda *pular*.';
 export const PHOTO_NOT_ATTACHED_TEXT =
   'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado.';
@@ -66,18 +66,19 @@ export const REPORT_REFUSED_TEXT =
 
 /** SCRUM-343: resposta ao "sim" da pergunta do relato, que não é o relato. */
 export const WRITE_REPORT_TEXT =
-  "Pode escrever: conte numa mensagem o que você viu e onde. Se mudar de ideia, responda 'pular'.";
+  'Pode escrever: conte numa mensagem o que você viu e onde. Se mudar de ideia, responda *pular*.';
 /** SCRUM-343: o relato vai para a curadoria; uma ou duas palavras não dizem o que houve. */
 export const SUPPORT_REPORT_TOO_SHORT_TEXT =
-  'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado". Ou responda \'pular\'.';
+  'Conte um pouco mais: o que aconteceu e onde? Ex.: "o bebedouro do bloco 18 está quebrado". Ou responda *pular*.';
 
 export function reportTooLongText(tamanho: number): string {
-  return `Seu relato tem ${String(tamanho)} caracteres e o limite é ${String(RELATO_MAXIMO)}. Escreva um relato mais curto, ou responda 'pular'.`;
+  return `Seu relato tem ${String(tamanho)} caracteres e o limite é ${String(RELATO_MAXIMO)}. Escreva um relato mais curto, ou responda *pular*.`;
 }
 
-/** Placar depois do apoio: "Agora são 12 de 30 apoios." */
+/** Placar depois do apoio: "Agora temos 12 de 30 apoios." */
 export function placarText(total: number, meta: number): string {
-  return `Agora são ${String(total)} de ${String(meta)} apoios.`;
+  // "Temos" evita a concordância errada no singular ("Agora são 1 de 120").
+  return `Agora temos ${String(total)} de ${String(meta)} apoios.`;
 }
 
 export function supportedText(titulo: string, total: number, meta: number): string {
