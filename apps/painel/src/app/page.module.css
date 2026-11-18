@@ -2,7 +2,7 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  padding: 24px;
+  padding: var(--esp-5);
   background: var(--noite);
 }
 
@@ -18,8 +18,8 @@
 .marca {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 20px;
+  gap: var(--esp-3);
+  margin: 0 0 var(--esp-5);
   font:
     700 20px var(--fonte-titulo),
     sans-serif;
@@ -46,15 +46,15 @@
 }
 
 .descricao {
-  margin: 20px 0 0;
+  margin: var(--esp-5) 0 0;
   color: var(--tinta-2);
   font-size: 1.125rem;
   line-height: 1.6;
 }
 
 .estado {
-  margin: 32px 0 0;
-  padding: 16px;
+  margin: var(--esp-6) 0 0;
+  padding: var(--esp-4);
   border-radius: 12px;
   background: var(--luz-fundo);
   color: var(--tinta);
@@ -63,12 +63,12 @@
 
 .formulario {
   display: grid;
-  gap: 8px;
+  gap: var(--esp-2);
   margin-top: 28px;
 }
 
 .formulario input {
-  padding: 12px 14px;
+  padding: var(--esp-3) var(--esp-4);
   border: 1px solid var(--borda);
   border-radius: var(--raio-controle);
   font: inherit;
@@ -76,8 +76,8 @@
 
 .botao {
   display: inline-block;
-  margin-top: 16px;
-  padding: 12px 20px;
+  margin-top: var(--esp-4);
+  padding: var(--esp-3) var(--esp-5);
   border: 0;
   border-radius: var(--raio-controle);
   background: var(--luz);
