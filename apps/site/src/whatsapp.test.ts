@@ -14,6 +14,7 @@ import {
 } from './whatsapp';
 
 // Slug real gerado pelo domínio: título de 60 caracteres + `-` + 8 do id = 69 caracteres.
+/** O maior slug que o `gerarSlug` produz: 60 caracteres do título, hífen e 8 do id (69). */
 const SLUG_LONGO = `${'a'.repeat(60)}-1a2b3c4d`;
 
 describe('canalDoBot', () => {
@@ -42,11 +43,22 @@ describe('payloadTelegram', () => {
     expect(payloadTelegram(COMANDO_NOVA_PAUTA)).toBe('nova');
   });
 
+  it('o maior slug gerado vira um payload de até 64 caracteres (SCRUM-293)', () => {
+    expect(SLUG_LONGO).toHaveLength(69);
+    const payload = payloadTelegram(comandoApoiar(SLUG_LONGO));
+
+    expect(payload).toBe('apoiar_1a2b3c4d');
+    expect(payload?.length).toBeLessThanOrEqual(64);
+    // O slug que ainda cabe vai inteiro: o id curto é só para o que não cabe.
+    const cabeInteiro = `${'a'.repeat(48)}-1a2b3c4d`;
+    expect(payloadTelegram(comandoApoiar(cabeInteiro))).toBe(`apoiar_${cabeInteiro}`);
+  });
+
   it('aceita até 64 caracteres e recusa acima', () => {
     const cabe = 'a'.repeat(64 - 'apoiar_'.length);
     expect(payloadTelegram(comandoApoiar(cabe))).toBe(`apoiar_${cabe}`);
     expect(payloadTelegram(comandoApoiar(`${cabe}b`))).toBeNull();
-    expect(payloadTelegram(comandoApoiar(SLUG_LONGO))).toBeNull();
+    // Sem o final de id do slug gerado, não há o que encurtar.
   });
 
   it('recusa caractere fora de A-Z a-z 0-9 _ -', () => {
@@ -82,9 +94,16 @@ describe('linkTelegram', () => {
     expect(linkTelegram()).toBe('https://t.me/LumensBot');
   });
 
-  it('comando que não cabe no start abre o bot sem comando', () => {
+  it('slug longo demais vai pelo id curto, que o bot entende (SCRUM-293)', () => {
     vi.stubEnv('NEXT_PUBLIC_TELEGRAM_BOT', 'LumensBot');
-    expect(linkTelegram(comandoApoiar(SLUG_LONGO))).toBe('https://t.me/LumensBot');
+    expect(linkTelegram(comandoApoiar(SLUG_LONGO))).toBe(
+      'https://t.me/LumensBot?start=apoiar_1a2b3c4d',
+    );
+  });
+
+  it('comando que não cabe e não tem id curto abre o bot sem comando', () => {
+    vi.stubEnv('NEXT_PUBLIC_TELEGRAM_BOT', 'LumensBot');
+    expect(linkTelegram(comandoApoiar('a'.repeat(70)))).toBe('https://t.me/LumensBot');
   });
 });
 

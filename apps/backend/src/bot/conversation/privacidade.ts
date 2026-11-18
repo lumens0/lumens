@@ -18,7 +18,7 @@ import { normalize } from './texto';
 // só o que o sistema faz hoje, igual à página /privacidade: mudou o comportamento, mude os dois.
 export const PRIVACY_NOTICE_TEXT = [
   '🔒 *Sua privacidade no Lumens*',
-  'Guardamos seu telefone cifrado para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso.',
+  'Guardamos seu telefone cifrado para continuar esta conversa. Se você se verificar, guardamos também seu e-mail @ufal.br (cifrado) e seu curso. Se você sair, do e-mail fica só uma marca que não permite recuperá-lo, para seus apoios não contarem duas vezes se você voltar.',
   'No site aparecem as pautas, os relatos aprovados e o curso de quem participa — nunca nome, telefone ou e-mail. Quem apoia não aparece: só o total.',
   'Ao se verificar, você concorda com esse uso (LGPD, art. 7º, I). Para sair, envie *sair* a qualquer momento.',
   `Política completa: ${ORIGEM_SITE_PRODUCAO}/privacidade`,
@@ -44,13 +44,18 @@ export const STAYED_TEXT = 'Ok, você continua no Lumens.';
 // O "sair" de novo também confirma: o router o entrega a este passo em vez de pedir a saída outra vez.
 const CONFIRMA = new Set(['sim', 'sair', 'sim, sair', 'quero sair', 'confirmar']);
 
-/** Estudante ativo (verificado ou não) ligado a este telefone. Quem já saiu não conta. */
+/**
+ * Estudante ligado a este telefone. Quem já saiu não aparece: o telefone dele virou lápide e não
+ * coincide com o HMAC. Quem voltou e ainda não escolheu o curso tem o telefone restaurado com
+ * `saiu_em` preenchido (SCRUM-331); conta, porque os dados pessoais voltaram e o `sair` precisa
+ * apagá-los.
+ */
 async function estudanteDoTelefone(ctx: StepContext): Promise<string | undefined> {
   const [estudante] = await ctx.db
-    .select({ id: estudantes.id, saiuEm: estudantes.saiuEm })
+    .select({ id: estudantes.id })
     .from(estudantes)
     .where(eq(estudantes.telefoneHmac, ctx.phoneHmac));
-  return estudante !== undefined && estudante.saiuEm === null ? estudante.id : undefined;
+  return estudante?.id;
 }
 
 /**
