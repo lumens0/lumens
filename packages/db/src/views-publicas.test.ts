@@ -312,7 +312,7 @@ describe('views públicas com o seed', () => {
     it('v_caminho_publico traz caminhos com prazo e propostas com voluntários', async () => {
       const linhas = await comoSite(
         db,
-        sql`SELECT pauta_slug, tipo, status, protocolo, prazo::text AS prazo,
+        sql`SELECT pauta_slug, tipo, status, protocolo, prazo::text AS prazo, prorrogado,
                    pessoas_necessarias, voluntarios
             FROM v_caminho_publico WHERE pauta_slug = 'iluminacao-no-bloco-de-artes'
             ORDER BY tipo`,
@@ -329,6 +329,7 @@ describe('views públicas com o seed', () => {
           status: 'em análise',
           protocolo: 'SEED-FALABR-2026-0001',
           prazo: '2026-03-20',
+          prorrogado: false,
           pessoas_necessarias: null,
           voluntarios: null,
         },
@@ -338,6 +339,7 @@ describe('views públicas com o seed', () => {
           status: 'executada',
           protocolo: null,
           prazo: null,
+          prorrogado: false,
           pessoas_necessarias: 6,
           voluntarios: 2,
         },

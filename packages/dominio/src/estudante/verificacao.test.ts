@@ -460,6 +460,23 @@ describe('vincularEmail (SCRUM-137, RN01)', () => {
     // Quem volta a valer (limpar `saiu_em`, marcar `verificado_em`) é o fim da 2.4, não o vínculo.
     expect((await estudanteDe('7'))?.saiuEm).toEqual(saiuEm);
   });
+
+  it('quem saiu e volta por outra identidade reativa o cadastro sem aviso de transferência (SCRUM-331)', async () => {
+    const { estudanteId } = (await vincularEmail(db, vinculo('8', 'volta@ufal.br'))) as {
+      estudanteId: string;
+    };
+    await db
+      .update(estudantes)
+      .set({ saiuEm: new Date('2026-10-05T12:00:00Z') })
+      .where(eq(estudantes.id, estudanteId));
+
+    // Sem `transferido`: o aviso de "seu cadastro foi ligado a outro número" iria para a própria pessoa.
+    expect(await vincularEmail(db, vinculo('9', 'volta@ufal.br'))).toEqual({
+      vinculado: true,
+      estudanteId,
+    });
+    expect(await estudanteDe('9')).toMatchObject({ id: estudanteId });
+  });
 });
 
 describe('concluirVerificacao (SCRUM-138)', () => {

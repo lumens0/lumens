@@ -25,7 +25,7 @@ import {
 export const ASK_PDF_TEXT =
   'Mande aqui o PDF da resposta que a ouvidoria deu no Fala.BR (o arquivo, não uma foto). A curadoria vai ler e registrar o resumo, e aí quem apoiou a pauta recebe a resposta.';
 export const PDF_RECEIVED_TEXT =
-  'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta pelo WhatsApp.';
+  'Recebi o PDF ✅ A curadoria vai ler a resposta e registrar o resumo. Quando registrar, todo mundo que apoiou a pauta recebe a resposta por aqui.';
 export const NEED_PDF_TEXT =
   'Preciso do arquivo PDF da resposta. Mande o arquivo ou responda *menu*.';
 /** SCRUM-307: a foto (da tela ou do papel) não serve; a curadoria precisa do PDF original. */
@@ -40,6 +40,8 @@ export const PDF_REFUSED_TEXT: Record<MotivoPdfRecusado, string> = {
   formato: 'Esse arquivo não é um PDF. Mande o PDF da resposta, como o Fala.BR entrega.',
   tamanho: 'O PDF passa de 10 MB. Mande um arquivo menor ou fale com a curadoria.',
   indisponivel: 'Não consegui receber o arquivo agora. Tente mandar de novo em alguns minutos.',
+  armazenamento:
+    'Não consegui guardar o arquivo: o envio de arquivos está fora do ar agora. Tente de novo mais tarde ou responda *menu*.',
 };
 
 const dadosSchema = z.object({ caminhoId: z.uuid().optional() });

@@ -2,10 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import type { Bloco } from '../dados/tipos';
+import { urlDosFiltros } from '../dados/filtros';
 import estilos from './componentes.module.css';
 
 /** Troca o `?bloco=` sem recarregar a página; "Todos os blocos" tira o parâmetro. */
-export function FiltroBloco({ blocos, atual }: { blocos: Bloco[]; atual: string | undefined }) {
+export function FiltroBloco({
+  blocos,
+  atual,
+  status,
+}: {
+  blocos: Bloco[];
+  atual: string | undefined;
+  status?: string | undefined;
+}) {
   const router = useRouter();
   return (
     <label className={estilos.filtro}>
@@ -16,7 +25,7 @@ export function FiltroBloco({ blocos, atual }: { blocos: Bloco[]; atual: string 
         defaultValue={atual ?? ''}
         onChange={(e) => {
           const slug = e.target.value;
-          router.replace(slug ? `/?bloco=${encodeURIComponent(slug)}` : '/', { scroll: false });
+          router.replace(urlDosFiltros(status, slug), { scroll: false });
         }}
       >
         <option value="">Todos os blocos</option>

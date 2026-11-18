@@ -85,6 +85,9 @@ function exigirInteiroNaoNegativo(valor: number, campo: string): void {
   }
 }
 
+/** Abaixo disto o parágrafo de apoio sai do texto: um estudante só não é coletivo (SCRUM-344). */
+export const APOIOS_PARA_FALAR_EM_COLETIVO = 2;
+
 /**
  * Monta o texto da manifestação e confere a RN08 sobre ele.
  *
@@ -116,6 +119,19 @@ export function gerarTextoFalaBr(
 
   const local = pauta.bloco === null ? 'Campus inteiro' : arrumarParagrafos(pauta.bloco);
 
+  // SCRUM-344: "apresentada coletivamente por 0 estudantes" enfraquece o documento oficial
+  // justamente quando o owner protocola cedo, como a RN05 permite. Com menos de dois apoios a
+  // manifestação ainda não é coletiva, e o parágrafo sai: o pedido vale sozinho.
+  const apoio =
+    pauta.apoios >= APOIOS_PARA_FALAR_EM_COLETIVO
+      ? [
+          'Apoio',
+          `Esta manifestação é apresentada coletivamente por ${String(pauta.apoios)} ` +
+            `estudantes que registraram apoio a ela, ${relacaoComMeta} de ${String(pauta.meta)}.`,
+          '',
+        ]
+      : [];
+
   const texto = arrumarParagrafos(
     [
       `Assunto: ${titulo}`,
@@ -126,10 +142,7 @@ export function gerarTextoFalaBr(
       'Descrição',
       descricao,
       '',
-      'Apoio',
-      `Esta manifestação é apresentada coletivamente por ${String(pauta.apoios)} ` +
-        `estudantes que registraram apoio a ela, ${relacaoComMeta} de ${String(pauta.meta)}.`,
-      '',
+      ...apoio,
       'Pedido',
       'Solicitamos posicionamento formal da universidade sobre o problema descrito, ' +
         'com indicação das providências previstas e do prazo para executá-las.',

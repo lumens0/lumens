@@ -80,7 +80,11 @@ const COLUNAS_PAUTA = sql.join(
 
 /** Mesma ordem da lista do site (`apps/site/src/dados/pautas-publicas.ts`), com o slug no desempate. */
 export async function listarPautas(db: Db, query: PautasQuery) {
-  const filtro = query.bloco === undefined ? sql`` : sql`WHERE bloco_slug = ${query.bloco}`;
+  const filtros = [
+    ...(query.bloco === undefined ? [] : [sql`bloco_slug = ${query.bloco}`]),
+    ...(query.status === undefined ? [] : [sql`status = ${query.status}`]),
+  ];
+  const filtro = filtros.length === 0 ? sql`` : sql`WHERE ${sql.join(filtros, sql` AND `)}`;
   const itens = await linhas<Pauta>(
     db,
     sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica ${filtro}
@@ -104,7 +108,7 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
     linhas<Caminho>(
       db,
       // `to_char` e não `::text`: o cast segue o `DateStyle` da sessão (ex.: `20/03/2026`).
-      sql`SELECT tipo, status, protocolo, to_char(prazo, 'YYYY-MM-DD') AS prazo, ${iso('aberto_em')}, descricao,
+      sql`SELECT tipo, status, protocolo, to_char(prazo, 'YYYY-MM-DD') AS prazo, prorrogado, ${iso('aberto_em')}, descricao,
                  pessoas_necessarias::int AS pessoas_necessarias, voluntarios::int AS voluntarios,
                  ${iso('executada_em')}
           FROM v_caminho_publico WHERE pauta_slug = ${slug}

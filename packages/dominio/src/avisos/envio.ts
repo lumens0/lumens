@@ -26,7 +26,8 @@ export type TipoDisparo =
   | 'vitoria'
   | 'aprovacao'
   | 'recusa'
-  | 'lembrete';
+  | 'lembrete'
+  | 'remarcacao';
 
 /**
  * Ordem de atendimento quando o limite das 24h não cobre todo mundo.
@@ -46,6 +47,7 @@ export const PRIORIDADE: Readonly<Record<TipoDisparo, number>> = Object.freeze({
   aprovacao: 5,
   recusa: 6,
   lembrete: 7,
+  remarcacao: 8,
 });
 
 /** Limite da Meta para um portfólio novo, em pessoas distintas por 24h móveis (RNF06). */

@@ -10,6 +10,8 @@ try {
 
 const nextConfig: NextConfig = {
   agentRules: false,
+  // Sem `X-Powered-By: Next.js` (SCRUM-303): a resposta não anuncia o framework.
+  poweredByHeader: false,
 };
 
 export default nextConfig;

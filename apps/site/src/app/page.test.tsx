@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buscarBlocos, buscarPautas } from '../dados/api';
@@ -7,11 +8,23 @@ import Home from './page';
 
 // O filtro usa o router do Next, que não existe fora do app.
 vi.mock('../componentes/FiltroBloco', () => ({ FiltroBloco: () => null }));
+vi.mock('../componentes/FiltroStatus', () => ({
+  FiltroStatus: ({ contagens }: { contagens: Record<string, number> }) =>
+    createElement('pre', { id: 'contagens' }, JSON.stringify(contagens)),
+}));
 vi.mock('../dados/api', () => ({ buscarBlocos: vi.fn(), buscarPautas: vi.fn() }));
 
-const render = async (bloco?: string) =>
+const render = async (bloco?: string, status?: string) =>
   renderToStaticMarkup(
-    await Home({ searchParams: Promise.resolve(bloco === undefined ? {} : { bloco }) }),
+    await Home({
+      searchParams: Promise.resolve({ ...(bloco ? { bloco } : {}), ...(status ? { status } : {}) }),
+    }),
+  );
+
+/** Um total da faixa: o número animado, escondido do leitor de tela, e o valor final oculto. */
+const total = (rotulo: string, n: string) =>
+  new RegExp(
+    `<dt>${rotulo}</dt><dd><span aria-hidden="true">${n}</span><span class="[^"]*somenteLeitor[^"]*">${n}</span></dd>`,
   );
 
 describe('home', () => {
@@ -39,10 +52,6 @@ describe('home', () => {
     expect(html).toContain('Bloco A</h2>');
     for (const p of doBlocoA) expect(html).toContain(p.titulo);
     // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
-    const total = (rotulo: string, n: string) =>
-      new RegExp(
-        `<dt>${rotulo}</dt><dd><span aria-hidden="true">${n}</span><span class="[^"]*somenteLeitor[^"]*">${n}</span></dd>`,
-      );
     expect(html).toMatch(total('Apoios', '499'));
     expect(html).toMatch(total('Pautas abertas', '0'));
   });
@@ -63,8 +72,44 @@ describe('home', () => {
     expect(buscarPautas).toHaveBeenCalledWith(undefined);
   });
 
+  it('status combinado ao bloco filtra a lista e os totais', async () => {
+    // A busca vem sem o filtro de status; a home filtra e conta a partir das pautas do bloco.
+    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
+    expect(doBlocoA.some((p) => p.status !== 'prometido')).toBe(true);
+    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
+    const html = await render('bloco-a', 'prometido');
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
+    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
+    expect(html).toMatch(total('Apoios', '0'));
+    expect(html).toContain('Nenhuma pauta prometida neste bloco');
+  });
+
+  it('status não público não segue para a busca', async () => {
+    await Home({ searchParams: Promise.resolve({ status: 'em_curadoria' }) });
+    expect(buscarPautas).toHaveBeenCalledWith(undefined);
+  });
+
   it('erro da API sobe para o error.tsx em vez de renderizar a página vazia', async () => {
     vi.mocked(buscarPautas).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');
+  });
+
+  it('as contagens do filtro de status somam a lista do bloco, com ou sem status escolhido', async () => {
+    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
+    const prometidas = doBlocoA.filter((p) => p.status === 'prometido');
+    const contagensDe = (html: string): Record<string, number> =>
+      JSON.parse(
+        /<pre id="contagens">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}',
+      ) as Record<string, number>;
+    // Sem status: uma busca só, e as contagens saem dela.
+    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
+    const semFiltro = contagensDe(await render('bloco-a'));
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
+    expect(semFiltro.prometido).toBe(prometidas.length);
+    // Com status: continua uma busca só, e as contagens são as mesmas.
+    vi.mocked(buscarPautas).mockClear();
+    const comFiltro = contagensDe(await render('bloco-a', 'prometido'));
+    expect(buscarPautas).toHaveBeenCalledTimes(1);
+    expect(comFiltro).toEqual(semFiltro);
   });
 });

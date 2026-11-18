@@ -46,6 +46,26 @@ if ! grep -qE '^[[:space:]]*AUTH_SECRET=[^[:space:]]+' .env.producao; then
   exit 1
 fi
 
+# Storage das fotos e dos PDFs no MinIO do compose (SCRUM-330): liga o perfil dele e confere o que
+# o `minio-preparar` vai precisar. Sem isto o back-end sobe, mas cada foto e cada PDF da resposta
+# oficial falha só no meio da conversa, longe da causa.
+USA_MINIO=false
+# Aceita o valor entre aspas, como o compose aceita.
+if grep -qE '^[[:space:]]*S3_ENDPOINT=["'\'']?http://minio:9000/?["'\'']?[[:space:]]*$' .env.producao; then
+  if ! grep -qsE '^[[:space:]]*MINIO_ROOT_PASSWORD=[^[:space:]]+' .env.producao.minio; then
+    echo "::error::S3_ENDPOINT aponta para o MinIO, mas .env.producao.minio não existe ou não tem MINIO_ROOT_PASSWORD. Copie do .env.producao.minio.example e gere com: openssl rand -hex 32" >&2
+    exit 1
+  fi
+  for variavel in S3_BUCKET_FOTOS AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+    if ! grep -qE "^[[:space:]]*${variavel}=[^[:space:]]+" .env.producao; then
+      echo "::error::.env.producao tem S3_ENDPOINT=http://minio:9000 mas não tem ${variavel}. Veja o .env.producao.example." >&2
+      exit 1
+    fi
+  done
+  COMPOSE+=(--profile minio)
+  USA_MINIO=true
+fi
+
 # WhatsApp pela Evolution (SCRUM-275): liga o perfil dos serviços dela e confere os segredos. Sem
 # a senha do banco dela o Postgres não sobe; sem a chave, a API fica aberta na rede do compose.
 # Com CANAL_BOT=telegram a Evolution não sobe, mesmo com CANAL_WHATSAPP=evolution: um canal só.
@@ -58,6 +78,22 @@ if grep -qE '^[[:space:]]*CANAL_WHATSAPP=evolution[[:space:]]*$' .env.producao &
     fi
   done
   COMPOSE+=(--profile evolution)
+fi
+
+# Backup diário (docs/operacao/backup.md). Na homologação ele nunca foi instalado, e ninguém
+# percebeu (SCRUM-328): o timer é um passo à mão, fora do deploy. Aqui não para o deploy, porque
+# publicar não piora o backup que falta, mas o aviso aparece em todo deploy até alguém instalar.
+# Timer ativo não basta: se o último backup falhou (disco cheio, Postgres parado), ou se nenhum
+# dump novo existe (timer instalado e nunca disparado, VM sempre desligada às 12:00), avisa também.
+# 72 h e não 24: a VM fica desligada no fim de semana, e o `Persistent=true` só recupera o backup
+# perdido uns minutos depois do boot, então a segunda de manhã não deve soar alarme falso.
+BACKUP_DIARIO=${BACKUP_DIR:-/var/backups/lumens}/diario
+if ! systemctl is-active --quiet lumens-backup.timer 2>/dev/null; then
+  echo "::warning::O timer lumens-backup.timer não está ativo nesta VM: o banco está sem backup diário. Instale como em docs/operacao/backup.md (Instalar na VM)." >&2
+elif systemctl is-failed --quiet lumens-backup.service 2>/dev/null; then
+  echo "::warning::O último backup do banco falhou. Veja: journalctl -u lumens-backup.service -n 50" >&2
+elif [[ -z $(find "$BACKUP_DIARIO" -maxdepth 1 -name 'lumens-*.dump' -mmin -$((72 * 60)) 2>/dev/null) ]]; then
+  echo "::warning::Nenhum backup do banco nas últimas 72 h em $BACKUP_DIARIO. Rode: sudo systemctl start lumens-backup.service" >&2
 fi
 
 echo "--> Atualizando o código para $REF"
@@ -85,6 +121,13 @@ echo "--> Migrando o banco"
 # back-end novo subiria contra um banco desatualizado — falhando depois, por coluna ou
 # tabela ausente, longe da causa.
 "${COMPOSE[@]}" run --build --rm migracao
+
+if [[ $USA_MINIO == true ]]; then
+  echo "--> Preparando o storage (bucket e usuário do Lumens no MinIO)"
+  # Idempotente, como o provision do banco. Sobe o MinIO antes, se ele ainda não estiver no ar, e
+  # para o deploy se falhar: o back-end antigo segue no ar.
+  "${COMPOSE[@]}" run --rm minio-preparar
+fi
 
 echo "--> Subindo back-end, painel e Caddy"
 "${COMPOSE[@]}" up -d --build
