@@ -50,11 +50,49 @@ Não cole o cabeçalho inteiro em lugar público: ele tem os endereços.
 
 ## Resultado
 
+**18/11/2026, informado por @sthefanyblima:** o código foi pedido pelo bot da homologação com três
+contas reais da UFAL, de pessoas diferentes. Chegou nas três e a verificação concluiu. O detalhe
+por conta (domínio, pasta, alerta e as linhas do "Mostrar original") ficou anotado fora do
+repositório: quem fez o teste completa a tabela.
+
 | Conta (só o domínio) | Chegou em | Alerta | Remetente | SPF | DKIM (`d=`) | DMARC | Código funcionou |
 | -------------------- | --------- | ------ | --------- | --- | ----------- | ----- | ---------------- |
-| `@ufal.br`           |           |        |           |     |             |       |                  |
-| `@ufal.br`           |           |        |           |     |             |       |                  |
-| `@*.ufal.br`         |           |        |           |     |             |       |                  |
+| conta 1              |           |        |           |     |             |       | sim              |
+| conta 2              |           |        |           |     |             |       | sim              |
+| conta 3              |           |        |           |     |             |       | sim              |
+
+## O que falta para fechar
+
+Os testes acima saíram pelo remetente que a VM usava na época. A conta própria do Lumens,
+`lumens.ic.ufal@gmail.com` (SCRUM-320), ainda precisa entrar no `.env.producao` da VM. Depois:
+
+1. Na VM, em `/opt/lumens/.env.producao`: `EMAIL_USUARIO` e `EMAIL_REMETENTE` com o endereço
+   novo (os dois iguais) e `EMAIL_SENHA` com a senha de app dessa conta. A senha só vai no arquivo
+   da VM, nunca no repositório nem em mensagem.
+2. Recriar os dois serviços que enviam e-mail:
+
+   ```bash
+   cd /opt/lumens && docker compose -f docker-compose.prod.yml --env-file .env.producao up -d --force-recreate backend painel
+   ```
+
+3. Pedir um código com uma conta da UFAL e preencher a linha abaixo pelo "Mostrar original".
+   Use uma conta e um celular que não vão ser usados numa demonstração no mesmo dia: cada um
+   recebe no máximo 5 códigos em 24 horas.
+
+| Conta (só o domínio) | Chegou em | Alerta | Remetente                  | SPF | DKIM (`d=`) | DMARC | Código funcionou |
+| -------------------- | --------- | ------ | -------------------------- | --- | ----------- | ----- | ---------------- |
+|                      |           |        | `lumens.ic.ufal@gmail.com` |     |             |       |                  |
+
+Com o remetente `@gmail.com`, quem responde pela autenticação é o domínio do Gmail, e não mais o
+da UFAL (consultado em 2026-11-18):
+
+| Registro             | Valor                                                 | Leitura                                                        |
+| -------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| SPF de `gmail.com`   | `v=spf1 redirect=_spf.google.com`                     | O SMTP do Gmail está autorizado.                               |
+| DMARC de `gmail.com` | `v=DMARC1; p=none; sp=quarantine; rua=...@google.com` | Só monitora. O esperado no cabeçalho é SPF, DKIM e DMARC PASS. |
+
+O esperado na assinatura é `d=gmail.com`. Se vier outro domínio, ou SPF/DMARC diferente de PASS,
+volte ao passo 1 da seção abaixo.
 
 ## Se algo cair no spam
 
