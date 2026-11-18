@@ -25,3 +25,13 @@ describe('política de privacidade por canal', () => {
     expect(html).not.toContain('id do seu chat');
   });
 });
+
+describe('política de privacidade: seção do Fala.BR', () => {
+  it('tem a âncora que os caminhos da pauta usam e já diz que o bot entrega o texto', () => {
+    const html = renderToStaticMarkup(<Privacidade />);
+    expect(html).toMatch(
+      /<section[^>]*id="fala-br"[^>]*>\s*<h2[^>]*>Quando a pauta vai para o Fala\.BR/,
+    );
+    expect(html).not.toContain('ainda não está em funcionamento');
+  });
+});

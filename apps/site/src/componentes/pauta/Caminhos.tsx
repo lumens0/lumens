@@ -1,4 +1,5 @@
 import type { Caminho } from '@lumens/contratos';
+import Link from 'next/link';
 import { BotaoVouAjudar } from '../BotaoWhatsApp';
 import { formatarDia, prazoVencido, textoDoPrazo } from './prazos';
 
@@ -11,6 +12,28 @@ const TIPOS: Record<Caminho['tipo'], string> = {
   representante: 'Representante',
   proposta: 'Proposta da comunidade',
 };
+
+/**
+ * Uma frase por tipo, para quem chega pelo QR Code sem conhecer os termos (SCRUM-382). A do Fala.BR
+ * repete a do bot ao abrir o caminho (`OPENED_TEXT.falabr`, SCRUM-370): se uma mudar, mude a outra.
+ *
+ * O texto de `representante` é o proposto no ticket; a equipe valida na revisão da PR.
+ */
+const EXPLICACAO: Record<Exclude<Caminho['tipo'], 'proposta'>, string> = {
+  falabr:
+    'Canal oficial do governo federal para registrar manifestações. A resposta tem prazo em lei e o protocolo fica público.',
+  comunidade: 'Estudantes resolvendo o problema por conta própria.',
+  representante:
+    'Alguém que representa os estudantes leva a pauta à universidade e cobra uma resposta.',
+};
+
+/** A proposta só pede voluntários enquanto está aberta: é quando o "Vou ajudar" existe. */
+function explicacaoDe(caminho: Caminho): string | undefined {
+  if (caminho.tipo !== 'proposta') return EXPLICACAO[caminho.tipo];
+  return caminho.status === 'aberta'
+    ? 'Ideia de solução publicada por quem cuida da pauta. Precisa de voluntários: toque em Vou ajudar.'
+    : 'Ideia de solução publicada por quem cuida da pauta.';
+}
 
 // `caminho.status` é texto livre no esquema; hoje o domínio só grava `aberto`. As propostas vêm do
 // enum `status_proposta` (`aberta`, `executada`). Valor fora da lista vira texto legível.
@@ -92,6 +115,19 @@ export function Caminhos({
               <strong className={[estilos.chip, estilos[corDoChip(caminho.status)]].join(' ')}>
                 {rotuloStatusCaminho(caminho.status)}
               </strong>
+              {explicacaoDe(caminho) && (
+                <span className={estilos.vazio}>
+                  {explicacaoDe(caminho)}
+                  {caminho.tipo === 'falabr' && (
+                    <>
+                      {' '}
+                      <Link href="/privacidade#fala-br" aria-label="Saiba mais sobre o Fala.BR">
+                        Saiba mais
+                      </Link>
+                    </>
+                  )}
+                </span>
+              )}
               {detalhes(caminho, agora, conquistada).map((linha) => (
                 <span key={linha} className={estilos.vazio}>
                   {linha}
