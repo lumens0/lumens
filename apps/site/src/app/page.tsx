@@ -8,7 +8,7 @@ import { Numero } from '../componentes/Numero';
 import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
 import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import { PautasPorGrupo } from '../componentes/PautasPorGrupo';
-import { pautasPorBloco, pautasPorCategoria } from '../dados/distribuicao';
+import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
 import { CardPauta } from '../componentes/CardPauta';
 import { FiltroBloco } from '../componentes/FiltroBloco';
 import { FiltroStatus } from '../componentes/FiltroStatus';
@@ -129,17 +129,17 @@ export default async function Home({
           <ApoiosPorSemana semanas={semanas} />
           <PautasPorGrupo
             id="categorias-titulo"
-            titulo="Pautas por categoria"
-            unidade="categoria"
-            grupos={pautasPorCategoria(todas)}
+            titulo="Apoios por categoria"
+            vazio="Nenhum apoio por categoria ainda."
+            grupos={apoiosPorCategoria(todas)}
           />
           {/* Com um bloco escolhido, o gráfico por bloco teria uma barra só. */}
           {!bloco && (
             <PautasPorGrupo
               id="blocos-titulo"
-              titulo="Pautas por bloco"
-              unidade="bloco"
-              grupos={pautasPorBloco(todas)}
+              titulo="Blocos mais ativos"
+              vazio="Nenhum apoio por bloco ainda."
+              grupos={blocosMaisAtivos(todas)}
             />
           )}
         </div>

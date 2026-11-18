@@ -6,12 +6,12 @@
 :root {
   --fundo: #f3f5fa;
   --superficie: #ffffff;
-  --superficie-2: #e8ecf5;
+  --superficie-2: #e6eaf4;
   --tinta: #161a2e;
   --tinta-2: #44485e;
   --tinta-3: #5f6378;
-  --borda: rgb(22 26 46 / 10%);
-  --borda-forte: rgb(22 26 46 / 20%);
+  --borda: rgb(20 25 54 / 10%);
+  --borda-forte: rgb(20 25 54 / 20%);
 
   --noite: #141936;
   --noite-2: #1d2450;

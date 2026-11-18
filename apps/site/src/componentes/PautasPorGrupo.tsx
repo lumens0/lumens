@@ -3,18 +3,18 @@ import { resumoDosGrupos } from '../dados/distribuicao';
 import estilos from './caminho.module.css';
 
 /**
- * Barras horizontais de pautas por categoria ou por bloco (SCRUM-360), no mesmo desenho do caminho.
+ * Barras horizontais de apoios por categoria ou por bloco (SCRUM-360), no mesmo desenho do caminho.
  * Rótulo e número ficam em texto; a barra é reforço visual, em tom único (só o status usa cor).
  */
 export function PautasPorGrupo({
   id,
   titulo,
-  unidade,
+  vazio,
   grupos,
 }: {
   id: string;
   titulo: string;
-  unidade: string;
+  vazio: string;
   grupos: readonly Grupo[];
 }) {
   return (
@@ -36,7 +36,7 @@ export function PautasPorGrupo({
           </li>
         ))}
       </ul>
-      <p className={estilos.resumo}>{resumoDosGrupos(grupos, unidade)}</p>
+      <p className={estilos.resumo}>{resumoDosGrupos(grupos, vazio)}</p>
     </section>
   );
 }

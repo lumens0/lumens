@@ -4,55 +4,60 @@ import type { Pauta } from './tipos';
 export interface Grupo {
   chave: string;
   rotulo: string;
+  /** Apoios somados das pautas do grupo. */
   total: number;
-  /** Largura da barra, de 0 a 100, em relação ao grupo com mais pautas. */
+  /** Largura da barra, de 0 a 100, em relação ao grupo com mais apoios. */
   largura: number;
 }
 
-function agrupar(contagem: Map<string, { rotulo: string; total: number }>): Grupo[] {
-  const grupos = [...contagem.entries()].map(([chave, { rotulo, total }]) => ({
+type Soma = Map<string, { rotulo: string; total: number }>;
+
+function somar(soma: Soma, chave: string, rotulo: string, apoios: number): void {
+  const atual = soma.get(chave) ?? { rotulo, total: 0 };
+  soma.set(chave, { rotulo, total: atual.total + apoios });
+}
+
+function agrupar(soma: Soma, limite?: number): Grupo[] {
+  const grupos = [...soma.entries()].map(([chave, { rotulo, total }]) => ({
     chave,
     rotulo,
     total,
   }));
-  // Mais pautas primeiro; no empate, ordem alfabética, para a ordem não mudar entre acessos.
+  // Mais apoios primeiro; no empate, ordem alfabética, para a ordem não mudar entre acessos.
   grupos.sort((a, b) => b.total - a.total || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
   const maior = grupos[0]?.total ?? 0;
-  return grupos.map((g) => ({
-    ...g,
-    largura: maior === 0 ? 0 : Math.round((g.total / maior) * 100),
-  }));
+  return grupos
+    .slice(0, limite)
+    .map((g) => ({ ...g, largura: maior === 0 ? 0 : Math.round((g.total / maior) * 100) }));
 }
 
 /**
- * Pautas por categoria oficial (SCRUM-360). Categoria sem pauta fica de fora; pauta ainda não
- * classificada (`a_classificar` ou valor fora da lista) não tem rótulo público e não entra.
+ * Apoios por categoria oficial (SCRUM-360). Pauta ainda não classificada (`a_classificar` ou valor
+ * fora da lista) não tem rótulo público e não entra.
  */
-export function pautasPorCategoria(pautas: readonly Pauta[]): Grupo[] {
-  const contagem = new Map<string, { rotulo: string; total: number }>();
+export function apoiosPorCategoria(pautas: readonly Pauta[]): Grupo[] {
+  const soma: Soma = new Map();
   for (const pauta of pautas) {
     const chave = pauta.categoria.trim();
-    if (!ehCategoria(chave)) continue;
-    const atual = contagem.get(chave) ?? { rotulo: CATEGORIAS[chave], total: 0 };
-    contagem.set(chave, { ...atual, total: atual.total + 1 });
+    if (ehCategoria(chave)) somar(soma, chave, CATEGORIAS[chave], pauta.apoios);
   }
-  return agrupar(contagem);
+  return agrupar(soma);
 }
 
-/** Pautas por bloco; as de todo o campus (sem bloco) aparecem como "Todo o campus". */
-export function pautasPorBloco(pautas: readonly Pauta[]): Grupo[] {
-  const contagem = new Map<string, { rotulo: string; total: number }>();
+/** Blocos com mais apoios; as pautas de todo o campus (sem bloco) não contam para nenhum bloco. */
+export function blocosMaisAtivos(pautas: readonly Pauta[], limite = 5): Grupo[] {
+  const soma: Soma = new Map();
   for (const pauta of pautas) {
-    const chave = pauta.bloco_slug ?? '';
-    const atual = contagem.get(chave) ?? { rotulo: pauta.bloco_nome ?? 'Todo o campus', total: 0 };
-    contagem.set(chave, { ...atual, total: atual.total + 1 });
+    if (pauta.bloco_slug !== null && pauta.bloco_nome !== null) {
+      somar(soma, pauta.bloco_slug, pauta.bloco_nome, pauta.apoios);
+    }
   }
-  return agrupar(contagem);
+  return agrupar(soma, limite);
 }
 
-export function resumoDosGrupos(grupos: readonly Grupo[], unidade: string): string {
+export function resumoDosGrupos(grupos: readonly Grupo[], vazio: string): string {
   const total = grupos.reduce((soma, g) => soma + g.total, 0);
   const lider = grupos[0];
-  if (total === 0 || !lider) return `Nenhuma pauta por ${unidade} ainda.`;
-  return `${String(total)} ${total === 1 ? 'pauta' : 'pautas'}; mais pautas em ${lider.rotulo} (${String(lider.total)}).`;
+  if (total === 0 || !lider) return vazio;
+  return `${String(total)} ${total === 1 ? 'apoio' : 'apoios'}; o maior é ${lider.rotulo} (${String(lider.total)}).`;
 }
