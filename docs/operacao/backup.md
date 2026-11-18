@@ -17,6 +17,10 @@ gerenciado. Então o backup é próprio:
 | VM desligada | `Persistent=true`: o backup perdido roda logo depois do próximo boot                |
 | Retenção     | 7 diários + 4 semanais (o de domingo)                                               |
 | Onde fica    | `/var/backups/lumens/{diario,semanal}` na própria VM, legível só pelo `azureuser`   |
+| Fora da VM   | Cada diário, cifrado, num bucket privado do Backblaze B2, por 30 dias (até 60)      |
+| Cifra        | `age` com chave pública: a VM cifra e não decifra; a chave privada fica fora dela   |
+| Restauração  | Toda quarta, pelo timer `lumens-restauracao.timer`, no dump do dia                  |
+| Falha        | `OnFailure=` manda e-mail ao time (backup, envio ou teste de restauração)           |
 | Acesso       | Só quem tem SSH na VM. O banco continua sem porta publicada: o dump sai pelo `exec` |
 
 > **Fora do backup, de propósito:** os volumes da Evolution (`evolution-pgdata` e
@@ -24,10 +28,10 @@ gerenciado. Então o backup é próprio:
 > Lumens, e essa sessão não deve sair da VM. Perdê-los só obriga a parear o chip de novo
 > ([canal da Evolution](evolution.md)).
 
-> **Limitação conhecida:** os backups ficam no mesmo disco da VM. Eles cobrem erro humano,
-> migração ruim e banco corrompido, mas não a perda do disco ou da VM. Até a equipe decidir um
-> destino fora dela (Azure Blob Storage privado, por exemplo), copie um backup para fora antes de
-> qualquer mudança grande — veja [Cópia para fora da VM](#cópia-para-fora-da-vm).
+> **Por que só a cópia de fora é cifrada:** o diário na VM fica no mesmo disco do próprio banco,
+> que está em claro; cifrá-lo ali não protegeria nada e obrigaria a chave privada a morar na VM
+> para o teste semanal. O que sai da VM vai cifrado, e a VM não consegue decifrar
+> ([decisão SCRUM-309](../decisoes/SCRUM-309-backup-fora-da-vm.md)).
 
 ## Instalar na VM
 
@@ -37,8 +41,51 @@ Uma vez, depois do primeiro deploy:
 sudo mkdir -p /var/backups/lumens && sudo chown azureuser:azureuser /var/backups/lumens && sudo chmod 700 /var/backups/lumens
 ```
 
+### Cópia fora da VM (Backblaze B2)
+
+Uma vez, na conta do Backblaze da equipe (o plano gratuito tem 10 GB, sem cartão):
+
+1. **Bucket:** _Buckets → Create a Bucket_, nome `lumens-backup`, **Private**, com _Default
+   Encryption_ ligada. Anote o _Endpoint_ (`s3.<região>.backblazeb2.com`): a região é o pedaço do
+   meio.
+2. **Retenção:** em _Lifecycle Settings_ do bucket, _Use custom lifecycle rules_ com prefixo
+   `diario/`, esconder depois de **30** dias e apagar **30** dias depois de escondido. Os 30 dias
+   depois de escondido protegem a versão antiga se alguém enviar outro arquivo com o mesmo nome.
+3. **Chave da VM:** _Application Keys → Add a New Application Key_, só para o bucket
+   `lumens-backup`, com acesso **Write Only**. É a que vai para a VM: ela envia, mas não lê nem
+   apaga. Quem invadir a VM ainda consegue esconder uma cópia ou mandar outra com o mesmo nome,
+   e aí há 30 dias para recuperar a versão antiga em _Browse Files_ (mostrar versões escondidas).
+   Imutabilidade de verdade exigiria o _Object Lock_ do B2; não ligamos.
+4. **Chave de leitura:** outra, do mesmo bucket, **Read Only**. Vai só para o gerenciador de
+   senhas da equipe; é a usada para [restaurar da cópia de fora](#restaurar-da-cópia-fora-da-vm).
+
+Na **sua** máquina, nunca na VM, gere o par de chaves do `age`:
+
 ```bash
-sudo cp /opt/lumens/scripts/systemd/lumens-backup.{service,timer} /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now lumens-backup.timer
+age-keygen -o lumens-backup-age.txt
+```
+
+O comando mostra a chave pública (`age1...`). Guarde o arquivo inteiro, que é a chave privada, no
+gerenciador de senhas da equipe e apague-o da máquina. Sem ela nenhuma cópia de fora se restaura:
+vale gerar dois pares, um por pessoa, e pôr as duas públicas na VM.
+
+Na VM, instale as ferramentas e preencha o `.env.backup` (chave da VM do passo 3, as públicas do
+`age` e quem recebe o alerta):
+
+```bash
+sudo apt-get install -y age rclone curl
+```
+
+```bash
+cd /opt/lumens && cp .env.backup.example .env.backup && chmod 600 .env.backup
+```
+
+O alerta usa o SMTP do `EMAIL_*` do `.env.producao`; nada a configurar além do destinatário.
+
+### Unidades do systemd
+
+```bash
+sudo cp /opt/lumens/scripts/systemd/lumens-backup.{service,timer} /opt/lumens/scripts/systemd/lumens-restauracao.{service,timer} /opt/lumens/scripts/systemd/lumens-alerta@.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now lumens-backup.timer lumens-restauracao.timer
 ```
 
 Conferir que está agendado e rodar o primeiro na hora:
@@ -51,11 +98,38 @@ systemctl list-timers lumens-backup.timer
 sudo systemctl start lumens-backup.service && journalctl -u lumens-backup.service -n 20
 ```
 
+O log termina com `Cópia fora da VM pronta`, e o arquivo `.dump.age` aparece em _Browse Files_ do
+bucket. **Confira que a chave do cofre abre essa cópia**, uma vez agora e sempre que trocar as
+chaves: baixe o `.dump.age` na sua máquina e decifre como no passo 2 de
+[Restaurar da cópia fora da VM](#restaurar-da-cópia-fora-da-vm). Sai um arquivo do tamanho do dump,
+e uma chave pública errada só apareceria no dia do incidente. Apague os dois arquivos em seguida.
+
+Depois, **force uma falha** para ver o alerta chegar (o critério da SCRUM-309). O comando aponta o
+envio para uma porta fechada, numa cópia do `.env.backup`, e devolve o original no fim. O dump
+local continua sendo feito, e o destinatário do alerta não muda:
+
+```bash
+cd /opt/lumens && cp -p .env.backup .env.backup.bom && sed -i 's|^BACKUP_S3_ENDPOINT=.*|BACKUP_S3_ENDPOINT=http://127.0.0.1:9|' .env.backup && { sudo systemctl start lumens-backup.service; mv .env.backup.bom .env.backup; }
+```
+
+O `systemctl start` termina com erro, e em um minuto chega o e-mail `[Lumens] Falhou:
+lumens-backup.service`. Se não chegar: `journalctl -u 'lumens-alerta@*' -n 20`. Rode o backup
+de novo em seguida (`sudo systemctl start lumens-backup.service`), para a unidade não ficar
+marcada como falha.
+
+Ao mudar os scripts do envio ou do alerta, rode o teste de regressão. Ele só precisa do Docker: um
+MinIO faz o papel do B2, e um Mailpit, o do SMTP.
+
+```bash
+./scripts/testar-backup-externo.sh
+```
+
 ## Teste de restauração
 
 Restaura o backup num banco **temporário** (`lumens_restauracao`) do mesmo Postgres, compara com
 o banco de verdade e apaga o temporário no fim, inclusive se algo falhar. O banco de verdade não
-é tocado.
+é tocado. O `lumens-restauracao.timer` roda este teste sozinho toda quarta, no dump do dia, e uma
+falha manda o alerta por e-mail; à mão:
 
 ```bash
 cd /opt/lumens && ./scripts/restaurar-backup.sh
@@ -150,13 +224,46 @@ as chaves fora da VM, separadas dos backups. Para trocar a chave de cifra, use
 `pnpm --filter @lumens/backend rotacionar-cifra` (SCRUM-90); um backup feito antes da troca só
 decifra com a chave antiga.
 
-## Cópia para fora da VM
+## Restaurar da cópia fora da VM
 
-Da sua máquina, com o SSH da VM configurado:
+Para quando a VM ou o disco se perderam. Tudo na **sua** máquina, com a chave de leitura do B2 e
+a chave privada do `age`, as duas do gerenciador de senhas:
+
+1. Baixe o `.dump.age` mais novo: _Browse Files_ do bucket `lumens-backup`, pasta `diario/`, ou
+   com o `rclone` e a chave de leitura.
+2. Decifre (o `age` lê a chave privada do arquivo; apague-o no fim):
+
+   ```bash
+   age -d -i lumens-backup-age.txt -o lumens.dump lumens-<data>.dump.age
+   ```
+
+3. Suba a VM nova ([homologação](homologacao.md)) com as **mesmas** `CHAVE_CIFRA` e `CHAVE_HMAC`
+   do gerenciador de senhas (sem elas, telefones e e-mails não decifram; veja [Chaves](#chaves)).
+   Copie o dump para ela e siga [Restaurar de verdade](#restaurar-de-verdade-incidente) a partir do
+   passo 2, com esse arquivo:
+
+   ```bash
+   scp lumens.dump azureuser@<IP-DA-VM>:/var/backups/lumens/
+   ```
+
+4. Apague o `lumens.dump` e a chave privada da sua máquina: o dump decifrado tem a linha do tempo
+   e os dados cifrados por coluna.
+
+## Quando o backup falha
+
+O e-mail diz qual unidade falhou e traz o fim do log. Na VM:
 
 ```bash
-scp azureuser@<IP-DA-VM>:/var/backups/lumens/diario/<arquivo>.dump .
+journalctl -u lumens-backup.service -n 50
 ```
 
-O arquivo tem os dados cifrados e a linha do tempo: guarde em lugar privado e apague quando não
-precisar mais.
+- **Dump ou conferência:** Postgres parado (`docker compose ... ps`) ou disco cheio (`df -h`).
+- **`Sem /opt/lumens/.env.backup` ou `Falta ...`:** configuração do envio; veja
+  [Cópia fora da VM](#cópia-fora-da-vm-backblaze-b2). Sem o `.env.backup`, o próprio e-mail vai
+  para a conta do `EMAIL_USUARIO`, não para o `BACKUP_ALERTA_PARA`.
+- **Erro do `rclone` (403, timeout):** chave do B2 revogada ou trocada, ou B2 fora do ar. O dump
+  local do dia foi feito; rode `./scripts/enviar-backup.sh` quando resolver.
+- **`lumens-restauracao.service`:** o dump não restaura ou perdeu o trigger da linha do tempo.
+  Rode `./scripts/restaurar-backup.sh` à mão para ver a mensagem, e teste o diário anterior.
+- **Nenhum e-mail chega, mas o backup falhou:** `journalctl -u 'lumens-alerta@*' -n 20` mostra se
+  o SMTP recusou.
