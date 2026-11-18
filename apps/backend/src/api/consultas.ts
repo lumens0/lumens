@@ -1,15 +1,18 @@
-import type {
-  AtividadeItem,
-  Bloco,
-  Caminho,
-  Conquista,
-  Evento,
-  PaginacaoQuery,
-  Pauta,
-  PautaDetalhe,
-  PautasQuery,
-  Relato,
-  Resumo,
+import {
+  SEMANAS_DE_APOIO,
+  type ApoioSemana,
+  type ApoiosPorSemanaQuery,
+  type AtividadeItem,
+  type Bloco,
+  type Caminho,
+  type Conquista,
+  type Evento,
+  type PaginacaoQuery,
+  type Pauta,
+  type PautaDetalhe,
+  type PautasQuery,
+  type Relato,
+  type Resumo,
 } from '@lumens/contratos';
 import { sql, type Db } from '@lumens/db';
 
@@ -54,6 +57,40 @@ export async function buscarResumo(db: Db): Promise<Resumo> {
   );
   // A view agrega sem GROUP BY: sempre devolve uma linha, mesmo com o banco vazio.
   return linha ?? { pautas_abertas: 0, apoios: 0, conquistas: 0 };
+}
+
+const DIA_EM_MS = 24 * 60 * 60 * 1000;
+
+/** Segunda-feira (UTC) das últimas `quantidade` semanas, da mais antiga à atual, como `AAAA-MM-DD`. */
+export function ultimasSemanas(agora: Date, quantidade: number): string[] {
+  const hoje = Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate());
+  // getUTCDay: domingo = 0. Volta até a segunda-feira (domingo volta seis dias).
+  const segunda = hoje - ((agora.getUTCDay() + 6) % 7) * DIA_EM_MS;
+  return Array.from({ length: quantidade }, (_, i) =>
+    new Date(segunda - (quantidade - 1 - i) * 7 * DIA_EM_MS).toISOString().slice(0, 10),
+  );
+}
+
+/**
+ * Apoios por semana nas últimas oito, com zero nas semanas sem apoio (o gráfico não tem buracos).
+ * Reflete os apoios que existem hoje: quem sai do Lumens perde o apoio e some da contagem.
+ */
+export async function listarApoiosPorSemana(
+  db: Db,
+  query: ApoiosPorSemanaQuery,
+  agora: Date = new Date(),
+): Promise<ApoioSemana[]> {
+  const semanas = ultimasSemanas(agora, SEMANAS_DE_APOIO);
+  const filtro = query.bloco === undefined ? sql`` : sql`AND bloco_slug = ${query.bloco}`;
+  const encontradas = await linhas<ApoioSemana>(
+    db,
+    sql`SELECT to_char(semana, 'YYYY-MM-DD') AS semana, sum(apoios)::int AS apoios
+        FROM v_apoio_semana
+        WHERE semana >= ${semanas[0]}::date AND semana <= ${semanas[semanas.length - 1]}::date ${filtro}
+        GROUP BY semana`,
+  );
+  const porSemana = new Map(encontradas.map((l) => [l.semana, l.apoios]));
+  return semanas.map((semana) => ({ semana, apoios: porSemana.get(semana) ?? 0 }));
 }
 
 export async function listarBlocos(db: Db): Promise<Bloco[]> {

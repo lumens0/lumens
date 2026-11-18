@@ -67,6 +67,21 @@ export const resumo = z.object({
 });
 export type Resumo = z.infer<typeof resumo>;
 
+// GET /apoios-por-semana — v_apoio_semana
+/** Semanas devolvidas: a atual e as sete anteriores, sempre todas (as vazias vêm com zero). */
+export const SEMANAS_DE_APOIO = 8;
+export const apoiosPorSemanaQuery = z.object({ bloco: slug.optional() });
+export type ApoiosPorSemanaQuery = z.infer<typeof apoiosPorSemanaQuery>;
+
+export const apoioSemana = z.object({
+  /** Segunda-feira da semana (UTC), `AAAA-MM-DD`. */
+  semana: data,
+  apoios: z.number().int(),
+});
+export const apoiosPorSemana = z.object({ itens: z.array(apoioSemana) });
+export type ApoioSemana = z.infer<typeof apoioSemana>;
+export type ApoiosPorSemana = z.infer<typeof apoiosPorSemana>;
+
 // GET /blocos — v_bloco
 export const bloco = z.object({
   slug: z.string(),
