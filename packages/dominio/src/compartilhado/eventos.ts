@@ -63,6 +63,8 @@ export interface DadosPorTipo {
   meta_ajustada: { metaAntes: number; metaDepois: number; motivo: string };
   pauta_urgente: { urgente: boolean };
   categoria_alterada: { de: string; para: string };
+  /** O owner corrigiu o título ou a descrição enquanto a pauta esperava a curadoria. */
+  pauta_editada: { campo: 'titulo' | 'descricao'; antes: string; depois: string };
 }
 
 export type TipoEvento = keyof DadosPorTipo;
@@ -93,6 +95,8 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   bloco_corrigido: true,
   meta_ajustada: true,
   categoria_alterada: true,
+  // Só a curadoria vê: a pauta ainda nem está no site, e o texto antigo não é para o público.
+  pauta_editada: false,
 };
 
 export const TIPOS_EVENTO = Object.keys(PUBLICO) as TipoEvento[];

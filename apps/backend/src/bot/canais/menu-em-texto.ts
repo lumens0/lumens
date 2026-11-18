@@ -11,6 +11,7 @@
  */
 import { normalize } from '../conversation/texto';
 import type { Resposta } from '../conversation/resposta';
+import { ehMenuPrincipal } from '../conversation/handlers';
 
 export interface OpcaoDoMenu {
   id: string;
@@ -24,11 +25,22 @@ export interface MenuEmTexto {
 
 export const DICA_DO_MENU = 'Responda com o número da opção.';
 
+/** A saída que todo menu numerado ganha (menos o principal): o `menu` global do router. */
+export const OPCAO_VOLTAR = { id: 'menu', titulo: 'Voltar ao menu principal' } as const;
+
+/** O menu não precisa da saída extra: é o principal, ou já tem uma opção que volta ao menu. */
+function jaTemSaida(resposta: Resposta, opcoes: readonly OpcaoDoMenu[]): boolean {
+  return ehMenuPrincipal(resposta) || opcoes.some((o) => o.id === OPCAO_VOLTAR.id);
+}
+
 /** As opções de uma resposta interativa, ou `null` para texto e imagem. */
 export function menuDaResposta(resposta: Resposta): MenuEmTexto | null {
   if (typeof resposta === 'string' || resposta.tipo === 'imagem') return null;
-  const opcoes = resposta.tipo === 'lista' ? resposta.linhas : resposta.botoes;
-  return { opcoes: opcoes.map(({ id, titulo }) => ({ id, titulo })) };
+  const opcoes = (resposta.tipo === 'lista' ? resposta.linhas : resposta.botoes).map(
+    ({ id, titulo }) => ({ id, titulo }),
+  );
+  // A opção 0 não aparece na numeração: vale a qualquer hora, em `resolverEscolha`.
+  return { opcoes: jaTemSaida(resposta, opcoes) ? opcoes : [...opcoes, { ...OPCAO_VOLTAR }] };
 }
 
 /**
@@ -78,7 +90,10 @@ export function renderizarEmTexto(resposta: Resposta): string {
             `*${String(i + 1)}.* ${l.titulo}${l.descricao === undefined ? '' : ` — ${l.descricao}`}`,
         )
       : resposta.botoes.map((b, i) => `*${String(i + 1)}.* ${b.titulo}`);
-  return [resposta.corpo, '', ...linhas, '', DICA_DO_MENU].join('\n');
+  const opcoes = resposta.tipo === 'lista' ? resposta.linhas : resposta.botoes;
+  // Saída que todo menu numerado ganha, para quem se perdeu no meio do fluxo.
+  const saida = jaTemSaida(resposta, opcoes) ? [] : [`*0.* ${OPCAO_VOLTAR.titulo}`];
+  return [resposta.corpo, '', ...linhas, ...saida, '', DICA_DO_MENU].join('\n');
 }
 
 /**
@@ -90,10 +105,59 @@ export function resolverEscolha(texto: string, menu: MenuEmTexto | null): string
   if (menu === null || menu.opcoes.length === 0) return null;
   const digitado = normalize(texto);
   if (digitado === '') return null;
-  if (/^\d+$/.test(digitado)) {
-    return menu.opcoes[Number(digitado) - 1]?.id ?? null;
+  const numero = numeroDigitado(digitado);
+  if (numero !== null) {
+    // O 0 é a saída; os outros números contam a partir da primeira linha.
+    if (numero === 0) return menu.opcoes.find((o) => o.id === OPCAO_VOLTAR.id)?.id ?? null;
+    return menu.opcoes[numero - 1]?.id ?? null;
   }
   // Título cortado pelos limites da Meta termina em "…"; quem digita não escreve as reticências.
   const semReticencias = (titulo: string) => normalize(titulo.replace(/…$/u, ''));
   return menu.opcoes.find((o) => semReticencias(o.titulo) === digitado)?.id ?? null;
+}
+
+const POR_EXTENSO: Record<string, number> = {
+  zero: 0,
+  um: 1,
+  uma: 1,
+  primeiro: 1,
+  primeira: 1,
+  dois: 2,
+  duas: 2,
+  segundo: 2,
+  segunda: 2,
+  tres: 3,
+  terceiro: 3,
+  terceira: 3,
+  quatro: 4,
+  quarto: 4,
+  quarta: 4,
+  cinco: 5,
+  quinto: 5,
+  quinta: 5,
+  seis: 6,
+  sexto: 6,
+  sexta: 6,
+  sete: 7,
+  setimo: 7,
+  oito: 8,
+  oitavo: 8,
+  nove: 9,
+  nono: 9,
+  dez: 10,
+  decimo: 10,
+};
+
+/**
+ * O número que o texto diz: "2", "2.", "2)", "dois", "opção 2", "a segunda", "número três". Já vem
+ * sem acento e em minúsculas (`normalize`). `null` quando o texto não é só um número.
+ */
+function numeroDigitado(digitado: string): number | null {
+  const sem = digitado
+    .replace(/^(a |o )?(opcao|numero|item|n)(\s+|(?=\d))/, '')
+    .replace(/^(a |o )/, '')
+    .replace(/[.)\-:]+$/, '')
+    .trim();
+  if (/^\d{1,2}$/.test(sem)) return Number(sem);
+  return POR_EXTENSO[sem] ?? null;
 }

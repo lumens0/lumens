@@ -197,6 +197,8 @@ export {
   gerarSlug,
 } from './pauta/pauta';
 export type { Categoria, NovaPautaDoEstudante, ResultadoCriacao } from './pauta/pauta';
+export { STATUS_EDITAVEIS, editarPautaEmCuradoria, pautasEditaveisDoOwner } from './pauta/edicao';
+export type { CampoEditavel, PautaEditavel, ResultadoEdicao } from './pauta/edicao';
 
 export {
   PALAVRAS_DA_CATEGORIA,

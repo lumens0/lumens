@@ -28,7 +28,7 @@ import {
   type MensagemDeLista,
   type Resposta,
 } from './resposta';
-import { handleIncoming } from './router';
+import { handleIncoming, parseGlobalCommand, SAIDA_DO_PASSO_TEXT } from './router';
 import { ConversationStore } from './store';
 import { NEW_TITLE_TEXT } from './texto';
 
@@ -238,6 +238,17 @@ describe('relatar (2.5)', () => {
     });
   });
 
+  it('três respostas seguidas fora da lista de blocos oferecem a saída; "menu" volta ao início', async () => {
+    await send('o banheiro ta sem papel');
+    expect(await passo()).toBe('REPORT_ASK_BLOCK');
+    await send('não tenho pauta');
+    await send('não tenho problema');
+    const terceira = await send('sei la');
+    expect(terceira.at(-1)).toBe(SAIDA_DO_PASSO_TEXT);
+    expect(await send('menu')).toEqual([MENU_PRINCIPAL]);
+    expect(await passo()).toBe('MENU');
+  });
+
   it('relato que não decifra mais (chave trocada) volta ao menu pedindo de novo', async () => {
     await send('o banheiro ta sem papel');
     await store.save(H, 'REPORT_ASK_BLOCK', { relatoCifrado: 'nao-e-cifra' });
@@ -246,11 +257,26 @@ describe('relatar (2.5)', () => {
   });
 });
 
+describe('comandos escritos do jeito da pessoa', () => {
+  it.each([
+    ['Menu principal', 'menu'],
+    ['voltar ao menu', 'menu'],
+    ['Início', 'menu'],
+    ['desistir', 'cancelar'],
+    ['Cancela', 'cancelar'],
+    ['o banheiro está sem papel e o início da fila é longo', null],
+    ['voltar', null],
+  ])('"%s" vale %s', (texto, comando) => {
+    expect(parseGlobalCommand(texto)).toBe(comando);
+  });
+});
+
 describe('blocos', () => {
   const lista3 = [
     { id: 'b1', slug: 'bloco-1', nome: 'Bloco 1' },
     { id: 'b18', slug: 'bloco-18', nome: 'Bloco 18 (fictício)' },
     { id: 'bib', slug: 'biblioteca-central', nome: 'Biblioteca Central' },
+    { id: 'ic', slug: 'ic', nome: 'IC - Instituto de Computação' },
   ];
 
   it.each([
@@ -259,6 +285,8 @@ describe('blocos', () => {
     ['na biblioteca central', 'bib'],
     ['na biblioteca', undefined],
     ['bloco 1 e bloco 18', undefined],
+    ['ar condicionado quebrado no IC', 'ic'],
+    ['o ico da sala', undefined],
   ])('blocoCitado(%j) = %s', (relato, esperado) => {
     expect(blocoCitado(relato, lista3)?.id).toBe(esperado);
   });

@@ -39,6 +39,10 @@ const MENU: MenuEmTexto = {
   ],
 };
 
+const MENU_COM_SAIDA: MenuEmTexto = {
+  opcoes: [...MENU.opcoes, { id: 'menu', titulo: 'Voltar ao menu principal' }],
+};
+
 describe('renderizarEmTexto', () => {
   it('texto passa como veio', () => {
     expect(renderizarEmTexto('oi')).toBe('oi');
@@ -52,6 +56,7 @@ describe('renderizarEmTexto', () => {
         '*1.* Bebedouro quebrado — Bloco 12',
         '*2.* Iluminação',
         '*3.* É outro problema',
+        '*0.* Voltar ao menu principal',
         '',
         DICA_DO_MENU,
       ].join('\n'),
@@ -60,14 +65,22 @@ describe('renderizarEmTexto', () => {
 
   it('botões também viram linhas numeradas', () => {
     expect(renderizarEmTexto(BOTOES)).toBe(
-      ['Confirma?', '', '*1.* Sim', '*2.* Não', '', DICA_DO_MENU].join('\n'),
+      [
+        'Confirma?',
+        '',
+        '*1.* Sim',
+        '*2.* Não',
+        '*0.* Voltar ao menu principal',
+        '',
+        DICA_DO_MENU,
+      ].join('\n'),
     );
   });
 });
 
 describe('menuDoTurno', () => {
   it('vale o último menu do turno, mesmo com texto depois dele', () => {
-    expect(menuDoTurno(['oi', BOTOES, LISTA, 'depois'])).toEqual(MENU);
+    expect(menuDoTurno(['oi', BOTOES, LISTA, 'depois'])).toEqual(MENU_COM_SAIDA);
   });
 
   it('turno só de texto não deixa menu', () => {
@@ -77,7 +90,7 @@ describe('menuDoTurno', () => {
   it('a imagem (card da pauta) não é menu nem apaga o menu antes dela', () => {
     const card = { tipo: 'imagem' as const, url: 'https://x/card.png', legenda: 'Veja a pauta' };
     expect(menuDoTurno([card])).toBeNull();
-    expect(menuDoTurno([LISTA, card])).toEqual(MENU);
+    expect(menuDoTurno([LISTA, card])).toEqual(MENU_COM_SAIDA);
     expect(renderizarEmTexto(card)).toBe('Veja a pauta');
   });
 });
@@ -115,6 +128,31 @@ describe('resolverEscolha', () => {
 
   it.each(['0', '4', '12', 'bebedouro', '', 'menu'])('"%s" não escolhe nada', (digitado) => {
     expect(resolverEscolha(digitado, MENU)).toBeNull();
+  });
+
+  it('o 0 volta ao menu principal em qualquer menu com a saída; sem ela, não escolhe nada', () => {
+    expect(resolverEscolha('0', MENU_COM_SAIDA)).toBe('menu');
+    expect(resolverEscolha('Voltar ao menu principal', MENU_COM_SAIDA)).toBe('menu');
+    expect(resolverEscolha('0', MENU)).toBeNull();
+  });
+
+  it.each([
+    ['dois', 'pauta:2'],
+    ['Três', 'outro'],
+    ['um', 'pauta:1'],
+    ['opção 2', 'pauta:2'],
+    ['opcao dois', 'pauta:2'],
+    ['a segunda', 'pauta:2'],
+    ['número 3', 'outro'],
+    ['n 1', 'pauta:1'],
+    ['zero', 'menu'],
+  ])('número escrito de outro jeito: "%s" escolhe %s', (digitado, id) => {
+    expect(resolverEscolha(digitado, MENU_COM_SAIDA)).toBe(id);
+  });
+
+  it('palavra que só começa como número não escolhe nada ("nove" não vira "n" + "ove")', () => {
+    expect(resolverEscolha('nove', MENU_COM_SAIDA)).toBeNull();
+    expect(resolverEscolha('nada', MENU_COM_SAIDA)).toBeNull();
   });
 
   it('sem menu, "2" é só "2"', () => {

@@ -43,6 +43,13 @@ export interface RouterDeps {
 export const CANCEL_TEXT = 'Ok, cancelei.';
 /** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
 export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
+/** Depois de três respostas seguidas que não saíram da pergunta, a pessoa ganha uma saída clara. */
+export const SAIDA_DO_PASSO_TEXT =
+  'Parece que está difícil por aqui. Mande *menu* para voltar ao início ou *cancelar* para desistir.';
+const TENTATIVAS_ATE_OFERECER_SAIDA = 3;
+/** O código do e-mail tem as próprias tentativas e avisos (e o reenvio também fica no passo). */
+const SEM_SAIDA_AUTOMATICA: readonly Step[] = ['MENU', 'VERIFY_ASK_CODE'];
+
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
 /**
@@ -73,9 +80,24 @@ const STEPS_WITH_DOCUMENT: readonly Step[] = [
 
 type GlobalCommand = 'menu' | 'cancelar' | 'sair';
 
+const VOLTAR_AO_MENU = new Set([
+  'menu principal',
+  'voltar ao menu',
+  'voltar ao menu principal',
+  'voltar ao inicio',
+  'ir para o menu',
+  'quero o menu',
+  'inicio',
+]);
+const DESISTIR = new Set(['cancela', 'desistir', 'desisto', 'quero cancelar']);
+
 export function parseGlobalCommand(text: string): GlobalCommand | null {
   const t = normalize(text);
-  return t === 'menu' || t === 'cancelar' || t === 'sair' ? t : null;
+  if (t === 'menu' || t === 'cancelar' || t === 'sair') return t;
+  // Do jeito que a pessoa escreveria sem decorar o comando (frase inteira, para não pegar relato).
+  if (VOLTAR_AO_MENU.has(t)) return 'menu';
+  if (DESISTIR.has(t)) return 'cancelar';
+  return null;
 }
 
 /**
@@ -194,13 +216,22 @@ async function responder(
     return result.replies;
   }
 
+  // Quantas vezes seguidas a conversa ficou na mesma pergunta (resposta que não serviu).
+  const repetiu =
+    !global && result.next === state.step && !SEM_SAIDA_AUTOMATICA.includes(state.step);
+  const tentativas = repetiu ? (state.data.tentativasNoPasso ?? 0) + 1 : 0;
   // Aplica o patch: chave com valor undefined sai dos dados.
   const data = Object.fromEntries(
-    Object.entries({ ...(global ? {} : state.data), ...result.data }).filter(
-      ([, v]) => v !== undefined,
-    ),
+    Object.entries({
+      ...(global ? {} : state.data),
+      ...result.data,
+      tentativasNoPasso: tentativas === 0 ? undefined : tentativas,
+    }).filter(([, v]) => v !== undefined),
   ) as ConversationData;
   await store.save(phoneHmac, result.next, data);
+  if (tentativas >= TENTATIVAS_ATE_OFERECER_SAIDA) {
+    return [...result.replies, SAIDA_DO_PASSO_TEXT];
+  }
   // Fim de um fluxo: a pessoa volta ao menu e precisa ver as opções, ou a próxima mensagem dela
   // cai num "Não entendi".
   const flowEnded = result.next === 'MENU' && (state.step !== 'MENU' || global);

@@ -55,7 +55,7 @@ import {
   type MensagemDeLista,
   type Resposta,
 } from './resposta';
-import { handleIncoming } from './router';
+import { handleIncoming, SAIDA_DO_PASSO_TEXT } from './router';
 import { ConversationStore } from './store';
 
 const CHAVE = Buffer.alloc(32, 7);
@@ -517,7 +517,8 @@ describe('proposta da comunidade (3.5)', () => {
     await send('Mutirão');
     expect(await send('muitas')).toEqual([PEOPLE_INVALID_TEXT]);
     expect(await send('0')).toEqual([PEOPLE_INVALID_TEXT]);
-    expect(await send('51')).toEqual([PEOPLE_INVALID_TEXT]);
+    // Na terceira seguida a pessoa ganha a saída (menu ou cancelar).
+    expect(await send('51')).toEqual([PEOPLE_INVALID_TEXT, SAIDA_DO_PASSO_TEXT]);
     expect(await passo()).toBe('PROPOSAL_ASK_PEOPLE');
   });
 

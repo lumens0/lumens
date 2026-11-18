@@ -34,7 +34,7 @@ describe('paraTelegram', () => {
     expect(paraTelegram('oi', CHAT)).toEqual([{ chat_id: CHAT, text: 'oi' }]);
   });
 
-  it('o menu principal vem com 5 botões, que mandam o número da opção (SCRUM-324, SCRUM-340)', () => {
+  it('o menu principal vem com 6 botões, que mandam o número da opção (SCRUM-324, SCRUM-340)', () => {
     expect(paraTelegram(MENU_PRINCIPAL, CHAT)).toEqual([
       {
         chat_id: CHAT,
@@ -46,6 +46,7 @@ describe('paraTelegram', () => {
             [{ text: 'Verificar e-mail', callback_data: '3' }],
             [{ text: 'Minhas pautas', callback_data: '4' }],
             [{ text: 'Ver pautas abertas', callback_data: '5' }],
+            [{ text: 'Editar pauta', callback_data: '6' }],
           ],
         },
       },

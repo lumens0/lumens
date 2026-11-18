@@ -6,6 +6,8 @@
 export const SECOES = {
   pauta: { id: 'pauta', titulo: 'O que é uma pauta' },
   relatar: { id: 'relatar-e-apoiar', titulo: 'Como relatar e apoiar' },
+  perdido: { id: 'se-perder', titulo: 'Se você se perder na conversa' },
+  editar: { id: 'editar-pauta', titulo: 'Como corrigir uma pauta' },
   categoria: { id: 'categoria', titulo: 'Categorias e a sugestão do bot' },
   caminhos: { id: 'caminhos', titulo: 'Os caminhos da pauta' },
   falabr: { id: 'fala-br', titulo: 'O Fala.BR e os 3 passos até o protocolo' },
