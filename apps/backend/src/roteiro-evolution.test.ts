@@ -150,7 +150,10 @@ describe('roteiro 1 pela entrada da Evolution', () => {
       'Certo, vamos criar uma pauta nova com o seu relato.',
       NEW_TITLE_TEXT,
     ]);
-    expect(await escrever('Bebedouro quebrado no bloco 18')).toEqual([
+    // SCRUM-365: o relato fala de bebedouro, então o bot sugere a categoria antes da foto.
+    const [sugestao] = await escrever('Bebedouro quebrado no bloco 18');
+    expect(sugestao).toContain('Parece ser Infraestrutura. Confirma?');
+    expect(await escrever('1')).toEqual([
       'Vou usar o seu relato como descrição da pauta.',
       PHOTO_ASK_TEXT,
     ]);
