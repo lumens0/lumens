@@ -68,11 +68,15 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
       bloco: blocos.nome,
       // O relato de origem é o de quem criou a pauta (o owner): `relato` não guarda data, então
       // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
+      // Relato recusado não conta, e a ordem por id é a de `aprovarPauta`, que confere `fotoVista`
+      // contra esta mesma foto.
       fotoChave: sql<string | null>`(
         select ${relatos.fotoChave} from ${relatos}
         join ${papeisPauta} on ${papeisPauta.pautaId} = ${relatos.pautaId}
           and ${papeisPauta.estudanteId} = ${relatos.estudanteId} and ${papeisPauta.papel} = 'owner'
         where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
+          and ${relatos.moderacao} <> 'recusado'
+        order by ${relatos.id}
         limit 1)`,
       apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
       meta: pautas.meta,
@@ -284,7 +288,9 @@ function relatosDeOrigemPendentes(tx: Tx, pautaId: string, { travar = false } = 
         eq(papeisPauta.papel, 'owner'),
       ),
     )
-    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
+    .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')))
+    // A ordem de `lerPautas`: a primeira foto daqui é a que a tela mostra.
+    .orderBy(relatos.id);
   return travar ? consulta.for('update', { of: relatos }) : consulta;
 }
 
