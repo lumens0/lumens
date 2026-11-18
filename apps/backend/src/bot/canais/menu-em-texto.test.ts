@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { botoes, lista } from '../conversation/resposta';
+import {
+  botoes,
+  dentroDosLimitesDaMeta,
+  lista,
+  type MensagemDeLista,
+} from '../conversation/resposta';
 import {
   DICA_DO_MENU,
   menuDoTurno,
@@ -115,11 +120,13 @@ describe('resolverEscolha', () => {
   });
 
   it('título cortado pelos limites da Meta casa sem as reticências', () => {
-    const cortado = lista({
-      corpo: 'x',
-      botao: 'y',
-      linhas: [{ id: 'p', titulo: 'Bebedouro quebrado no bloco doze do campus' }],
-    });
+    const cortado = dentroDosLimitesDaMeta(
+      lista({
+        corpo: 'x',
+        botao: 'y',
+        linhas: [{ id: 'p', titulo: 'Bebedouro quebrado no bloco doze do campus' }],
+      }),
+    ) as MensagemDeLista;
     const menu = menuDoTurno([cortado]);
     const titulo = cortado.linhas[0]?.titulo ?? '';
     expect(titulo.endsWith('…')).toBe(true);
