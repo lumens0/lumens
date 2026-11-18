@@ -22,7 +22,9 @@ export interface Predio {
   blocos: readonly string[];
 }
 
-// Slugs do catálogo real de blocos (`packages/db/seed/blocos-ufal.ts`, SCRUM-292). Bloco sem prédio
+// Slugs do catálogo real de blocos (`packages/db/seed/blocos-ufal.ts`, SCRUM-292) e, como apelido, os
+// do seed de desenvolvimento (`engenharias`, `artes`, `saude`), que seguem valendo enquanto o catálogo
+// real não estiver no banco (o marcador casa por igualdade de slug). Bloco sem prédio
 // aqui aparece só na lista (hoje, todo bloco do catálogo tem prédio).
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
@@ -30,15 +32,15 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   64975419: ['if'], // Instituto de Física
   1338403227: ['icbs'],
   259323643: ['famed'],
-  288826603: ['ctec'], // Novo CTEC
+  288826603: ['ctec', 'engenharias'], // Novo CTEC; `engenharias` é o slug do seed de desenvolvimento
   326103196: ['feac'],
   64963102: ['fsso'],
-  64963499: ['ichca'],
+  64963499: ['ichca', 'artes'], // `artes` é o slug do seed de desenvolvimento
   64963258: ['icat'], // Instituto de Meteorologia
   64962904: ['igdema'],
   493988328: ['ip'],
   64974358: ['cedu'],
-  64974284: ['csau', 'fanut', 'foufal', 'eenf'], // o CSAU abriga FANUT, FOUFAL e EENF (pinos do Google Maps)
+  64974284: ['csau', 'saude', 'fanut', 'foufal', 'eenf'], // CSAU abriga FANUT, FOUFAL e EENF; `saude` é do seed
   156943706: ['iefe'], // IEFE, área `amenity=university` do OSM
   157086397: ['iqb'], // Instituto de Química e Biotecnologia, idem
   288826604: ['fau'], // FAU, idem
