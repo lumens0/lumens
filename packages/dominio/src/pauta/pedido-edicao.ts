@@ -60,6 +60,13 @@ export async function editarPauta(
   tx: Tx,
   args: { pautaId: string; estudanteId: string; campo: CampoEditavel; texto: string },
 ): Promise<ResultadoEditarPauta> {
+  // Estudante primeiro, na ordem de `sairDoLumens`: o pedido novo referencia o estudante (FK), e a
+  // saída trava o estudante e depois mexe nos pedidos e nas pautas dele.
+  await tx
+    .select({ id: estudantes.id })
+    .from(estudantes)
+    .where(eq(estudantes.id, args.estudanteId))
+    .for('share');
   // FOR UPDATE: decisão da curadoria e esta edição não correm juntas.
   const [pauta] = await tx
     .select({ status: pautas.status, titulo: pautas.titulo, descricao: pautas.descricao })
@@ -203,10 +210,17 @@ export async function decidirPedidoDeEdicao(
   if (motivo === undefined) return { decidido: false, motivo: 'motivo_invalido' };
 
   const [achado] = await tx
-    .select({ pautaId: pedidosEdicao.pautaId })
+    .select({ pautaId: pedidosEdicao.pautaId, estudanteId: pedidosEdicao.estudanteId })
     .from(pedidosEdicao)
     .where(eq(pedidosEdicao.id, pedidoId));
   if (achado === undefined) return { decidido: false, motivo: 'pedido_inexistente' };
+  // Estudante antes do pedido, na ordem de `sairDoLumens` (estudante, depois os pedidos dele): o aviso
+  // da decisão insere em `disparo` (FK no estudante) e, sem esta ordem, decidir e sair se travariam.
+  await tx
+    .select({ id: estudantes.id })
+    .from(estudantes)
+    .where(eq(estudantes.id, achado.estudanteId))
+    .for('share');
   // Pauta antes do pedido, como em `editarPauta`: sem deadlock entre pedido e decisão.
   const [pauta] = await tx
     .select({ titulo: pautas.titulo, descricao: pautas.descricao, slug: pautas.slug })

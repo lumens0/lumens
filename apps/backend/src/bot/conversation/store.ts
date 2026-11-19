@@ -110,13 +110,35 @@ export class ConversationStore {
     return this.now();
   }
 
-  /** As fotos sem relato das conversas que já venceram, para apagar antes de `deleteExpired`. */
-  async fotoChavesExpiradas(now: Date = this.now()): Promise<string[]> {
+  /** Os telefones (HMAC) das conversas vencidas até `now`, para a limpeza tratar uma a uma. */
+  async telefonesExpirados(now: Date = this.now()): Promise<string[]> {
     const linhas = await this.db
-      .select({ dados: conversas.dados })
+      .select({ telefoneHmac: conversas.telefoneHmac })
       .from(conversas)
       .where(lt(conversas.expiraEm, now));
-    return linhas.flatMap((l) => chavesDosDados(l.dados));
+    return linhas.map((l) => l.telefoneHmac);
+  }
+
+  /**
+   * As fotos sem relato de uma conversa, **só se ela ainda estiver vencida** até `now`; `undefined`
+   * se sumiu ou foi renovada (a pessoa mandou mensagem depois de a limpeza listar). Chamar depois de
+   * `lock`, para a leitura valer até o fim da transação.
+   */
+  async fotoChavesSeExpirada(phoneHmac: string, now: Date): Promise<string[] | undefined> {
+    const [linha] = await this.db
+      .select({ dados: conversas.dados })
+      .from(conversas)
+      .where(and(eq(conversas.telefoneHmac, phoneHmac), lt(conversas.expiraEm, now)));
+    return linha === undefined ? undefined : chavesDosDados(linha.dados);
+  }
+
+  /** Apaga a conversa deste telefone se ainda estiver vencida até `now`; devolve quantas apagou. */
+  async apagarSeExpirada(phoneHmac: string, now: Date): Promise<number> {
+    const apagadas = await this.db
+      .delete(conversas)
+      .where(and(eq(conversas.telefoneHmac, phoneHmac), lt(conversas.expiraEm, now)))
+      .returning({ phoneHmac: conversas.telefoneHmac });
+    return apagadas.length;
   }
 
   /** Apaga estados expirados; retorna quantos foram removidos. */

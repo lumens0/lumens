@@ -1,7 +1,12 @@
 import { conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CLEANUP_CRON, CLEANUP_TZ, registerCleanupJob } from '../../agendador/limpeza-conversas';
+import {
+  CLEANUP_CRON,
+  CLEANUP_TZ,
+  limparConversasExpiradas,
+  registerCleanupJob,
+} from '../../agendador/limpeza-conversas';
 import { segredoCom } from '../../cripto/cifra';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import { JOBS } from '../../infra/queue';
@@ -291,6 +296,45 @@ describe('limpeza agendada: fotos soltas das conversas vencidas', () => {
     expect(removidas).toEqual(['fotos/2026/11/v1.jpg']);
     expect(await store.get('nova')).not.toBeNull();
     expect(await store.fotoChavesDaConversa('velha')).toEqual([]);
+  });
+
+  it('conversa renovada depois de a limpeza listá-la (mensagem no meio) não é tocada', async () => {
+    const removidas: string[] = [];
+    await store.save('c', 'NEW_ASK_PHOTO', {
+      fotoChaves: ['fotos/2026/11/c1.jpg', 'fotos/2026/11/c2.jpg'],
+    });
+    advance(25 * HOUR);
+    // A limpeza lista 'c' como vencida...
+    const lista = await store.telefonesExpirados();
+    expect(lista).toEqual(['c']);
+    // ...mas, antes de chegar nela, a pessoa manda a 3ª foto e a conversa é renovada.
+    await store.save('c', 'NEW_ASK_PHOTO', {
+      fotoChaves: ['fotos/2026/11/c1.jpg', 'fotos/2026/11/c2.jpg', 'fotos/2026/11/c3.jpg'],
+    });
+    const original = store.telefonesExpirados.bind(store);
+    store.telefonesExpirados = () => Promise.resolve(lista);
+
+    try {
+      expect(
+        await limparConversasExpiradas({
+          store,
+          db,
+          fotos: {
+            guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+            removerFotos: (chaves) => {
+              removidas.push(...chaves);
+              return Promise.resolve();
+            },
+          },
+        }),
+      ).toBe(0);
+    } finally {
+      store.telefonesExpirados = original;
+    }
+
+    // Nenhum arquivo foi apagado e a conversa segue com as três chaves.
+    expect(removidas).toEqual([]);
+    expect(await store.fotoChavesDaConversa('c')).toHaveLength(3);
   });
 
   it('conversa que vence enquanto os arquivos são removidos fica para a próxima execução, com as chaves', async () => {

@@ -10,6 +10,7 @@ import {
   and,
   blocos,
   eq,
+  estudantes,
   inArray,
   pautas,
   relatoFotos,
@@ -242,10 +243,21 @@ export async function recusarFoto(
   const limpo = motivoValido(motivo);
   if (limpo === undefined) return { recusada: false, motivo: 'motivo_invalido' };
   const [achada] = await tx
-    .select({ relatoId: relatoFotos.relatoId })
+    .select({ relatoId: relatoFotos.relatoId, estudanteId: relatos.estudanteId })
     .from(relatoFotos)
+    .innerJoin(relatos, eq(relatos.id, relatoFotos.relatoId))
     .where(eq(relatoFotos.id, fotoId));
   if (achada === undefined) return { recusada: false, motivo: 'foto_inexistente' };
+
+  // Estudante antes do relato, na ordem de `sairDoLumens` (que trava o estudante e depois os relatos):
+  // o aviso abaixo insere em `disparo`, que pede KEY SHARE no estudante, e sem esta ordem recusar a
+  // foto e a saída de quem a enviou esperariam uma pela outra. Se a pessoa saiu, o relato já foi
+  // apagado e a foto some abaixo; um aviso não é enfileirado para quem saiu.
+  await tx
+    .select({ id: estudantes.id })
+    .from(estudantes)
+    .where(eq(estudantes.id, achada.estudanteId))
+    .for('share');
 
   // Relato antes da foto, na ordem de `moderar` e de `anexarFotoAoRelato`.
   const [relato] = await tx

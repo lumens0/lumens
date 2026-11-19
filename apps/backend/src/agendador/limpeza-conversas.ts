@@ -29,6 +29,34 @@ export interface CleanupResult {
 }
 
 /**
+ * Apaga as conversas vencidas e, antes de cada uma, as fotos da pauta nova que ela ainda guardava
+ * (arquivos sem relato). Devolve quantas conversas apagou.
+ *
+ * Cada conversa é tratada numa transação própria, com o mesmo lock por telefone que o router usa
+ * (`store.lock`): se a pessoa está no meio de uma mensagem (por exemplo, o download da 3ª foto
+ * atravessando o vencimento), a limpeza espera ela terminar, relê a conversa e, se ela foi
+ * renovada, não toca em nada. Também usa um instante de corte só: uma conversa que vence enquanto
+ * os arquivos de outra são removidos fica para a próxima execução, com as chaves.
+ */
+export async function limparConversasExpiradas(
+  deps: { store: ConversationStore; db: Db; fotos?: ServicoDeFotos },
+  corte: Date = deps.store.agora(),
+): Promise<number> {
+  let apagadas = 0;
+  for (const telefone of await deps.store.telefonesExpirados(corte)) {
+    await deps.db.transaction(async (tx) => {
+      const store = deps.store.withDb(tx);
+      await store.lock(telefone);
+      const chaves = await store.fotoChavesSeExpirada(telefone, corte);
+      if (chaves === undefined) return; // renovada ou já apagada: nada a fazer
+      await removerFotosSoltas(tx, deps.fotos, chaves);
+      apagadas += await store.apagarSeExpirada(telefone, corte);
+    });
+  }
+  return apagadas;
+}
+
+/**
  * Agenda a limpeza do bot, de hora em hora: conversas expiradas, o dedup antigo do webhook, os
  * códigos de verificação vencidos e os registros dos limites da verificação (SCRUM-298), que de
  * outro modo ficariam para sempre (minimização prometida no aviso de privacidade).
@@ -45,14 +73,8 @@ export async function registerCleanupJob(
   if (!(await boss.getQueue(name))) await boss.createQueue(name);
   await boss.schedule(name, CLEANUP_CRON, null, { tz: CLEANUP_TZ });
   await boss.work(name, async () => {
-    // Um instante só para as duas etapas: remover arquivos leva tempo, e uma conversa que vence
-    // nesse intervalo não pode ser apagada sem ter tido as fotos removidas (as chaves sumiriam e os
-    // arquivos ficariam órfãos). Ela fica para a próxima execução.
-    const corte = deps.store.agora();
-    // Fotos da pauta nova que a pessoa deixou pela metade: os arquivos saem antes de a conversa sumir.
-    await removerFotosSoltas(deps.db, deps.fotos, await deps.store.fotoChavesExpiradas(corte));
     const result: CleanupResult = {
-      deleted: await deps.store.deleteExpired(corte),
+      deleted: await limparConversasExpiradas(deps),
       dedupDeleted: await deleteOldDedup(deps.db),
       codigosDeleted: await apagarCodigosVencidos(deps.db),
       registrosDeleted: await apagarRegistrosVencidos(deps.db),

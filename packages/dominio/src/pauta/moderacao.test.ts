@@ -13,12 +13,15 @@ import {
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { sairDoLumens } from '../estudante/sair';
+import { decidirPedidoDeEdicao, editarPauta } from './pedido-edicao';
+import { pedidosEdicao } from '@lumens/db';
 import {
   criarBloco,
   criarCurador,
   criarEstudanteVerificado,
   criarPauta,
   criarRelato,
+  tornarOwner,
 } from '../teste/fabricas';
 import { aprovarRelato, listarRelatosPendentes, recusarFoto, recusarRelato } from './moderacao';
 
@@ -489,6 +492,88 @@ const URL_TESTE = process.env.DATABASE_URL_TESTE;
 if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
 
 describe.skipIf(!URL_TESTE)('moderação com Postgres de verdade', () => {
+  async function comBancoReal(corpo: (real: Db) => Promise<void>) {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    try {
+      await corpo(criarDb(pool));
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }
+
+  it('recusar a foto e o autor sair ao mesmo tempo: nenhuma das duas cai em deadlock', async () => {
+    await comBancoReal(async (real) => {
+      const pauta = await criarPauta(real);
+      const curador = await criarCurador(real);
+      for (let rodada = 0; rodada < 15; rodada++) {
+        const estudante = await criarEstudanteVerificado(real);
+        const relato = await criarRelato(real, {
+          pautaId: pauta.id,
+          estudanteId: estudante.id,
+          fotoChaves: [`fotos/2026/11/recusa-${String(rodada)}.jpg`],
+        });
+        const [foto] = await fotosDo(relato.id, real);
+
+        const resultados = await Promise.allSettled([
+          real.transaction((tx) =>
+            recusarFoto(tx, {
+              fotoId: foto?.id ?? '',
+              curadorId: curador.id,
+              motivo: 'Fora de foco.',
+            }),
+          ),
+          real.transaction((tx) => sairDoLumens(tx, { estudanteId: estudante.id })),
+        ]);
+
+        // Sem estudante antes do relato, o aviso (FK no estudante) e a saída se travam (40P01).
+        expect(resultados.filter((r) => r.status === 'rejected')).toEqual([]);
+      }
+    });
+  }, 60_000);
+
+  it('decidir o pedido de edição e o autor sair ao mesmo tempo: nenhuma das duas cai em deadlock', async () => {
+    await comBancoReal(async (real) => {
+      const curador = await criarCurador(real);
+      for (let rodada = 0; rodada < 15; rodada++) {
+        const pauta = await criarPauta(real, { status: 'juntando_apoios' });
+        const dono = await criarEstudanteVerificado(real);
+        await tornarOwner(real, pauta.id, dono.id);
+        await real.transaction((tx) =>
+          editarPauta(tx, {
+            pautaId: pauta.id,
+            estudanteId: dono.id,
+            campo: 'titulo',
+            texto: `Título novo ${String(rodada)}`,
+          }),
+        );
+        const [pedido] = await real
+          .select()
+          .from(pedidosEdicao)
+          .where(eq(pedidosEdicao.pautaId, pauta.id));
+
+        const resultados = await Promise.allSettled([
+          real.transaction((tx) =>
+            decidirPedidoDeEdicao(tx, {
+              pedidoId: pedido?.id ?? '',
+              curadorId: curador.id,
+              decisao: 'recusado',
+              motivo: 'Não.',
+            }),
+          ),
+          real.transaction((tx) => sairDoLumens(tx, { estudanteId: dono.id })),
+        ]);
+
+        expect(resultados.filter((r) => r.status === 'rejected')).toEqual([]);
+      }
+    });
+  }, 60_000);
+
   it('sair e moderar o relato com foto ao mesmo tempo: nenhuma das duas cai em deadlock', async () => {
     const temporario = await criarBancoTemporario(URL_TESTE ?? '');
     const pool = criarPool(

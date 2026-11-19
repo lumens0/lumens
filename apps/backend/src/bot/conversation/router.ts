@@ -16,7 +16,7 @@ import {
 } from './handlers';
 import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
 import { entradaDeConferencia, responderConferencia } from './conferencia';
-import { removerFotosSoltas } from './fotos-temporarias';
+import { chavesDosDados, removerFotosSoltas } from './fotos-temporarias';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
 import { temCadastro } from './estudante';
@@ -131,7 +131,11 @@ export async function handleIncoming(
   // As fotos da pauta nova só viram relato no fim. Se a conversa deixou de guardá-las sem criar a
   // pauta (menu, cancelar, sair, comando do site, conversa vencida, criação recusada), os arquivos
   // ficariam órfãos no storage: apaga os que não são de nenhum relato.
-  const fotosAntes = await store.fotoChavesDaConversa(phoneHmac);
+  // Conversa ativa: os dados já estão em `current`. Sem ela, pode haver uma vencida que a limpeza
+  // ainda não apagou (o `get` a ignora): só então vale uma consulta a mais.
+  const fotosAntes = current
+    ? chavesDosDados(current.data)
+    : await store.fotoChavesDaConversa(phoneHmac);
   const respostas = await responder(msg, deps, current);
   if (fotosAntes.length > 0) {
     const fotosDepois = new Set(await store.fotoChavesDaConversa(phoneHmac));

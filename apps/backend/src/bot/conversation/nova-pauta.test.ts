@@ -37,7 +37,7 @@ import {
   titleTooLongText,
 } from './nova-pauta';
 import { CATEGORY_NOT_FOUND_TEXT, CATEGORY_QUESTION_TEXT } from './categorias';
-import { removerFotosSoltas } from './fotos-temporarias';
+import { limparConversasExpiradas } from '../../agendador/limpeza-conversas';
 import { hashPhone } from './phone';
 import {
   BLOCK_NOT_FOUND_TEXT,
@@ -352,7 +352,7 @@ describe('pauta nova pelo menu', () => {
     it('conversa vencida: a limpeza apaga as fotos antes de apagar a conversa', async () => {
       await comDuasFotos();
       await db.update(conversas).set({ expiraEm: new Date(Date.now() - 1000) });
-      await removerFotosSoltas(db, comRemocao, await store.fotoChavesExpiradas());
+      await limparConversasExpiradas({ store, db, fotos: comRemocao });
       expect(removidas.sort()).toEqual(AS_DUAS);
     });
 
