@@ -46,7 +46,7 @@ const pausarSeEsgotou =
   };
 
 /**
- * O cache de 30 s acompanha o `Cache-Control` da API. `fresca` lê sem ele: o card da pauta, que o
+ * O cache de 10 s acompanha o `Cache-Control` da API (antes 30 s: o apoio e a pauta aprovada demoravam a aparecer; 10 s ainda junta as visitas simultâneas em uma leitura por caminho). `fresca` lê sem ele: o card da pauta, que o
  * bot pede logo depois de um apoio, precisa do total de agora.
  */
 async function buscar(caminho: string, fresca = false): Promise<Response> {
@@ -56,7 +56,7 @@ async function buscar(caminho: string, fresca = false): Promise<Response> {
       'API de leitura não respondeu há pouco: sem nova tentativa por alguns segundos.',
     );
   return fetch(`${urlDaApi()}${caminho}`, {
-    ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 30 } }),
+    ...(fresca ? { cache: 'no-store' } : { next: { revalidate: 10 } }),
     signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
   }).catch(pausarSeEsgotou(chave));
 }

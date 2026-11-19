@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Fluxos } from '@lumens/marca/fluxo';
 import { metadadosDaMarca } from '../../metadados';
 import { nomeDoCanal } from '../../whatsapp';
 import estilos from './page.module.css';
+import { FLUXOS } from './fluxos';
 import { SECOES } from './secoes';
 
 export const metadata: Metadata = metadadosDaMarca({
@@ -48,6 +50,14 @@ export default function Manual() {
           ))}
         </ul>
       </nav>
+
+      <Secao chave="fluxos">
+        <p>
+          Escolha o que você quer fazer e ande pelos cards: cada um diz se o passo é no bot, no site
+          ou automático. Toque num card para ver os detalhes.
+        </p>
+        <Fluxos fluxos={FLUXOS} rotulo="Passo a passo do Lumens" />
+      </Secao>
 
       <Secao chave="pauta">
         <p>

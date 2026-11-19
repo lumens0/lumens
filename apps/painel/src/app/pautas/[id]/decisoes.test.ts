@@ -16,7 +16,7 @@ describe('decisões da curadoria pela tela', () => {
   it('sem curador ativo na sessão vai para o login e não grava nada', async () => {
     const { decisoes, aprovar, recusar } = montar(undefined);
 
-    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe('/login');
+    expect(await decisoes.aprovar(ID, 'ensino', {}, false, '', true)).toBe('/login');
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe('/login');
     expect(aprovar).not.toHaveBeenCalled();
     expect(recusar).not.toHaveBeenCalled();
@@ -25,16 +25,31 @@ describe('decisões da curadoria pela tela', () => {
   it('aprovar e recusar gravam com o id do curador da sessão e voltam para a própria pauta', async () => {
     const { decisoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe(`/pautas/${ID}?feito=aprovada`);
+    expect(await decisoes.aprovar(ID, 'ensino', {}, false, '', true)).toBe(
+      `/pautas/${ID}?feito=aprovada`,
+    );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', {}, false, '');
 
     expect(await decisoes.recusar(ID, 'Duplicada.')).toBe(`/pautas/${ID}?feito=recusada`);
     expect(recusar).toHaveBeenCalledWith(ID, 'curador-1', 'Duplicada.');
   });
 
+  it('sem a confirmação de que conferiu, aprovar não grava e volta com o aviso', async () => {
+    const { decisoes, aprovar } = montar({ id: 'curador-1' });
+
+    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe(
+      `/pautas/${ID}?erro=conferencia_pendente`,
+    );
+    expect(aprovar).not.toHaveBeenCalled();
+  });
+
+  it('a confirmação não substitui a sessão: sem curador, vai para o login', async () => {
+    expect(await montar(undefined).decisoes.aprovar(ID, 'ensino', {})).toBe('/login');
+  });
+
   it('encaminha a seleção de urgência junto da aprovação', async () => {
     const { decisoes, aprovar } = montar({ id: 'curador-1' });
-    expect(await decisoes.aprovar(ID, 'infraestrutura', {}, true)).toBe(
+    expect(await decisoes.aprovar(ID, 'infraestrutura', {}, true, '', true)).toBe(
       `/pautas/${ID}?feito=aprovada`,
     );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'infraestrutura', {}, true, '');
@@ -54,7 +69,9 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'categoria_invalida' },
     );
-    expect(await decisoes.aprovar(ID, '', {})).toBe(`/pautas/${ID}?erro=categoria_invalida`);
+    expect(await decisoes.aprovar(ID, '', {}, false, '', true)).toBe(
+      `/pautas/${ID}?erro=categoria_invalida`,
+    );
   });
 
   it('pauta inexistente ou id que não é UUID volta para a fila sem consultar o banco à toa', async () => {
@@ -62,10 +79,12 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'pauta_inexistente' },
     );
-    expect(await decisoes.aprovar(ID, 'ensino', {})).toBe('/fila');
+    expect(await decisoes.aprovar(ID, 'ensino', {}, false, '', true)).toBe('/fila');
 
     const invalido = montar({ id: 'curador-1' });
-    expect(await invalido.decisoes.aprovar('1; drop table pauta', 'ensino', {})).toBe('/fila');
+    expect(
+      await invalido.decisoes.aprovar('1; drop table pauta', 'ensino', {}, false, '', true),
+    ).toBe('/fila');
     expect(invalido.aprovar).not.toHaveBeenCalled();
   });
 
@@ -74,7 +93,7 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'pauta_editada' },
     );
-    expect(await decisoes.aprovar(ID, 'ensino', {}, false, 'versao-da-tela')).toBe(
+    expect(await decisoes.aprovar(ID, 'ensino', {}, false, 'versao-da-tela', true)).toBe(
       `/pautas/${ID}?erro=pauta_editada`,
     );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', {}, false, 'versao-da-tela');
@@ -86,7 +105,9 @@ describe('decisões da curadoria pela tela', () => {
       { decidida: false, motivo: 'relato_mudou' },
     );
     const fotos = { 'relato-1': ['foto-1', 'foto-2'], 'relato-2': [] };
-    expect(await decisoes.aprovar(ID, 'ensino', fotos)).toBe(`/pautas/${ID}?erro=relato_mudou`);
+    expect(await decisoes.aprovar(ID, 'ensino', fotos, false, '', true)).toBe(
+      `/pautas/${ID}?erro=relato_mudou`,
+    );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos, false, '');
   });
 

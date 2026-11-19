@@ -1042,3 +1042,20 @@ div.cartao > h3 {
 .conteudo section > h2 a:hover {
   text-decoration-color: currentcolor;
 }
+
+/* Confirmação de que a curadoria conferiu o que vai ao site (aprovar pauta e relato). */
+.conferencia {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-2);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.conferencia input {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+}

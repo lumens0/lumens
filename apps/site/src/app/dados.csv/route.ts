@@ -13,7 +13,7 @@ export async function GET() {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': 'attachment; filename="lumens-pautas.csv"',
       // Mesmo cache da API de leitura.
-      'Cache-Control': 'public, max-age=30',
+      'Cache-Control': 'public, max-age=10',
     },
   });
 }

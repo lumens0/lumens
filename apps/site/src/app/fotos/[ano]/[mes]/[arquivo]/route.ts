@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: Props) {
     headers: {
       'Content-Type': foto.tipo,
       'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'public, max-age=30',
+      'Cache-Control': 'public, max-age=10',
     },
   });
 }

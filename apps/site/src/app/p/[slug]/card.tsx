@@ -1,11 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
+import { renderSVG } from 'uqr';
 import type { PautaDetalhe } from '@lumens/contratos';
 import { formatarNumero, percentual } from '../../../componentes/BarraApoios';
 import { STATUS } from '../../../componentes/StatusPill';
 import { buscarPauta } from '../../../dados/api';
 import { aceitaApoio, FORA_DO_SITE } from '../../../dados/pautas-publicas';
+import { origemDoSite } from '../../../origem';
 import { fonteDoTitulo, tituloDoCard } from './card.png/titulo';
 
 // Modelo do card da pauta (SCRUM-52), em dois formatos: `story` (1080 × 1920, `card.png`) e `og`
@@ -29,6 +31,9 @@ export const TAMANHO: Record<Formato, { width: number; height: number }> = {
  * do momento (o bot, logo depois de um apoio) muda a query string, que entra na chave do cache.
  */
 const CACHE_CONTROL = 'public, max-age=300, s-maxage=300';
+
+/** Lado do QR Code no card, em px: ~7 módulos de 12 px por lado dá leitura folgada no celular. */
+const QR_LADO = 300;
 
 /** Bloco em uma linha só na prévia: com o título em 3 linhas, não sobra altura para a segunda. */
 const LIMITE_BLOCO_OG = 55;
@@ -67,17 +72,23 @@ async function lerRecursos() {
   };
 }
 
-export async function respostaDoCard(request: Request, slug: string, formato: Formato) {
-  // Sem o cache de 30 s da leitura: o `?apoios=N` do bot só muda a chave do cache da imagem, e o
+export async function respostaDoCard(_request: Request, slug: string, formato: Formato) {
+  // Sem o cache de 10 s da leitura: o `?apoios=N` do bot só muda a chave do cache da imagem, e o
   // total precisa ser o de agora. O cache de 5 min do card, na CDN, segura as visitas repetidas.
   const pauta = await buscarPauta(slug, { fresca: true });
   // Não existe, em curadoria ou recusada: 404 sem corpo, e o bot cai no fallback do link.
   if (!pauta || FORA_DO_SITE.has(pauta.status)) {
     return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
   }
-  const endereco = `${new URL(request.url).host}/p/${pauta.slug}`;
+  // O endereço do card e o do QR Code são os do site público, não o host da requisição: num deploy
+  // de preview ou protegido da Vercel, o host da requisição pediria login a quem escaneasse.
+  const { host, origin } = origemDoSite();
+  const endereco = `${host}/p/${pauta.slug}`;
   const { fontes, marca } = await (recursos ??= lerRecursos());
-  const card = formato === 'story' ? cardStory(pauta, endereco, marca) : cardOg(pauta, marca);
+  const card =
+    formato === 'story'
+      ? cardStory(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
+      : cardOg(pauta, marca);
   return new ImageResponse(card, {
     ...TAMANHO[formato],
     fonts: fontes,
@@ -85,7 +96,22 @@ export async function respostaDoCard(request: Request, slug: string, formato: Fo
   });
 }
 
-function cardStory(pauta: PautaDetalhe, endereco: string, marca: string) {
+/**
+ * QR Code do link da pauta (só o endereço público, sem dado pessoal), como imagem SVG em data URI:
+ * o satori desenha SVG por `<img>`, e centenas de `<div>` por módulo deixariam o card lento.
+ * Módulos escuros sobre fundo claro e margem de 2 módulos: a câmera do celular lê sem ajustar.
+ */
+export function qrDoLink(link: string): string {
+  const svg = renderSVG(link, {
+    ecc: 'M',
+    border: 2,
+    whiteColor: '#ffffff',
+    blackColor: '#141936',
+  });
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
+function cardStory(pauta: PautaDetalhe, endereco: string, marca: string, qr: string) {
   const titulo = tituloDoCard(pauta.titulo);
   return (
     <div style={{ ...fundo, padding: '112px 96px 104px' }}>
@@ -107,18 +133,29 @@ function cardStory(pauta: PautaDetalhe, endereco: string, marca: string) {
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 48,
           marginTop: 'auto',
           paddingTop: 56,
           borderTop: `2px solid rgba(255, 255, 255, 0.12)`,
           fontSize: 40,
         }}
       >
-        <span style={{ fontWeight: 700, color: TINTA }}>
-          {aceitaApoio(pauta.status) ? 'Apoie também:' : 'Veja a pauta:'}
-        </span>
-        <span style={{ color: LUZ }}>{endereco}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+          <span style={{ fontWeight: 700, color: TINTA }}>
+            {aceitaApoio(pauta.status) ? 'Apoie também:' : 'Veja a pauta:'}
+          </span>
+          <span style={{ color: LUZ, wordBreak: 'break-all' }}>{endereco}</span>
+          <span style={{ fontSize: 32, color: TINTA_3 }}>Ou aponte a câmera para o QR Code.</span>
+        </div>
+        <img
+          src={qr}
+          alt=""
+          width={QR_LADO}
+          height={QR_LADO}
+          style={{ flex: 'none', borderRadius: 24 }}
+        />
       </div>
     </div>
   );

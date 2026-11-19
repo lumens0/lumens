@@ -69,9 +69,9 @@ describe('next.config', () => {
         ['/', '/atividade', '/conquistas', '/mapa', '/p/:slug'].sort(),
       );
       for (const regra of regrasDeCache)
-        expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=15');
+        expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=5');
       for (const regra of regrasDeCache)
-        expect(valor(regra.headers, 'Vercel-CDN-Cache-Control')).toContain('max-age=15');
+        expect(valor(regra.headers, 'Vercel-CDN-Cache-Control')).toContain('max-age=5');
     });
   });
 });

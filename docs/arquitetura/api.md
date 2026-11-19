@@ -444,7 +444,7 @@ A variável `CORS_ORIGENS` lista as origens aceitas, separadas por vírgula. Vaz
 
 | Resposta | `Cache-Control`                                 |
 | -------- | ----------------------------------------------- |
-| `200`    | `public, max-age=30, stale-while-revalidate=30` |
+| `200`    | `public, max-age=10, stale-while-revalidate=10` |
 | erro     | `no-store`                                      |
 
 Trinta segundos de cache aliviam o banco nos picos (RNF11) sem deixar o número de apoios velho por

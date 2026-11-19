@@ -6,9 +6,17 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./fluxo": "./src/fluxo.tsx",
+    "./fluxo.css": "./src/fluxo.css"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
   }
 }

@@ -11,7 +11,7 @@ import {
 } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../../auth';
-import { criarDecisoes, fotosVistasDoFormulario, UUID } from './decisoes';
+import { conferenciaMarcada, criarDecisoes, fotosVistasDoFormulario, UUID } from './decisoes';
 
 const decisoes = criarDecisoes({
   curador: curadorDaSessao,
@@ -37,6 +37,7 @@ export async function aprovar(formulario: FormData) {
       formulario.get('urgente') === 'on',
       // Sem o campo (formulário velho), vale vazio: nenhum texto tem essa versão, e a aprovação falha.
       texto(formulario, 'textoVisto'),
+      conferenciaMarcada(formulario),
     ),
   );
 }

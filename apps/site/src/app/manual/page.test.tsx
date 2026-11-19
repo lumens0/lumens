@@ -100,3 +100,26 @@ describe('manual: várias fotos e edição depois da publicação', () => {
     expect(html).not.toContain('o texto não muda mais');
   });
 });
+
+describe('manual: o passo a passo em cards', () => {
+  it('abre com o primeiro fluxo e as abas de todos', () => {
+    expect(html).toContain('id="fluxos"');
+    expect(html).toContain('role="tablist"');
+    for (const rotulo of ['Relatar um problema', 'Apoiar uma pauta', 'Cuidar de uma pauta'])
+      expect(html).toContain(`>${rotulo}</button>`);
+    expect(html).toContain('Chame o bot');
+    expect(html).toContain('aria-expanded="true"');
+  });
+
+  it('cada passo diz onde acontece, com o nome escrito', () => {
+    expect(html).toContain('No bot');
+    expect(html).toContain('No site');
+    expect(html).toContain('Automático');
+  });
+
+  it('o exemplo da conversa é um grupo rotulado: as falas continuam legíveis para o leitor de tela', () => {
+    expect(html).toContain('role="group" aria-label="Exemplo da conversa"');
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('Bot</span>');
+  });
+});
