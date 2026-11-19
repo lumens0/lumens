@@ -3,9 +3,12 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { unaccent } from '@electric-sql/pglite/contrib/unaccent';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { blocosUfal } from '../seed/blocos-ufal';
 import { PAPEL_APLICACAO, PAPEL_SITE } from './app-role';
+
+// Cada teste sobe um PGlite e aplica dezenas de migrações: o padrão de 5 s estoura em runner lento.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 const PASTA = fileURLToPath(new URL('../migrations', import.meta.url));
 const { entries } = JSON.parse(readFileSync(`${PASTA}/meta/_journal.json`, 'utf8')) as {
