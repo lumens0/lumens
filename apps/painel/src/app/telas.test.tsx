@@ -1,4 +1,8 @@
-import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
+import type {
+  DetalhePautaDaCuradoria,
+  PautaComRelatosPendentes,
+  PedidoDeEdicao,
+} from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
@@ -252,6 +256,46 @@ describe('tela da pauta', () => {
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
     expect(html).toContain('Aprovar mudança');
     expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
+  });
+
+  it('pedido com e-mail, telefone ou matrícula no texto novo trava o botão de aprovar', () => {
+    const pedido = (id: string, achados: PedidoDeEdicao['achados']): PedidoDeEdicao => ({
+      id,
+      pautaId: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
+      campo: 'descricao',
+      antes: 'Antes.',
+      depois: 'Depois.',
+      criadoEm: new Date('2026-11-09T12:00:00.000Z'),
+      achados,
+    });
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({ status: 'juntando_apoios' })}
+        aprovar={acao}
+        recusar={acao}
+        pedidosDeEdicao={[
+          pedido('limpo', []),
+          pedido('barrado', [
+            {
+              severidade: 'bloqueio',
+              motivo: 'email',
+              trecho: 'fulano@ufal.br',
+              inicio: 0,
+              fim: 14,
+            },
+          ]),
+        ]}
+        aprovarPedido={acao}
+        recusarPedido={acao}
+      />,
+    );
+
+    const botoes = html.match(/<button[^>]*>Aprovar mudança<\/button>/g) ?? [];
+    expect(botoes).toHaveLength(2);
+    expect(botoes.filter((b) => b.includes(' disabled=""'))).toHaveLength(1);
+    expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');
+    // Recusar continua disponível nos dois.
+    expect(html.match(/Confirmar recusa/g)).toHaveLength(2);
   });
 
   it('sem pedido pendente, a seção de pedidos não aparece', () => {

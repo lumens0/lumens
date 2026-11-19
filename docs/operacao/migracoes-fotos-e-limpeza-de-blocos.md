@@ -3,6 +3,23 @@
 Este documento diz o que as duas migrações fazem num banco que já tem dados, como conferir depois
 de aplicar e como voltar atrás. O `db:migrate` aplica as duas na ordem, numa única execução.
 
+## Ordem de deploy
+
+O contrato do relato trocou `foto_chave` (uma foto) por `fotos` (lista), e o site (Vercel) e o
+back-end (VM) fazem deploy separados. O site novo aceita os dois formatos (`normalizarFotos` em
+`apps/site/src/dados/api.ts`: `foto_chave` vira `fotos: [chave]`), então:
+
+1. **Site primeiro.** Com a API antiga, ele continua mostrando uma foto por relato.
+2. **Migração 0026/0027 e back-end, em seguida e sem intervalo.** Entre a migração e o deploy do
+   back-end, o back-end antigo ainda consulta a coluna e a view que a 0026 trocou: a API de pauta
+   (`/pautas/:slug`) e a rota de foto respondem erro nesse intervalo, que é de minutos. Para
+   encurtá-lo, deixe o novo back-end pronto para subir antes de rodar o `db:migrate`.
+3. **Painel junto com o back-end** (ele usa as mesmas tabelas).
+
+Ao contrário (back-end novo com site antigo), o site antigo não quebra: lê `foto_chave`, que não vem
+mais, e mostra o relato sem foto até o site novo subir. Depois que os dois estiverem no ar, o
+tratamento de `foto_chave` no site pode sair.
+
 ## 0026 · `fotos_e_pedidos_de_edicao`
 
 **O que muda**

@@ -86,7 +86,13 @@ export function PedidosDeEdicao({
               <input type="hidden" name="pedidoId" value={pedido.id} />
               <input type="hidden" name="depoisVisto" value={pedido.depois} />
               <input type="hidden" name="voltar" value={voltar} />
-              <Enviar className={estilos.botao}>Aprovar mudança</Enviar>
+              {/* Dado pessoal no texto novo trava a aprovação: só dá para recusar (e o domínio confere). */}
+              <Enviar
+                className={estilos.botao}
+                desabilitado={pedido.achados.some((a) => a.severidade === 'bloqueio')}
+              >
+                Aprovar mudança
+              </Enviar>
             </form>
           </div>
           <details className={estilos.recusa}>

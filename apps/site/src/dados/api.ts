@@ -87,7 +87,30 @@ export async function buscarPauta(
   if (resposta.status === 404 || resposta.status === 400) return null;
   if (!resposta.ok)
     throw new Error(`API de leitura respondeu ${String(resposta.status)} para a pauta.`);
-  return lerJson<PautaDetalhe>(resposta, caminho, fresca);
+  return normalizarFotos(await lerJson<RespostaDaPauta>(resposta, caminho, fresca));
+}
+
+/**
+ * O relato da API antiga trazia `foto_chave` (uma foto); a nova traz `fotos` (até três). O site e o
+ * back-end fazem deploy separados, então por um tempo a resposta pode ser de qualquer um dos dois:
+ * aqui os dois viram `fotos`, e a página nunca vê `undefined`.
+ */
+type RelatoDaResposta = Omit<PautaDetalhe['relatos'][number], 'fotos'> & {
+  fotos?: string[] | undefined;
+  foto_chave?: string | null | undefined;
+};
+type RespostaDaPauta = Omit<PautaDetalhe, 'relatos'> & { relatos: RelatoDaResposta[] };
+
+export function normalizarFotos(pauta: RespostaDaPauta): PautaDetalhe {
+  // Resposta sem a lista (não deveria acontecer): passa adiante, como antes.
+  if (!Array.isArray(pauta.relatos)) return pauta as unknown as PautaDetalhe;
+  return {
+    ...pauta,
+    relatos: pauta.relatos.map(({ foto_chave, fotos, ...relato }) => ({
+      ...relato,
+      fotos: Array.isArray(fotos) ? fotos : foto_chave ? [foto_chave] : [],
+    })),
+  };
 }
 
 /**
