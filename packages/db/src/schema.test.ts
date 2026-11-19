@@ -585,7 +585,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(26);
+    expect(rows).toHaveLength(31);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 
@@ -617,7 +617,7 @@ describe('migração inicial em Postgres real', () => {
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
        AND column_name IN ('criado_em', 'criada_em', 'desde', 'aberto_em', 'recebida_em', 'atualizado_em')`,
     );
-    expect(criacoes).toHaveLength(11);
+    expect(criacoes).toHaveLength(13);
     expect(criacoes.every((r) => r.column_default === 'now()')).toBe(true);
   });
 
