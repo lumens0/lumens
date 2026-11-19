@@ -38,12 +38,13 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
           'Se o relato de quem criou a pauta tem dado pessoal, use “Recusar só o relato”: a pauta segue em curadoria e, aprovada, vai ao site sem ele. Nome de pessoa e ofensa também não passam.',
       },
       {
-        titulo: 'Escolha a categoria',
+        titulo: 'Confira a categoria',
         icone: 'etiqueta',
         onde: 'painel',
-        resumo: 'Obrigatória para aprovar. Marque “urgente” só se for o caso.',
+        resumo:
+          'Ela já vem marcada com a de quem relatou: troque só se estiver errada. Marque “urgente” só se for o caso.',
         detalhe:
-          'O motivo da urgência fica só no painel; o site mostra apenas que a pauta é urgente.',
+          'Se quem relatou não escolheu categoria, o campo vem vazio e a escolha é obrigatória. O motivo da urgência fica só no painel; o site mostra apenas que a pauta é urgente.',
       },
       {
         titulo: 'Marque que conferiu e aprove',

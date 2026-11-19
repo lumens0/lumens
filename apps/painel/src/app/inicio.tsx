@@ -5,7 +5,11 @@ import { STATUS } from './pautas/status';
 
 const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios);
 
-/** Um cartão do resumo: o nome da fila (link), o número e uma linha de contexto. */
+/**
+ * Um indicador do resumo, na mesma pilha alinhada à esquerda: o nome da fila (link, com altura de
+ * duas linhas, para o número começar na mesma altura nos quatro), o número grande, a unidade e o
+ * detalhe. Separados por filetes, sem cartões.
+ */
 function Indicador({
   href,
   titulo,
@@ -24,14 +28,7 @@ function Indicador({
   alerta?: boolean;
 }) {
   return (
-    <li
-      className={[
-        estilos.cartao,
-        estilos.cartaoClicavel,
-        estilos.indicador,
-        alerta ? estilos.indicadorAlerta : '',
-      ].join(' ')}
-    >
+    <li className={[estilos.indicador, alerta ? estilos.indicadorAlerta : ''].join(' ')}>
       <h2>
         <Link href={href}>{titulo}</Link>
       </h2>

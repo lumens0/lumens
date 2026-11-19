@@ -1,12 +1,17 @@
-import { listarPautasDaCuradoria, type PendenciaDaCuradoria } from '@lumens/dominio';
+import { listarPautasDaCuradoria, resumoDaCuradoria, visaoGeralDaCuradoria } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
 import { sair } from '../acoes';
 import { Moldura } from '../moldura';
-import { ListaDePautas } from './lista';
+import {
+  buscarNaLista,
+  filtrarPorSituacoes,
+  pendenciasDaUrl,
+  situacoesDaUrl,
+  uniaoDePautas,
+} from './filtros';
+import { ListaDePautas, type ContagensDaLista } from './lista';
 import { STATUS } from './status';
-
-const PENDENCIAS: readonly PendenciaDaCuradoria[] = ['sem_resposta_oficial', 'conferencia_aberta'];
 
 export default async function PaginaDasPautas({
   searchParams,
@@ -17,23 +22,50 @@ export default async function PaginaDasPautas({
   if (!curador) redirect('/login');
 
   const parametros = await searchParams;
-  const statusSolicitado = parametros.status ?? 'em_curadoria';
-  const status =
-    statusSolicitado === 'todas' || Object.hasOwn(STATUS, statusSolicitado)
-      ? statusSolicitado
-      : 'em_curadoria';
-  const pendencia = PENDENCIAS.find((p) => p === parametros.pendencia);
-  const filtro = {
-    ...(status !== 'todas' && Object.hasOwn(STATUS, status)
-      ? { status: status as keyof typeof STATUS }
-      : {}),
-    ...(parametros.q === undefined ? {} : { q: parametros.q }),
-    ...(pendencia === undefined ? {} : { pendencia }),
+  const situacoes = situacoesDaUrl(parametros.status);
+  const pendencias = pendenciasDaUrl(parametros.pendencia);
+  const q = parametros.q ?? '';
+  const { db } = servidor();
+  const agora = new Date();
+
+  // Com uma situação só, o banco já filtra (e o limite de 200 vale para ela). Com várias ou
+  // nenhuma, a lista vem inteira e a escolha é feita aqui. Cada pendência é uma consulta, e a
+  // união delas é o "ou" entre pendências. A busca por título, bloco e etapa é em memória: o filtro
+  // do domínio só acha por título (estender o domínio fica para depois).
+  const unica = situacoes.length === 1 ? situacoes[0] : undefined;
+  const doBanco = unica === undefined ? {} : { status: unica };
+  const [lotes, resumo, visao] = await Promise.all([
+    pendencias.length === 0
+      ? Promise.all([listarPautasDaCuradoria(db, agora, doBanco)])
+      : Promise.all(
+          pendencias.map((pendencia) =>
+            listarPautasDaCuradoria(db, agora, { ...doBanco, pendencia }),
+          ),
+        ),
+    resumoDaCuradoria(db, agora),
+    visaoGeralDaCuradoria(db, agora),
+  ]);
+  const pautas = buscarNaLista(filtrarPorSituacoes(uniaoDePautas(lotes), situacoes), q);
+  const porStatus = Object.fromEntries(visao.pautasPorStatus.map((s) => [s.status, s.total])) as {
+    [S in keyof typeof STATUS]?: number;
   };
-  const pautas = await listarPautasDaCuradoria(servidor().db, new Date(), filtro);
+  const contagens: ContagensDaLista = {
+    total: visao.pautasPorStatus.reduce((soma, s) => soma + s.total, 0),
+    porStatus,
+    porPendencia: {
+      sem_resposta_oficial: resumo.pautasSemRespostaOficial,
+      conferencia_aberta: resumo.conferenciasAbertas,
+    },
+  };
   return (
     <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
-      <ListaDePautas pautas={pautas} status={status} q={parametros.q ?? ''} />
+      <ListaDePautas
+        pautas={pautas}
+        situacoes={situacoes}
+        pendencias={pendencias}
+        q={q}
+        contagens={contagens}
+      />
     </Moldura>
   );
 }

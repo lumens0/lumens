@@ -5,7 +5,7 @@ import { sair } from '../acoes';
 import { Moldura } from '../moldura';
 import estilos from '../painel.module.css';
 import { aprovarPedido, recusarPedido } from './acoes';
-import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from './pedidos';
+import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosPorPauta } from './pedidos';
 
 export default async function PaginaDosPedidos({
   searchParams,
@@ -39,7 +39,7 @@ export default async function PaginaDosPedidos({
       {pedidos.length === 0 ? (
         <p className={estilos.aviso}>Nenhum pedido esperando decisão.</p>
       ) : (
-        <PedidosDeEdicao
+        <PedidosPorPauta
           pedidos={pedidos}
           aprovar={aprovarPedido}
           recusar={recusarPedido}
