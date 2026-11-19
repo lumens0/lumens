@@ -1,0 +1,196 @@
+import type { FluxoEmCards } from '@lumens/marca/fluxo';
+
+/**
+ * Os fluxos da curadoria em cards. Os números são os do sistema: prazo de 24 h em
+ * `PRAZO_DE_CURADORIA_MS`, motivo de recusa até 500 caracteres em `MOTIVO_RECUSA_MAXIMO`, meta de
+ * 30 a 300 em `META_MINIMA` e `META_MAXIMA`, conferência de 7 dias em `DIAS_DE_CONFERENCIA` e
+ * quórum de 10% em `QUORUM_MINIMO`. Se um mudar, mude aqui também.
+ */
+export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
+  {
+    id: 'decidir',
+    rotulo: 'Decidir uma pauta nova',
+    chamada:
+      'Toda pauta nova espera a curadoria. A meta é decidir em até 24 horas; o selo de prazo da lista mostra quanto falta.',
+    passos: [
+      {
+        titulo: 'Abra a fila',
+        onde: 'painel',
+        resumo: 'Em Pautas, o filtro “Esperando decisão” já vem marcado.',
+        detalhe:
+          'O Início mostra quantas pautas esperam e quantas vencem em breve. Organize o dia pelo prazo.',
+      },
+      {
+        titulo: 'Leia tudo antes de decidir',
+        onde: 'painel',
+        resumo: 'Título, descrição, foto, relato de quem criou e a linha do tempo.',
+        detalhe:
+          'Se a pessoa editou o texto depois que a tela abriu, a aprovação é barrada e você relê o texto novo (a linha do tempo mostra o antes e o depois).',
+      },
+      {
+        titulo: 'Olhe os achados',
+        onde: 'painel',
+        resumo: '“Barrar” (e-mail, telefone, matrícula) e “Conferir” (possível nome de pessoa).',
+        detalhe:
+          'Se o relato de quem criou a pauta tem dado pessoal, use “Recusar só o relato”: a pauta segue em curadoria e, aprovada, vai ao site sem ele. Nome de pessoa e ofensa também não passam.',
+      },
+      {
+        titulo: 'Escolha a categoria',
+        onde: 'painel',
+        resumo: 'Obrigatória para aprovar. Marque “urgente” só se for o caso.',
+        detalhe:
+          'O motivo da urgência fica só no painel; o site mostra apenas que a pauta é urgente.',
+      },
+      {
+        titulo: 'Marque que conferiu e aprove',
+        onde: 'painel',
+        resumo: 'A caixa “Conferi…” é obrigatória: aprovar publica tudo no site agora.',
+        detalhe:
+          'A pauta passa a juntar apoios e o relato de quem a criou é publicado junto. Sem a caixa marcada, nada é publicado.',
+      },
+      {
+        titulo: 'Ou recuse com motivo',
+        onde: 'painel',
+        resumo: 'O motivo (até 500 caracteres) é enviado a quem criou, pelo bot.',
+        detalhe: 'Escreva de um jeito que a pessoa consiga corrigir e tentar de novo.',
+      },
+    ],
+  },
+  {
+    id: 'relatos',
+    rotulo: 'Moderar relatos',
+    chamada:
+      'Relatos e fotos novos em pautas já públicas esperam a moderação. Eles só vão ao site depois de aprovados.',
+    passos: [
+      {
+        titulo: 'Abra “Relatos em pautas publicadas”',
+        onde: 'painel',
+        resumo: 'A lista agrupa os relatos pendentes por pauta.',
+        detalhe: 'O relato de quem criou a pauta é conferido junto com a pauta, não aqui.',
+      },
+      {
+        titulo: 'Confira texto e foto',
+        onde: 'painel',
+        resumo: 'Nada de nome de pessoa, ofensa ou dado pessoal, nem na imagem.',
+        detalhe: 'Aprovar e recusar valem para o texto e a foto juntos.',
+      },
+      {
+        titulo: 'Marque que conferiu e aprove',
+        onde: 'painel',
+        resumo: 'A caixa “Conferi…” vale por relato. Aprovado, ele aparece no site na hora.',
+        detalhe:
+          'Se o relato ganhou uma foto depois que a lista abriu, a aprovação é barrada: confira de novo.',
+      },
+      {
+        titulo: 'Ou recuse',
+        onde: 'painel',
+        resumo: 'O relato não vai ao site. Não há motivo a escrever.',
+      },
+    ],
+  },
+  {
+    id: 'ajustes',
+    rotulo: 'Corrigir uma pauta publicada',
+    chamada: 'Depois de aprovada, o texto não muda. Dá para corrigir o que está em volta dele.',
+    passos: [
+      {
+        titulo: 'Abra a pauta',
+        onde: 'painel',
+        resumo: 'Em Pautas, filtre pela etapa ou busque pelo título.',
+      },
+      {
+        titulo: 'Bloco e meta',
+        onde: 'painel',
+        resumo: 'Corrija o bloco (a meta é recalculada) ou ajuste a meta, de 30 a 300.',
+        detalhe:
+          'Só enquanto a pauta está em curadoria ou juntando apoios. O motivo é obrigatório e fica na linha do tempo.',
+      },
+      {
+        titulo: 'Urgência e categoria',
+        onde: 'painel',
+        resumo: 'Troque quando a situação mudar. O motivo da urgência é opcional.',
+      },
+      {
+        titulo: 'Texto errado? Fale com quem criou',
+        onde: 'painel',
+        resumo: 'A curadoria não reescreve a pauta de ninguém.',
+        detalhe:
+          'Quem apoiou, apoiou aquele texto. Se um dado pessoal foi publicado por engano, avise a administração na hora.',
+      },
+    ],
+  },
+  {
+    id: 'promessa',
+    rotulo: 'Resposta e promessa',
+    chamada:
+      'A universidade respondeu: a curadoria registra a promessa e a conferência decide o resultado.',
+    passos: [
+      {
+        titulo: 'Veja o que chegou',
+        onde: 'painel',
+        resumo: 'Quem cuida da pauta manda a resposta oficial (PDF) pelo bot.',
+        detalhe: 'O filtro “sem resposta oficial” da lista mostra as pautas que esperam você.',
+      },
+      {
+        titulo: 'Registre resposta e promessa',
+        onde: 'painel',
+        resumo: 'Resumo, quem respondeu e a data prometida. O PDF fica ao lado do formulário.',
+        detalhe:
+          'Só pautas em cobrança, entregues em parte ou com promessa descumprida aceitam promessa. O resumo vai para a página pública: não cite nome de pessoa.',
+      },
+      {
+        titulo: 'Quem apoiou é avisado',
+        onde: 'automatico',
+        resumo: 'O bot manda o aviso da resposta a cada apoiador.',
+        detalhe: 'O painel mostra quantos apoiadores entraram na fila de aviso.',
+      },
+      {
+        titulo: 'A conferência abre',
+        onde: 'automatico',
+        resumo: 'Na data prometida, quem apoiou responde “Foi feito?” por 7 dias.',
+        detalhe: 'Pelo menos 10% de quem apoiou precisa responder para a apuração valer.',
+      },
+      {
+        titulo: 'O resultado sai sozinho',
+        onde: 'automatico',
+        resumo: 'Conquistada, entregue em parte ou descumprida, pelo voto de quem respondeu.',
+        detalhe:
+          'Nem a curadoria nem quem cuida da pauta marcam conquista. Sem quórum duas vezes, a pauta volta a ser cobrada.',
+      },
+      {
+        titulo: 'Prazos mudaram?',
+        onde: 'painel',
+        resumo:
+          'Em “Ajustes de prazo”: prorrogar, corrigir a data do protocolo ou remarcar a promessa.',
+        detalhe: 'Tudo fica registrado na linha do tempo.',
+      },
+    ],
+  },
+];
+
+/** Só a administração gerencia quem entra: vira uma aba a mais para esse papel. */
+export const FLUXO_DE_ADMINISTRACAO: FluxoEmCards = {
+  id: 'curadores',
+  rotulo: 'Gerir curadores',
+  chamada: 'Só administradores veem a tela “Curadores”.',
+  passos: [
+    {
+      titulo: 'Abra “Curadores”',
+      onde: 'painel',
+      resumo: 'Link no cabeçalho, só para administrador.',
+    },
+    {
+      titulo: 'Adicione pela tela',
+      onde: 'painel',
+      resumo: 'E-mail @ufal.br, nome e papel (curador ou administrador).',
+      detalhe:
+        'A pessoa entra por um link mandado ao e-mail: vale 15 minutos e uma vez só, e a sessão dura 7 dias.',
+    },
+    {
+      titulo: 'Desative e reative',
+      onde: 'painel',
+      resumo: 'Ninguém desativa a si mesmo e o último administrador ativo não sai.',
+      detalhe: 'Cada mudança fica registrada: quem fez, em quem e quando, sem o e-mail.',
+    },
+  ],
+};

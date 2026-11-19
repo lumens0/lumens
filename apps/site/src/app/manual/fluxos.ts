@@ -1,0 +1,192 @@
+import type { FluxoEmCards } from '@lumens/marca/fluxo';
+
+/**
+ * Os fluxos do manual público em cards: o que a pessoa faz no bot e no site, na ordem em que
+ * acontece. Os números (24 h, 3 pessoas, 30 dias, 7 dias, 10 %) são os do sistema: prazo da
+ * curadoria em `PRAZO_DE_CURADORIA_MS`, donos em `LIMITE_DE_OWNERS`, Fala.BR em `protocolo-falabr`,
+ * conferência em `DIAS_DE_CONFERENCIA` e `QUORUM_MINIMO`. Se um mudar, mude aqui também.
+ */
+export const FLUXOS: readonly FluxoEmCards[] = [
+  {
+    id: 'relatar',
+    rotulo: 'Relatar um problema',
+    chamada: 'Você viu algo errado no campus e quer que vire uma pauta pública.',
+    passos: [
+      {
+        titulo: 'Chame o bot',
+        onde: 'bot',
+        resumo: 'Mande uma mensagem e escolha “Relatar problema” no menu.',
+        detalhe:
+          'O botão “Relatar” no alto do site abre a conversa. A qualquer momento, “menu” volta ao começo e “cancelar” larga o que você estava fazendo.',
+      },
+      {
+        titulo: 'Conte o que viu',
+        onde: 'bot',
+        resumo: 'Escreva o que acontece e onde, com suas palavras.',
+        detalhe: 'Sem nome de pessoa, e-mail ou telefone: a pauta é pública.',
+      },
+      {
+        titulo: 'Veja se já existe',
+        onde: 'bot',
+        resumo: 'O bot mostra pautas abertas parecidas com o seu relato.',
+        detalhe:
+          'Se for o mesmo problema, apoie a que já existe: junta mais força. Se não for, siga para criar uma nova.',
+      },
+      {
+        titulo: 'Verifique seu e-mail',
+        onde: 'bot',
+        resumo: 'Com o e-mail @ufal.br, o bot manda um código e você responde com ele.',
+        detalhe:
+          'Só na primeira vez. O e-mail fica cifrado e nunca aparece no site. O bot também pergunta o seu curso.',
+      },
+      {
+        titulo: 'Monte a pauta',
+        onde: 'bot',
+        resumo: 'Título, local, categoria, descrição e, se quiser, uma foto.',
+        detalhe:
+          'O bot sugere uma categoria (“Parece ser Infraestrutura. Confirma?”); você aceita ou escolhe outra. Dá para corrigir o texto depois, em “Editar pauta”, até a curadoria decidir.',
+      },
+      {
+        titulo: 'A curadoria confere',
+        onde: 'automatico',
+        resumo: 'Em até 24 horas alguém confere e decide.',
+        detalhe:
+          'A curadoria barra nome de pessoa, ofensa e dado pessoal. Se recusar, você recebe o motivo pelo bot.',
+      },
+      {
+        titulo: 'A pauta vai ao ar',
+        onde: 'site',
+        resumo: 'Aprovada, ela aparece no site e começa a juntar apoios.',
+        detalhe: 'Você recebe o aviso pelo bot e passa a cuidar da pauta.',
+      },
+    ],
+  },
+  {
+    id: 'apoiar',
+    rotulo: 'Apoiar uma pauta',
+    chamada: 'Você achou uma pauta no site e quer somar o seu apoio.',
+    passos: [
+      {
+        titulo: 'Encontre a pauta',
+        onde: 'site',
+        resumo: 'Na página inicial, filtre por bloco ou etapa, ou veja o mapa do campus.',
+        detalhe: 'Cada pauta mostra os apoios, a meta, a etapa e o que já foi feito.',
+      },
+      {
+        titulo: 'Toque em Apoiar',
+        onde: 'site',
+        resumo: 'O botão leva a conversa para o bot, já com a pauta certa.',
+      },
+      {
+        titulo: 'Verifique o e-mail, se pedir',
+        onde: 'bot',
+        resumo: 'Só na primeira vez: o código chega no seu e-mail @ufal.br.',
+        detalhe: 'Cada pessoa verificada apoia uma pauta uma vez.',
+      },
+      {
+        titulo: 'O apoio conta na hora',
+        onde: 'bot',
+        resumo: 'O bot confirma e mostra o placar de apoios.',
+      },
+      {
+        titulo: 'Conte a sua experiência',
+        onde: 'bot',
+        resumo: 'Opcional: um relato curto e uma foto.',
+        detalhe:
+          'Eles aparecem no site depois de aprovados pela moderação, sem o seu nome. As fotos perdem a localização antes de serem guardadas.',
+      },
+      {
+        titulo: 'Compartilhe o card',
+        onde: 'bot',
+        resumo: 'O bot manda uma imagem da pauta, com QR Code, para você divulgar.',
+        detalhe: 'Quem apontar a câmera para o QR Code cai direto na pauta e pode apoiar também.',
+      },
+    ],
+  },
+  {
+    id: 'cuidar',
+    rotulo: 'Cuidar de uma pauta',
+    chamada: 'Você criou a pauta (ou quis ajudar) e vai levá-la até uma resposta.',
+    passos: [
+      {
+        titulo: 'Abra “Minhas pautas”',
+        onde: 'bot',
+        resumo: 'No menu, escolha a pauta que você cuida.',
+        detalhe:
+          'Até 3 pessoas cuidam de cada pauta. Depois de apoiar, se houver vaga, o bot convida com “Quero cuidar”. É preciso o e-mail verificado.',
+      },
+      {
+        titulo: 'Escolha um caminho',
+        onde: 'bot',
+        resumo: 'Fala.BR, solução da comunidade, representante ou proposta da comunidade.',
+        detalhe:
+          'Dá para abrir mais de um ao mesmo tempo. Uma solução da comunidade nunca fecha a pauta: a cobrança continua.',
+      },
+      {
+        titulo: 'Fala.BR: copie e cole',
+        onde: 'bot',
+        resumo: 'O bot monta o texto da manifestação; você cola em falabr.cgu.gov.br.',
+        detalhe:
+          'E-mail, telefone e matrícula viram [removido]. Possíveis nomes de pessoa ficam no texto, e o bot avisa quais são: apague antes de enviar.',
+      },
+      {
+        titulo: 'Registre o protocolo',
+        onde: 'bot',
+        resumo: 'Mande o número que o Fala.BR deu e o dia em que registrou.',
+        detalhe:
+          'A ouvidoria tem 30 dias para responder, prorrogáveis uma vez por mais 30. O protocolo e o prazo ficam públicos na pauta.',
+      },
+      {
+        titulo: 'Envie a resposta oficial',
+        onde: 'bot',
+        resumo: 'Quando a universidade responder, mande o PDF para a curadoria.',
+      },
+      {
+        titulo: 'A curadoria registra a promessa',
+        onde: 'painel',
+        resumo: 'A resposta e a data prometida aparecem na pauta, e quem apoiou é avisado.',
+      },
+    ],
+  },
+  {
+    id: 'acompanhar',
+    rotulo: 'Do apoio à conquista',
+    chamada: 'O caminho de uma pauta, do primeiro apoio ao resultado. Tudo é público no site.',
+    passos: [
+      {
+        titulo: 'Juntando apoios',
+        onde: 'site',
+        resumo: 'A pauta é aprovada e cada apoio conta para a meta.',
+        detalhe: 'A meta é 10% dos estudantes do bloco, entre 30 e 300 apoios.',
+      },
+      {
+        titulo: 'Meta batida',
+        onde: 'automatico',
+        resumo: 'Quem apoia recebe o aviso. A pauta continua aberta e pode seguir juntando apoios.',
+      },
+      {
+        titulo: 'Em cobrança',
+        onde: 'site',
+        resumo: 'Com o protocolo registrado, a pauta passa a ser cobrada e o prazo aparece nela.',
+      },
+      {
+        titulo: 'Prometido',
+        onde: 'site',
+        resumo: 'A universidade respondeu e a promessa, com a data, fica registrada.',
+      },
+      {
+        titulo: 'Conferência: “Foi feito?”',
+        onde: 'bot',
+        resumo: 'Na data prometida, quem apoiou responde sim, em parte ou não, por 7 dias.',
+        detalhe: 'Para valer, pelo menos 10% de quem apoiou precisa responder.',
+      },
+      {
+        titulo: 'Resultado',
+        onde: 'automatico',
+        resumo: 'Conquistada, entregue em parte ou descumprida, pelo que a maioria respondeu.',
+        detalhe:
+          'Nem quem cuida da pauta nem a curadoria marcam conquista: só o resultado da conferência. Se a conferência ficar sem quórum duas vezes, a pauta volta a ser cobrada.',
+      },
+    ],
+  },
+];

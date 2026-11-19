@@ -1,0 +1,256 @@
+/* Fluxo em cards dos manuais (site e painel). Só tokens de tokens.css; mobile primeiro. */
+.fluxo {
+  display: grid;
+  gap: var(--espaco);
+}
+
+.fluxo-abas {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.fluxo-aba {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font:
+    600 0.9375rem var(--fonte-corpo),
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.fluxo-aba[aria-selected='true'] {
+  border-color: var(--noite);
+  background: var(--noite);
+  color: #fff;
+}
+
+.fluxo-chamada {
+  margin: 0 0 12px;
+  color: var(--tinta-2);
+}
+
+.fluxo-progresso {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin: 0 0 16px;
+  border: 0;
+  border-radius: 999px;
+  appearance: none;
+  background: var(--trilho);
+  overflow: hidden;
+}
+
+.fluxo-progresso::-webkit-progress-bar {
+  background: var(--trilho);
+}
+
+.fluxo-progresso::-webkit-progress-value {
+  background: var(--luz-forte);
+  transition: width var(--rapido) var(--curva);
+}
+
+.fluxo-progresso::-moz-progress-bar {
+  background: var(--luz-forte);
+}
+
+.fluxo-passos {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  isolation: isolate;
+}
+
+/* A linha que liga os cards, atrás dos números. */
+.fluxo-passos::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 23px;
+  width: 2px;
+  background: var(--borda-forte);
+  z-index: -1;
+}
+
+.fluxo-passo {
+  margin-bottom: 8px;
+}
+
+.fluxo-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px 10px 0;
+  border: 1px solid transparent;
+  border-radius: var(--raio);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fluxo-passo[data-estado='atual'] .fluxo-card {
+  border-color: var(--luz-forte);
+  background: var(--luz-fundo);
+}
+
+.fluxo-numero {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 28px;
+  margin-top: 2px;
+  font-weight: 700;
+  isolation: isolate;
+}
+
+.fluxo-numero::before {
+  content: '';
+  position: absolute;
+  inset: 0 10px;
+  z-index: -1;
+  border: 2px solid var(--borda-forte);
+  border-radius: 999px;
+  background: var(--superficie);
+}
+
+.fluxo-passo[data-estado='feito'] .fluxo-numero::before {
+  border-color: var(--status-conquistada);
+  background: var(--status-conquistada);
+}
+
+.fluxo-passo[data-estado='atual'] .fluxo-numero::before {
+  border-color: var(--noite);
+  background: var(--noite);
+}
+
+.fluxo-passo[data-estado='feito'] .fluxo-numero,
+.fluxo-passo[data-estado='atual'] .fluxo-numero {
+  color: #fff;
+}
+
+.fluxo-texto {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fluxo-onde {
+  justify-self: start;
+  padding: 0 8px;
+  border-left: 4px solid var(--tinta-3);
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--tinta);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.fluxo-onde[data-onde='bot'] {
+  border-left-color: var(--status-prometido);
+}
+
+.fluxo-onde[data-onde='site'] {
+  border-left-color: var(--status-apoios);
+}
+
+.fluxo-onde[data-onde='painel'] {
+  border-left-color: var(--luz-forte);
+}
+
+.fluxo-onde[data-onde='automatico'] {
+  border-left-color: var(--status-meta);
+}
+
+.fluxo-titulo {
+  font:
+    700 1rem var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+}
+
+.fluxo-resumo {
+  color: var(--tinta-2);
+  font-size: 0.9375rem;
+}
+
+.fluxo-detalhe {
+  margin: 4px 0 4px 60px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--luz-forte);
+  border-radius: 0 var(--raio-controle) var(--raio-controle) 0;
+  background: var(--superficie);
+  font-size: 0.9375rem;
+  animation: fluxo-entra var(--rapido) var(--curva);
+}
+
+.fluxo-detalhe[hidden] {
+  display: none;
+}
+
+@keyframes fluxo-entra {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.fluxo-controles {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fluxo-contagem {
+  color: var(--tinta-2);
+  font-size: 0.875rem;
+}
+
+.fluxo-botao {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
+  color: var(--tinta);
+  font:
+    600 0.9375rem var(--fonte-corpo),
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+.fluxo-botao-principal {
+  border-color: var(--luz-forte);
+  background: var(--luz);
+}
+
+.fluxo-botao:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fluxo-detalhe {
+    animation: none;
+  }
+}

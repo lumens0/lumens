@@ -5,6 +5,7 @@ import { Cabecalho } from '../componentes/Cabecalho';
 import { metadadosDaMarca } from '../metadados';
 import { origemDoSite } from '../origem';
 import '@lumens/marca/tokens.css';
+import '@lumens/marca/fluxo.css';
 import './globals.css';
 
 // As fontes são locais, não `next/font/google`: aquele baixa os arquivos de

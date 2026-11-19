@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 import '@lumens/marca/tokens.css';
+import '@lumens/marca/fluxo.css';
 import './globals.css';
 
 // As fontes são locais, não `next/font/google`: aquele baixa os arquivos durante o build, e uma
