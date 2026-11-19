@@ -22,7 +22,9 @@ import {
   type Tx,
 } from '@lumens/db';
 import { enfileirarDisparos } from '../avisos/fila';
+import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 import { registrarEvento } from '../compartilhado/eventos';
+import { MOTIVO_MAXIMO, motivoValido } from '../compartilhado/motivo';
 import { editarPautaEmCuradoria, type CampoEditavel, type ResultadoEdicao } from './edicao';
 import { DESCRICAO_MAXIMA, TITULO_MAXIMO } from './pauta';
 
@@ -34,7 +36,10 @@ export const MODELO_EDICAO_APROVADA = 'lumens_edicao_aprovada';
 export const MODELO_EDICAO_RECUSADA = 'lumens_edicao_recusada';
 
 /** Teto do motivo de recusa, o mesmo da recusa de foto. */
-export const MOTIVO_DE_EDICAO_MAXIMO = 200;
+export const MOTIVO_DE_EDICAO_MAXIMO = MOTIVO_MAXIMO;
+
+const temBloqueio = (texto: string) =>
+  conferirAnonimato(texto).achados.some((a) => a.severidade === 'bloqueio');
 
 const NOME_DO_CAMPO: Record<CampoEditavel, string> = { titulo: 'título', descricao: 'descrição' };
 const tamanho = (texto: string) => Array.from(texto).length;
@@ -43,7 +48,8 @@ export type ResultadoEditarPauta =
   | { editada: true; modo: 'direta' | 'pedido' | 'sem_mudanca' }
   | {
       editada: false;
-      motivo: Extract<ResultadoEdicao, { editada: false }>['motivo'] | 'pedido_pendente';
+      motivo:
+        Extract<ResultadoEdicao, { editada: false }>['motivo'] | 'pedido_pendente' | 'dado_pessoal';
     };
 
 /**
@@ -72,6 +78,8 @@ export async function editarPauta(
   if (limpo === '') return { editada: false, motivo: 'texto_vazio' };
   const maximo = args.campo === 'titulo' ? TITULO_MAXIMO : DESCRICAO_MAXIMA;
   if (tamanho(limpo) > maximo) return { editada: false, motivo: 'texto_longo' };
+  // O texto novo vai ao site se a curadoria aprovar: e-mail, telefone ou matrícula nem chegam a ela.
+  if (temBloqueio(limpo)) return { editada: false, motivo: 'dado_pessoal' };
 
   const [papel] = await tx
     .select({ id: papeisPauta.estudanteId })
@@ -118,11 +126,16 @@ export interface PedidoDeEdicao {
   antes: string;
   depois: string;
   criadoEm: Date;
+  /** Lembrete do que barrar no texto novo (e-mail, telefone, matrícula, possível nome). */
+  achados: Achado[];
 }
 
 export interface PedidoDeEdicaoNaFila extends PedidoDeEdicao {
   pautaTitulo: string;
 }
+
+const comAchados = <T extends { depois: string }>(linhas: T[]) =>
+  linhas.map((l) => ({ ...l, achados: conferirAnonimato(l.depois).achados }));
 
 const colunas = {
   id: pedidosEdicao.id,
@@ -134,29 +147,34 @@ const colunas = {
 };
 
 /** Pedidos pendentes de uma pauta, o mais antigo primeiro. */
-export function pedidosPendentesDaPauta(db: Db, pautaId: string): Promise<PedidoDeEdicao[]> {
-  return db
-    .select(colunas)
-    .from(pedidosEdicao)
-    .where(and(eq(pedidosEdicao.pautaId, pautaId), eq(pedidosEdicao.status, 'pendente')))
-    .orderBy(pedidosEdicao.criadoEm, pedidosEdicao.id);
+export async function pedidosPendentesDaPauta(db: Db, pautaId: string): Promise<PedidoDeEdicao[]> {
+  return comAchados(
+    await db
+      .select(colunas)
+      .from(pedidosEdicao)
+      .where(and(eq(pedidosEdicao.pautaId, pautaId), eq(pedidosEdicao.status, 'pendente')))
+      .orderBy(pedidosEdicao.criadoEm, pedidosEdicao.id),
+  );
 }
 
 /** Fila da curadoria: todos os pedidos pendentes, do mais antigo para o mais novo. */
-export function listarPedidosDeEdicaoPendentes(db: Db): Promise<PedidoDeEdicaoNaFila[]> {
-  return db
-    .select({ ...colunas, pautaTitulo: pautas.titulo })
-    .from(pedidosEdicao)
-    .innerJoin(pautas, eq(pautas.id, pedidosEdicao.pautaId))
-    .where(eq(pedidosEdicao.status, 'pendente'))
-    .orderBy(pedidosEdicao.criadoEm, pedidosEdicao.id);
+export async function listarPedidosDeEdicaoPendentes(db: Db): Promise<PedidoDeEdicaoNaFila[]> {
+  return comAchados(
+    await db
+      .select({ ...colunas, pautaTitulo: pautas.titulo })
+      .from(pedidosEdicao)
+      .innerJoin(pautas, eq(pautas.id, pedidosEdicao.pautaId))
+      .where(eq(pedidosEdicao.status, 'pendente'))
+      .orderBy(pedidosEdicao.criadoEm, pedidosEdicao.id),
+  );
 }
 
 export type ResultadoDecisaoDePedido =
   | { decidido: true }
   | {
       decidido: false;
-      motivo: 'pedido_inexistente' | 'ja_decidido' | 'pedido_mudou' | 'motivo_invalido';
+      motivo:
+        'pedido_inexistente' | 'ja_decidido' | 'pedido_mudou' | 'motivo_invalido' | 'dado_pessoal';
     };
 
 export type DecisaoDePedido =
@@ -181,15 +199,8 @@ export async function decidirPedidoDeEdicao(
     ...decisao
   }: { pedidoId: string; curadorId: string; agora?: Date } & DecisaoDePedido,
 ): Promise<ResultadoDecisaoDePedido> {
-  const motivo = decisao.decisao === 'recusado' ? decisao.motivo.trim() : '';
-  if (
-    decisao.decisao === 'recusado' &&
-    (motivo === '' ||
-      tamanho(motivo) > MOTIVO_DE_EDICAO_MAXIMO ||
-      /[\p{Cc}\p{Zl}\p{Zp}]/u.test(motivo))
-  ) {
-    return { decidido: false, motivo: 'motivo_invalido' };
-  }
+  const motivo = decisao.decisao === 'recusado' ? motivoValido(decisao.motivo) : '';
+  if (motivo === undefined) return { decidido: false, motivo: 'motivo_invalido' };
 
   const [achado] = await tx
     .select({ pautaId: pedidosEdicao.pautaId })
@@ -224,6 +235,10 @@ export async function decidirPedidoDeEdicao(
     (decisao.depoisVisto !== pedido.depois || atual !== pedido.antes)
   ) {
     return { decidido: false, motivo: 'pedido_mudou' };
+  }
+  // Defesa em profundidade: o pedido já foi barrado ao ser feito, mas o texto vai ao site daqui.
+  if (decisao.decisao === 'aprovado' && temBloqueio(pedido.depois)) {
+    return { decidido: false, motivo: 'dado_pessoal' };
   }
 
   await tx

@@ -117,6 +117,17 @@ describe('editarPauta', () => {
     expect(await pedidosPendentesDaPauta(db, pauta.id)).toEqual([]);
   });
 
+  it('texto com e-mail, telefone ou matrícula é barrado já no pedido, sem gravar nada', async () => {
+    const { pauta, owner } = await pautaComOwner('juntando_apoios');
+    for (const texto of ['Falem comigo: fulano@ufal.br', 'Meu celular é (82) 99999-1234, liguem']) {
+      expect(await editar(pauta.id, owner.id, 'descricao', texto)).toEqual({
+        editada: false,
+        motivo: 'dado_pessoal',
+      });
+    }
+    expect(await pedidosPendentesDaPauta(db, pauta.id)).toEqual([]);
+  });
+
   it('a lista do bot inclui as publicadas e deixa de fora as recusadas', async () => {
     const publicada = await pautaComOwner('juntando_apoios');
     const recusada = await pautaComOwner('recusada');
@@ -229,6 +240,39 @@ describe('decidirPedidoDeEdicao', () => {
     ).toEqual({ decidido: false, motivo: 'pedido_mudou' });
     expect((await pautaDa(pauta.id))?.titulo).toBe('Mudou por fora');
     expect(await avisosDe(pedido.id)).toEqual([]);
+  });
+
+  it('a fila traz os achados do texto novo, para a curadoria conferir', async () => {
+    const { pauta, owner } = await pautaComOwner('juntando_apoios');
+    await editar(pauta.id, owner.id, 'descricao', 'A professora Marta mandou trocar o filtro.');
+
+    const [pedido] = await pedidosPendentesDaPauta(db, pauta.id);
+    expect(pedido?.achados).toMatchObject([
+      { severidade: 'aviso', motivo: 'possivel_nome', trecho: 'professora Marta' },
+    ]);
+    const fila = await listarPedidosDeEdicaoPendentes(db);
+    expect(fila.find((p) => p.id === pedido?.id)?.achados).toHaveLength(1);
+  });
+
+  it('aprovar não publica texto com dado pessoal, mesmo que ele tenha entrado por fora', async () => {
+    const { pauta, pedido } = await comPedido('descricao');
+    await db
+      .update(pedidosEdicao)
+      .set({ depois: 'Chame no zap (82) 99999-1234' })
+      .where(eq(pedidosEdicao.id, pedido.id));
+
+    expect(
+      await decidir(pedido.id, {
+        decisao: 'aprovado',
+        depoisVisto: 'Chame no zap (82) 99999-1234',
+      }),
+    ).toEqual({ decidido: false, motivo: 'dado_pessoal' });
+    expect((await pautaDa(pauta.id))?.descricao).toBe('Não funciona há duas semanas.');
+    expect(await avisosDe(pedido.id)).toEqual([]);
+    // A recusa continua possível.
+    expect(await decidir(pedido.id, { decisao: 'recusado', motivo: 'Tem telefone.' })).toEqual({
+      decidido: true,
+    });
   });
 
   it('pedido já decidido ou inexistente não muda nada', async () => {

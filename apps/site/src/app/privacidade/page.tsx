@@ -144,7 +144,8 @@ export default function Privacidade() {
             manter o texto e as outras. Para cada foto recusada, ela escreve um motivo, e nós o
             enviamos a quem mandou a foto, pelo bot. O motivo é um texto livre da curadoria; nele
             não aparece o nome de quem decidiu. Uma foto já publicada também pode ser retirada
-            assim.
+            assim. A foto recusada continua guardada, privada e visível só para a curadoria, até
+            você sair do Lumens ou pedir a retirada (veja “Seus direitos”); ela nunca vai ao site.
           </li>
           <li>
             <strong>Sem o seu nome.</strong> O site não mostra quem mandou a foto, e o nome do

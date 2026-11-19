@@ -166,22 +166,32 @@ describe('voltar atrás (docs/operacao/migracoes-fotos-e-limpeza-de-blocos.md)',
         VALUES ('00000000-0000-0000-0000-0000000000a1', 'p', 't', 'd', 'infraestrutura', 'juntando_apoios', 10);
       INSERT INTO relato (id, pauta_id, estudante_id, texto, moderacao) VALUES
         ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', 'com três', 'aprovado'),
-        ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', 'sem foto', 'aprovado');
+        ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', 'sem foto', 'aprovado'),
+        ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', 'todas recusadas', 'aprovado'),
+        ('00000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e1', 'pendente com foto', 'pendente');
       INSERT INTO relato_foto (relato_id, chave, ordem, moderacao, motivo_recusa) VALUES
         ('00000000-0000-0000-0000-0000000000b1', 'fotos/2026/11/1.jpg', 1, 'recusado', 'x'),
         ('00000000-0000-0000-0000-0000000000b1', 'fotos/2026/11/2.jpg', 2, 'aprovado', NULL),
-        ('00000000-0000-0000-0000-0000000000b1', 'fotos/2026/11/3.jpg', 3, 'aprovado', NULL);
+        ('00000000-0000-0000-0000-0000000000b1', 'fotos/2026/11/3.jpg', 3, 'aprovado', NULL),
+        ('00000000-0000-0000-0000-0000000000b3', 'fotos/2026/11/4.jpg', 1, 'recusado', 'Mostra uma pessoa.'),
+        ('00000000-0000-0000-0000-0000000000b3', 'fotos/2026/11/5.jpg', 2, 'recusado', 'Mostra uma placa.'),
+        ('00000000-0000-0000-0000-0000000000b4', 'fotos/2026/11/6.jpg', 1, 'pendente', NULL);
     `);
 
     await outro.exec(volta ?? '');
 
-    // Fica a primeira foto que não foi recusada; o relato sem foto continua sem.
+    // Relato aprovado leva só foto aprovada; se todas foram recusadas, a recusada NÃO volta ao site.
     expect(
       (await outro.query(`SELECT texto, foto_chave FROM v_relato_publico ORDER BY texto`)).rows,
     ).toEqual([
       { texto: 'com três', foto_chave: 'fotos/2026/11/2.jpg' },
       { texto: 'sem foto', foto_chave: null },
+      { texto: 'todas recusadas', foto_chave: null },
     ]);
+    // O relato pendente recupera a foto pendente, para a curadoria ver.
+    expect(
+      (await outro.query(`SELECT foto_chave FROM relato WHERE texto = 'pendente com foto'`)).rows,
+    ).toEqual([{ foto_chave: 'fotos/2026/11/6.jpg' }]);
     expect(
       (
         await outro.query(
@@ -192,6 +202,29 @@ describe('voltar atrás (docs/operacao/migracoes-fotos-e-limpeza-de-blocos.md)',
     // Só a migração anterior ao 0026 continua registrada: o db:migrate reaplica as outras.
     expect((await outro.query(`SELECT hash FROM drizzle.__drizzle_migrations`)).rows).toEqual([
       { hash: 'antes' },
+    ]);
+
+    // Reaplicar: os valores de enum que ficaram não impedem a 0026 de rodar de novo, e a foto
+    // recuperada volta para `relato_foto` do mesmo jeito.
+    for (const tag of ['0026_fotos_e_pedidos_de_edicao', '0027_remove_praca_de_alimentacao']) {
+      await aplicar(outro, tag);
+    }
+    expect(
+      (await outro.query(`SELECT texto, fotos FROM v_relato_publico ORDER BY texto`)).rows,
+    ).toEqual([
+      { texto: 'com três', fotos: ['fotos/2026/11/2.jpg'] },
+      { texto: 'sem foto', fotos: [] },
+      { texto: 'todas recusadas', fotos: [] },
+    ]);
+    expect(
+      (
+        await outro.query(
+          `SELECT chave, moderacao::text AS moderacao FROM relato_foto ORDER BY chave`,
+        )
+      ).rows,
+    ).toEqual([
+      { chave: 'fotos/2026/11/2.jpg', moderacao: 'aprovado' },
+      { chave: 'fotos/2026/11/6.jpg', moderacao: 'pendente' },
     ]);
   });
 });

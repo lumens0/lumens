@@ -16,7 +16,9 @@ de aplicar e como voltar atrás. O `db:migrate` aplica as duas na ordem, numa ú
 - Dois valores novos em `tipo_disparo`: `foto_recusada` e `edicao_decidida` (avisos do bot).
 - A coluna `relato.foto_chave` **sai**, e a view pública `v_relato_publico` troca `foto_chave` por
   `fotos` (`text[]`, só fotos aprovadas, em ordem). A view é recriada com `security_barrier` e o
-  `GRANT SELECT` ao `lumens_site`, como as outras.
+  `GRANT SELECT` ao `lumens_site`, como as outras. Uma view nova, `v_foto_publica` (só a chave das fotos
+  aprovadas de relatos aprovados de pautas públicas), serve a rota de foto do site com uma busca pela
+  chave única.
 
 **Dados existentes.** Antes de apagar a coluna, a migração copia cada `foto_chave` não nula para
 `relato_foto` como foto 1, com a moderação do relato:
@@ -46,11 +48,20 @@ relato, os motivos de recusa por foto e os pedidos de edição. Faça um backup 
 ```sql
 BEGIN;
 ALTER TABLE relato ADD COLUMN foto_chave text;
--- Fica a primeira foto que não foi recusada; se todas foram recusadas, a primeira.
+-- Só volta uma foto que podia estar onde está: relato aprovado leva a primeira foto aprovada (se
+-- todas foram recusadas, fica sem foto, e a recusada nunca volta ao site); relato pendente leva a
+-- primeira foto pendente; relato recusado leva a primeira, que não é pública de qualquer jeito.
 UPDATE relato r SET foto_chave = (
-  SELECT f.chave FROM relato_foto f WHERE f.relato_id = r.id
-  ORDER BY (f.moderacao = 'recusado'), f.ordem LIMIT 1
+  SELECT f.chave FROM relato_foto f
+  WHERE f.relato_id = r.id
+    AND CASE r.moderacao::text
+          WHEN 'aprovado' THEN f.moderacao = 'aprovado'
+          WHEN 'pendente' THEN f.moderacao = 'pendente'
+          ELSE true
+        END
+  ORDER BY f.ordem LIMIT 1
 );
+DROP VIEW v_foto_publica;
 DROP VIEW v_relato_publico;
 CREATE VIEW v_relato_publico WITH (security_barrier = true) AS
 SELECT p.slug AS pauta_slug, r.texto, r.foto_chave, e.curso, r.moderado_em
@@ -64,7 +75,7 @@ DROP TABLE relato_foto;
 DROP TABLE pedido_edicao;
 DROP TYPE status_pedido_edicao;
 -- Os valores novos de tipo_disparo ficam (o Postgres não remove valor de enum); nenhum código
--- antigo os usa. Antes de voltar o código, apague os avisos desses tipos que ainda estejam na fila:
+-- antigo os usa, e a 0026 usa ADD VALUE IF NOT EXISTS, então pode ser reaplicada por cima deles. Antes de voltar o código, apague os avisos desses tipos que ainda estejam na fila:
 DELETE FROM disparo WHERE tipo IN ('foto_recusada', 'edicao_decidida');
 -- E tire as duas migrações do registro do Drizzle, para o db:migrate poder reaplicá-las depois:
 DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= 1795043510405;

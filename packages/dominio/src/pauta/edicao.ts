@@ -1,9 +1,12 @@
 /**
- * Corrigir a descrição da própria pauta (pedido da equipe, validação final).
+ * Corrigir o título ou a descrição da própria pauta (pedido da equipe, validação final).
  *
  * Quem cria a pauta é o owner. Esquecer algo ou errar uma palavra acontece, então o owner pode
- * reescrever a descrição enquanto a pauta está em curadoria. Por garantia, também recusa se outra
- * pessoa já apoiou (o apoio do próprio owner não conta). Título, bloco e categoria não mudam por aqui (o bloco mexe na meta, que é congelada).
+ * reescrever o título ou a descrição **enquanto a pauta está em curadoria** (`STATUS_EDITAVEIS`): o
+ * texto corrigido é o que a curadoria vai avaliar. Por garantia, também recusa se outra pessoa já
+ * apoiou (o apoio do próprio owner não conta). Bloco e categoria não mudam por aqui (o bloco mexe
+ * na meta, que é congelada). Depois da publicação a edição vira um pedido que a curadoria aprova
+ * (`pedido-edicao.ts`); `pautasEditaveisDoOwner` lista as pautas das duas situações.
  */
 import { createHash } from 'node:crypto';
 import { and, apoios, eq, isNull, papeisPauta, pautas, sql, type Db, type Tx } from '@lumens/db';

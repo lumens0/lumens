@@ -37,6 +37,7 @@ import {
   titleTooLongText,
 } from './nova-pauta';
 import { CATEGORY_NOT_FOUND_TEXT, CATEGORY_QUESTION_TEXT } from './categorias';
+import { removerFotosSoltas } from './fotos-temporarias';
 import { hashPhone } from './phone';
 import {
   BLOCK_NOT_FOUND_TEXT,
@@ -284,6 +285,92 @@ describe('pauta nova pelo menu', () => {
     await sendFoto(fotos);
     expect((await send('pular'))[0]).toBe(PHOTO_RECEIVED_TEXT);
     expect(await chavesDoRelatoDeOrigem()).toHaveLength(1);
+  });
+
+  describe('fotos soltas: abandonar a pauta nova não deixa arquivo órfão no storage', () => {
+    const removidas: string[] = [];
+    const comRemocao: ServicoDeFotos = {
+      guardarFoto: (midia) => fotos.guardarFoto(midia),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        return Promise.resolve();
+      },
+    };
+    const mandar = (text: string) =>
+      handleIncoming({ phoneHmac: H, text }, { store, db, segredo, fotos: comRemocao });
+    const mandarFoto = () =>
+      handleIncoming(
+        { phoneHmac: H, text: '', image: { id: 'midia-1', mimeType: 'image/jpeg' } },
+        { store, db, segredo, fotos: comRemocao },
+      );
+    const comDuasFotos = async () => {
+      fotosPedidas.length = 0;
+      removidas.length = 0;
+      await ateAFoto();
+      await mandarFoto();
+      await mandarFoto();
+      expect((await dados()).fotoChaves).toHaveLength(2);
+    };
+    const AS_DUAS = ['fotos/2026/11/abc-2.jpg', 'fotos/2026/11/abc.jpg'];
+
+    it.each(['menu', 'cancelar', 'sair'])(
+      '"%s" depois de duas fotos apaga as duas',
+      async (cmd) => {
+        await comDuasFotos();
+        await mandar(cmd);
+        expect(removidas.sort()).toEqual(AS_DUAS);
+        expect(await todasAsPautas()).toEqual([]);
+      },
+    );
+
+    it('"sair" confirmado antes de responder "pronto" não deixa foto nenhuma sem dono', async () => {
+      await comDuasFotos();
+      await mandar('sair');
+      await mandar('sim');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('comando do site no meio do fluxo também apaga', async () => {
+      await comDuasFotos();
+      await mandar('nova pauta');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('pauta criada: as fotos viram relato e nada é apagado', async () => {
+      await comDuasFotos();
+      await mandar('pronto');
+      expect(removidas).toEqual([]);
+      expect(await chavesDoRelatoDeOrigem()).toEqual([...AS_DUAS].reverse());
+    });
+
+    it('seguir mandando fotos ou texto solto no passo não apaga nada', async () => {
+      await comDuasFotos();
+      await mandar('olha');
+      expect(removidas).toEqual([]);
+    });
+
+    it('conversa vencida: a limpeza apaga as fotos antes de apagar a conversa', async () => {
+      await comDuasFotos();
+      await db.update(conversas).set({ expiraEm: new Date(Date.now() - 1000) });
+      await removerFotosSoltas(db, comRemocao, await store.fotoChavesExpiradas());
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('conversa vencida e a pessoa volta antes da limpeza: o recomeço apaga as fotos antigas', async () => {
+      await comDuasFotos();
+      await db.update(conversas).set({ expiraEm: new Date(Date.now() - 1000) });
+      await mandar('oi');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('pauta não criada no fim (cadastro saiu no meio): as fotos saem do storage', async () => {
+      await comDuasFotos();
+      await db.update(estudantes).set({ saiuEm: new Date() });
+      await mandar('pronto');
+      // Apagar duas vezes não faz mal (o storage ignora a chave que já saiu).
+      expect([...new Set(removidas)].sort()).toEqual(AS_DUAS);
+      expect(await todasAsPautas()).toEqual([]);
+    });
   });
 
   it.each(['formato', 'tamanho', 'invalida', 'indisponivel', 'armazenamento'] as const)(

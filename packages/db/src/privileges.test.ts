@@ -412,6 +412,7 @@ describe('privilégios do login real do site', () => {
     'v_conquista',
     'v_atividade',
     'v_apoio_semana',
+    'v_foto_publica',
     'v_bloco',
   ];
   let poolSite: Pool;

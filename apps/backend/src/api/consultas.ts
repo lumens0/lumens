@@ -191,11 +191,11 @@ export async function listarAtividade(db: Db, query: PaginacaoQuery) {
   return paginar(itens, query);
 }
 
-/** Se a chave é a foto de um relato aprovado de pauta pública (`v_relato_publico`). */
+/** Se a chave é foto aprovada de um relato aprovado de pauta pública (`v_foto_publica`). */
 export async function fotoEhPublica(db: Db, chave: string): Promise<boolean> {
   const achadas = await linhas<{ ok: number }>(
     db,
-    sql`SELECT 1 AS ok FROM v_relato_publico WHERE ${chave} = ANY(fotos) LIMIT 1`,
+    sql`SELECT 1 AS ok FROM v_foto_publica WHERE chave = ${chave} LIMIT 1`,
   );
   return achadas.length > 0;
 }

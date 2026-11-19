@@ -1,7 +1,9 @@
 import type { Db } from '@lumens/db';
 import { apagarCodigosVencidos, apagarRegistrosVencidos } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
+import { removerFotosSoltas } from '../bot/conversation/fotos-temporarias';
 import type { ConversationStore } from '../bot/conversation/store';
+import type { ServicoDeFotos } from '../fotos/servico';
 import { deleteOldDedup } from '../bot/webhook/process';
 import { JOBS } from '../infra/queue';
 
@@ -36,13 +38,15 @@ export interface CleanupResult {
  */
 export async function registerCleanupJob(
   boss: Boss,
-  deps: { store: ConversationStore; db: Db },
+  deps: { store: ConversationStore; db: Db; fotos?: ServicoDeFotos },
   onDone?: (result: CleanupResult) => void,
 ): Promise<void> {
   const name = JOBS.cleanupConversations;
   if (!(await boss.getQueue(name))) await boss.createQueue(name);
   await boss.schedule(name, CLEANUP_CRON, null, { tz: CLEANUP_TZ });
   await boss.work(name, async () => {
+    // Fotos da pauta nova que a pessoa deixou pela metade: os arquivos saem antes de a conversa sumir.
+    await removerFotosSoltas(deps.db, deps.fotos, await deps.store.fotoChavesExpiradas());
     const result: CleanupResult = {
       deleted: await deps.store.deleteExpired(),
       dedupDeleted: await deleteOldDedup(deps.db),

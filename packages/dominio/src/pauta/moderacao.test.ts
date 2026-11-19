@@ -4,6 +4,7 @@ import {
   disparos,
   eq,
   eventos,
+  pautas,
   relatoFotos,
   relatos,
   sql,
@@ -385,6 +386,16 @@ describe('recusarFoto', () => {
     await recusar(fotos[0]?.id ?? '', 'Mostra uma matrícula.');
 
     expect(await noSite()).toEqual([{ texto: 'Relato de teste.', fotos: ['fotos/e2.jpg'] }]);
+    // A rota de foto do site só enxerga a chave da foto aprovada.
+    const chavesPublicas = async () => {
+      const r: unknown = await db.execute(
+        sql`SELECT chave FROM v_foto_publica WHERE chave IN ('fotos/e1.jpg', 'fotos/e2.jpg')`,
+      );
+      return (r as { rows: { chave: string }[] }).rows.map((l) => l.chave);
+    };
+    expect(await chavesPublicas()).toEqual(['fotos/e2.jpg']);
+    await db.update(pautas).set({ status: 'em_curadoria' }).where(eq(pautas.id, pauta.id));
+    expect(await chavesPublicas()).toEqual([]);
   });
 
   it('avisa só quem enviou, com o motivo e sem nome de curador, na mesma transação', async () => {

@@ -48,6 +48,7 @@ import {
   respostaDaSugestao,
 } from './categorias';
 import { estudanteVerificado } from './estudante';
+import { removerFotosSoltas } from './fotos-temporarias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { listaDeParecidas, type Parecida } from './parecidas';
 import type { Resposta } from './resposta';
@@ -370,14 +371,18 @@ async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promi
     : fotoChaves.length === 1
       ? PHOTO_RECEIVED_TEXT
       : PHOTOS_RECEIVED_TEXT;
-  const fim = (texto: string): StepResult => ({ next: 'MENU', data: LIMPAR, replies: [texto] });
+  // Pauta não criada: as fotos já estão no storage e nenhum relato as guarda, então saem daqui.
+  const fim = async (texto: string): Promise<StepResult> => {
+    await removerFotosSoltas(db, ctx.fotos, fotoChaves);
+    return { next: 'MENU', data: LIMPAR, replies: [texto] };
+  };
 
   const dados = dadosDaPauta(state.data);
   const titulo = decifrado(segredo, dados.tituloCifrado);
   const relato = decifrado(segredo, dados.relatoCifrado);
   const descricao = decifrado(segredo, dados.descricaoCifrada) ?? relato;
   if (titulo === undefined || descricao === undefined || dados.blocoId === undefined) {
-    return fim(DATA_LOST_TEXT);
+    return await fim(DATA_LOST_TEXT);
   }
   const blocoId = dados.blocoId;
   // Sem escolha ou "Outra": entra como `a_classificar` e a curadoria classifica.
@@ -386,7 +391,7 @@ async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promi
 
   // Confere de novo no fim: o estudante pode ter saído no meio da conversa.
   const estudanteId = await estudanteVerificado(db, phoneHmac);
-  if (estudanteId === undefined) return fim(NOT_VERIFIED_AT_END_TEXT);
+  if (estudanteId === undefined) return await fim(NOT_VERIFIED_AT_END_TEXT);
 
   // Se a pauta não for criada (recusa abaixo), a foto já enviada fica sem dono no storage. É raro
   // (estudante que saiu no meio, bloco apagado) e não expõe ninguém: o arquivo não tem metadados.
@@ -402,7 +407,7 @@ async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promi
     }),
   );
 
-  if (!resultado.criada) return fim(textoDaRecusa(resultado.motivo));
+  if (!resultado.criada) return await fim(textoDaRecusa(resultado.motivo));
   return {
     next: 'MENU',
     data: LIMPAR,

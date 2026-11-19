@@ -44,6 +44,8 @@ describe('política de privacidade: fotos por unidade e pedidos de edição', ()
     expect(html).toContain('Cada foto é analisada sozinha');
     expect(html).toContain('enviamos a quem mandou a foto');
     expect(html).toContain('LGPD, art. 7º, I');
+    // O que acontece com a foto recusada é dito: fica privada até a saída ou o pedido de retirada.
+    expect(html).toContain('A foto recusada continua guardada, privada');
   });
 
   it('explica o que fica guardado de um pedido de edição e quando é apagado', () => {

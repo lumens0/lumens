@@ -159,6 +159,16 @@ aprovou uma a uma: foto pendente ou recusada nunca aparece, mesmo com o relato a
 | `curso`       | text, nulo        | curso de quem relatou, nunca quem é                         |
 | `moderado_em` | timestamptz, nulo | quando o relato foi aprovado                                |
 
+### `v_foto_publica`
+
+Só a chave das fotos que podem ser mostradas: foto aprovada, de relato aprovado, de pauta pública.
+Serve a rota `/fotos` do site, que confere a chave com uma busca pelo índice único em vez de varrer
+`v_relato_publico`.
+
+| Coluna  | Tipo | Conteúdo                       |
+| ------- | ---- | ------------------------------ |
+| `chave` | text | chave da foto no armazenamento |
+
 ### `v_caminho_publico`
 
 Caminhos (Fala.BR, comunidade, representante) e propostas de pautas públicas. No schema, os

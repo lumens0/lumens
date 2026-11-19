@@ -1,6 +1,6 @@
 CREATE TYPE "public"."status_pedido_edicao" AS ENUM('pendente', 'aprovado', 'recusado');--> statement-breakpoint
-ALTER TYPE "public"."tipo_disparo" ADD VALUE 'foto_recusada';--> statement-breakpoint
-ALTER TYPE "public"."tipo_disparo" ADD VALUE 'edicao_decidida';--> statement-breakpoint
+ALTER TYPE "public"."tipo_disparo" ADD VALUE IF NOT EXISTS 'foto_recusada';--> statement-breakpoint
+ALTER TYPE "public"."tipo_disparo" ADD VALUE IF NOT EXISTS 'edicao_decidida';--> statement-breakpoint
 CREATE TABLE "pedido_edicao" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"pauta_id" uuid NOT NULL,
@@ -72,3 +72,14 @@ JOIN "estudante" e ON e.id = r.estudante_id
 WHERE r.moderacao = 'aprovado' AND p.status IN ('juntando_apoios', 'meta_batida', 'cobrando', 'prometido', 'entregue_em_parte', 'descumprida', 'conquistada');
 --> statement-breakpoint
 GRANT SELECT ON "v_relato_publico" TO "lumens_site";
+--> statement-breakpoint
+-- Para a rota de foto do site: "esta chave é de foto aprovada, de relato aprovado, de pauta pública?"
+-- com uma busca pela chave única, sem materializar o array de fotos de cada relato. Só a chave.
+CREATE VIEW "v_foto_publica" WITH (security_barrier = true) AS
+SELECT f.chave
+FROM "relato_foto" f
+JOIN "relato" r ON r.id = f.relato_id
+JOIN "pauta" p ON p.id = r.pauta_id
+WHERE f.moderacao = 'aprovado' AND r.moderacao = 'aprovado' AND p.status IN ('juntando_apoios', 'meta_batida', 'cobrando', 'prometido', 'entregue_em_parte', 'descumprida', 'conquistada');
+--> statement-breakpoint
+GRANT SELECT ON "v_foto_publica" TO "lumens_site";

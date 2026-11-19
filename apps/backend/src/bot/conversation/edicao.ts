@@ -36,6 +36,8 @@ export const EDIT_REQUESTED_TEXT =
 export const EDIT_UNCHANGED_TEXT = 'Esse já é o texto atual da pauta, então não há o que mudar.';
 export const EDIT_PENDING_TEXT =
   'Você já tem um pedido de mudança desse texto esperando a curadoria. Quando ela decidir, você recebe a resposta aqui e pode pedir de novo.';
+export const EDIT_PERSONAL_TEXT =
+  'Esse texto tem e-mail, telefone ou matrícula, e o que fica no site é público. Tire o dado pessoal e mande o texto de novo.';
 export const EDIT_CLOSED_TEXT =
   'Essa pauta não pode mais ser editada: ela foi recusada pela curadoria ou você não é mais responsável por ela. Se algo precisa mudar, escreva para a curadoria.';
 export const EDIT_LOST_TEXT = 'Perdi de qual pauta estávamos falando. Mande *6* para recomeçar.';
@@ -189,6 +191,8 @@ export const ownerEditText: StepHandler = async ({ input, state, db, phoneHmac }
         next: 'OWNER_EDIT_TEXT',
         replies: [editTooLongText(campo, Array.from(input.text.trim()).length)],
       };
+    case 'dado_pessoal':
+      return { next: 'OWNER_EDIT_TEXT', replies: [EDIT_PERSONAL_TEXT] };
     case 'pedido_pendente':
       return { next: 'MENU', data: LIMPAR_EDICAO, replies: [EDIT_PENDING_TEXT] };
     case 'nao_e_owner':

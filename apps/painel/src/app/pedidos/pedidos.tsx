@@ -16,6 +16,16 @@ export const ERRO_DE_PEDIDO: Record<string, string> = {
   edicao_pedido_mudou:
     'O texto da pauta ou o pedido mudou depois que a tela abriu. Confira o antes e o depois de novo.',
   edicao_pedido_inexistente: 'O pedido não foi encontrado.',
+  edicao_dado_pessoal:
+    'O texto novo tem e-mail, telefone ou matrícula e não pode ser publicado. Recuse o pedido, com o motivo.',
+};
+
+const MOTIVO_ACHADO: Record<string, string> = {
+  nome_conhecido: 'nome de quem participa',
+  email: 'e-mail',
+  telefone: 'telefone',
+  matricula: 'matrícula',
+  possivel_nome: 'possível nome de pessoa',
 };
 
 const CAMPO = { titulo: 'Título', descricao: 'Descrição' };
@@ -57,6 +67,16 @@ export function PedidosDeEdicao({
             <dt>Depois (pedido)</dt>
             <dd className={estilos.textoDoRelato}>{pedido.depois}</dd>
           </dl>
+          {pedido.achados.length > 0 && (
+            <ul className={estilos.aviso}>
+              {pedido.achados.map((achado) => (
+                <li key={`${String(achado.inicio)}-${achado.motivo}`}>
+                  {achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}:{' '}
+                  {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
+                </li>
+              ))}
+            </ul>
+          )}
           <p className={estilos.detalhes}>
             Confira: nada de nome de pessoa, ofensa ou dado pessoal. Aprovar publica o texto novo na
             hora.

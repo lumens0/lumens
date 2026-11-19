@@ -56,6 +56,7 @@ export const SUPPORT_PHOTO_ASK_TEXT =
   ' As fotos aparecem no site, sem o seu nome, depois de aprovadas pela curadoria, que pode recusar cada uma. Não mostre rosto, placa nem documento. Ao enviar, você concorda com essa publicação (LGPD, art. 7º, I).';
 export const PHOTO_NOT_ATTACHED_TEXT =
   'Não consegui juntar a foto: a curadoria já analisou o seu relato. O relato continua enviado.';
+export const PHOTO_LIMIT_TEXT = `Esse relato já tem ${String(FOTOS_POR_RELATO_MAXIMO)} fotos, que é o limite. As fotos enviadas seguem para a moderação.`;
 export const SUPPORT_DONE_TEXT = 'Tudo certo, o seu apoio já está contado ✅';
 export const REPORT_SENT_TEXT =
   'Relato enviado para a moderação ✅ Ele aparece no site depois de aprovado, sem o seu nome.';
@@ -373,8 +374,10 @@ async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<S
     anexarFotoAoRelato(tx, { relatoId, estudanteId, fotoChave }),
   );
   if (!r.anexada) {
-    // Relato já analisado ou sem espaço: o que já foi enviado continua valendo.
-    return fimDoApoio(ctx, apoioPautaId, [PHOTO_NOT_ATTACHED_TEXT]);
+    // O que já foi enviado continua valendo; o texto diz por que esta foto ficou de fora.
+    return fimDoApoio(ctx, apoioPautaId, [
+      r.motivo === 'limite_de_fotos' ? PHOTO_LIMIT_TEXT : PHOTO_NOT_ATTACHED_TEXT,
+    ]);
   }
   if (r.total >= FOTOS_POR_RELATO_MAXIMO) {
     return fimDoApoio(ctx, apoioPautaId, [REPORT_SENT_WITH_PHOTO_TEXT]);

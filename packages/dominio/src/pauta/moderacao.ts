@@ -21,6 +21,7 @@ import {
 import { enfileirarAvisoDeFotoRecusada } from '../avisos/aviso-foto-recusada';
 import { conferirAnonimato, type Achado } from '../compartilhado/anonimato';
 import { registrarEvento } from '../compartilhado/eventos';
+import { MOTIVO_MAXIMO, motivoValido } from '../compartilhado/motivo';
 
 /** Uma foto à espera de decisão: o id é o que a recusa e a conferência (`fotosVistas`) usam. */
 export interface FotoParaModerar {
@@ -215,7 +216,7 @@ export function recusarRelato(tx: Tx, decisao: DecisaoDeModeracao): Promise<Resu
 }
 
 /** Teto do motivo: cabe numa mensagem do bot e no parâmetro do modelo. */
-export const MOTIVO_DE_FOTO_MAXIMO = 200;
+export const MOTIVO_DE_FOTO_MAXIMO = MOTIVO_MAXIMO;
 
 export type ResultadoRecusaDeFoto =
   | { recusada: true }
@@ -238,14 +239,8 @@ export async function recusarFoto(
     agora = new Date(),
   }: { fotoId: string; curadorId: string; motivo: string; agora?: Date },
 ): Promise<ResultadoRecusaDeFoto> {
-  const limpo = motivo.trim();
-  if (
-    limpo === '' ||
-    Array.from(limpo).length > MOTIVO_DE_FOTO_MAXIMO ||
-    /[\p{Cc}\p{Zl}\p{Zp}]/u.test(limpo)
-  ) {
-    return { recusada: false, motivo: 'motivo_invalido' };
-  }
+  const limpo = motivoValido(motivo);
+  if (limpo === undefined) return { recusada: false, motivo: 'motivo_invalido' };
   const [achada] = await tx
     .select({ relatoId: relatoFotos.relatoId })
     .from(relatoFotos)

@@ -226,6 +226,15 @@ describe('tela da pauta', () => {
             antes: 'Bebedouro quebrado',
             depois: 'Bebedouro do bloco 12 quebrado',
             criadoEm: new Date('2026-11-09T12:00:00.000Z'),
+            achados: [
+              {
+                severidade: 'aviso',
+                motivo: 'possivel_nome',
+                trecho: 'professora Marta',
+                inicio: 0,
+                fim: 16,
+              },
+            ],
           },
         ]}
         aprovarPedido={acao}
@@ -242,6 +251,7 @@ describe('tela da pauta', () => {
     expect(html).toContain('name="depoisVisto" value="Bebedouro do bloco 12 quebrado"');
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
     expect(html).toContain('Aprovar mudança');
+    expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
   });
 
   it('sem pedido pendente, a seção de pedidos não aparece', () => {

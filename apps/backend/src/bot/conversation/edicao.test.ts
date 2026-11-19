@@ -18,6 +18,7 @@ import {
   EDIT_FIELD_AGAIN_TEXT,
   EDIT_NONE_TEXT,
   EDIT_PENDING_TEXT,
+  EDIT_PERSONAL_TEXT,
   EDIT_REQUESTED_TEXT,
   EDIT_UNCHANGED_TEXT,
   editTooLongText,
@@ -159,6 +160,22 @@ describe('menu: 6 Editar pauta', () => {
       await send('6');
       await send('descrição');
       expect(await send('Segunda versão')).toEqual([EDIT_PENDING_TEXT, MENU_PRINCIPAL]);
+    });
+
+    it('texto com e-mail ou telefone não vira pedido e a pessoa pode mandar de novo', async () => {
+      const id = await novoEstudante(H);
+      const pautaId = await pautaDe(id, 'Já publicada', 'juntando_apoios');
+      await send('6');
+      await send('descrição');
+      expect(await send('Falem comigo: fulano@ufal.br')).toEqual([EDIT_PERSONAL_TEXT]);
+      expect(await passo()).toBe('OWNER_EDIT_TEXT');
+      expect(
+        await db.select().from(pedidosEdicao).where(eq(pedidosEdicao.pautaId, pautaId)),
+      ).toEqual([]);
+      expect(await send('Sem o contato, só o problema')).toEqual([
+        EDIT_REQUESTED_TEXT,
+        MENU_PRINCIPAL,
+      ]);
     });
 
     it('texto igual ao publicado não gera pedido', async () => {

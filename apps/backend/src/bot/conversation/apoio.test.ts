@@ -20,6 +20,7 @@ import type { ResultadoFoto, ServicoDeFotos } from '../../fotos/servico';
 import {
   ASK_ATTACH_REPORT_TEXT,
   ASK_WRITE_REPORT_TEXT,
+  PHOTO_LIMIT_TEXT,
   PHOTO_NOT_ATTACHED_TEXT,
   REPORT_SENT_TEXT,
   REPORT_SENT_WITH_PHOTO_TEXT,
@@ -426,6 +427,19 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
     const [depois, ...resto] = await relatosDaPauta();
     expect(resto).toEqual([]);
     expect(depois).toMatchObject({ id: antes?.id, fotos: ['fotos/2026/11/abc.jpg'] });
+  });
+
+  it('relato que já chegou ao limite de fotos (outra mensagem passou na frente): diz o limite, não que foi analisado', async () => {
+    const [relato] = await relatosDaPauta();
+    await db.insert(relatoFotos).values(
+      [1, 2, 3].map((n) => ({
+        relatoId: relato?.id ?? '',
+        chave: `fotos/2026/11/cheio-${String(n)}.jpg`,
+        ordem: n,
+      })),
+    );
+    expect(await sendFoto()).toEqual([PHOTO_LIMIT_TEXT, convite(), MENU_PRINCIPAL]);
+    expect((await relatosDaPauta())[0]?.fotos).toHaveLength(3);
   });
 
   it('relato moderado antes da foto chegar: a foto não entra e a pessoa é avisada', async () => {
