@@ -42,3 +42,21 @@ for (const { nome, caminho } of PAGINAS) {
     expect(graves).toEqual([]);
   });
 }
+
+// A folha "Escolher blocos" aberta é outra tela para o axe: diálogo modal, campo de busca e chips.
+test('início com a folha "Escolher blocos" aberta: nenhuma violação serious ou critical (axe)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Escolher entre os \d+ blocos$/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Escolher blocos' })).toBeVisible();
+  const { violations } = await new AxeBuilder({ page }).withTags(NORMAS).analyze();
+  const graves = violations
+    .filter((v) => v.impact != null && GRAVES.has(v.impact))
+    .map((v) => ({
+      regra: v.id,
+      problema: v.help,
+      onde: v.nodes.slice(0, 5).map((n) => n.target.join(' ')),
+    }));
+  expect(graves).toEqual([]);
+});

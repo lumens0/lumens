@@ -14,6 +14,7 @@ import {
   PertoDaMetaSecao,
   type EtiquetaDeFiltro,
 } from '../componentes/inicio/Secoes';
+import { FolhaDeBlocos } from '../componentes/inicio/FolhaDeBlocos';
 import { Skyline } from '../componentes/inicio/Skyline';
 import { STATUS } from '../componentes/StatusPill';
 import { buscarApoiosPorSemana, buscarBlocos, buscarConquistas, buscarPautas } from '../dados/api';
@@ -26,8 +27,10 @@ import {
   urlDeFiltros,
   type ParamDaUrl,
 } from '../dados/filtros';
+import { blocosDaFolha } from '../dados/folha';
 import { numerosDoInicio, pertoDaMeta } from '../dados/inicio';
 import { pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import { siglasDosBlocos } from '../dados/siglas';
 import { legendaDoSkyline, montarSkyline } from '../dados/skyline';
 import { metadadosDaMarca } from '../metadados';
 import { nomeDoCanal } from '../whatsapp';
@@ -100,7 +103,14 @@ export default async function Home({
       .map((b) => ({ slug: b.slug, nome: b.nome, apoios: 0, largura: 0 })),
   ];
 
-  const predios = montarSkyline({ blocos, pautas: campus, escolhidos: slugs, status });
+  const siglas = siglasDosBlocos(blocos);
+  const predios = montarSkyline({
+    blocos,
+    pautas: campus,
+    escolhidos: slugs,
+    status,
+    siglas,
+  });
   const legenda = legendaDoSkyline(
     escolhidos.map((b) => ({
       nome: b.nome,
@@ -171,6 +181,21 @@ export default async function Home({
         <section aria-labelledby="blocos-titulo">
           <h2 id="blocos-titulo">Blocos mais ativos</h2>
           <BlocosFiltraveis linhas={linhasDeBloco} atual={{ status, bloco: slugs }} />
+          <FolhaDeBlocos
+            base="/"
+            blocos={blocosDaFolha(blocos, siglas, campus, status)}
+            catalogo={blocos}
+            siglas={siglas}
+            pautas={campus.map((p) => ({
+              slug: p.slug,
+              titulo: p.titulo,
+              status: p.status,
+              apoios: p.apoios,
+              urgente: p.urgente,
+              bloco_slug: p.bloco_slug,
+            }))}
+            atual={{ status, bloco: slugs }}
+          />
         </section>
       </div>
 

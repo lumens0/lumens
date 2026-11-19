@@ -191,3 +191,48 @@ test('as abas Início e Pautas levam cada uma à sua página', async ({ page }) 
   await expect(page).toHaveURL('/pautas');
   await expect(abas.getByRole('link', { name: 'Pautas' })).toHaveAttribute('aria-current', 'page');
 });
+
+// Folha "Escolher blocos": pelo menos um bloco, e ✕, Esc e o clique fora cancelam sem filtrar.
+test.describe('folha "Escolher blocos"', () => {
+  const abrir = async (page: import('@playwright/test').Page) => {
+    await page.goto('/');
+    const gatilho = page.getByRole('button', { name: /^Escolher entre os \d+ blocos$/ });
+    await gatilho.click();
+    const folha = page.getByRole('dialog', { name: 'Escolher blocos' });
+    await expect(folha).toBeVisible();
+    return { gatilho, folha };
+  };
+
+  test('o botão final fica bloqueado sem escolha e libera com um bloco', async ({ page }) => {
+    const { folha } = await abrir(page);
+    const aplicar = folha.getByRole('button', { name: 'Escolha um bloco para continuar' });
+    await expect(aplicar).toBeDisabled();
+    await expect(folha.getByText('Escolha ao menos um bloco para filtrar.')).toBeVisible();
+    await folha.getByRole('button', { name: BLOCO.nome }).click();
+    await expect(folha.getByRole('button', { name: 'Filtrar por 1 bloco' })).toBeEnabled();
+  });
+
+  test('aplicar leva os blocos escolhidos para a URL', async ({ page }) => {
+    const { folha } = await abrir(page);
+    await folha.getByRole('button', { name: BLOCO.nome }).click();
+    await folha.getByRole('button', { name: 'Filtrar por 1 bloco' }).click();
+    await expect(page).toHaveURL(new RegExp(`bloco=${BLOCO.slug}`));
+    await expect(folha).toBeHidden();
+  });
+
+  test('Esc cancela: não filtra e o foco volta ao botão que abriu', async ({ page }) => {
+    const { gatilho, folha } = await abrir(page);
+    await folha.getByRole('button', { name: BLOCO.nome }).click();
+    await page.keyboard.press('Escape');
+    await expect(folha).toBeHidden();
+    await expect(page).toHaveURL('/');
+    await expect(gatilho).toBeFocused();
+  });
+
+  test('a busca acha o bloco sem acento e sem diferenciar maiúsculas', async ({ page }) => {
+    const { folha } = await abrir(page);
+    await folha.getByRole('searchbox').fill('SAUDE');
+    await expect(folha.getByRole('button', { name: /Saúde/ })).toBeVisible();
+    await expect(folha.getByRole('button', { name: BLOCO.nome })).toBeHidden();
+  });
+});

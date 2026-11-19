@@ -13,6 +13,7 @@ vi.mock('../componentes/inicio/FiltrosDoInicio', () => ({
   BlocosFiltraveis: ({ linhas, atual }: { linhas: unknown; atual: unknown }) =>
     createElement('pre', { id: 'blocos' }, JSON.stringify({ linhas, atual })),
 }));
+vi.mock('../componentes/inicio/FolhaDeBlocos', () => ({ FolhaDeBlocos: () => null }));
 vi.mock('../dados/api', () => ({
   buscarApoiosPorSemana: vi.fn(),
   buscarBlocos: vi.fn(),
