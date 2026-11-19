@@ -7,6 +7,7 @@ import { formatarNumero, percentual } from '../../../componentes/BarraApoios';
 import { STATUS } from '../../../componentes/StatusPill';
 import { buscarPauta } from '../../../dados/api';
 import { aceitaApoio, FORA_DO_SITE } from '../../../dados/pautas-publicas';
+import { origemDoSite } from '../../../origem';
 import { fonteDoTitulo, tituloDoCard } from './card.png/titulo';
 
 // Modelo do card da pauta (SCRUM-52), em dois formatos: `story` (1080 × 1920, `card.png`) e `og`
@@ -71,7 +72,7 @@ async function lerRecursos() {
   };
 }
 
-export async function respostaDoCard(request: Request, slug: string, formato: Formato) {
+export async function respostaDoCard(_request: Request, slug: string, formato: Formato) {
   // Sem o cache de 10 s da leitura: o `?apoios=N` do bot só muda a chave do cache da imagem, e o
   // total precisa ser o de agora. O cache de 5 min do card, na CDN, segura as visitas repetidas.
   const pauta = await buscarPauta(slug, { fresca: true });
@@ -79,7 +80,9 @@ export async function respostaDoCard(request: Request, slug: string, formato: Fo
   if (!pauta || FORA_DO_SITE.has(pauta.status)) {
     return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
   }
-  const { host, origin } = new URL(request.url);
+  // O endereço do card e o do QR Code são os do site público, não o host da requisição: num deploy
+  // de preview ou protegido da Vercel, o host da requisição pediria login a quem escaneasse.
+  const { host, origin } = origemDoSite();
   const endereco = `${host}/p/${pauta.slug}`;
   const { fontes, marca } = await (recursos ??= lerRecursos());
   const card =
