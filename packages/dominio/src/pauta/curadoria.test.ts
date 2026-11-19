@@ -1,5 +1,6 @@
 import {
   apoios,
+  blocos,
   documentosResposta,
   disparos,
   eq,
@@ -11,6 +12,7 @@ import {
   promessas,
   relatoFotos,
   relatos,
+  sql,
   type Db,
 } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
@@ -199,6 +201,98 @@ describe('buscarPautaDaCuradoria', () => {
     expect(semRespostaIds).toContain(semResposta.id);
     expect(conferenciaIds).toContain(comConferencia.id);
     expect(conferenciaIds).not.toContain(agendada.id);
+  });
+
+  describe('filtro da lista (SCRUM-397)', () => {
+    const sufixo = `Zq${Date.now().toString(36)}`;
+    const ids = async (filtro: Parameters<typeof listarPautasDaCuradoria>[2], agora?: Date) =>
+      (await listarPautasDaCuradoria(db, agora, filtro)).map((p) => p.id).sort();
+
+    it('várias situações são "ou"; "e" com a busca', async () => {
+      const [a, b, c] = [
+        await criarPauta(db, { status: 'cobrando', titulo: `${sufixo} alfa` }),
+        await criarPauta(db, { status: 'prometido', titulo: `${sufixo} beta` }),
+        await criarPauta(db, { status: 'conquistada', titulo: `${sufixo} gama` }),
+      ];
+      expect(await ids({ status: ['cobrando', 'prometido'], q: sufixo })).toEqual(
+        [a.id, b.id].sort(),
+      );
+      expect(await ids({ status: 'conquistada', q: sufixo })).toEqual([c.id]);
+      expect(await ids({ status: ['cobrando', 'prometido'], q: `${sufixo} beta` })).toEqual([b.id]);
+    });
+
+    it('a busca acha por título, bloco, situação e "urgente", sem acento nem maiúsculas', async () => {
+      const marca = `${sufixo}busca`;
+      const [bloco] = await db
+        .insert(blocos)
+        .values({ slug: `acao-${marca}`, nome: `Bloco Ação ${marca}`, baseEstudantes: 100 })
+        .returning();
+      if (bloco === undefined) throw new Error('bloco não criado');
+      const comBloco = await criarPauta(db, {
+        status: 'juntando_apoios',
+        blocoId: bloco.id,
+        titulo: `Iluminação ${marca}`,
+      });
+      const campus = await criarPauta(db, { status: 'prometido', titulo: `Goteira ${marca}` });
+      await db.transaction((tx) =>
+        marcarUrgencia(tx, { pautaId: campus.id, curadorId, urgente: true }),
+      );
+
+      expect(await ids({ q: `ILUMINACAO ${marca}` })).toEqual([comBloco.id]);
+      expect(await ids({ q: `acao ${marca}` })).toEqual([comBloco.id]);
+      expect(await ids({ q: `campus inteiro ${marca}` })).toEqual([campus.id]);
+      expect(await ids({ q: `PROMETIDO ${marca}` })).toEqual([campus.id]);
+      expect(await ids({ q: `juntando ${marca}` })).toEqual([comBloco.id]);
+      expect(await ids({ q: `urgente ${marca}` })).toEqual([campus.id]);
+      expect(await ids({ q: `   ` })).toEqual(await ids({}));
+    });
+
+    it('várias pendências são "ou" sem repetir a pauta', async () => {
+      const agora = new Date('2030-01-02T12:00:00.000Z');
+      const semResposta = await criarPauta(db, { status: 'cobrando', titulo: `${sufixo} pendsr` });
+      const conferencia = await criarPauta(db, { status: 'prometido', titulo: `${sufixo} pendcf` });
+      await db.insert(promessas).values({
+        pautaId: conferencia.id,
+        resumo: 'Reparo.',
+        dataEntrega: '2030-01-01',
+        fonte: 'Ouvidoria',
+        registradaPor: curadorId,
+        conferenciaAbreEm: new Date('2030-01-01T12:00:00.000Z'),
+        conferenciaFechaEm: new Date('2030-01-08T12:00:00.000Z'),
+      });
+      expect(
+        await ids(
+          { pendencia: ['sem_resposta_oficial', 'conferencia_aberta'], q: `${sufixo} pend` },
+          agora,
+        ),
+      ).toEqual([semResposta.id, conferencia.id].sort());
+      expect(await ids({ pendencia: ['conferencia_aberta'], q: `${sufixo} pend` }, agora)).toEqual([
+        conferencia.id,
+      ]);
+    });
+
+    it('o limite de 200 vale depois do filtro', async () => {
+      const marca = `${sufixo}lim`;
+      for (let i = 0; i < 205; i += 1) {
+        await criarPauta(db, {
+          status: 'cobrando',
+          titulo: `${marca} comum ${String(i)}`,
+          criadaEm: new Date('2001-01-01T00:00:00.000Z'),
+        });
+      }
+      const rara = await criarPauta(db, {
+        status: 'conquistada',
+        titulo: `${marca} rara`,
+        criadaEm: new Date('2040-01-01T00:00:00.000Z'),
+      });
+      try {
+        expect(await listarPautasDaCuradoria(db, undefined, {})).toHaveLength(200);
+        expect(await ids({ status: 'conquistada', q: marca })).toEqual([rara.id]);
+      } finally {
+        // As 205 pautas antigas ocupariam as 200 vagas da lista nos testes seguintes.
+        await db.delete(pautas).where(sql`${pautas.titulo} like ${`${marca}%`}`);
+      }
+    });
   });
 
   it('a lista geral traz pautas de todos os status', async () => {
