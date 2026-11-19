@@ -1,7 +1,7 @@
 .pagina {
   max-width: 640px;
   margin: 0 auto;
-  padding: var(--espaco);
+  padding: var(--pagina-topo) var(--espaco) calc(var(--pagina-fim) + env(safe-area-inset-bottom));
 }
 
 .titulo {
@@ -55,6 +55,7 @@
 }
 
 .rotulo {
+  margin: 0 0 4px;
   font:
     600 0.8125em var(--fonte-rotulo),
     monospace;

@@ -209,8 +209,7 @@
 .conteudo {
   width: min(100%, 880px);
   margin: 0 auto;
-  padding: clamp(var(--esp-5), 4vw, var(--esp-6)) clamp(var(--esp-4), 4vw, var(--esp-6))
-    var(--esp-7);
+  padding: var(--pagina-topo) clamp(var(--esp-4), 4vw, var(--esp-6)) var(--pagina-fim);
 }
 
 .conteudo h1 {
