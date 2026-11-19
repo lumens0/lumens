@@ -190,7 +190,22 @@ export async function processIncomingJob(
   }
   const lido = inputOf(conteudo);
   let saiu = false;
-  return deps.db.transaction(async (tx) => {
+  // Arquivos que a mensagem manda apagar (foto abandonada, `sair`): só saem do storage depois que a
+  // transação confirma. Se ela desfizer (falha ao enfileirar a resposta, ao concluir o job), a conversa
+  // volta a guardar as chaves, e apagar antes deixaria uma pauta com foto que não existe mais.
+  const aposConfirmar: (() => Promise<void>)[] = [];
+  const base = deps.fotos;
+  const fotosDoTurno: ServicoDeFotos | undefined =
+    base?.removerFotos === undefined
+      ? base
+      : {
+          ...base,
+          removerFotos: (chaves) => {
+            aposConfirmar.push(() => base.removerFotos?.(chaves) ?? Promise.resolve());
+            return Promise.resolve();
+          },
+        };
+  const resultado = await deps.db.transaction(async (tx) => {
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
     const recebidaEm = instanteDaMensagem(data.timestamp);
@@ -213,7 +228,7 @@ export async function processIncomingJob(
               db: tx,
               segredo,
               hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
-              ...(deps.fotos ? { fotos: deps.fotos } : {}),
+              ...(fotosDoTurno ? { fotos: fotosDoTurno } : {}),
               ...(deps.email ? { email: deps.email } : {}),
               ...(deps.respostas ? { respostas: deps.respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
@@ -258,6 +273,13 @@ export async function processIncomingJob(
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
+  // Confirmado: agora os arquivos podem sair. Melhor esforço, um por vez; falha não desfaz a mensagem.
+  for (const apagar of aposConfirmar) {
+    await apagar().catch((erro: unknown) => {
+      deps.logger.warn({ erro }, 'não consegui apagar a foto do storage depois de confirmar');
+    });
+  }
+  return resultado;
 }
 
 /**

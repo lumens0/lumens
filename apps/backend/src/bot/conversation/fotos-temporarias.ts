@@ -17,6 +17,17 @@ export function chavesDosDados(dados: unknown): string[] {
   return Array.isArray(lidas) ? lidas.filter((c): c is string => typeof c === 'string') : [];
 }
 
+/** As chaves, dentre `chaves`, que não são de nenhum relato (as que podem sair do storage). */
+export async function fotosSoltas(db: Db, chaves: readonly string[]): Promise<string[]> {
+  if (chaves.length === 0) return [];
+  const usadas = await db
+    .select({ chave: relatoFotos.chave })
+    .from(relatoFotos)
+    .where(inArray(relatoFotos.chave, [...chaves]));
+  const emUso = new Set(usadas.map((u) => u.chave));
+  return chaves.filter((c) => !emUso.has(c));
+}
+
 /**
  * Apaga do storage as chaves que não são de nenhum relato. Uma chave que já virou `relato_foto` (a
  * pauta foi criada) nunca é apagada. Melhor esforço: quem chama não depende do resultado.
@@ -26,12 +37,7 @@ export async function removerFotosSoltas(
   fotos: ServicoDeFotos | undefined,
   chaves: readonly string[],
 ): Promise<void> {
-  if (chaves.length === 0 || fotos?.removerFotos === undefined) return;
-  const usadas = await db
-    .select({ chave: relatoFotos.chave })
-    .from(relatoFotos)
-    .where(inArray(relatoFotos.chave, [...chaves]));
-  const emUso = new Set(usadas.map((u) => u.chave));
-  const soltas = chaves.filter((c) => !emUso.has(c));
+  if (fotos?.removerFotos === undefined) return;
+  const soltas = await fotosSoltas(db, chaves);
   if (soltas.length > 0) await fotos.removerFotos(soltas);
 }
