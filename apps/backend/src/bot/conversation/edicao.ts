@@ -32,6 +32,8 @@ export const EDIT_DONE_TEXT =
 export const EDIT_CLOSED_TEXT =
   'Essa pauta não pode mais ser editada: a curadoria já decidiu. Se algo precisa mudar, escreva para a curadoria.';
 export const EDIT_LOST_TEXT = 'Perdi de qual pauta estávamos falando. Mande *6* para recomeçar.';
+export const EDIT_PERSONAL_TEXT =
+  'O texto tem e-mail, telefone ou matrícula, e isso não pode aparecer no site. Tire esses dados e mande o texto de novo.';
 export const EDIT_EMPTY_TEXT = 'O texto não pode ficar em branco. Mande o texto novo.';
 
 const ROW_PREFIX = 'pauta:';
@@ -170,6 +172,8 @@ export const ownerEditText: StepHandler = async ({ input, state, db, phoneHmac }
   switch (resultado.motivo) {
     case 'texto_vazio':
       return { next: 'OWNER_EDIT_TEXT', replies: [EDIT_EMPTY_TEXT] };
+    case 'dado_pessoal':
+      return { next: 'OWNER_EDIT_TEXT', replies: [EDIT_PERSONAL_TEXT] };
     case 'texto_longo':
       return {
         next: 'OWNER_EDIT_TEXT',

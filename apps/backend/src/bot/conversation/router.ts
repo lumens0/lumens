@@ -47,8 +47,12 @@ export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
 export const SAIDA_DO_PASSO_TEXT =
   'Parece que está difícil por aqui. Mande *menu* para voltar ao início ou *cancelar* para desistir.';
 const TENTATIVAS_ATE_OFERECER_SAIDA = 3;
-/** O código do e-mail tem as próprias tentativas e avisos (e o reenvio também fica no passo). */
-const SEM_SAIDA_AUTOMATICA: readonly Step[] = ['MENU', 'VERIFY_ASK_CODE'];
+/**
+ * Passos em que ficar no mesmo passo não quer dizer erro: o menu, o código do e-mail (tem as
+ * próprias tentativas e avisos, e o reenvio também fica no passo) e os caminhos da pauta, onde cada
+ * botão (abrir um caminho, pedir o texto, propor) devolve a pessoa ao mesmo passo com o estado novo.
+ */
+const SEM_SAIDA_AUTOMATICA: readonly Step[] = ['MENU', 'VERIFY_ASK_CODE', 'OWNER_PATHS'];
 
 export const NEED_TEXT = 'Recebi a imagem, mas agora preciso de uma resposta em texto.';
 
