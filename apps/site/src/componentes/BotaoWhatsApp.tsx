@@ -67,6 +67,21 @@ export function BotaoApoiar({ slug, titulo }: { slug: string; titulo: string }) 
   );
 }
 
+/**
+ * "Criar pauta neste bloco": abre o bot com `nova pauta`. Por ora o bot não recebe o bloco (a
+ * conversa pergunta o que precisa mudar e onde); mandar `nova pauta <bloco>` é mudança no bot. O
+ * `aria-label` começa pelo texto visível (WCAG 2.5.3) e diz de qual bloco se fala.
+ */
+export function BotaoCriarPauta({ bloco }: { bloco: string }) {
+  return (
+    <BotaoWhatsApp
+      comando={COMANDO_NOVA_PAUTA}
+      texto="Criar pauta neste bloco"
+      rotulo={`Criar pauta neste bloco: ${bloco}, pelo ${nomeDoCanal()}`}
+    />
+  );
+}
+
 /** "Vou ajudar" na proposta aberta da pauta: abre o bot com `ajudar <slug>` (3.5, SCRUM-197). */
 export function BotaoVouAjudar({ slug, titulo }: { slug: string; titulo: string }) {
   return (

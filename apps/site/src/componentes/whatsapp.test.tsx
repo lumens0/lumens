@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SEM_APOIO } from '../dados/pautas-publicas';
 import type { Pauta } from '../dados/tipos';
 import { STATUS_PAUTA } from '../dados/tipos';
-import { BotaoRelatar, BotaoVouAjudar, BotaoWhatsApp } from './BotaoWhatsApp';
+import { BotaoCriarPauta, BotaoRelatar, BotaoVouAjudar, BotaoWhatsApp } from './BotaoWhatsApp';
 import { ListaVazia } from './ListaVazia';
 import { CardPauta } from './CardPauta';
 
@@ -58,6 +58,19 @@ describe('botões do WhatsApp', () => {
     const html = renderToStaticMarkup(<BotaoVouAjudar slug="faixa" titulo="Mutirão" />);
     expect(html).toContain('?text=ajudar%20faixa');
     expect(html).toContain('aria-label="Vou ajudar na proposta Mutirão pelo WhatsApp"');
+  });
+
+  it('"Criar pauta neste bloco" abre o bot com "nova pauta" e o nome acessível começa pelo texto visível', () => {
+    const html = renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" />);
+    expect(html).toContain('?text=nova%20pauta');
+    expect(html).toContain('>Criar pauta neste bloco</a>');
+    // WCAG 2.5.3: o nome acessível contém o texto visível, e diz de qual bloco se fala.
+    expect(html).toContain('aria-label="Criar pauta neste bloco: Bloco 18, pelo WhatsApp"');
+  });
+
+  it('"Criar pauta neste bloco" some sem bot configurado', () => {
+    vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '');
+    expect(renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" />)).toBe('');
   });
 
   it.each(STATUS_PAUTA.map((status) => [status, !SEM_APOIO.has(status)] as const))(
