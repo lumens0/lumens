@@ -1,58 +1,46 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
+import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import componentes from '../componentes/componentes.module.css';
 import { MapaResumo } from '../componentes/mapa/MapaResumo';
 import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { Numero } from '../componentes/Numero';
-import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
-import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import { PautasPorGrupo } from '../componentes/PautasPorGrupo';
-import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
-import { CardPauta } from '../componentes/CardPauta';
-import { FiltroBloco } from '../componentes/FiltroBloco';
-import { FiltroStatus } from '../componentes/FiltroStatus';
-import { STATUS } from '../componentes/StatusPill';
-import { ListaVazia } from '../componentes/ListaVazia';
 import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
-import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
-import { STATUS_PUBLICOS } from '@lumens/contratos';
+import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
+import { urlAntigaDosFiltros } from '../dados/filtros';
+import { pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import { metadadosDaMarca } from '../metadados';
 import { nomeDoCanal } from '../whatsapp';
 import estilos from './page.module.css';
-import { metadadosDaMarca } from '../metadados';
 
 export const metadata: Metadata = metadadosDaMarca({ caminho: '/' });
 
+/**
+ * Início: o painel de números do campus. A lista e os filtros moraram aqui; agora estão em
+ * `/pautas`, e o link antigo com `?bloco=` e `?status=` redireciona para lá.
+ */
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{ bloco?: string | string[]; status?: string | string[] }>;
 }) {
-  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
-  // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
-  // O `searchParams` vem antes da primeira busca: lê-lo torna a página dinâmica, então o
-  // `next build` não tenta pré-renderizar a home chamando a API (que pode nem estar no ar).
-  const { bloco: blocoParam, status: statusParam } = await searchParams;
-  const blocos = await buscarBlocos();
-  const bloco = blocoDaUrl(blocos, blocoParam);
-  const status =
-    typeof statusParam === 'string'
-      ? STATUS_PUBLICOS.find((etapa) => etapa === statusParam)
-      : undefined;
-  // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
-  // segunda barreira. O status filtra a lista aqui; as contagens do filtro e o mapa do hero usam as
-  // pautas do bloco inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
-  const [pautasDaApi, semanas] = await Promise.all([
-    buscarPautas(bloco?.slug),
-    buscarApoiosPorSemana(bloco?.slug),
+  // Antes de qualquer busca: link antigo com filtro não gasta chamada à API. Ler o `searchParams`
+  // também torna a página dinâmica, então o `next build` não tenta pré-renderizá-la chamando a API.
+  const antigo = urlAntigaDosFiltros(await searchParams);
+  if (antigo) redirect(antigo);
+  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, para o
+  // Início e a lista contarem do mesmo jeito.
+  const [blocos, pautasDaApi, semanas] = await Promise.all([
+    buscarBlocos(),
+    buscarPautas(),
+    buscarApoiosPorSemana(),
   ]);
-  const todas = pautasPublicas(pautasDaApi, bloco);
-  const lista = status ? todas.filter((pauta) => pauta.status === status) : todas;
-  const contagens = Object.fromEntries(
-    STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
-  );
-  const contagem = totais(lista);
+  const todas = pautasPublicas(pautasDaApi);
+  const contagem = totais(todas);
   const { abertas, apoios, conquistas } = contagem;
-  const onde = bloco?.nome ?? 'Todo o campus';
   const marcadores = marcadoresDoMapa(blocos, todas);
   return (
     <main className={estilos.pagina}>
@@ -86,20 +74,16 @@ export default async function Home({
         </div>
       </section>
 
-      {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. A região viva é só o
-          resumo escondido: os números visíveis sobem com animação e anunciariam cada quadro. */}
+      {/* A região viva é só o resumo escondido: os números visíveis sobem com animação e
+          anunciariam cada quadro. */}
       <section className={estilos.totais} aria-labelledby="totais-titulo">
         <p role="status" className={estilos.somenteLeitor}>
-          {resumoDosTotais(onde, contagem)}
+          {resumoDosTotais('Todo o campus', contagem)}
         </p>
         <div className={estilos.totaisTopo}>
           <h2 id="totais-titulo" className={estilos.totaisTitulo}>
-            {onde}
+            Todo o campus
           </h2>
-          <div className={estilos.filtros}>
-            <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
-            <FiltroStatus atual={status} bloco={bloco?.slug} contagens={contagens} />
-          </div>
         </div>
         <dl>
           <div>
@@ -132,39 +116,19 @@ export default async function Home({
             vazio="Nenhum apoio por categoria ainda."
             grupos={apoiosPorCategoria(todas)}
           />
-          {/* Com um bloco escolhido, o gráfico por bloco teria uma barra só. */}
-          {!bloco && (
-            <PautasPorGrupo
-              id="blocos-titulo"
-              titulo="Blocos mais ativos"
-              vazio="Nenhum apoio por bloco ainda."
-              grupos={blocosMaisAtivos(todas)}
-            />
-          )}
+          <PautasPorGrupo
+            id="blocos-titulo"
+            titulo="Blocos mais ativos"
+            vazio="Nenhum apoio por bloco ainda."
+            grupos={blocosMaisAtivos(todas)}
+          />
         </div>
       )}
-      {lista.length === 0 ? (
-        <ListaVazia bloco={bloco} status={status} />
-      ) : (
-        <ul className={[estilos.lista, estilos.grade].join(' ')}>
-          {lista.map((pauta) => (
-            <li key={pauta.slug} className="revelar">
-              <CardPauta pauta={pauta} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <aside className={estilos.legenda} aria-label="Etapas públicas das pautas">
-        <h2>Etapas das pautas</h2>
-        <ul>
-          {STATUS_PUBLICOS.map((etapa) => (
-            <li key={etapa}>
-              <i style={{ background: STATUS[etapa].ponto }} aria-hidden="true" />
-              {STATUS[etapa].rotulo}
-            </li>
-          ))}
-        </ul>
-      </aside>
+      <p className={estilos.verPautas}>
+        <Link href="/pautas" className={componentes.botaoSecundario}>
+          {todas.length === 1 ? 'Ver a pauta' : `Ver as ${todas.length} pautas`}
+        </Link>
+      </p>
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
           <Link href="/manual">Manual</Link>

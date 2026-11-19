@@ -5,16 +5,18 @@ import { usePathname } from 'next/navigation';
 import estilos from './cabecalho.module.css';
 
 const ABAS = [
-  { href: '/', rotulo: 'Pautas' },
+  { href: '/', rotulo: 'Início' },
+  { href: '/pautas', rotulo: 'Pautas' },
   { href: '/mapa', rotulo: 'Mapa' },
   { href: '/conquistas', rotulo: 'Conquistas' },
   { href: '/atividade', rotulo: 'Atividade' },
   { href: '/manual', rotulo: 'Manual' },
 ];
 
-/** A página de uma pauta conta como "Pautas": é de lá que se chega nela. */
+/** A página de uma pauta (`/p/...`) conta como "Pautas": é de lá que se chega nela. */
 export function abaAtual(caminho: string, href: string): boolean {
-  if (href === '/') return caminho === '/' || caminho.startsWith('/p/');
+  if (href === '/') return caminho === '/';
+  if (href === '/pautas') return caminho === '/pautas' || caminho.startsWith('/p/');
   return caminho === href || caminho.startsWith(`${href}/`);
 }
 

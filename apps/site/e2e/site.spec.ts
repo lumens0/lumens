@@ -27,7 +27,7 @@ async function conferirTotais(
 }
 
 test('a lista carrega com os totais', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/pautas');
   await conferirTotais(page, 'Todo o campus', TOTAIS_DO_CAMPUS);
   await expect(page.getByRole('link', { name: PAUTA.titulo, exact: true })).toBeVisible();
   // Pauta em curadoria nunca aparece na lista.
@@ -35,9 +35,9 @@ test('a lista carrega com os totais', async ({ page }) => {
 });
 
 test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/pautas');
   await page.getByRole('combobox', { name: 'Bloco' }).selectOption(BLOCO.slug);
-  await expect(page).toHaveURL(`/?bloco=${BLOCO.slug}`);
+  await expect(page).toHaveURL(`/pautas?bloco=${BLOCO.slug}`);
   // Os totais acompanham o filtro: a faixa não pode continuar com os números do campus.
   await conferirTotais(page, BLOCO.nome, TOTAIS_DO_BLOCO);
   for (const card of await page.getByRole('article').all()) {
@@ -46,7 +46,7 @@ test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
 });
 
 test('abrir uma pauta pela lista', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/pautas');
   await page.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
   await expect(page).toHaveURL(`/p/${PAUTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: PAUTA.titulo })).toBeVisible();
@@ -135,7 +135,14 @@ test('robots.txt e sitemap.xml respondem 200', async ({ request }) => {
 // bloco entra na URL, então cada filtro é uma entrada própria. Na Vercel o `Cache-Control` do Next
 // é reescrito; o `Vercel-CDN-Cache-Control` é o que vale lá, e some antes de chegar ao navegador.
 test.describe('cache das páginas públicas', () => {
-  for (const caminho of ['/', '/?bloco=bloco-18', '/mapa', '/conquistas', '/atividade']) {
+  for (const caminho of [
+    '/',
+    '/pautas',
+    '/pautas?bloco=bloco-18',
+    '/mapa',
+    '/conquistas',
+    '/atividade',
+  ]) {
     test(`${caminho} responde com cache curto`, async ({ request }) => {
       const resposta = await request.get(caminho);
       expect(resposta.status()).toBe(200);
@@ -143,4 +150,20 @@ test.describe('cache das páginas públicas', () => {
       expect(resposta.headers()['cache-control']).not.toContain('no-store');
     });
   }
+});
+
+// Links antigos (`/?bloco=` e `/?status=`) continuam funcionando: a lista mudou para /pautas.
+test('o link antigo com filtro na raiz leva para /pautas com o mesmo filtro', async ({ page }) => {
+  await page.goto(`/?bloco=${BLOCO.slug}`);
+  await expect(page).toHaveURL(`/pautas?bloco=${BLOCO.slug}`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Pautas' })).toBeVisible();
+});
+
+test('as abas Início e Pautas levam cada uma à sua página', async ({ page }) => {
+  await page.goto('/');
+  const abas = page.getByRole('navigation', { name: 'Seções do site' });
+  await expect(abas.getByRole('link', { name: 'Início' })).toHaveAttribute('aria-current', 'page');
+  await abas.getByRole('link', { name: 'Pautas' }).click();
+  await expect(page).toHaveURL('/pautas');
+  await expect(abas.getByRole('link', { name: 'Pautas' })).toHaveAttribute('aria-current', 'page');
 });

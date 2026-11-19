@@ -317,7 +317,7 @@ describe('página da pauta: seções', () => {
 
   it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
-    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>.*Voltar<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/pautas"[^>]*>.*Voltar<\/a>/);
   });
 
   it('sem caminhos, explica que quem cuida da pauta ainda vai escolher', () => {

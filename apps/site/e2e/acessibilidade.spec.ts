@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test';
 
 const PAGINAS = [
   { nome: 'início', caminho: '/' },
+  { nome: 'pautas', caminho: '/pautas' },
   // Pauta do seed com apoios, relatos e linha do tempo: a página mais cheia do site.
   { nome: 'pauta', caminho: '/p/bebedouros-no-bloco-18' },
   { nome: 'conquistas', caminho: '/conquistas' },

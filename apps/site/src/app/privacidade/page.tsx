@@ -289,7 +289,7 @@ export default function Privacidade() {
         </p>
       </section>
 
-      <Link href="/" className={estilos.voltar}>
+      <Link href="/pautas" className={estilos.voltar}>
         ← Voltar para as pautas
       </Link>
     </main>

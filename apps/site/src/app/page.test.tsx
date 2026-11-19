@@ -1,4 +1,3 @@
-import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
@@ -6,115 +5,55 @@ import exemplo from '../dados/blocos-teste.json';
 import { PAUTAS_TESTE } from '../dados/pautas-teste';
 import Home from './page';
 
-// O filtro usa o router do Next, que não existe fora do app.
-vi.mock('../componentes/FiltroBloco', () => ({ FiltroBloco: () => null }));
-vi.mock('../componentes/FiltroStatus', () => ({
-  FiltroStatus: ({ contagens }: { contagens: Record<string, number> }) =>
-    createElement('pre', { id: 'contagens' }, JSON.stringify(contagens)),
+// O `redirect` do Next lança um erro especial; aqui ele só registra o destino.
+const { redirect } = vi.hoisted(() => ({
+  redirect: vi.fn((destino: string) => {
+    throw new Error(`REDIRECT:${destino}`);
+  }),
 }));
+vi.mock('next/navigation', () => ({ redirect }));
 vi.mock('../dados/api', () => ({
   buscarApoiosPorSemana: vi.fn(),
   buscarBlocos: vi.fn(),
   buscarPautas: vi.fn(),
 }));
 
-const render = async (bloco?: string, status?: string) =>
-  renderToStaticMarkup(
-    await Home({
-      searchParams: Promise.resolve({ ...(bloco ? { bloco } : {}), ...(status ? { status } : {}) }),
-    }),
-  );
+const render = async (params: { bloco?: string; status?: string } = {}) =>
+  renderToStaticMarkup(await Home({ searchParams: Promise.resolve(params) }));
 
-/** Um total da faixa: o número animado, escondido do leitor de tela, e o valor final oculto. */
-const total = (rotulo: string, n: string) =>
-  new RegExp(
-    `<dt>${rotulo}</dt><dd><span aria-hidden="true">${n}</span><span class="[^"]*somenteLeitor[^"]*">${n}</span></dd>`,
-  );
-
-describe('home', () => {
+describe('início', () => {
   beforeEach(() => {
     vi.mocked(buscarBlocos).mockResolvedValue(exemplo.blocos);
-    vi.mocked(buscarPautas).mockResolvedValue([]);
+    vi.mocked(buscarPautas).mockResolvedValue(PAUTAS_TESTE as never);
     vi.mocked(buscarApoiosPorSemana).mockResolvedValue([]);
   });
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.resetAllMocks();
   });
 
-  it('com a lista vazia, "Relatar um problema" aparece uma vez só (o da ListaVazia)', async () => {
-    vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
+  it('mostra os números do campus inteiro e o caminho para a lista, sem filtros nem cartões', async () => {
     const html = await render();
-    expect(html).toContain('Ainda não tem pauta no site.');
-    expect(html.match(/Relatar um problema<\/a>/g)).toHaveLength(1);
+    expect(html).toContain('Todo o campus</h2>');
+    expect(buscarPautas).toHaveBeenCalledWith();
+    expect(html).toMatch(/<a [^>]*href="\/pautas"[^>]*>Ver as \d+ pautas<\/a>/);
+    expect(html).not.toContain('<select');
+    expect(html).not.toContain('<article');
   });
 
-  it('lista e totais vêm da API, e o filtro de bloco vai para a busca', async () => {
-    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
-    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
-    const html = await render('bloco-a');
-    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
-    expect(html).toContain('Bloco A</h2>');
-    for (const p of doBlocoA) expect(html).toContain(p.titulo);
-    // Totais da lista filtrada: 143 + 356 apoios, nenhuma aberta, nenhuma conquista.
-    expect(html).toMatch(total('Apoios', '499'));
-    expect(html).toMatch(total('Pautas abertas', '0'));
-  });
-
-  it('o leitor de tela ouve os totais uma vez, sem os quadros da animação (SCRUM-58)', async () => {
-    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
-    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
-    const html = await render('bloco-a');
-    // Os números visíveis sobem de zero: dentro de uma região viva, cada quadro seria anunciado.
-    expect(html).not.toContain('aria-live');
-    expect(html).toMatch(
-      /<p role="status"[^>]*>Bloco A: 0 pautas abertas, 499 apoios e 0 conquistas\.<\/p>/,
+  it('link antigo com filtro na raiz vai para /pautas com os mesmos filtros, sem chamar a API', async () => {
+    await expect(render({ bloco: 'bloco-a', status: 'cobrando' })).rejects.toThrow(
+      'REDIRECT:/pautas?status=cobrando&bloco=bloco-a',
     );
+    expect(buscarPautas).not.toHaveBeenCalled();
   });
 
-  it('bloco que não existe busca todas as pautas', async () => {
-    await render('nao-existe');
-    expect(buscarPautas).toHaveBeenCalledWith(undefined);
-  });
-
-  it('status combinado ao bloco filtra a lista e os totais', async () => {
-    // A busca vem sem o filtro de status; a home filtra e conta a partir das pautas do bloco.
-    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
-    expect(doBlocoA.some((p) => p.status !== 'prometido')).toBe(true);
-    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
-    const html = await render('bloco-a', 'prometido');
-    expect(buscarPautas).toHaveBeenCalledTimes(1);
-    expect(buscarPautas).toHaveBeenCalledWith('bloco-a');
-    expect(html).toMatch(total('Apoios', '0'));
-    expect(html).toContain('Nenhuma pauta prometida neste bloco');
-  });
-
-  it('status não público não segue para a busca', async () => {
-    await Home({ searchParams: Promise.resolve({ status: 'em_curadoria' }) });
-    expect(buscarPautas).toHaveBeenCalledWith(undefined);
+  it('a raiz sem filtro não redireciona', async () => {
+    await render();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('erro da API sobe para o error.tsx em vez de renderizar a página vazia', async () => {
     vi.mocked(buscarPautas).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');
-  });
-
-  it('as contagens do filtro de status somam a lista do bloco, com ou sem status escolhido', async () => {
-    const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
-    const prometidas = doBlocoA.filter((p) => p.status === 'prometido');
-    const contagensDe = (html: string): Record<string, number> =>
-      JSON.parse(
-        /<pre id="contagens">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}',
-      ) as Record<string, number>;
-    // Sem status: uma busca só, e as contagens saem dela.
-    vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
-    const semFiltro = contagensDe(await render('bloco-a'));
-    expect(buscarPautas).toHaveBeenCalledTimes(1);
-    expect(semFiltro.prometido).toBe(prometidas.length);
-    // Com status: continua uma busca só, e as contagens são as mesmas.
-    vi.mocked(buscarPautas).mockClear();
-    const comFiltro = contagensDe(await render('bloco-a', 'prometido'));
-    expect(buscarPautas).toHaveBeenCalledTimes(1);
-    expect(comFiltro).toEqual(semFiltro);
   });
 });

@@ -90,7 +90,7 @@ export default async function PaginaConquistas() {
           <p className={componentes.estadoTitulo}>Ainda não tem conquista.</p>
           <p>Quando uma pauta for entregue, ela aparece aqui. Apoie as que estão abertas.</p>
           <div className={componentes.acoes}>
-            <Link href="/" className={componentes.botaoSecundario}>
+            <Link href="/pautas" className={componentes.botaoSecundario}>
               Ver as pautas
             </Link>
           </div>
