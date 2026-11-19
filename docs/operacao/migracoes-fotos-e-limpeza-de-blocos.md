@@ -137,7 +137,10 @@ blocos que estão no banco).
 - Só roda onde o catálogo real já foi cadastrado (existe o bloco `ic`). Banco de desenvolvimento,
   com os blocos fictícios do seed, e banco novo e vazio não recebem nada: eles ganham o catálogo,
   com estes quatro, quando o `db:blocos-ufal` rodar.
-- As bases de estudantes (RUA 300, EDGE Academy 300, NEES 150, CRAD 200) são estimativas, como as
-  demais; se houver número melhor, corrija com `UPDATE` em `bloco` enquanto não houver pauta no bloco
+- Bases de estudantes: RUA 135 (capacidade da residência, segundo o site da UFAL), EDGE Academy 100
+  (informado pela equipe), NEES 100 (sem número oficial: o mesmo da EDGE Academy) e CRAD 50 (não é bloco
+  estudantil: estimativa baixa). Se a RUA já estava cadastrada com a estimativa antiga (300), a
+  migração a corrige para 135; a meta de pauta já criada não muda (ela congela na criação). Se houver
+  número melhor, corrija com `UPDATE` em `bloco` enquanto não houver pauta no bloco
   (a meta congela na criação da pauta).
 - Conferir: `SELECT slug FROM bloco WHERE slug IN ('residencia-universitaria','edge-academy','nees','crad');`

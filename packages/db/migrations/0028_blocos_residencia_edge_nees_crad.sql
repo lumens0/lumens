@@ -12,10 +12,16 @@
 INSERT INTO "bloco" ("slug", "nome", "base_estudantes")
 SELECT novos.slug, novos.nome, novos.base_estudantes
 FROM (VALUES
-	('residencia-universitaria', 'Residência Universitária', 300),
-	('edge-academy', 'EDGE Academy', 300),
-	('nees', 'NEES (RIEH)', 150),
-	('crad', 'CRAD', 200)
+	('residencia-universitaria', 'Residência Universitária', 135),
+	('edge-academy', 'EDGE Academy', 100),
+	('nees', 'NEES (RIEH)', 100),
+	('crad', 'CRAD', 50)
 ) AS novos (slug, nome, base_estudantes)
 WHERE EXISTS (SELECT 1 FROM "bloco" WHERE "slug" = 'ic')
 ON CONFLICT ("slug") DO NOTHING;
+--> statement-breakpoint
+-- A Residência já podia estar cadastrada pelo `db:blocos-ufal` com a estimativa antiga (300). A
+-- capacidade informada pela UFAL é de até 135 estudantes: corrige só quem ainda tem os 300 (valor
+-- que ninguém ajustou). A meta de uma pauta congela na criação, então pauta já criada não muda.
+UPDATE "bloco" SET "base_estudantes" = 135
+WHERE "slug" = 'residencia-universitaria' AND "base_estudantes" = 300;

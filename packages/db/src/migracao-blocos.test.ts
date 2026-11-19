@@ -83,3 +83,47 @@ describe('migração 0028: blocos novos do catálogo nos bancos já semeados', (
     for (const slug of NOVOS) expect(blocosUfal.filter((b) => b.slug === slug)).toHaveLength(1);
   });
 });
+
+describe('migração 0028: bases de estudantes', () => {
+  it('RUA 135, EDGE Academy 100, NEES 100 e CRAD 50', async () => {
+    const c = await bancoAntes0028(['ic']);
+    await aplicar(c, '0028_blocos_residencia_edge_nees_crad');
+    expect(
+      (await c.query(`SELECT slug, base_estudantes FROM bloco WHERE slug <> 'ic' ORDER BY slug`))
+        .rows,
+    ).toEqual([
+      { slug: 'crad', base_estudantes: 50 },
+      { slug: 'edge-academy', base_estudantes: 100 },
+      { slug: 'nees', base_estudantes: 100 },
+      { slug: 'residencia-universitaria', base_estudantes: 135 },
+    ]);
+  });
+
+  it('RUA já cadastrada com a estimativa antiga (300) é corrigida; valor ajustado à mão não é tocado', async () => {
+    const antiga = await bancoAntes0028(['ic']);
+    await antiga.query(
+      `INSERT INTO bloco (slug, nome, base_estudantes) VALUES ('residencia-universitaria', 'Residência', 300)`,
+    );
+    await aplicar(antiga, '0028_blocos_residencia_edge_nees_crad');
+    expect(
+      (
+        await antiga.query(
+          `SELECT base_estudantes FROM bloco WHERE slug = 'residencia-universitaria'`,
+        )
+      ).rows,
+    ).toEqual([{ base_estudantes: 135 }]);
+
+    const ajustada = await bancoAntes0028(['ic']);
+    await ajustada.query(
+      `INSERT INTO bloco (slug, nome, base_estudantes) VALUES ('residencia-universitaria', 'Residência', 200)`,
+    );
+    await aplicar(ajustada, '0028_blocos_residencia_edge_nees_crad');
+    expect(
+      (
+        await ajustada.query(
+          `SELECT base_estudantes FROM bloco WHERE slug = 'residencia-universitaria'`,
+        )
+      ).rows,
+    ).toEqual([{ base_estudantes: 200 }]);
+  });
+});
