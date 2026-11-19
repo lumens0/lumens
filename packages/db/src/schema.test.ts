@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 22 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 23 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -199,6 +199,7 @@ describe('migração inicial em Postgres real', () => {
       'documento_resposta',
       'estudante',
       'evento',
+      'foto_a_remover',
       'mensagem_processada',
       'papel_pauta',
       'pauta',

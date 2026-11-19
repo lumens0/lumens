@@ -204,6 +204,13 @@
       "when": 1795043512405,
       "tag": "0028_blocos_residencia_edge_nees_crad",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795059360390,
+      "tag": "0029_fila_de_remocao_de_fotos",
+      "breakpoints": true
     }
   ]
 }
