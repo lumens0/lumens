@@ -268,6 +268,7 @@ describe('API de leitura pública com o seed', () => {
 
       expect(slugs(body)).toEqual(PAUTAS_EM_ORDEM);
       expect((body as { proximo: unknown }).proximo).toBeNull();
+      expect((body as { total: unknown }).total).toBe(7);
       conferirContrato(pautas, body);
     });
 
@@ -315,6 +316,7 @@ describe('API de leitura pública com o seed', () => {
       expect(await corpo('/pautas?bloco=bloco-que-nao-existe')).toEqual({
         itens: [],
         proximo: null,
+        total: 0,
       });
     });
 
@@ -332,7 +334,7 @@ describe('API de leitura pública com o seed', () => {
 
       // Página que termina exatamente na última pauta não aponta para uma página vazia.
       expect(await corpo('/pautas?limit=7')).toMatchObject({ proximo: null });
-      expect(await corpo('/pautas?offset=50')).toEqual({ itens: [], proximo: null });
+      expect(await corpo('/pautas?offset=50')).toEqual({ itens: [], proximo: null, total: 7 });
     });
 
     it('aceita limit 100, o máximo', async () => {
@@ -343,6 +345,141 @@ describe('API de leitura pública com o seed', () => {
       const body = await corpo('/pautas/biblioteca-aberta-aos-sabados');
       expect(body).toMatchObject({ urgente: true });
       conferirContrato(pautaDetalhe, body);
+    });
+
+    describe('filtros, busca e ordem (SCRUM-395)', () => {
+      const ATENCAO = [
+        'biblioteca-aberta-aos-sabados', // urgente
+        'internet-na-residencia', // descumprida
+        'iluminacao-no-bloco-de-artes', // cobrando
+        'sala-de-descanso-na-saude', // prometido
+        'acessibilidade-no-bloco-18', // entregue em parte
+        'bebedouros-no-bloco-18', // juntando apoios
+        'laboratorios-abertos-nas-engenharias', // conquistada
+      ];
+      const APOIOS = [
+        'internet-na-residencia', // 300, empate com os Laboratórios: o título decide
+        'laboratorios-abertos-nas-engenharias', // 300
+        'acessibilidade-no-bloco-18', // 124
+        'iluminacao-no-bloco-de-artes', // 84
+        'bebedouros-no-bloco-18', // 72
+        'sala-de-descanso-na-saude', // 68
+        'biblioteca-aberta-aos-sabados', // 30
+      ];
+      const total = (body: unknown) => (body as { total: number }).total;
+
+      it('bloco múltiplo: "ou" dentro do grupo, por vírgula e por parâmetro repetido', async () => {
+        const esperado = [
+          'acessibilidade-no-bloco-18',
+          'iluminacao-no-bloco-de-artes',
+          'bebedouros-no-bloco-18',
+        ];
+        for (const url of [
+          '/pautas?bloco=bloco-18,artes',
+          '/pautas?bloco=bloco-18&bloco=artes',
+          '/pautas?bloco=bloco-18,artes,bloco-18',
+        ]) {
+          const body = await corpo(url);
+          expect(slugs(body), url).toEqual(esperado);
+          expect(total(body), url).toBe(3);
+        }
+      });
+
+      it('status múltiplo, e "e" entre o grupo de blocos e o de etapas', async () => {
+        const so = await corpo('/pautas?status=cobrando,prometido');
+        expect(slugs(so)).toEqual(['iluminacao-no-bloco-de-artes', 'sala-de-descanso-na-saude']);
+        const repetido = await corpo('/pautas?status=cobrando&status=prometido');
+        expect(slugs(repetido)).toEqual(slugs(so));
+
+        const ambos = await corpo(
+          '/pautas?status=cobrando,juntando_apoios&bloco=bloco-18,artes&ordem=apoios',
+        );
+        expect(slugs(ambos)).toEqual(['iluminacao-no-bloco-de-artes', 'bebedouros-no-bloco-18']);
+        expect(total(ambos)).toBe(2);
+      });
+
+      it('valores inválidos de bloco e status são ignorados, sem 400', async () => {
+        expect(slugs(await corpo('/pautas?bloco=Bloco-18,bloco_18,,artes'))).toEqual([
+          'iluminacao-no-bloco-de-artes',
+        ]);
+        expect(slugs(await corpo('/pautas?status=em_curadoria,recusada,cobrando'))).toEqual([
+          'iluminacao-no-bloco-de-artes',
+        ]);
+        // Só valores inválidos: o filtro some e a lista vem inteira (como no site).
+        expect(total(await corpo('/pautas?bloco=Bloco-18&status=nada'))).toBe(7);
+        expect(total(await corpo('/pautas?bloco=&status='))).toBe(7);
+      });
+
+      it('busca por título, bloco, etapa e "urgente", sem acento e sem maiúsculas', async () => {
+        const busca = async (q: string) => slugs(await corpo(`/pautas?q=${encodeURIComponent(q)}`));
+        expect(await busca('ILUMINACAO')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('iluminação')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('laboratorios')).toEqual(['laboratorios-abertos-nas-engenharias']);
+        // Nome do bloco (o seed escreve "Bloco da Saúde (fictício)").
+        expect(await busca('saude ficticio')).toEqual(['sala-de-descanso-na-saude']);
+        // Etapa.
+        expect(await busca('cobrando')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('meta batida')).toEqual(['biblioteca-aberta-aos-sabados']);
+        // "urgente" acha a urgente, mesmo sem a palavra no título.
+        expect(await busca('URGENTE')).toEqual(['biblioteca-aberta-aos-sabados']);
+        // Todas as palavras têm de bater.
+        expect(await busca('bloco bebedouros')).toEqual(['bebedouros-no-bloco-18']);
+        expect(await busca('bebedouros cobrando')).toEqual([]);
+        // Curinga do LIKE e aspas são texto comum.
+        expect(await busca('%')).toEqual([]);
+        expect(await busca("' OR 1=1")).toEqual([]);
+        // Busca vazia não filtra.
+        expect(await busca('   ')).toHaveLength(7);
+      });
+
+      it('a busca combina com os filtros', async () => {
+        const body = await corpo('/pautas?q=bloco&bloco=bloco-18&status=juntando_apoios');
+        expect(slugs(body)).toEqual(['bebedouros-no-bloco-18']);
+      });
+
+      it('ordem atencao: urgente, depois a etapa, depois os apoios', async () => {
+        expect(slugs(await corpo('/pautas?ordem=atencao'))).toEqual(ATENCAO);
+      });
+
+      it('ordem apoios e ordem recentes', async () => {
+        expect(slugs(await corpo('/pautas?ordem=apoios'))).toEqual(APOIOS);
+        const recentes = (await corpo('/pautas?ordem=recentes')) as {
+          itens: { criada_em: string }[];
+        };
+        const datas = recentes.itens.map((p) => p.criada_em);
+        expect(datas).toHaveLength(7);
+        expect(datas).toEqual([...datas].sort().reverse());
+      });
+
+      it('ordem desconhecida cai na padrão', async () => {
+        expect(slugs(await corpo('/pautas?ordem=aleatoria'))).toEqual(PAUTAS_EM_ORDEM);
+      });
+
+      it('o total ignora limit e offset, e a paginação segue a ordem pedida', async () => {
+        const primeira = await corpo('/pautas?ordem=atencao&limit=3');
+        expect(slugs(primeira)).toEqual(ATENCAO.slice(0, 3));
+        expect(primeira).toMatchObject({ total: 7, proximo: 3 });
+
+        const ultima = await corpo('/pautas?ordem=atencao&limit=3&offset=6');
+        expect(slugs(ultima)).toEqual(ATENCAO.slice(6));
+        expect(ultima).toMatchObject({ total: 7, proximo: null });
+
+        const filtrada = await corpo('/pautas?bloco=bloco-18,artes&limit=1&offset=1');
+        expect(slugs(filtrada)).toHaveLength(1);
+        expect(filtrada).toMatchObject({ total: 3, proximo: 2 });
+        conferirContrato(pautas, filtrada);
+      });
+
+      it('limit inválido ou repetido continua dando 400; q e ordem repetidos também', async () => {
+        for (const url of [
+          '/pautas?limit=0&bloco=artes',
+          '/pautas?limit=1&limit=2',
+          '/pautas?q=a&q=b',
+          '/pautas?ordem=apoios&ordem=recentes',
+        ]) {
+          expect((await get(url)).statusCode, url).toBe(400);
+        }
+      });
     });
   });
 
@@ -565,11 +702,6 @@ describe('API de leitura pública com o seed', () => {
 
   describe('parâmetros inválidos', () => {
     it.each([
-      '/pautas?bloco=Bloco-18',
-      '/pautas?bloco=bloco_18',
-      '/pautas?bloco=',
-      '/pautas?status=em_curadoria',
-      '/pautas?status=nao_existe',
       '/pautas?limit=0',
       '/pautas?limit=101',
       '/pautas?limit=1.5',
@@ -577,7 +709,6 @@ describe('API de leitura pública com o seed', () => {
       '/pautas?offset=-1',
       '/pautas?offset=1.5',
       '/pautas?limit=1&limit=2',
-      '/pautas?bloco=artes&bloco=saude',
       '/atividade?limit=0',
       '/atividade?limit=101',
       '/atividade?limit=1.5',
