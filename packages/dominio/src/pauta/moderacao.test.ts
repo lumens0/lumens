@@ -13,6 +13,7 @@ import {
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { sairDoLumens } from '../estudante/sair';
+import { aprovarPauta } from './curadoria';
 import { decidirPedidoDeEdicao, editarPauta } from './pedido-edicao';
 import { pedidosEdicao } from '@lumens/db';
 import {
@@ -532,6 +533,48 @@ describe.skipIf(!URL_TESTE)('moderação com Postgres de verdade', () => {
         ]);
 
         // Sem estudante antes do relato, o aviso (FK no estudante) e a saída se travam (40P01).
+        expect(resultados.filter((r) => r.status === 'rejected')).toEqual([]);
+      }
+    });
+  }, 60_000);
+
+  it('aprovar a pauta e recusar uma foto do relato de origem ao mesmo tempo: nenhuma das duas cai em deadlock', async () => {
+    await comBancoReal(async (real) => {
+      const curador = await criarCurador(real);
+      for (let rodada = 0; rodada < 15; rodada++) {
+        const pauta = await criarPauta(real, { status: 'em_curadoria' });
+        const dono = await criarEstudanteVerificado(real);
+        await tornarOwner(real, pauta.id, dono.id);
+        const relato = await criarRelato(real, {
+          pautaId: pauta.id,
+          estudanteId: dono.id,
+          fotoChaves: [
+            `fotos/2026/11/aprova-${String(rodada)}-a.jpg`,
+            `fotos/2026/11/aprova-${String(rodada)}-b.jpg`,
+          ],
+        });
+        const [primeira, segunda] = await fotosDo(relato.id, real);
+
+        const resultados = await Promise.allSettled([
+          real.transaction((tx) =>
+            aprovarPauta(tx, {
+              pautaId: pauta.id,
+              curadorId: curador.id,
+              categoria: 'infraestrutura',
+              fotosVistas: { [relato.id]: [primeira?.id ?? '', segunda?.id ?? ''] },
+            }),
+          ),
+          real.transaction((tx) =>
+            recusarFoto(tx, {
+              fotoId: primeira?.id ?? '',
+              curadorId: curador.id,
+              motivo: 'Fora de foco.',
+            }),
+          ),
+        ]);
+
+        // Perder a corrida vale (a aprovação volta com `relato_mudou`), mas nenhuma pode abortar
+        // por deadlock (40P01).
         expect(resultados.filter((r) => r.status === 'rejected')).toEqual([]);
       }
     });
