@@ -21,6 +21,7 @@ import {
 } from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
+import { agendarRemocao, executarRemocoes } from '../fotos/remocao';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
@@ -190,22 +191,23 @@ export async function processIncomingJob(
   }
   const lido = inputOf(conteudo);
   let saiu = false;
-  // Arquivos que a mensagem manda apagar (foto abandonada, `sair`): só saem do storage depois que a
-  // transação confirma. Se ela desfizer (falha ao enfileirar a resposta, ao concluir o job), a conversa
-  // volta a guardar as chaves, e apagar antes deixaria uma pauta com foto que não existe mais.
-  const aposConfirmar: (() => Promise<void>)[] = [];
+  // Arquivos que a mensagem manda apagar (foto abandonada, `sair`) entram na fila durável de remoção
+  // (`foto_a_remover`) na mesma transação: se ela desfizer (falha ao enfileirar a resposta, ao concluir
+  // o job), a chave some junto e a conversa volta a guardar as fotos; se confirmar, a chave fica na
+  // fila até o storage confirmar a exclusão (storage fora do ar não perde nada: a limpeza tenta de novo).
   const base = deps.fotos;
-  const fotosDoTurno: ServicoDeFotos | undefined =
-    base?.removerFotos === undefined
-      ? base
-      : {
-          ...base,
-          removerFotos: (chaves) => {
-            aposConfirmar.push(() => base.removerFotos?.(chaves) ?? Promise.resolve());
-            return Promise.resolve();
-          },
-        };
+  const fila = { haRemocao: false };
   const resultado = await deps.db.transaction(async (tx) => {
+    const fotosDoTurno: ServicoDeFotos | undefined =
+      base?.removerFotos === undefined
+        ? base
+        : {
+            ...base,
+            removerFotos: async (chaves) => {
+              fila.haRemocao = true;
+              await agendarRemocao(tx, chaves);
+            },
+          };
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
     const recebidaEm = instanteDaMensagem(data.timestamp);
@@ -273,12 +275,9 @@ export async function processIncomingJob(
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
-  // Confirmado: agora os arquivos podem sair. Melhor esforço, um por vez; falha não desfaz a mensagem.
-  for (const apagar of aposConfirmar) {
-    await apagar().catch((erro: unknown) => {
-      deps.logger.warn({ erro }, 'não consegui apagar a foto do storage depois de confirmar');
-    });
-  }
+  // Confirmado: agora a fila pode ser esvaziada. `executarRemocoes` nunca lança, e o que falhar fica na
+  // fila para a próxima rodada da limpeza.
+  if (fila.haRemocao) await executarRemocoes(deps.db, base);
   return resultado;
 }
 

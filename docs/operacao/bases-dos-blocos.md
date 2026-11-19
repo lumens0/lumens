@@ -77,7 +77,7 @@ conferência de quem é da unidade:
 ## Como as bases chegam ao banco
 
 - Banco novo: `pnpm db:blocos-ufal` cadastra o catálogo com estes números.
-- Banco já semeado: a migração `0029_bases_reais_dos_blocos` troca a base antiga pela nova **só onde
+- Banco já semeado: a migração `0030_bases_reais_dos_blocos` troca a base antiga pela nova **só onde
   ela ainda tem a estimativa antiga** do catálogo. Base ajustada à mão não é tocada. Pauta já criada
   não muda (a meta congela na criação); só as pautas novas usam a base nova.
 
@@ -85,4 +85,4 @@ conferência de quem é da unidade:
 
 Quando houver relatório mais recente (peça ao NTI/PROGRAD o mesmo "alunos ativos por campus, curso e
 período"), some de novo por unidade, atualize o catálogo e crie uma migração que troque a base antiga
-pela nova, como a 0029.
+pela nova, como a 0030.

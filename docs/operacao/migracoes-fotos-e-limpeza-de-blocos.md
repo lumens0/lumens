@@ -144,3 +144,18 @@ blocos que estão no banco).
   número melhor, corrija com `UPDATE` em `bloco` enquanto não houver pauta no bloco
   (a meta congela na criação da pauta).
 - Conferir: `SELECT slug FROM bloco WHERE slug IN ('residencia-universitaria','edge-academy','nees','crad');`
+
+## 0029 · `fila_de_remocao_de_fotos`
+
+Tabela `foto_a_remover` (chave do arquivo, quando entrou, tentativas): a fila durável das fotos que
+precisam sair do storage. Fotos soltas da pauta nova (abandonadas por `menu`, `cancelar`, `sair`,
+comando do site, conversa vencida ou criação recusada) e as do `sair` entram aqui **na mesma
+transação** que muda a conversa: se a transação desfaz, a chave some junto e o arquivo continua
+valendo; se confirma, a chave fica até o storage confirmar a exclusão. Depois do commit e a cada rodada
+da limpeza (de hora em hora) o back-end tenta apagar e só tira da fila o que o storage confirmou; storage
+fora do ar não perde nada.
+
+- Conferir se algo está preso: `SELECT chave, tentativas, enfileirada_em FROM foto_a_remover ORDER BY enfileirada_em;`
+  (vazio é o normal; uma chave com muitas tentativas indica storage com problema ou chave inexistente).
+- Só o back-end lê e escreve nela; o site (`lumens_site`) não tem acesso.
+- Voltar atrás: `DROP TABLE foto_a_remover;` e tirar a migração do registro do Drizzle, como na 0026.

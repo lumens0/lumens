@@ -264,6 +264,18 @@ export const relatoFotos = pgTable(
   ],
 );
 
+/**
+ * Fila durável das fotos que precisam sair do storage (arquivo sem dono: foto abandonada na pauta
+ * nova, conversa vencida, `sair`). A chave entra na mesma transação que muda o resto e só sai da fila
+ * quando o storage confirma a exclusão; storage fora do ar não perde a chave. Só o back-end lê e escreve.
+ */
+export const fotosARemover = pgTable('foto_a_remover', {
+  chave: text('chave').primaryKey(),
+  enfileiradaEm: instante('enfileirada_em').notNull().defaultNow(),
+  /** Quantas vezes o storage falhou; só para a equipe enxergar uma chave que não sai. */
+  tentativas: integer('tentativas').notNull().default(0),
+});
+
 export const statusPedidoEdicao = pgEnum('status_pedido_edicao', [
   'pendente',
   'aprovado',

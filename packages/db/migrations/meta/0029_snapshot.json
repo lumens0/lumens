@@ -1,5 +1,5 @@
 {
-  "id": "8f728632-aefe-4066-8b78-63b985e783ce",
+  "id": "7be96e03-6e07-478e-87d1-8344b1145755",
   "prevId": "6c1d2b3b-bac5-405e-a921-877516496970",
   "version": "7",
   "dialect": "postgresql",
@@ -1018,6 +1018,39 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.foto_a_remover": {
+      "name": "foto_a_remover",
+      "schema": "",
+      "columns": {
+        "chave": {
+          "name": "chave",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "enfileirada_em": {
+          "name": "enfileirada_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "tentativas": {
+          "name": "tentativas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

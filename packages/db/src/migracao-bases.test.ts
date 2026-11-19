@@ -14,7 +14,7 @@ const PASTA = fileURLToPath(new URL('../migrations', import.meta.url));
 const { entries } = JSON.parse(readFileSync(`${PASTA}/meta/_journal.json`, 'utf8')) as {
   entries: { tag: string }[];
 };
-const TAG = '0029_bases_reais_dos_blocos';
+const TAG = '0030_bases_reais_dos_blocos';
 const sql = readFileSync(`${PASTA}/${TAG}.sql`, 'utf8');
 
 /** Os pares (slug, velho, novo) que a migração traz, lidos do próprio SQL. */
@@ -51,7 +51,7 @@ const bases = async (c: PGlite) =>
     ).rows.map((r) => [r.slug, r.base_estudantes]),
   );
 
-describe('migração 0029: bases reais dos blocos', () => {
+describe('migração 0030: bases reais dos blocos', () => {
   it('traz os mesmos números do catálogo, e a base antiga não é mais a do catálogo', () => {
     expect(MUDANCAS.length).toBeGreaterThan(20);
     for (const { slug, velho, novo } of MUDANCAS) {

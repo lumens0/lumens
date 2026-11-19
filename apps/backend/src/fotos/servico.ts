@@ -35,6 +35,11 @@ export interface ServicoDeFotos {
    * impede as outras nem a saída. Opcional para os falsos dos testes da conversa.
    */
   removerFotos?(chaves: readonly string[]): Promise<void>;
+  /**
+   * Como `removerFotos`, mas devolve as chaves que o storage **confirmou** ter apagado. É o que a fila
+   * durável (`remocao.ts`) usa: só tira da fila o que saiu de fato, e tenta de novo o resto.
+   */
+  removerConfirmando?(chaves: readonly string[]): Promise<readonly string[]>;
 }
 
 export interface DependenciasDasFotos {
@@ -63,6 +68,18 @@ export function criarServicoDeFotos({
           avisar(`foto: remoção falhou (${erro instanceof Error ? erro.name : 'erro'})`);
         }
       }
+    },
+    async removerConfirmando(chaves) {
+      const removidas: string[] = [];
+      for (const chave of chaves) {
+        try {
+          await storage.remover(chave);
+          removidas.push(chave);
+        } catch (erro) {
+          avisar(`foto: remoção falhou (${erro instanceof Error ? erro.name : 'erro'})`);
+        }
+      }
+      return removidas;
     },
     async guardarFoto(midia) {
       // Confere o tipo antes de baixar: um GIF ou um vídeo nem chega a ser baixado.
