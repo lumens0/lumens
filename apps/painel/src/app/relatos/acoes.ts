@@ -3,6 +3,7 @@
 import { aprovarRelato, recusarRelato } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
+import { conferenciaMarcada } from '../pautas/[id]/decisoes';
 import { criarModeracoes } from './moderacoes';
 
 const moderacoes = criarModeracoes({
@@ -23,6 +24,7 @@ export async function aprovar(formulario: FormData) {
     await moderacoes.aprovar(
       texto(formulario, 'relatoId'),
       formulario.getAll('fotoVista').filter((v): v is string => typeof v === 'string' && v !== ''),
+      conferenciaMarcada(formulario),
     ),
   );
 }

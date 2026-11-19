@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buscarPauta } from '../../../../dados/api';
 import { fixture } from '../../../../dados/pauta-detalhe-teste';
-import { janelasAcesas } from '../card';
+import { janelasAcesas, qrDoLink } from '../card';
 import { GET } from './route';
 
 vi.mock('../../../../dados/api', () => ({ buscarPauta: vi.fn() }));
@@ -66,5 +66,22 @@ describe('janelasAcesas (a fachada do card)', () => {
     [300, 120, 30],
   ])('%i de %i apoios acendem %i de 30 janelas', (apoios, meta, acesas) => {
     expect(janelasAcesas(apoios, meta, 30)).toBe(acesas);
+  });
+});
+
+describe('qrDoLink (o QR Code do card)', () => {
+  const svgDe = (link: string) =>
+    Buffer.from(qrDoLink(link).replace('data:image/svg+xml;base64,', ''), 'base64').toString();
+
+  it('é um SVG em data URI, escuro sobre fundo claro', () => {
+    expect(qrDoLink('https://lumens.teste/p/a')).toMatch(/^data:image\/svg\+xml;base64,/);
+    const svg = svgDe('https://lumens.teste/p/a');
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('#ffffff');
+    expect(svg).toContain('#141936');
+  });
+
+  it('muda com o link: cada pauta tem o QR da própria página', () => {
+    expect(svgDe('https://lumens.teste/p/a')).not.toBe(svgDe('https://lumens.teste/p/b'));
   });
 });

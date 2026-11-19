@@ -111,6 +111,9 @@ describe('tela da pauta', () => {
     expect(html).toContain('<details id="linha-do-tempo"');
     expect(html).toContain('Linha do tempo');
     expect(html).toContain('Aprovar pauta');
+    // Confirmação extra: a caixa é obrigatória e vai no formulário de aprovar.
+    expect(html).toContain('required="" name="conferido"');
+    expect(html).toContain('Conferi o título, a');
     expect(html).toContain('junto com o relato de quem a criou');
     expect(html).toContain('Recusar pauta');
     // Situação e prazo como selos; recusar é secundária e só abre o motivo quando pedido.
@@ -743,6 +746,7 @@ describe('relatos novos', () => {
     expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
     expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');
     expect(html.match(/Aprovar relato/g)).toHaveLength(2);
+    expect(html.match(/name="conferido"/g)).toHaveLength(2);
     expect(html.match(/Recusar relato/g)).toHaveLength(2);
     expect(html).toContain('name="relatoId" value="r1"');
   });

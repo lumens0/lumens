@@ -139,7 +139,7 @@ test.describe('cache das páginas públicas', () => {
     test(`${caminho} responde com cache curto`, async ({ request }) => {
       const resposta = await request.get(caminho);
       expect(resposta.status()).toBe(200);
-      expect(resposta.headers()['cache-control']).toContain('s-maxage=15');
+      expect(resposta.headers()['cache-control']).toContain('s-maxage=5');
       expect(resposta.headers()['cache-control']).not.toContain('no-store');
     });
   }

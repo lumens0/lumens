@@ -58,17 +58,17 @@ describe('buscarPauta', () => {
     });
   });
 
-  it('200 devolve a pauta, com o slug codificado e revalidação de 30 s', async () => {
+  it('200 devolve a pauta, com o slug codificado e revalidação de 10 s', async () => {
     const fetch = responder(200, { slug: 'a-b' });
     vi.stubGlobal('fetch', fetch);
     expect(await buscarPauta('a b')).toEqual({ slug: 'a-b' });
     expect(fetch).toHaveBeenCalledWith('http://api.teste/pautas/a%20b', {
-      next: { revalidate: 30 },
+      next: { revalidate: 10 },
       signal: SINAL,
     });
   });
 
-  it('fresca lê sem o cache de 30 s (o card que o bot pede logo depois do apoio)', async () => {
+  it('fresca lê sem o cache de 10 s (o card que o bot pede logo depois do apoio)', async () => {
     const fetch = responder(200, { slug: 'a' });
     vi.stubGlobal('fetch', fetch);
     await buscarPauta('a', { fresca: true });
@@ -182,7 +182,7 @@ describe('buscarPautas e buscarBlocos', () => {
     await buscarPautas('bloco-a', 'prometido');
     expect(fetch).toHaveBeenCalledWith(
       'http://api.teste/pautas?limit=100&offset=0&bloco=bloco-a&status=prometido',
-      { next: { revalidate: 30 }, signal: SINAL },
+      { next: { revalidate: 10 }, signal: SINAL },
     );
   });
 
@@ -203,7 +203,7 @@ describe('buscarPautas e buscarBlocos', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await buscarPautas()).toEqual([]);
     expect(fetch).toHaveBeenCalledWith('http://api.teste/pautas?limit=100&offset=0', {
-      next: { revalidate: 30 },
+      next: { revalidate: 10 },
       signal: SINAL,
     });
   });
@@ -242,7 +242,7 @@ describe('buscarConquistas e buscarAtividade', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await buscarConquistas()).toEqual([{ pauta_slug: 'a' }]);
     expect(fetch).toHaveBeenCalledWith('http://api.teste/conquistas', {
-      next: { revalidate: 30 },
+      next: { revalidate: 10 },
       signal: SINAL,
     });
   });
@@ -304,12 +304,12 @@ describe('buscarApoiosPorSemana', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await buscarApoiosPorSemana()).toEqual(itens);
     expect(fetch).toHaveBeenLastCalledWith('http://api.teste/apoios-por-semana', {
-      next: { revalidate: 30 },
+      next: { revalidate: 10 },
       signal: SINAL,
     });
     await buscarApoiosPorSemana('bloco-a');
     expect(fetch).toHaveBeenLastCalledWith('http://api.teste/apoios-por-semana?bloco=bloco-a', {
-      next: { revalidate: 30 },
+      next: { revalidate: 10 },
       signal: SINAL,
     });
   });

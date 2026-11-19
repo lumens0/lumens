@@ -33,11 +33,12 @@ export const CABECALHOS_DE_SEGURANCA: Cabecalho[] = [
 /**
  * Cache curto das páginas públicas (SCRUM-379): o Next responde `private, no-store` nas páginas
  * dinâmicas (a home lê `searchParams`), e no pico do QR Code cada visita chamaria a API. A CDN
- * guarda por 15 s por URL (o filtro de bloco entra na chave) e serve a cópia antiga por mais 15 s
- * enquanto renova. Somado aos 30 s do cache da API (`revalidate` em dados/api.ts), o pior caso é
- * 60 s: uma pauta ou apoio novo aparece em até 1 minuto.
+ * guarda por 5 s por URL (o filtro de bloco entra na chave) e serve a cópia antiga por mais 5 s
+ * enquanto renova. Somado aos 10 s do cache da API (`revalidate` em dados/api.ts), o pior caso é
+ * ~20 s (era 60 s): uma pauta ou apoio novo aparece em até 20 segundos. Mesmo no pico, a API vê no
+ * máximo uma leitura por caminho a cada 10 s por instância, porque o cache junta as visitas.
  */
-export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=15, stale-while-revalidate=15';
+export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=5, stale-while-revalidate=5';
 
 /**
  * Na Vercel o `Cache-Control` das páginas dinâmicas é reescrito para `private, no-store` depois do
@@ -45,7 +46,7 @@ export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=15, stale-while-revali
  * sempre). O `Vercel-CDN-Cache-Control` tem prioridade para a CDN da Vercel, não é reescrito e é
  * removido da resposta: o navegador continua sem guardar nada.
  */
-export const CACHE_DA_CDN = 'max-age=15, stale-while-revalidate=15';
+export const CACHE_DA_CDN = 'max-age=5, stale-while-revalidate=5';
 
 /** Páginas sem sessão que podem ir para a CDN. `/dados.csv` já tem o cache dele; `/p/:slug` é só a pauta (o card e o og.png ficam de fora). */
 export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade', '/p/:slug'];

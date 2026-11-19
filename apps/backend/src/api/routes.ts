@@ -38,7 +38,7 @@ export interface ApiPluginOptions {
   lerFoto?: LerArquivo;
 }
 
-export const CACHE_PUBLICO = 'public, max-age=30, stale-while-revalidate=30';
+export const CACHE_PUBLICO = 'public, max-age=10, stale-while-revalidate=10';
 const FOTO_NAO_ENCONTRADA = { erro: 'Foto não encontrada.' };
 const CHAVE_DE_FOTO = /^fotos\/\d{4}\/\d{2}\/[A-Za-z0-9_-]+\.[a-z0-9]{1,5}$/;
 const TIPOS_DE_IMAGEM = new Set(['image/jpeg', 'image/png', 'image/webp']);

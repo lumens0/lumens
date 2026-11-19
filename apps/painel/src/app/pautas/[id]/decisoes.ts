@@ -12,6 +12,16 @@ export type FotosVistas = Record<string, string[]>;
 export const CAMPO_RELATO_VISTO = 'relatoVisto';
 export const PREFIXO_FOTO_VISTA = 'fotoVista:';
 
+/**
+ * Campo do formulário de aprovação: a pessoa da curadoria marcou que conferiu texto, foto e relato
+ * (nada de nome de pessoa, ofensa ou dado pessoal). Sem ele a aprovação não grava, mesmo que a
+ * action seja chamada direto: o `required` do HTML sozinho não segura.
+ */
+export const CAMPO_CONFERIDO = 'conferido';
+
+export const conferenciaMarcada = (formulario: FormData) =>
+  formulario.get(CAMPO_CONFERIDO) === 'on';
+
 export function fotosVistasDoFormulario(formulario: FormData): FotosVistas {
   const fotos: FotosVistas = {};
   for (const [campo, valor] of formulario.entries()) {
@@ -49,11 +59,15 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
     pautaId: string,
     agir: (curadorId: string) => Promise<ResultadoDecisao>,
     feito: 'aprovada' | 'recusada',
+    /** Devolve o destino se algo impede a decisão; roda depois da sessão e antes de gravar. */
+    impedimento?: () => string | undefined,
   ): Promise<string> {
     // A sessão é conferida aqui de novo: a action pode ser chamada direto, sem passar pela tela.
     const quem = await curador();
     if (!quem) return '/login';
     if (!UUID.test(pautaId)) return '/fila';
+    const barrada = impedimento?.();
+    if (barrada !== undefined) return barrada;
 
     const resultado = await agir(quem.id);
     if (resultado.decidida) return `/pautas/${pautaId}?feito=${feito}`;
@@ -69,11 +83,14 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
       fotosVistas: FotosVistas,
       urgente = false,
       textoVisto = '',
+      /** A confirmação extra: sem ela, nada é aprovado. */
+      conferido = false,
     ) =>
       decidir(
         pautaId,
         (c) => aprovar(pautaId, c, categoria, fotosVistas, urgente, textoVisto),
         'aprovada',
+        () => (conferido ? undefined : `/pautas/${pautaId}?erro=conferencia_pendente`),
       ),
     recusar: (pautaId: string, motivo: string) =>
       decidir(pautaId, (c) => recusar(pautaId, c, motivo), 'recusada'),

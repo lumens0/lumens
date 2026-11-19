@@ -21,11 +21,13 @@ export function criarModeracoes({ curador, aprovar, recusar }: DependenciasDeMod
     relatoId: string,
     agir: (curadorId: string) => Promise<ResultadoModeracao>,
     feito: 'aprovado' | 'recusado',
+    conferido = true,
   ): Promise<string> {
     // A sessão é conferida aqui de novo: a action pode ser chamada direto, sem passar pela tela.
     const quem = await curador();
     if (!quem) return '/login';
     if (!UUID.test(relatoId)) return '/relatos';
+    if (!conferido) return '/relatos?erro=conferencia_pendente';
 
     const resultado = await agir(quem.id);
     if (resultado.moderado) return `/relatos?feito=${feito}`;
@@ -36,8 +38,8 @@ export function criarModeracoes({ curador, aprovar, recusar }: DependenciasDeMod
 
   return {
     /** `fotosVistas`: as fotos pendentes que a fila mostrava; se mudaram, a aprovação é recusada. */
-    aprovar: (relatoId: string, fotosVistas: string[]) =>
-      moderar(relatoId, (c) => aprovar(relatoId, c, fotosVistas), 'aprovado'),
+    aprovar: (relatoId: string, fotosVistas: string[], conferido = false) =>
+      moderar(relatoId, (c) => aprovar(relatoId, c, fotosVistas), 'aprovado', conferido),
     recusar: (relatoId: string) => moderar(relatoId, (c) => recusar(relatoId, c), 'recusado'),
   };
 }

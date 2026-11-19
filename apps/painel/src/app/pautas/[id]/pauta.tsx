@@ -15,7 +15,7 @@ import { Foto } from '../../arquivos';
 import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../../fotos-do-relato';
 import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from '../../pedidos/pedidos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
-import { CAMPO_RELATO_VISTO, PREFIXO_FOTO_VISTA } from './decisoes';
+import { CAMPO_CONFERIDO, CAMPO_RELATO_VISTO, PREFIXO_FOTO_VISTA } from './decisoes';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
@@ -35,6 +35,8 @@ const ERRO: Record<string, string> = {
     'O relato de quem criou a pauta mudou desde que a tela abriu (foto nova, foto recusada ou relato novo). Confira e aprove de novo.',
   pauta_editada:
     'O autor editou o título ou a descrição depois que a tela abriu. Releia o texto novo (veja a linha do tempo) e aprove de novo.',
+  conferencia_pendente:
+    'Marque que você conferiu o texto, a foto e o relato antes de aprovar. Nada foi publicado.',
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
@@ -414,6 +416,11 @@ export function Pauta({
             </label>
             <label className={estilos.marcar}>
               <input type="checkbox" name="urgente" /> Marcar como urgente
+            </label>
+            <label className={[estilos.marcar, estilos.conferencia].join(' ')}>
+              <input type="checkbox" name={CAMPO_CONFERIDO} required /> Conferi o título, a
+              descrição, o relato e a foto: sem nome de pessoa, ofensa ou dado pessoal. Entendo que
+              aprovar publica tudo isso no site agora.
             </label>
             <Enviar className={estilos.botao}>Aprovar pauta</Enviar>
           </form>

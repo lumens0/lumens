@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../fotos-do-relato';
 import estilos from '../painel.module.css';
 import { Enviar } from '../enviar';
+import { CAMPO_CONFERIDO } from '../pautas/[id]/decisoes';
 
 const FEITO: Record<string, string> = {
   aprovado:
@@ -13,6 +14,8 @@ const FEITO: Record<string, string> = {
 
 const ERRO: Record<string, string> = {
   ja_moderado: 'Outra pessoa da curadoria já decidiu este relato.',
+  conferencia_pendente:
+    'Marque que você conferiu o texto e a foto antes de aprovar o relato. Nada foi publicado.',
   relato_mudou:
     'As fotos do relato mudaram depois que você abriu a fila (foto nova ou foto recusada). Confira de novo antes de aprovar.',
   ...ERRO_DE_FOTO,
@@ -107,6 +110,10 @@ export function Relatos({
                       {relato.fotos.map((foto) => (
                         <input key={foto.id} type="hidden" name="fotoVista" value={foto.id} />
                       ))}
+                      <label className={estilos.conferencia}>
+                        <input type="checkbox" name={CAMPO_CONFERIDO} required /> Conferi o texto e
+                        a foto: sem nome de pessoa, ofensa ou dado pessoal.
+                      </label>
                       <Enviar className={estilos.botao}>Aprovar relato</Enviar>
                     </form>
                     <form action={recusar}>
