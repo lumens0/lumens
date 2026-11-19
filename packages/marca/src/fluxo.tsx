@@ -302,7 +302,7 @@ export function Fluxos({
                 >
                   {passo.detalhe}
                   {passo.exemplo !== undefined && (
-                    <div className="fluxo-exemplo" role="img" aria-label="Exemplo da conversa">
+                    <div className="fluxo-exemplo" role="group" aria-label="Exemplo da conversa">
                       {passo.exemplo.map((fala, i) => (
                         <span key={i} className="fluxo-balao" data-de={fala.de}>
                           <span className="fluxo-quem">{fala.de === 'bot' ? 'Bot' : 'Você'}</span>

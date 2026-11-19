@@ -116,4 +116,10 @@ describe('manual: o passo a passo em cards', () => {
     expect(html).toContain('No site');
     expect(html).toContain('Automático');
   });
+
+  it('o exemplo da conversa é um grupo rotulado: as falas continuam legíveis para o leitor de tela', () => {
+    expect(html).toContain('role="group" aria-label="Exemplo da conversa"');
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('Bot</span>');
+  });
 });
