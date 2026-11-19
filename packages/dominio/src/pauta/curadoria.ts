@@ -11,6 +11,7 @@ import {
   documentosResposta,
   eq,
   estudantes,
+  inArray,
   isNull,
   papeisPauta,
   pautas,
@@ -388,6 +389,34 @@ export async function aprovarPauta(
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
+  // Donos da pauta (estudantes) antes dos relatos de origem: `registrarApoio`, no fim, trava o
+  // estudante, e `recusarFoto` e `sairDoLumens` travam o estudante e só depois o relato. Com a ordem
+  // pauta → estudante → relato em todos, aprovar a pauta e recusar uma foto do relato de origem (ou o
+  // autor sair) ao mesmo tempo não se travam (deadlock). Em ordem de id, para duas aprovações não
+  // se cruzarem.
+  const donos = await tx
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .where(
+      and(
+        eq(papeisPauta.pautaId, pautaId),
+        eq(papeisPauta.papel, 'owner'),
+        isNull(papeisPauta.ate),
+      ),
+    );
+  if (donos.length > 0) {
+    await tx
+      .select({ id: estudantes.id })
+      .from(estudantes)
+      .where(
+        inArray(
+          estudantes.id,
+          donos.map((d) => d.estudanteId),
+        ),
+      )
+      .orderBy(estudantes.id)
+      .for('update');
+  }
   const origem = await origemComFotos(tx, pautaId);
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
