@@ -211,6 +211,13 @@
       "when": 1795059360390,
       "tag": "0029_fila_de_remocao_de_fotos",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795063000000,
+      "tag": "0030_bases_reais_dos_blocos",
+      "breakpoints": true
     }
   ]
 }
