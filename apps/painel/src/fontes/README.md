@@ -1,10 +1,11 @@
 # Fontes locais do painel
 
-As mesmas do site (SCRUM-285): Bricolage Grotesque nos títulos (`--fonte-titulo`) e Instrument Sans
-no texto (`--fonte-corpo`), consumidas por `next/font/local` em `src/app/layout.tsx`.
+Bricolage Grotesque nos títulos (`--fonte-titulo`) e Instrument Sans no texto (`--fonte-corpo`),
+consumidas por `next/font/local` em `src/app/layout.tsx`.
 
-Os arquivos são cópias exatas dos recortes de `apps/site/src/fontes` (procedência e como gerar no
-README de lá). O teste `src/app/marca.test.ts` falha se as cópias divergirem.
+Eram as mesmas do site (SCRUM-285) até o SCRUM-374, quando o site passou para a Geist. Os arquivos
+daqui são recortes dos originais variáveis que continuam em `apps/site/src/fontes` (procedência no
+README de lá): sem eixo de largura e, na Bricolage, só os pesos de 600 a 800.
 
 ## Por que local
 

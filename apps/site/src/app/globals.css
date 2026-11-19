@@ -9,6 +9,9 @@
 }
 
 html {
+  /* Uma família só (Geist, do layout.tsx): o texto usa a mesma variável dos títulos. */
+  --fonte-corpo: var(--fonte-titulo);
+
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
 }
@@ -59,6 +62,32 @@ a {
   background: var(--noite);
   box-shadow: 0 0 0 100vmax var(--noite);
   clip-path: inset(0 -100vmax);
+}
+
+/*
+ * Página inteira à noite (SCRUM-374): fundo, superfícies e texto escuros, a luz âmbar nos links.
+ * A home já usa; as outras páginas entram junto com o desenho novo delas.
+ */
+.paginaNoite {
+  --fundo: #090c20;
+  --noite: #090c20;
+  --superficie: #10153b;
+  --superficie-2: #141a47;
+  --tinta: #f2f0ea;
+  --tinta-2: #b9bbd0;
+  --tinta-3: #8589a8;
+  --borda: rgb(242 240 234 / 12%);
+  --borda-forte: rgb(242 240 234 / 22%);
+  --luz-tinta: var(--luz);
+  --luz-fundo: rgb(255 194 61 / 14%);
+
+  background: var(--fundo);
+  color: var(--tinta);
+}
+
+/* O fundo da página acompanha, para o celular não mostrar papel claro ao puxar além do fim. */
+body:has(.paginaNoite) {
+  background: #090c20;
 }
 
 /* Entrada: o conteúdo sobe um pouco e aparece. */

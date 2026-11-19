@@ -1,6 +1,7 @@
-import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { STATUS_PUBLICOS } from '@lumens/contratos';
+import { STATUS } from '../componentes/StatusPill';
 import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
 import exemplo from '../dados/blocos-teste.json';
 import { PAUTAS_TESTE } from '../dados/pautas-teste';
@@ -8,10 +9,6 @@ import Home from './page';
 
 // O filtro usa o router do Next, que não existe fora do app.
 vi.mock('../componentes/FiltroBloco', () => ({ FiltroBloco: () => null }));
-vi.mock('../componentes/FiltroStatus', () => ({
-  FiltroStatus: ({ contagens }: { contagens: Record<string, number> }) =>
-    createElement('pre', { id: 'contagens' }, JSON.stringify(contagens)),
-}));
 vi.mock('../dados/api', () => ({
   buscarApoiosPorSemana: vi.fn(),
   buscarBlocos: vi.fn(),
@@ -99,22 +96,34 @@ describe('home', () => {
     await expect(render()).rejects.toThrow('500');
   });
 
-  it('as contagens do filtro de status somam a lista do bloco, com ou sem status escolhido', async () => {
+  it('as contagens do filtro de etapa somam a lista do bloco, com ou sem etapa escolhida', async () => {
     const doBlocoA = PAUTAS_TESTE.filter((p) => p.bloco_slug === 'bloco-a');
-    const prometidas = doBlocoA.filter((p) => p.status === 'prometido');
-    const contagensDe = (html: string): Record<string, number> =>
-      JSON.parse(
-        /<pre id="contagens">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}',
-      ) as Record<string, number>;
-    // Sem status: uma busca só, e as contagens saem dela.
+    /** Os números de cada link do primeiro filtro de etapa, pelo rótulo do link. */
+    const contagensDe = (html: string): Record<string, number> => {
+      const filtro =
+        /<nav[^>]*aria-label="Filtrar por etapa"[^>]*>(.*?)<\/nav>/.exec(html)?.[1] ?? '';
+      return Object.fromEntries(
+        [...filtro.matchAll(/([^<>]+)<small>(\d+)<\/small>/g)].map((m): [string, number] => [
+          m[1] ?? '',
+          Number(m[2]),
+        ]),
+      );
+    };
+    const confere = (contagens: Record<string, number>) => {
+      expect(contagens.Todas).toBe(doBlocoA.length);
+      for (const etapa of STATUS_PUBLICOS) {
+        expect(contagens[STATUS[etapa].rotulo] ?? 0).toBe(
+          doBlocoA.filter((p) => p.status === etapa).length,
+        );
+      }
+    };
+    // Sem etapa: uma busca só, e as contagens saem dela.
     vi.mocked(buscarPautas).mockResolvedValue(doBlocoA as never);
-    const semFiltro = contagensDe(await render('bloco-a'));
+    confere(contagensDe(await render('bloco-a')));
     expect(buscarPautas).toHaveBeenCalledTimes(1);
-    expect(semFiltro.prometido).toBe(prometidas.length);
-    // Com status: continua uma busca só, e as contagens são as mesmas.
+    // Com etapa: continua uma busca só, e as contagens não mudam.
     vi.mocked(buscarPautas).mockClear();
-    const comFiltro = contagensDe(await render('bloco-a', 'prometido'));
+    confere(contagensDe(await render('bloco-a', 'prometido')));
     expect(buscarPautas).toHaveBeenCalledTimes(1);
-    expect(comFiltro).toEqual(semFiltro);
   });
 });

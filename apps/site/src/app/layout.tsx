@@ -12,26 +12,14 @@ import './globals.css';
 // fonts.gstatic.com durante o build, e uma falha de rede no runner quebra o
 // `check` — que hoje é pré-requisito do `deploy`. Ver src/fontes/README.md.
 //
-// Bricolage Grotesque nos títulos (cara de cartaz, com eixo de tamanho óptico) e Instrument Sans
-// no texto, nos números e nas datas. A faixa de `weight` bate com a de cada arquivo variável.
-//
-// Os arquivos servidos são recortes dos originais (`*-var.woff2`): sem o eixo de largura, que o
-// site não usa, e a Bricolage só com os pesos dos títulos (600 a 800). De 185 KB para 97 KB, o que
-// tira quase meio segundo do LCP no celular em 4G (SCRUM-59). Como gerar: src/fontes/README.md.
-
-const titulo = localFont({
-  src: '../fontes/bricolage-grotesque-latin-600-800.woff2',
-  weight: '600 800',
+// Geist em tudo (SCRUM-374): pesos finos nos títulos grandes e nos números, 400 a 500 no texto. Um
+// arquivo variável só (100 a 900, 29 KB), menor que as duas famílias de antes juntas (97 KB). O
+// `--fonte-corpo` aponta para a mesma família, no globals.css.
+const geist = localFont({
+  src: '../fontes/geist-latin-var.woff2',
+  weight: '100 900',
   display: 'swap',
   variable: '--fonte-titulo',
-  fallback: ['system-ui', 'sans-serif'],
-});
-
-const corpo = localFont({
-  src: '../fontes/instrument-sans-latin-400-700.woff2',
-  weight: '400 700',
-  display: 'swap',
-  variable: '--fonte-corpo',
   fallback: ['system-ui', 'sans-serif'],
 });
 
@@ -44,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${titulo.variable} ${corpo.variable}`}>
+    <html lang="pt-BR" className={geist.variable}>
       <body>
         <Cabecalho />
         {children}

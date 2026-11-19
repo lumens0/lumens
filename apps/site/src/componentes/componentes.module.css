@@ -37,11 +37,7 @@
   /* Com poucos apoios a largura dá menos de 1 px: sempre sobra um pedaço visível. */
   min-width: 6px;
   border-radius: 6px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--cor, var(--tinta)) 76%, #fff),
-    var(--cor, var(--tinta))
-  );
+  background: var(--cor, var(--tinta));
   transform-origin: left;
   animation: encher 900ms var(--curva) both;
 }

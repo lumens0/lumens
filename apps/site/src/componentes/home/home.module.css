@@ -1,0 +1,1472 @@
+/*
+ * Home "o campus acende" (SCRUM-374). Três modos:
+ * - sem JavaScript ou com "menos movimento" (`data-cinema` ausente ou `parado`): cada cena é uma
+ *   tela parada, já montada, em fluxo normal;
+ * - ligado no computador: cada cena fica presa na tela e a rolagem conta a história dela;
+ * - ligado no celular (`data-celular`): as mesmas cenas, enquadradas na vertical, e o carrossel é
+ *   arrastado com o dedo.
+ * As classes `acesa`, `feito`, `foco` e `luz` são postas pelo `cinema.ts`.
+ */
+
+.home {
+  position: relative;
+  overflow-x: clip;
+  --margem: 128px;
+  --topo: 65px;
+}
+
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cinema {
+  position: relative;
+}
+
+/* --- O campus fixo atrás da página -------------------------------------------------------------- */
+
+.cenario {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  perspective: 1300px;
+  pointer-events: none;
+}
+
+/* Sem o motor, o campus fica parado, inclinado na metade de baixo da tela. */
+.plano {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 1600px;
+  height: 1153px;
+  transform: translate(-36%, -50%) rotateX(50deg) rotateZ(-16deg) scale(1.1);
+  will-change: transform;
+}
+
+.cinema[data-cinema] .plano {
+  left: 0;
+  top: 0;
+  transform: none;
+}
+
+.campus {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* A borda do campus some no escuro, em vez de virar uma linha. */
+  -webkit-mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 58% 58% at 50% 50%, #000 62%, transparent 100%);
+}
+
+.terreno {
+  fill: #10153a;
+}
+
+.area {
+  fill: #121842;
+}
+
+.caminho {
+  fill: none;
+  stroke: #161c49;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.predio {
+  fill: #262b55;
+  transition: fill 500ms;
+}
+
+/* Sem o motor, todos os prédios com pauta ficam acesos. */
+.cinema:not([data-cinema='ligado']) .predio[data-luz],
+.predio:global(.luz) {
+  fill: var(--cor);
+  filter: drop-shadow(0 0 6px var(--cor)) drop-shadow(0 0 22px var(--cor));
+}
+
+.veu {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(9 12 32 / 96%) 0%,
+    rgb(9 12 32 / 78%) 42%,
+    rgb(9 12 32 / 10%) 100%
+  );
+  opacity: 0.5;
+}
+
+.cinema[data-cinema] .veu {
+  opacity: 0;
+}
+
+.pinos {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pino {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%);
+  opacity: 0;
+}
+
+.pino div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 8px;
+  background: rgb(9 12 32 / 84%);
+  border: 1px solid var(--borda);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pino div svg {
+  width: 16px;
+  height: 16px;
+  color: var(--tinta-2);
+}
+
+.pino b {
+  font-weight: 500;
+}
+
+.pino small {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.pino i {
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(rgb(242 240 234 / 50%), rgb(242 240 234 / 0%));
+}
+
+/* --- Cenas ---------------------------------------------------------------------------------------- */
+
+.cena {
+  position: relative;
+  z-index: 2;
+  scroll-margin-top: var(--topo);
+}
+
+.palco {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100svh - var(--topo));
+  padding: 72px 64px 64px var(--margem);
+}
+
+.cinema[data-cinema='ligado'] .palco {
+  position: sticky;
+  top: var(--topo);
+  height: calc(100svh - var(--topo));
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 56px;
+}
+
+.cinema[data-cinema='ligado'] .cena[data-cena='abertura'] {
+  height: 340vh;
+}
+
+.cinema[data-cinema='ligado'] .cena[data-cena='manifesto'] {
+  height: 300vh;
+}
+
+.cinema[data-cinema='ligado'] .cena[data-cena='destaque'] {
+  height: 380vh;
+}
+
+/* Cada pauta ganha um trecho de rolagem; com muitas, o trecho encurta. */
+.cinema[data-cinema='ligado'] .cena[data-cena='pautas'] {
+  height: calc(100vh + max(1, min(var(--n) - 1, 12)) * 60vh);
+}
+
+.cinema[data-cinema='ligado'] .cena[data-cena='fim'] {
+  height: 240vh;
+}
+
+.cinema[data-cinema='ligado'] .cena[data-cena='numeros'] .palco {
+  position: relative;
+  top: auto;
+  height: auto;
+  min-height: calc(100svh - var(--topo));
+  overflow: visible;
+}
+
+/* A: abertura. */
+
+.lugar,
+.sobre {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.titulo {
+  max-width: 980px;
+  margin: 0;
+  font:
+    450 96px/1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.055em;
+}
+
+.titulo span {
+  display: block;
+  will-change: transform;
+}
+
+.luz {
+  color: var(--luz);
+  font-weight: 520;
+}
+
+.totais {
+  margin-top: auto;
+  max-width: 760px;
+}
+
+.totaisTopo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 24px;
+  margin-bottom: 18px;
+}
+
+/* A seta do select padrão é escura, feita para o fundo claro. */
+.totaisTopo select {
+  max-width: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b9bbd0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.totaisTopo h2 {
+  margin: 0;
+  font:
+    500 20px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.totais dl {
+  display: flex;
+  gap: 48px;
+  margin: 0;
+}
+
+.totais dl div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.totais dt {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.totais dd {
+  margin: 0;
+  font:
+    360 44px/1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* B: o texto que acende palavra por palavra. */
+
+.manifesto {
+  max-width: 1100px;
+  margin: auto 0;
+  font:
+    360 46px/1.2 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.palavra,
+.palavraLuz,
+.chip {
+  transition:
+    color 220ms,
+    border-color 220ms;
+}
+
+.palavraLuz {
+  color: var(--luz);
+}
+
+/* Ligado: as palavras começam apagadas (com 3:1, o mínimo para texto grande) e acendem. */
+.cinema[data-cinema='ligado'] .palavra:not(:global(.acesa)),
+.cinema[data-cinema='ligado'] .palavraLuz:not(:global(.acesa)) {
+  color: #5f6496;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px;
+  padding: 4px 14px 4px 10px;
+  border-radius: 10px;
+  border: 1px solid rgb(242 240 234 / 30%);
+  vertical-align: 0.12em;
+  font: 500 18px var(--fonte-corpo);
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+}
+
+.chip svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cinema[data-cinema='ligado'] .chip:not(:global(.acesa)) {
+  border-color: var(--borda);
+  color: var(--tinta-3);
+}
+
+/* C: a pauta em destaque. */
+
+.palcoDestaque {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) minmax(0, 460px);
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: 64px;
+  align-items: stretch;
+}
+
+.medidor {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  margin: 2vh 0 4vh;
+  border-radius: 6px;
+  background: rgb(242 240 234 / 10%);
+}
+
+.medidor span {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--m, 0) * 1%);
+  border-radius: 6px;
+  background: var(--c);
+  transition: background-color 400ms;
+}
+
+.medidor i {
+  position: absolute;
+  left: -8px;
+  bottom: var(--meta);
+  width: 28px;
+  height: 2px;
+  background: var(--tinta);
+}
+
+.medidor small {
+  position: absolute;
+  left: 40px;
+  top: -10px;
+  font-size: 13px;
+  font-style: normal;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+
+.numero {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  margin-bottom: 4vh;
+}
+
+.numeroGrande {
+  margin: 0;
+  font:
+    300 220px/0.8 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.07em;
+  font-variant-numeric: tabular-nums;
+}
+
+.numeroLegenda {
+  margin: 12px 0 0;
+  font-size: 17px;
+  color: var(--tinta-2);
+}
+
+.ficha {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+}
+
+.ficha h2 {
+  margin: 0 0 28px;
+  font:
+    470 44px/1.05 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.045em;
+}
+
+.onde {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.onde span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.onde svg {
+  width: 15px;
+  height: 15px;
+}
+
+.passos {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passos li {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  border-top: 1px solid var(--borda);
+  color: var(--tinta-3);
+  transition: color 300ms;
+}
+
+.passos li > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  transition:
+    background-color 300ms,
+    border-color 300ms,
+    color 300ms;
+}
+
+.passos small {
+  font-size: 13px;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Etapa já feita: acesa. Ligado, o motor acende uma de cada vez; parado, já vêm acesas. */
+.cinema:not([data-cinema='ligado']) .passos li[data-feito],
+.passos li:global(.feito) {
+  color: var(--tinta);
+}
+
+.cinema:not([data-cinema='ligado']) .passos li[data-feito] > span,
+.passos li:global(.feito) > span {
+  background: var(--c);
+  border-color: var(--c);
+  color: #fff;
+}
+
+.proximaEtapa {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgb(255 194 61 / 40%);
+  color: var(--luz);
+  font-size: 15px;
+}
+
+.cinema[data-cinema='ligado'] .proximaEtapa {
+  opacity: 0;
+}
+
+.abrirPauta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 14px;
+  font-weight: 500;
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.abrirPauta:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.abrirPauta svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* D: todas as pautas. */
+
+.palcoPautas {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.topoPautas {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 32px;
+  padding: 0 64px 0 var(--margem);
+}
+
+.topoPautas h2 {
+  margin: 0;
+  white-space: nowrap;
+  font:
+    470 56px/1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.05em;
+}
+
+.sub {
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: var(--tinta-3);
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 720px;
+}
+
+.filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: rgb(9 12 32 / 60%);
+  color: var(--tinta-2);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 160ms,
+    color 160ms,
+    border-color 160ms;
+}
+
+.filtro svg {
+  width: 16px;
+  height: 16px;
+}
+
+.filtro small {
+  font-size: 13px;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.filtro:hover {
+  border-color: var(--borda-forte);
+  color: var(--tinta);
+}
+
+.filtro[aria-current] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--fundo);
+}
+
+.filtro[aria-current] small {
+  color: #565a77;
+}
+
+.vazio {
+  padding: 32px 64px 0 var(--margem);
+}
+
+/* Parado e no celular: faixa que se arrasta com o dedo, uma pauta encaixada de cada vez. */
+.carrossel {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 4px 64px 14px var(--margem);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 var(--margem);
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.carrossel::-webkit-scrollbar {
+  display: none;
+}
+
+.carrossel > li {
+  flex: 0 0 400px;
+  scroll-snap-align: start;
+}
+
+.cartao {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 380px;
+  padding: 26px;
+  border-radius: 20px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  transition:
+    border-color 300ms,
+    background-color 300ms;
+}
+
+.carrossel > li:global(.foco) .cartao {
+  background: var(--superficie-2);
+  border-color: rgb(242 240 234 / 22%);
+}
+
+.etapa {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 30px;
+  padding: 0 12px 0 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c) 26%, transparent);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.etapa svg {
+  width: 16px;
+  height: 16px;
+}
+
+.urgente {
+  margin-left: 4px;
+  font-weight: 500;
+  color: #ff9a92;
+}
+
+.cartao h3 {
+  margin: 18px 0 8px;
+  font:
+    520 26px/1.12 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.cartao h3 a {
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.cartao h3 a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+}
+
+/* O título é o link: o cartão inteiro responde ao toque. */
+.cartao h3 a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.cartao {
+  position: relative;
+}
+
+.descricao {
+  flex: 1;
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--tinta-2);
+}
+
+.apoios {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.apoios strong {
+  margin-right: 4px;
+  font:
+    360 40px/1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.05em;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.aberta {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+/* Ligado no computador: o carrossel em 3D, levado pela rolagem. */
+.cinema[data-cinema='ligado']:not([data-celular]) .carrossel {
+  position: relative;
+  display: block;
+  height: 420px;
+  margin-top: 28px;
+  padding: 0;
+  overflow: visible;
+  perspective: 1600px;
+}
+
+.cinema[data-cinema='ligado']:not([data-celular]) .carrossel > li {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 400px;
+  height: 400px;
+  margin-left: -200px;
+  will-change: transform, opacity;
+}
+
+.navegacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.navegacao > button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--borda);
+  background: rgb(9 12 32 / 60%);
+  color: var(--tinta);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms;
+}
+
+.navegacao > button:hover {
+  border-color: var(--borda-forte);
+}
+
+.navegacao > span {
+  min-width: 72px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.navegacao > .verLista {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  margin-left: 12px;
+  padding: 0 16px 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.verLista svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* A lista: painel que entra pela direita (computador) ou sobe de baixo (celular). */
+.gaveta {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(460px, 100vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--borda);
+  background: #0d1130;
+  color: var(--tinta);
+}
+
+.gaveta[open] {
+  display: flex;
+  flex-direction: column;
+  animation: entrarDoLado 360ms var(--curva) both;
+}
+
+.gaveta::backdrop {
+  background: rgb(5 7 20 / 60%);
+}
+
+@keyframes entrarDoLado {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.gavetaCabeca {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 28px 28px 16px;
+}
+
+.gavetaCabeca h2 {
+  margin: 0;
+  font:
+    470 30px/1.05 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.gavetaCabeca p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.fechar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.gavetaCorpo {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px 24px;
+}
+
+.gavetaCorpo .filtros {
+  justify-content: flex-start;
+  max-width: none;
+  padding: 0 12px 16px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.itens {
+  margin: 0;
+  padding: 8px 0 0;
+  list-style: none;
+}
+
+.itens li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 12px;
+  border-radius: 12px;
+  transition: background-color 160ms;
+}
+
+.itens li:hover {
+  background: rgb(242 240 234 / 6%);
+}
+
+.itemIcone {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c) 26%, transparent);
+}
+
+.itemIcone svg {
+  width: 18px;
+  height: 18px;
+}
+
+.itens a {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.itens a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.itens small {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+/* E: os números. */
+
+.palcoNumeros {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  padding-top: 40px;
+}
+
+.principal,
+.lateral {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* F: o letreiro. */
+
+.palcoFim {
+  justify-content: center;
+}
+
+.letreiro {
+  margin: 0;
+  font:
+    470 136px/0.96 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.065em;
+}
+
+.linhaFim {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+
+.linhaFim span {
+  display: inline-block;
+  will-change: transform;
+}
+
+.acoesFim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 40px;
+}
+
+.cinema[data-cinema='ligado'] .acoesFim {
+  opacity: 0;
+}
+
+.rodape {
+  margin-top: auto;
+  padding-top: 48px;
+}
+
+.rodape nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 14px;
+}
+
+.rodape a {
+  color: var(--tinta-2);
+}
+
+/* --- Celular ------------------------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .home {
+    --margem: 20px;
+    --topo: 61px;
+  }
+
+  .palco {
+    padding: 40px 20px calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .cinema[data-cinema='ligado'] .palco {
+    padding-top: 32px;
+  }
+
+  .plano {
+    width: 1000px;
+    height: 721px;
+  }
+
+  .predio:global(.luz),
+  .cinema:not([data-cinema='ligado']) .predio[data-luz] {
+    filter: drop-shadow(0 0 5px var(--cor));
+  }
+
+  .veu {
+    background: rgb(9 12 32 / 82%);
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='abertura'] {
+    height: 260vh;
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='manifesto'] {
+    height: 230vh;
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='destaque'] {
+    height: 290vh;
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='pautas'] {
+    height: auto;
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='pautas'] .palco,
+  .cinema[data-cinema='ligado'] .cena[data-cena='numeros'] .palco {
+    position: relative;
+    top: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .cinema[data-cinema='ligado'] .cena[data-cena='fim'] {
+    height: 200vh;
+  }
+
+  .titulo {
+    font-size: clamp(36px, 11.2vw, 50px);
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+  }
+
+  .totaisTopo label {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .totaisTopo select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .totais dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .totais dd {
+    font-size: 28px;
+  }
+
+  .totais dt {
+    font-size: 12px;
+  }
+
+  .pino small {
+    display: none;
+  }
+
+  .pino i {
+    height: 26px;
+  }
+
+  .manifesto {
+    font-size: clamp(24px, 7.2vw, 30px);
+    line-height: 1.3;
+    letter-spacing: -0.03em;
+  }
+
+  .chip {
+    gap: 6px;
+    margin: 0 2px;
+    padding: 1px 9px 1px 7px;
+    font-size: 15px;
+  }
+
+  .chip svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  /* C: número, régua na horizontal e a ficha embaixo. */
+  .palcoDestaque {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .numero {
+    order: 1;
+    align-self: stretch;
+    margin: 0;
+  }
+
+  .numeroGrande {
+    font-size: clamp(84px, 26vw, 112px);
+  }
+
+  .numeroLegenda {
+    font-size: 14px;
+  }
+
+  .medidor {
+    order: 2;
+    height: 10px;
+    margin: 16px 0 34px;
+  }
+
+  .medidor span {
+    inset: 0 auto 0 0;
+    height: auto;
+    width: calc(var(--m, 0) * 1%);
+  }
+
+  .medidor i {
+    left: var(--meta);
+    bottom: auto;
+    top: -6px;
+    width: 2px;
+    height: 22px;
+  }
+
+  .medidor small {
+    left: -2px;
+    top: 24px;
+  }
+
+  .ficha {
+    order: 3;
+  }
+
+  .ficha h2 {
+    margin-bottom: 12px;
+    font-size: 26px;
+  }
+
+  .onde {
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .passos li {
+    grid-template-columns: 32px 1fr auto;
+    gap: 10px;
+    height: 44px;
+    font-size: 15px;
+  }
+
+  .passos li > span {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .passos li > span svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .proximaEtapa {
+    margin-top: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  /* D */
+  .palcoPautas {
+    padding: 40px 0 calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .topoPautas {
+    display: block;
+    padding: 0 20px;
+  }
+
+  .topoPautas h2 {
+    font-size: 32px;
+  }
+
+  .topoPautas .filtros {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    max-width: none;
+    margin: 12px -20px 0;
+    padding: 0 20px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .vazio {
+    padding: 24px 20px 0;
+  }
+
+  .carrossel {
+    margin-top: 10px;
+    padding: 4px 20px 10px;
+    scroll-padding: 0 20px;
+  }
+
+  .carrossel > li {
+    flex-basis: min(340px, calc(100vw - 52px));
+    scroll-snap-align: center;
+  }
+
+  .cartao {
+    min-height: clamp(260px, calc(100svh - 380px), 360px);
+    padding: 20px;
+  }
+
+  .cartao h3 {
+    margin-top: 14px;
+    font-size: 23px;
+  }
+
+  .descricao {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .apoios strong {
+    font-size: 34px;
+  }
+
+  .navegacao {
+    gap: 10px;
+    padding: 0 20px;
+  }
+
+  .navegacao > .verLista {
+    margin-left: 6px;
+  }
+
+  .gaveta {
+    inset: auto 0 0;
+    width: 100vw;
+    height: 86svh;
+    border-left: none;
+    border-top: 1px solid var(--borda);
+    border-radius: 22px 22px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .gaveta[open] {
+    animation-name: subir;
+  }
+
+  .gaveta::before {
+    content: '';
+    align-self: center;
+    flex: none;
+    width: 40px;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 2px;
+    background: rgb(242 240 234 / 25%);
+  }
+
+  @keyframes subir {
+    from {
+      transform: translateY(100%);
+    }
+  }
+
+  .gavetaCabeca {
+    padding: 14px 20px 12px;
+  }
+
+  .gavetaCabeca h2 {
+    font-size: 24px;
+  }
+
+  .gavetaCorpo .filtros {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 4px 12px;
+  }
+
+  /* E */
+  .palcoNumeros {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 40px;
+  }
+
+  /* F */
+  .letreiro {
+    font-size: clamp(44px, 14vw, 62px);
+    line-height: 0.98;
+  }
+
+  .acoesFim > * {
+    flex: 1 1 100%;
+  }
+}
+
+/* Celular estreito (320 a 360): a navegação do carrossel cabe numa linha. */
+@media (max-width: 360px) {
+  .navegacao {
+    gap: 6px;
+  }
+
+  .navegacao > span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .navegacao > .verLista {
+    margin-left: 4px;
+    padding: 0 12px;
+  }
+
+  .navegacao > .verLista svg {
+    display: none;
+  }
+}
+
+/* Celular baixo (iPhone SE e parecidos): tudo um pouco mais compacto para caber acima do HUD. */
+@media (max-width: 720px) and (max-height: 620px) {
+  .titulo {
+    font-size: clamp(32px, 10.5vw, 44px);
+  }
+
+  .totais dd {
+    font-size: 24px;
+  }
+
+  .manifesto {
+    font-size: clamp(21px, 6.6vw, 26px);
+  }
+
+  /* O destaque é a cena mais alta: em tela baixa sai o que já aparece em outro lugar. */
+  .cinema[data-cinema='ligado'] .palcoDestaque {
+    padding-top: 16px;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  .numeroGrande {
+    font-size: 52px;
+  }
+
+  .numeroLegenda,
+  .ficha .onde {
+    display: none;
+  }
+
+  .medidor {
+    margin: 12px 0 26px;
+  }
+
+  .sobre {
+    margin-bottom: 8px;
+  }
+
+  .ficha h2 {
+    margin-bottom: 8px;
+    font-size: 20px;
+  }
+
+  .passos li {
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .passos li > span {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+
+  .passos li > span svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .proximaEtapa {
+    margin-top: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .abrirPauta {
+    margin-top: 4px;
+  }
+
+  .letreiro {
+    font-size: clamp(40px, 13vw, 52px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .palavra,
+  .palavraLuz,
+  .chip,
+  .predio,
+  .passos li,
+  .passos li > span,
+  .cartao,
+  .gaveta[open] {
+    transition: none;
+    animation: none;
+  }
+}

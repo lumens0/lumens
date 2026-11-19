@@ -1,0 +1,171 @@
+/* HUD das partes da página (SCRUM-374). Fechado, só ícones; com o mouse ou o foco, abre com os nomes. */
+.hud {
+  position: fixed;
+  left: 24px;
+  top: 50%;
+  z-index: 15;
+  transform: translateY(-50%);
+  padding: 8px 8px 8px 14px;
+  border-radius: 16px;
+  background: rgb(9 12 32 / 78%);
+  border: 1px solid rgb(242 240 234 / 12%);
+  color: #8589a8;
+  transition: background-color 200ms;
+}
+
+.hud:hover,
+.hud:focus-within,
+.hud[data-aberto] {
+  background: #0d1130;
+}
+
+.hud ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.percurso {
+  position: absolute;
+  left: 6px;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  border-radius: 1px;
+  background: rgb(242 240 234 / 10%);
+}
+
+.percurso b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--pc, 0%);
+  border-radius: 1px;
+  background: var(--luz);
+}
+
+.hud a {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: #8589a8;
+  text-decoration: none;
+  transition:
+    color 160ms,
+    background-color 160ms;
+}
+
+.hud a svg {
+  width: 20px;
+  height: 20px;
+}
+
+.numero {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  font-size: 13px;
+  font-weight: 560;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud a:hover {
+  color: #f2f0ea;
+  background: rgb(242 240 234 / 6%);
+}
+
+.hud a[aria-current] {
+  color: var(--luz);
+  background: rgb(255 194 61 / 12%);
+}
+
+.nome {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    max-width 240ms var(--curva),
+    opacity 160ms,
+    margin 240ms var(--curva);
+}
+
+.hud:hover .nome,
+.hud:focus-within .nome,
+.hud[data-aberto] .nome {
+  max-width: 260px;
+  margin: 0 6px 0 12px;
+  opacity: 1;
+}
+
+/* Celular: barra de ícones no rodapé, acima da barra do sistema; os nomes ficam para o leitor de tela. */
+@media (max-width: 720px) {
+  .hud,
+  .hud[data-aberto] {
+    left: 50%;
+    top: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    padding: 6px;
+    border-radius: 18px;
+    background: rgb(13 17 48 / 94%);
+  }
+
+  .hud ol {
+    grid-auto-flow: column;
+    gap: 2px;
+  }
+
+  .hud a {
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+  }
+
+  .nome,
+  .hud:hover .nome,
+  .hud:focus-within .nome,
+  .hud[data-aberto] .nome {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    max-width: none;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    opacity: 1;
+  }
+
+  .percurso {
+    left: 18px;
+    right: 18px;
+    top: auto;
+    bottom: 2px;
+    width: auto;
+    height: 2px;
+  }
+
+  .percurso b {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    height: auto;
+    width: var(--pc, 0%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud,
+  .hud a,
+  .nome {
+    transition: none;
+  }
+}

@@ -47,7 +47,10 @@ test('o filtro por bloco muda a URL e a lista', async ({ page }) => {
 
 test('abrir uma pauta pela lista', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
+  // No carrossel, as pautas distantes só chegam à tela com a rolagem; a lista mostra todas.
+  await page.getByRole('button', { name: 'Ver em lista' }).click();
+  const lista = page.getByRole('dialog', { name: 'Pautas em lista' });
+  await lista.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
   await expect(page).toHaveURL(`/p/${PAUTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: PAUTA.titulo })).toBeVisible();
 });
