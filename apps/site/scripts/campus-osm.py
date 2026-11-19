@@ -96,16 +96,10 @@ def tipo_aberto(t):
     return None
 
 
-# Lugares que o OSM não tem, com a posição conferida no Google Maps (SCRUM-284). O melhor lugar
-# para corrigir é o próprio OSM; quando entrarem lá, saem daqui.
-LOCAIS_EXTRAS = {
-    'EDGE Academy': (-9.5535183, -35.779648),  # junto à pista de atletismo, na Av. Longitudinal
-    # Observatório da Rede de Inovação para a Educação Híbrida (RIEH), sede do NEES: o prédio à
-    # esquerda do IC, na Av. Longitudinal 1. O OSM ainda não o desenha.
-    'NEES (RIEH)': (-9.553674, -35.7771764),
-    # CRAD/UFAL: no Google Maps o pino cai em terreno sem prédio desenhado no OSM.
-    'CRAD': (-9.5546314, -35.7710587),
-}
+# Lugares que o OSM não tem (EDGE Academy, NEES, CRAD) não saem daqui: vivem em `predios.ts`
+# (`LUGARES_SEM_PREDIO`), como quadrados alinhados às ruas, na posição conferida no Google Maps
+# (EDGE Academy -9.5535183, -35.779648; NEES -9.553674, -35.7771764; CRAD -9.5546314, -35.7710587).
+# O melhor lugar para corrigir é o próprio OSM; quando entrarem lá, saem de `predios.ts`.
 
 # Unidades que o OSM desenha como área `amenity=university` (sem `building`), e não como prédio. O
 # pino de cada uma no Google Maps cai dentro do polígono (SCRUM-284): IEFE, IQB e FAU.
@@ -204,11 +198,6 @@ saida = [
         f"  [{i}, {n!r}, '{d}', [{', '.join(f'{v:g}' for v in c)}], {sg!r}],"
         for i, n, d, c, sg in predios
     ],
-    '];',
-    '',
-    '/** Lugares fora do OSM: `[nome, x, y]` em metros, no mesmo desenho. */',
-    'export const PONTOS_LOCAIS: readonly (readonly [string, number, number])[] = [',
-    *[f"  [{n!r}, {plano(p)[0]:g}, {plano(p)[1]:g}]," for n, p in LOCAIS_EXTRAS.items()],
     '];',
     '',
     '/** Áreas abertas: `[id do OSM, tipo, nome, contorno, caixa]`. Nome vazio: sem rótulo. */',

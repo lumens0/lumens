@@ -123,14 +123,30 @@ describe('página da pauta: seções', () => {
       fotos: ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.png', 'fotos/2026/11/c.jpg'],
     };
     const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
+    // As três miniaturas e, no diálogo (fechado), nenhuma foto inteira carregada ainda.
     expect(html.match(/<img/g)).toHaveLength(3);
     expect(html.indexOf('/fotos/2026/11/a.jpg')).toBeLessThan(html.indexOf('/fotos/2026/11/b.png'));
     expect(html.indexOf('/fotos/2026/11/b.png')).toBeLessThan(html.indexOf('/fotos/2026/11/c.jpg'));
     expect(html).toContain('alt="Foto 1 de 3 do relato: A saída');
     expect(html).toContain('alt="Foto 3 de 3 do relato: A saída');
-    // Cada foto abre inteira numa aba nova.
-    expect(html.match(/target="_blank"/g)).toHaveLength(3);
-    expect(html.match(/\(abre em nova aba\)/g)).toHaveLength(3);
+  });
+
+  it('a foto abre na própria página (diálogo), não em outra aba', () => {
+    const relato = { ...RELATO_COM_FOTO, fotos: ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.png'] };
+    const html = renderToStaticMarkup(<Relatos relatos={[relato]} />);
+    expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain('abre em nova aba');
+    // Sem JavaScript a miniatura ainda é um link para a imagem; com ele, abre o diálogo.
+    expect(html.match(/<a [^>]*href="\/fotos\//g)).toHaveLength(2);
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('<dialog');
+    expect(html).toContain('aria-label="Fechar a foto"');
+    // Com mais de uma foto, setas para passar entre elas; com uma só, não há.
+    expect(html).toContain('aria-label="Próxima foto"');
+    const uma = renderToStaticMarkup(
+      <Relatos relatos={[{ ...RELATO_COM_FOTO, fotos: ['fotos/2026/11/a.jpg'] }]} />,
+    );
+    expect(uma).not.toContain('Próxima foto');
   });
 
   it('só a foto com chave válida vira miniatura; as outras do mesmo relato continuam', () => {
@@ -574,7 +590,8 @@ describe('placar de apoios (SCRUM-349)', () => {
   )('a barra de %s tem a cor do status e fica preenchida', (status) => {
     const html = renderToStaticMarkup(<PlacarDeApoios pauta={{ ...fixture, status }} />);
     // A mesma cor que o card da lista passa à barra, no preenchimento.
-    expect(html).toContain(`background:${STATUS[status].ponto}`);
+    // A cor vai pela variável `--cor`, e o degradê é o mesmo das barras do dashboard.
+    expect(html).toContain(`--cor:${STATUS[status].ponto}`);
     expect(html).toContain('width:100%');
   });
 

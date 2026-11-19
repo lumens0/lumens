@@ -123,3 +123,21 @@ WHERE b.slug = 'praca-de-alimentacao'
 - Para saber se ficou: `SELECT slug FROM bloco WHERE slug = 'praca-de-alimentacao';` (vazio = apagado).
 - Não há volta automática: o bloco apagado não tinha pauta, então nenhum dado se perde. Para
   recriá-lo, insira a linha em `bloco` à mão (`slug`, `nome`, `base_estudantes`).
+
+## 0028 · `blocos_residencia_edge_nees_crad`
+
+A Residência Universitária (RUA) e os lugares que o mapa desenha e o OpenStreetMap não tem (EDGE
+Academy, NEES e CRAD) entraram no catálogo `packages/db/seed/blocos-ufal.ts` depois que os bancos de
+homologação e de produção já tinham sido semeados, e o `pnpm db:blocos-ufal` é manual. Sem esta
+migração, esses blocos não apareciam na lista do bot nem no filtro do site (o bot e o site mostram os
+blocos que estão no banco).
+
+- Cadastra os quatro **pelo slug** e não mexe em bloco que já existe (rodar de novo, ou depois do
+  `db:blocos-ufal`, não duplica nem muda nada).
+- Só roda onde o catálogo real já foi cadastrado (existe o bloco `ic`). Banco de desenvolvimento,
+  com os blocos fictícios do seed, e banco novo e vazio não recebem nada: eles ganham o catálogo,
+  com estes quatro, quando o `db:blocos-ufal` rodar.
+- As bases de estudantes (RUA 300, EDGE Academy 300, NEES 150, CRAD 200) são estimativas, como as
+  demais; se houver número melhor, corrija com `UPDATE` em `bloco` enquanto não houver pauta no bloco
+  (a meta congela na criação da pauta).
+- Conferir: `SELECT slug FROM bloco WHERE slug IN ('residencia-universitaria','edge-academy','nees','crad');`

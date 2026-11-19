@@ -46,6 +46,18 @@ describe('BarraApoios', () => {
     expect(html).toContain('1.240 de 300 apoios');
   });
 
+  it('a cor do status vai por --cor (o degradê é o do dashboard) e a barra sempre aparece com apoio', () => {
+    const html = renderToStaticMarkup(
+      <BarraApoios apoios={1} meta={300} rotulo="Apoios: X" cor="#2f6fed" />,
+    );
+    expect(html).toContain('--cor:#2f6fed');
+    expect(html).toContain('width:0%');
+    // Sem apoio nenhum, o trilho fica vazio.
+    expect(
+      renderToStaticMarkup(<BarraApoios apoios={0} meta={300} rotulo="Apoios: X" />),
+    ).not.toContain('preenchimento');
+  });
+
   it.each(PAUTAS_TESTE)('no card de $slug, o nome da barra identifica a pauta', (pauta) => {
     const html = renderToStaticMarkup(<CardPauta pauta={pauta} />);
     expect(html).toContain(`aria-label="Apoios: ${pauta.titulo}"`);

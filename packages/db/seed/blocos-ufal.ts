@@ -39,6 +39,11 @@ export const blocosUfal = [
   { slug: 'ru', nome: 'RU - Restaurante Universitário', baseEstudantes: 6000 },
   // Em frente ao RU. Base estimada pela quantidade de vagas de moradia (palpite da equipe, como as demais).
   { slug: 'residencia-universitaria', nome: 'Residência Universitária', baseEstudantes: 300 },
+  // Lugares que o mapa do site desenha e o OpenStreetMap não tem (EDGE Academy, NEES e CRAD), na
+  // posição do Google Maps. Base estimada, como as demais (palpite da equipe).
+  { slug: 'edge-academy', nome: 'EDGE Academy', baseEstudantes: 300 },
+  { slug: 'nees', nome: 'NEES (RIEH)', baseEstudantes: 150 },
+  { slug: 'crad', nome: 'CRAD', baseEstudantes: 200 },
   { slug: 'bloco-18', nome: 'Bloco 18', baseEstudantes: 2000 },
   { slug: 'bloco-07', nome: 'Bloco 07', baseEstudantes: 2000 },
   { slug: 'bloco-13', nome: 'Bloco 13', baseEstudantes: 1500 },

@@ -1,5 +1,6 @@
 import type { PautaDetalhe } from '@lumens/contratos';
-import { altDaFoto, urlFoto as urlFotoPadrao } from './foto';
+import { FotosDoRelato } from './FotosDoRelato';
+import { urlFoto as urlFotoPadrao } from './foto';
 import estilos from './pauta.module.css';
 
 /** Relatos aprovados: texto e curso, nunca quem relatou. */
@@ -31,30 +32,8 @@ export function Relatos({
                   <p className={estilos.texto}>{relato.texto}</p>
                   {relato.curso && <p className={estilos.curso}>{relato.curso}</p>}
                 </div>
-                {/* Miniaturas lado a lado: cada foto inteira abre ao clicar, numa aba nova. */}
-                {fotos.length > 0 && (
-                  <ul className={estilos.fotos} aria-label="Fotos do relato">
-                    {fotos.map((foto, j) => (
-                      <li key={foto}>
-                        <a
-                          href={foto}
-                          target="_blank"
-                          rel="noopener"
-                          className={estilos.fotoLink}
-                          title="Ver a foto inteira"
-                        >
-                          <img
-                            src={foto}
-                            alt={altDaFoto(relato.texto, j + 1, fotos.length)}
-                            className={estilos.foto}
-                            loading="lazy"
-                          />
-                          <span className={estilos.somenteLeitor}>(abre em nova aba)</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {/* Miniaturas lado a lado; a foto inteira abre na própria página (diálogo). */}
+                {fotos.length > 0 && <FotosDoRelato urls={fotos} texto={relato.texto} />}
               </li>
             );
           })}

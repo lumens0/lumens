@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import estilos from './componentes.module.css';
 
 const numero = new Intl.NumberFormat('pt-BR');
@@ -37,10 +38,12 @@ export function BarraApoios({
         aria-valuenow={percentual(apoios, meta)}
         aria-valuetext={legenda}
       >
-        <div
-          className={estilos.preenchimento}
-          style={{ width: `${String(percentual(apoios, meta))}%`, background: cor }}
-        />
+        {apoios > 0 && (
+          <div
+            className={estilos.preenchimento}
+            style={{ width: `${String(percentual(apoios, meta))}%`, '--cor': cor } as CSSProperties}
+          />
+        )}
       </div>
       {!semLegenda && <span className={estilos.legenda}>{legenda}</span>}
     </div>
