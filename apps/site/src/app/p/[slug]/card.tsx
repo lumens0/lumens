@@ -6,9 +6,12 @@ import type { PautaDetalhe } from '@lumens/contratos';
 import { formatarNumero, percentual } from '../../../componentes/BarraApoios';
 import { STATUS } from '../../../componentes/StatusPill';
 import { buscarPauta } from '../../../dados/api';
+import { conquistadaEm, solucaoEntregue } from '../../../dados/conquista';
+import { diasEntre, textoDias } from '../../../dados/dias';
 import { aceitaApoio, FORA_DO_SITE } from '../../../dados/pautas-publicas';
 import { origemDoSite } from '../../../origem';
 import { fonteDoTitulo, tituloDoCard } from './card.png/titulo';
+import { confete } from './confete';
 
 // Modelo do card da pauta (SCRUM-52), em dois formatos: `story` (1080 × 1920, `card.png`) e `og`
 // (1200 × 630, `og.png`, a prévia do link). Muda só o arranjo; as peças, os dados, o 404 e o cache
@@ -87,7 +90,9 @@ export async function respostaDoCard(_request: Request, slug: string, formato: F
   const { fontes, marca } = await (recursos ??= lerRecursos());
   const card =
     formato === 'story'
-      ? cardStory(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
+      ? pauta.status === 'conquistada'
+        ? cardConquista(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
+        : cardStory(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
       : cardOg(pauta, marca);
   return new ImageResponse(card, {
     ...TAMANHO[formato],
@@ -109,6 +114,147 @@ export function qrDoLink(link: string): string {
     blackColor: '#141936',
   });
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
+// Cores da comemoração: o verde da etapa "conquistada", o âmbar da luz e o branco.
+const VERDE = '#36864f';
+const VERDE_NOITE = '#12402b';
+const CORES_DO_CONFETE = [LUZ, VERDE, '#ffffff'] as const;
+
+/** Quantas linhas de texto do "que foi feito" cabem no card, por caracteres (≈ 3 linhas). */
+const LIMITE_DO_FEITO = 150;
+
+/**
+ * Card de conquista (pauta `conquistada`), só no formato `story`: do verde ao azul-noite, com
+ * confete e brilho dourado, o selo "CONQUISTA", "Conquistamos!", os dias da criação à entrega e os
+ * apoios, e o que foi feito (o texto da solução executada, quando há). No lugar da foto, a fachada
+ * com todas as janelas acesas. O rodapé é o do card de andamento. FASE 1: sem foto nova.
+ */
+function cardConquista(pauta: PautaDetalhe, endereco: string, marca: string, qr: string) {
+  const titulo = tituloDoCard(pauta.titulo);
+  const dias = diasEntre(pauta.criada_em, conquistadaEm(pauta));
+  const feito = solucaoEntregue(pauta)?.descricao?.trim();
+  const resumo = [
+    dias === null ? undefined : `${textoDias(dias)} da criação à entrega`,
+    `${formatarNumero(pauta.apoios)} apoios`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <div
+      style={{
+        ...fundo,
+        padding: '112px 96px 104px',
+        backgroundImage: `linear-gradient(180deg, ${VERDE_NOITE} 0%, ${NOITE} 100%)`,
+      }}
+    >
+      <Brilho tamanho={1500} x={540} y={-620} />
+      {confete(
+        pauta.slug,
+        46,
+        { largura: TAMANHO.story.width, altura: TAMANHO.story.height },
+        CORES_DO_CONFETE,
+      ).map((p, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left: p.x,
+            top: p.y,
+            width: p.largura,
+            height: p.altura,
+            borderRadius: p.redonda ? 999 : 4,
+            background: p.cor,
+            opacity: 0.85,
+            transform: `rotate(${String(p.giro)}deg)`,
+          }}
+        />
+      ))}
+      <Logo tamanho={56} marca={marca} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: 120 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignSelf: 'flex-start',
+            padding: '14px 36px',
+            borderRadius: 999,
+            background: LUZ,
+            color: NOITE,
+            fontSize: 40,
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+          }}
+        >
+          CONQUISTA
+        </div>
+        <div style={{ ...estiloTitulo, fontSize: 150, color: LUZ }}>Conquistamos!</div>
+        <div style={{ display: 'flex', fontSize: 44, color: TINTA_2 }}>{resumo}</div>
+        <div
+          style={{
+            ...estiloTitulo,
+            fontSize: Math.round(fonteDoTitulo(titulo) * 0.9),
+            color: '#ffffff',
+            marginTop: 12,
+          }}
+        >
+          {titulo}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: 'auto' }}>
+        {feito ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '0.1em', color: LUZ }}>
+              O QUE FOI FEITO
+            </span>
+            <span style={{ fontSize: 42, lineHeight: 1.3, color: TINTA }}>
+              {tituloDoCard(feito, LIMITE_DO_FEITO)}
+            </span>
+          </div>
+        ) : null}
+        {/* Sem foto da curadoria (FASE 2): a fachada toda acesa é a comemoração. */}
+        <Fachada
+          pauta={{ ...pauta, apoios: pauta.meta }}
+          colunas={10}
+          linhas={3}
+          janela={72}
+          vao={18}
+        />
+      </div>
+      <Rodape pauta={pauta} endereco={endereco} qr={qr} />
+    </div>
+  );
+}
+
+function Rodape({ pauta, endereco, qr }: { pauta: PautaDetalhe; endereco: string; qr: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 48,
+        marginTop: 56,
+        paddingTop: 56,
+        borderTop: '2px solid rgba(255, 255, 255, 0.12)',
+        fontSize: 40,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+        <span style={{ fontWeight: 700, color: TINTA }}>
+          {aceitaApoio(pauta.status) ? 'Apoie também:' : 'Veja como foi:'}
+        </span>
+        <span style={{ color: LUZ, wordBreak: 'break-all' }}>{endereco}</span>
+        <span style={{ fontSize: 32, color: TINTA_3 }}>Ou aponte a câmera para o QR Code.</span>
+      </div>
+      <img
+        src={qr}
+        alt=""
+        width={QR_LADO}
+        height={QR_LADO}
+        style={{ flex: 'none', borderRadius: 24 }}
+      />
+    </div>
+  );
 }
 
 function cardStory(pauta: PautaDetalhe, endereco: string, marca: string, qr: string) {

@@ -720,14 +720,17 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     );
   });
 
-  it('não repete o prazo quando o texto da API já o traz', () => {
+  it('não repete o prazo na linha de apoio quando o texto da API já o traz; a data grande é o destaque', () => {
     const pauta = {
       ...fixture,
       proxima_etapa: 'Prazo do Fala.BR venceu em 20/03/2026',
       caminhos: [falabr()],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={HOJE} />);
-    expect(html.match(/20\/03\/2026/g)).toHaveLength(1);
+    // A data grande (destaque) e o texto da API: duas vezes, e nunca uma terceira na linha de apoio.
+    expect(html.match(/20\/03\/2026/g)).toHaveLength(2);
+    expect(html).toContain('venceu há');
+    expect(html).not.toContain('Prazo de resposta do Fala.BR');
   });
 
   it('o dia do prazo ainda conta como em dia; o dia seguinte, não', () => {
@@ -828,7 +831,8 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).not.toContain('Solução entregue');
     expect(html).not.toContain('Conquistada em');
     expect(html).not.toContain('Da criação à entrega');
-    expect(html).not.toContain('<dl');
+    // Só o número de apoios, que a pauta sempre tem.
+    expect(html).toContain('<dt>Apoios</dt>');
   });
 
   it('solução sem descrição ou data não mostra "null"', () => {

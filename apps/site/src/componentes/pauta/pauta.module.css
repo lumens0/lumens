@@ -455,7 +455,8 @@
   border-radius: 999px;
   font-weight: 600;
   font-size: 13px;
-  background: var(--status-conquistada);
+  /* O verde da etapa com 20% de preto: o texto branco de 13 px passa de 4,5:1 (era 4,4:1). */
+  background: color-mix(in srgb, var(--status-conquistada) 80%, #000);
   color: #fff;
 }
 
@@ -589,4 +590,313 @@
 .lightboxSeta:focus-visible {
   outline: 3px solid var(--luz, #ffc43d);
   outline-offset: 2px;
+}
+
+/* ---- E5: faixa com brilho, fio de etapas, próxima etapa, barra fixa e card ---- */
+
+/* O brilho da cor da etapa no canto da faixa de noite: 30% e, na conquistada, 55%. */
+.faixa {
+  isolation: isolate;
+}
+
+.faixa::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(
+    ellipse at 85% 0%,
+    color-mix(in srgb, var(--cor) 30%, transparent),
+    transparent 65%
+  );
+  pointer-events: none;
+  /* O brilho some nas laterais: fora da caixa da faixa o fundo noite segue liso, sem emenda. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+}
+
+.faixaConquistada::before {
+  background-image: radial-gradient(
+    ellipse at 85% 0%,
+    color-mix(in srgb, var(--cor) 55%, transparent),
+    transparent 70%
+  );
+}
+
+button.fantasma {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.fio {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A linha que liga as cinco janelas passa por trás delas. */
+.fio::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  left: 10px;
+  height: 2px;
+  background: var(--borda-forte);
+}
+
+.etapaDoFio {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center;
+}
+
+.janelaDoFio {
+  display: block;
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--noite-2);
+  box-shadow: 0 0 0 3px var(--noite);
+}
+
+.fio_acesa .janelaDoFio {
+  background: var(--cor);
+  box-shadow:
+    0 0 0 3px var(--noite),
+    0 0 8px color-mix(in srgb, var(--cor) 60%, transparent);
+}
+
+.fio_atual .janelaDoFio {
+  width: 18px;
+  height: 26px;
+  background: var(--cor);
+  box-shadow:
+    0 0 0 3px var(--noite),
+    0 0 14px var(--cor);
+  animation: pulsoDaJanela 2.4s ease-in-out infinite;
+}
+
+/* Promessa descumprida: a janela vazada, só o contorno vermelho. */
+.fio_vazada .janelaDoFio {
+  width: 18px;
+  height: 26px;
+  background: var(--noite);
+  box-shadow:
+    0 0 0 3px var(--noite),
+    inset 0 0 0 2px var(--cor);
+}
+
+@keyframes pulsoDaJanela {
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.rotuloDoFio {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tinta-3);
+}
+
+.fio_atual .rotuloDoFio,
+.fio_vazada .rotuloDoFio {
+  color: var(--tinta);
+}
+
+/* No celular só o rótulo da etapa atual aparece; a lista inteira segue para o leitor de tela. */
+@media (max-width: 619px) {
+  .fio_acesa .rotuloDoFio,
+  .fio_apagada .rotuloDoFio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* A data da próxima etapa em destaque. */
+.dataGrande {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 4px 0 8px;
+  font:
+    700 32px/1.1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.diasAte {
+  font:
+    500 15px var(--fonte-corpo),
+    sans-serif;
+  letter-spacing: 0;
+  color: var(--tinta-2);
+}
+
+.dataGrande .vencidoTexto {
+  font:
+    600 15px var(--fonte-corpo),
+    sans-serif;
+  letter-spacing: 0;
+  color: var(--urgente);
+}
+
+/* Barra fixa de apoiar, só no celular. No topo da pauta o "Apoiar" some no celular e fica aqui. */
+.barraFixa {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .apoiarDoTopo {
+    display: none;
+  }
+
+  .barraFixa {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 24px -24px calc(-1 * var(--pagina-fim, 40px));
+    padding: 10px 24px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--borda-forte);
+    background: var(--superficie);
+    font-size: 14px;
+    box-shadow: 0 -8px 24px rgb(20 25 54 / 10%);
+  }
+
+  .barraFixa strong {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (max-width: 640px) {
+  .barraFixa {
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+}
+
+/* Diálogo "Compartilhar card". */
+.dialogoCard {
+  width: min(440px, calc(100vw - 24px));
+  max-height: 92svh;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: var(--superficie);
+  color: var(--tinta);
+  overflow: hidden;
+}
+
+.dialogoCard[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialogoCard::backdrop {
+  background: rgb(10 13 32 / 72%);
+}
+
+.dialogoConteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.dialogoTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dialogoTopo h2 {
+  margin: 0;
+  font:
+    700 20px var(--fonte-titulo),
+    sans-serif;
+}
+
+.dialogoFechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--superficie-2);
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.imagemDoCard {
+  width: 100%;
+  max-height: 52svh;
+  height: auto;
+  border-radius: var(--raio-controle);
+  object-fit: contain;
+  background: var(--noite);
+}
+
+.dialogoTexto {
+  margin: 0;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.dialogoAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dialogoPrincipal {
+  flex: 1 1 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--raio-controle);
+  background: var(--luz);
+  color: var(--noite);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dialogoPrincipal:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dialogoAviso {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fio_atual .janelaDoFio {
+    animation: none;
+  }
 }

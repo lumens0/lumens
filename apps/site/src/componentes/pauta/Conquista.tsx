@@ -1,23 +1,13 @@
-import type { Caminho, PautaDetalhe } from '@lumens/contratos';
+import type { PautaDetalhe } from '@lumens/contratos';
+import { conquistadaEm, solucaoEntregue } from '../../dados/conquista';
 import { diasEntre, textoDias } from '../../dados/dias';
+import { formatarNumero } from '../BarraApoios';
 import { PlacarDeApoios } from './CabecalhoPauta';
 import { formatarDia } from './LinhaDoTempo';
 import estilos from './pauta.module.css';
 
-/** Quando a pauta virou conquista: o último evento de status para `conquistada`. */
-export function conquistadaEm(pauta: PautaDetalhe): string | undefined {
-  return pauta.linha_do_tempo.findLast(
-    (evento) => evento.tipo === 'status_alterado' && evento.dados.para === 'conquistada',
-  )?.criado_em;
-}
-
-/** A solução da comunidade que foi executada, se a pauta teve uma. */
-export function solucaoEntregue(pauta: PautaDetalhe): Caminho | undefined {
-  return pauta.caminhos.findLast(
-    (caminho) =>
-      caminho.tipo === 'proposta' && (caminho.status === 'executada' || caminho.executada_em),
-  );
-}
+// As duas funções moraram aqui; foram para `dados/conquista.ts` (sem CSS) para a imagem do card usá-las.
+export { conquistadaEm, solucaoEntregue };
 
 /**
  * A vitória no topo da pauta conquistada (SCRUM-352): selo, data da conquista, apoios e dias da
@@ -36,24 +26,26 @@ export function DestaqueDaConquista({ pauta }: { pauta: PautaDetalhe }) {
         A comunidade conquistou esta pauta
       </h2>
       <PlacarDeApoios pauta={pauta} />
-      {(quando || dias !== null) && (
-        <dl className={estilos.fatos}>
-          {quando && (
-            <div>
-              <dt>Conquistada em</dt>
-              <dd>
-                <time dateTime={quando}>{formatarDia(quando)}</time>
-              </dd>
-            </div>
-          )}
-          {dias !== null && (
-            <div>
-              <dt>Da criação à entrega</dt>
-              <dd>{textoDias(dias)}</dd>
-            </div>
-          )}
-        </dl>
-      )}
+      <dl className={estilos.fatos}>
+        {quando && (
+          <div>
+            <dt>Conquistada em</dt>
+            <dd>
+              <time dateTime={quando}>{formatarDia(quando)}</time>
+            </dd>
+          </div>
+        )}
+        {dias !== null && (
+          <div>
+            <dt>Da criação à entrega</dt>
+            <dd>{textoDias(dias)}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Apoios</dt>
+          <dd>{formatarNumero(pauta.apoios)}</dd>
+        </div>
+      </dl>
     </section>
   );
 }

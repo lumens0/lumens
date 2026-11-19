@@ -43,6 +43,58 @@ describe('GET /p/[slug]/card.png', { timeout: 30_000 }, () => {
     });
   });
 
+  describe('pauta conquistada: card de conquista', () => {
+    const conquistada = {
+      ...fixture,
+      status: 'conquistada',
+      linha_do_tempo: [
+        {
+          tipo: 'status_alterado',
+          criado_em: '2026-11-10T12:00:00-03:00',
+          dados: { para: 'conquistada' },
+        },
+      ],
+    } as never;
+    const executada = {
+      tipo: 'proposta',
+      status: 'executada',
+      descricao: 'A prefeitura do campus instalou os bebedouros novos no térreo do bloco.',
+      executada_em: '2026-11-09',
+    };
+
+    it('renderiza sem texto do que foi feito: fachada toda acesa no lugar da foto', async () => {
+      vi.mocked(buscarPauta).mockResolvedValue({
+        ...(conquistada as object),
+        caminhos: [],
+      } as never);
+      const resposta = await pedir(fixture.slug);
+      expect(resposta.status).toBe(200);
+      expect(dimensoes(Buffer.from(await resposta.arrayBuffer()))).toEqual({
+        largura: 1080,
+        altura: 1920,
+      });
+    });
+
+    it('renderiza com o texto da solução executada, mesmo longo', async () => {
+      vi.mocked(buscarPauta).mockResolvedValue({
+        ...(conquistada as object),
+        caminhos: [{ ...executada, descricao: 'Texto longo. '.repeat(80) }],
+      } as never);
+      const resposta = await pedir(fixture.slug);
+      expect(resposta.status).toBe(200);
+      expect(dimensoes(Buffer.from(await resposta.arrayBuffer())).altura).toBe(1920);
+    });
+
+    it('renderiza sem data de conquista, sem "NaN dias"', async () => {
+      vi.mocked(buscarPauta).mockResolvedValue({
+        ...(conquistada as object),
+        linha_do_tempo: [],
+        caminhos: [executada],
+      } as never);
+      expect((await pedir(fixture.slug)).status).toBe(200);
+    });
+  });
+
   it('pauta que a API não acha dá 404 sem cache', async () => {
     vi.mocked(buscarPauta).mockResolvedValue(null);
     const resposta = await pedir('nao-existe');

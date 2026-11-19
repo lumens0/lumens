@@ -1,7 +1,7 @@
 import type { Evento, PautaDetalhe } from '@lumens/contratos';
 import { caminhoRespondido } from './Caminhos';
 import { formatarData } from './LinhaDoTempo';
-import { formatarDia, prazoVencido, textoDoPrazo } from './prazos';
+import { diasAte, formatarDia, prazoVencido, textoDiasAte, textoDoPrazo } from './prazos';
 import estilos from './pauta.module.css';
 
 // A resposta e a promessa chegam pela linha do tempo pública: o contrato não tem campos próprios
@@ -100,6 +100,14 @@ export function ProximaEtapa({
         Próxima etapa
       </h2>
       <p className={estilos.texto}>{pauta.proxima_etapa ?? 'A definir.'}</p>
+      {prazo && diasAte(prazo, agora) !== null && (
+        <p className={estilos.dataGrande}>
+          <time dateTime={prazo}>{formatarDia(prazo)}</time>
+          <span className={prazoVencido(prazo, agora) ? estilos.vencidoTexto : estilos.diasAte}>
+            {textoDiasAte(diasAte(prazo, agora) ?? 0)}
+          </span>
+        </p>
+      )}
       {prazo && !pauta.proxima_etapa?.includes(formatarDia(prazo)) && (
         <p className={prazoVencido(prazo, agora) ? estilos.vencido : estilos.vazio}>
           {prazoVencido(prazo, agora)
