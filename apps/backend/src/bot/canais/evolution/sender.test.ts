@@ -127,7 +127,15 @@ describe('respostas pela Evolution', () => {
       { number: PHONE, text: 'Olá!', delay: tempoDigitando('Olá!'), linkPreview: false },
       {
         number: PHONE,
-        text: ['Escolha:', '', '*1.* Primeira', '*2.* Segunda', '', DICA_DO_MENU].join('\n'),
+        text: [
+          'Escolha:',
+          '',
+          '*1.* Primeira',
+          '*2.* Segunda',
+          '*0.* Voltar ao menu principal',
+          '',
+          DICA_DO_MENU,
+        ].join('\n'),
         delay: expect.any(Number) as number,
         linkPreview: false,
       },

@@ -50,9 +50,13 @@
   margin: -10px -6px -10px -10px;
 }
 
+/* Barra fina entre o nome e a área, para o vão não parecer um buraco. */
 .marcaArea {
+  margin-left: var(--esp-1);
+  padding-left: var(--esp-3);
   color: var(--luz);
   font-weight: 600;
+  border-left: 1px solid rgb(255 255 255 / 30%);
 }
 
 .navegacao,

@@ -128,11 +128,40 @@ export default function Privacidade() {
       <section className={estilos.secao}>
         <h2 className={estilos.secaoTitulo}>Fotos</h2>
         <p>
-          A foto que você manda para uma pauta nova é publicada com ela. Antes de guardar,{' '}
-          <strong>removemos os metadados</strong> do arquivo (EXIF), inclusive a localização de onde
-          a foto foi tirada. Mesmo assim, confira se a imagem não mostra rosto, placa ou documento
-          de alguém.
+          A foto que você manda, para uma pauta nova ou junto do seu apoio, é uma imagem que vai a
+          público. Por isso o bot avisa antes do envio e, ao mandar a foto, você concorda com a
+          publicação (LGPD, art. 7º, I). O que fazemos para proteger você e quem aparece nela:
         </p>
+        <ul>
+          <li>
+            <strong>Só depois da curadoria.</strong> A foto fica guardada, sem aparecer em lugar
+            nenhum, até uma pessoa da curadoria aprovar. Foto recusada ou em análise nunca é
+            mostrada.
+          </li>
+          <li>
+            <strong>Sem o seu nome.</strong> O site não mostra quem mandou a foto, e o nome do
+            arquivo é um código aleatório, sem nada de você.
+          </li>
+          <li>
+            <strong>Sem os dados escondidos na imagem.</strong> Antes de guardar,{' '}
+            <strong>removemos os metadados</strong> do arquivo (EXIF): a localização de onde a foto
+            foi tirada, o modelo do aparelho e o autor. Só JPEG e PNG, de até 5 MB.
+          </li>
+          <li>
+            <strong>Sem endereço aberto.</strong> Os arquivos ficam num armazenamento privado. O
+            site só entrega a foto que já foi aprovada.
+          </li>
+          <li>
+            <strong>Cuidado com quem aparece.</strong> Não mande foto com rosto, placa de veículo ou
+            documento de alguém. A curadoria confere a foto antes de publicar, mas a primeira
+            conferência é a sua: fotografe o problema, não as pessoas.
+          </li>
+          <li>
+            <strong>Você pode pedir a retirada.</strong> Se sair do Lumens antes da publicação, a
+            foto é apagada com o relato. Para retirar uma foto já publicada, veja “Seus direitos”
+            abaixo: o pedido vai pelo mesmo canal do bot.
+          </li>
+        </ul>
       </section>
 
       {/* SCRUM-174: texto do aviso */}

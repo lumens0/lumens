@@ -31,23 +31,25 @@ export function ApoiosPorSemana({ semanas }: { semanas: readonly ApoioSemana[] }
               </li>
             ))}
           </ol>
-          <table className={estilos.somenteLeitor}>
-            <caption>Apoios por semana, da mais antiga à atual</caption>
-            <thead>
-              <tr>
-                <th scope="col">Semana de</th>
-                <th scope="col">Apoios</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grafico.colunas.map((coluna) => (
-                <tr key={coluna.semana}>
-                  <th scope="row">{coluna.atual ? 'Esta semana' : coluna.rotulo}</th>
-                  <td>{coluna.apoios}</td>
+          <div className={estilos.somenteLeitor}>
+            <table>
+              <caption>Apoios por semana, da mais antiga à atual</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Semana de</th>
+                  <th scope="col">Apoios</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {grafico.colunas.map((coluna) => (
+                  <tr key={coluna.semana}>
+                    <th scope="row">{coluna.atual ? 'Esta semana' : coluna.rotulo}</th>
+                    <td>{coluna.apoios}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       <p className={estilos.resumo}>{grafico.resumo}</p>

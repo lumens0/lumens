@@ -5,6 +5,7 @@ import type { ServicoDeRespostas } from '../../fotos/resposta-pdf';
 import type { ServicoDeFotos } from '../../fotos/servico';
 import { supportAskPhoto, supportAskReport } from './apoio';
 import { temCadastro } from './estudante';
+import { entrarNaEdicao, ownerEditField, ownerEditPick, ownerEditText } from './edicao';
 import {
   entrarNaPautaNova,
   newAskCategory,
@@ -108,6 +109,8 @@ export const OPCOES_DO_MENU = [
   { id: '4', titulo: 'Minhas pautas' },
   // SCRUM-334: as pautas abertas também pelo menu.
   { id: '5', titulo: 'Ver pautas abertas' },
+  // Esqueceu algo ou errou: corrige a descrição da pauta que ainda está em curadoria.
+  { id: '6', titulo: 'Editar pauta' },
 ] as const;
 
 /**
@@ -132,7 +135,7 @@ export const MENU_DICA_TEXT = 'Mande *menu* para ver as opções.';
 /** Acima disto (em caracteres) a última resposta do fluxo já ocupa a tela: o menu vai só como dica. */
 export const RESPOSTA_LONGA = 280;
 
-export const MENU_INVALID_TEXT = 'Não entendi. Responda com um número de 1 a 5, ou *ajuda*.';
+export const MENU_INVALID_TEXT = 'Não entendi. Responda com um número de 1 a 6, ou *ajuda*.';
 
 /** SCRUM-334: pelo menu também se chega às pautas para apoiar, sem precisar do link de uma delas. */
 export const OPEN_PAUTAS_TEXT = `As pautas abertas estão em ${ORIGEM_SITE_PRODUCAO}. Abra uma e toque em *Apoiar*: a conversa volta para cá com a pauta certa.`;
@@ -179,6 +182,11 @@ const MENU_ALIASES: Record<string, string> = {
   caminhos: '4',
   'ver pautas abertas': '5',
   'pautas abertas': '5',
+  editar: '6',
+  'editar pauta': '6',
+  'editar descricao': '6',
+  'corrigir pauta': '6',
+  corrigir: '6',
 };
 
 /**
@@ -192,7 +200,36 @@ const PEDE_AJUDA = new Set(['ajuda', 'help', 'socorro', 'comandos']);
 function opcaoDoMenu(texto: string): string | undefined {
   const t = normalize(texto);
   const escolha = MENU_ALIASES[t] ?? t;
-  return ['1', '2', '3', '4', '5'].includes(escolha) ? escolha : undefined;
+  if (['1', '2', '3', '4', '5', '6'].includes(escolha)) return escolha;
+  return intencaoDoTexto(t);
+}
+
+/**
+ * A pessoa escreve o que quer fazer, em vez do número: "quero criar uma nova pauta" vale a opção 2.
+ * Em ordem, da mais específica para a mais geral ("corrigir minha pauta" é editar, não "minhas
+ * pautas"). Só vale no menu, onde a alternativa seria "Não entendi". `t` já vem sem acento.
+ */
+const INTENCOES: readonly (readonly [RegExp, string])[] = [
+  [/\b(editar|corrigir|alterar|mudar|arrumar|consertar)\b.*\bpauta\b/, '6'],
+  [
+    /\b(verificar|confirmar|validar)\b.*\be-?mail\b|\be-?mail\b.*\b(verificar|confirmar|validar)\b/,
+    '3',
+  ],
+  [/\bminhas? pautas?\b|\bpautas? (que )?(eu )?(criei|minhas?)\b|\bcuidar\b.*\bpauta\b/, '4'],
+  [/\b(pautas? abertas?|ver (as )?pautas|listar pautas|lista de pautas)\b/, '5'],
+  [/\b(criar|abrir|fazer|iniciar|cadastrar|registrar|nova|novo)\b.*\bpauta\b/, '2'],
+  [
+    /\b(relatar|reportar|denunciar|reclamar|avisar)\b|\b(tenho|quero|vi|encontrei) (um |uma )?(problema|reclamacao)\b/,
+    '1',
+  ],
+];
+
+function intencaoDoTexto(t: string): string | undefined {
+  // Texto longo é um relato ou uma conversa, não um pedido ao menu.
+  if (t === '' || t.length > 80) return undefined;
+  // "não tenho problema", "nunca criei pauta": quem nega não está pedindo a opção.
+  if (/\b(nao|nunca|jamais|nenhum|nenhuma|sem)\b/.test(t)) return undefined;
+  return INTENCOES.find(([regra]) => regra.test(t))?.[1];
 }
 
 function menu(ctx: StepContext): StepResult | Promise<StepResult> {
@@ -200,6 +237,7 @@ function menu(ctx: StepContext): StepResult | Promise<StepResult> {
   if (escolha === '2') return entrarNaPautaNova(ctx);
   if (escolha === '3') return entrarNaVerificacao(ctx);
   if (escolha === '4') return entrarEmMinhasPautas(ctx);
+  if (escolha === '6') return entrarNaEdicao(ctx);
   const opt = escolha === undefined ? undefined : MENU_OPTIONS[escolha];
   if (opt) return { next: opt.next, replies: opt.replies };
   const t = normalize(ctx.input.text);
@@ -226,6 +264,9 @@ export const defaultHandlers: HandlerRegistry = {
   NEW_ASK_PHOTO: newAskPhoto,
   OWNER_PICK_PAUTA: ownerPickPauta,
   OWNER_PATHS: ownerPaths,
+  OWNER_EDIT_PICK: ownerEditPick,
+  OWNER_EDIT_FIELD: ownerEditField,
+  OWNER_EDIT_TEXT: ownerEditText,
   PROPOSAL_ASK_TEXT: proposalAskText,
   PROPOSAL_ASK_PEOPLE: proposalAskPeople,
   LEAVE_CONFIRM: leaveConfirm,

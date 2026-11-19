@@ -15,6 +15,8 @@ export interface ConversationData extends Record<string, unknown> {
    * os títulos podem ser de pauta ainda em curadoria. Quem lê e grava é o worker.
    */
   menuEmTexto?: string;
+  /** Quantas respostas seguidas ficaram na mesma pergunta; o router oferece a saída na 3ª. */
+  tentativasNoPasso?: number;
 }
 
 export interface ConversationState {

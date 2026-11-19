@@ -84,32 +84,55 @@ export function marcadoresDoMapa(
   blocos: readonly Bloco[],
   pautas: readonly Pauta[],
 ): MarcadorDoBloco[] {
-  return blocos.map((bloco) => {
-    const doBloco = pautas.filter((p) => p.bloco_slug === bloco.slug);
-    const abertas = doBloco
-      .filter(aberta)
-      .sort(
-        (a, b) =>
-          Number(b.urgente) - Number(a.urgente) ||
-          PESO[b.status] - PESO[a.status] ||
-          b.apoios - a.apoios,
-      );
-    const conquistadas = doBloco.filter((p) => p.status === 'conquistada');
-    const topo = abertas[0];
-    const partes = topo
-      ? [plural(abertas.length, 'pauta aberta', 'pautas abertas'), ROTULO[topo.status]]
-      : ['Nenhuma pauta aberta'];
-    if (conquistadas.length > 0)
-      partes.push(plural(conquistadas.length, 'conquista', 'conquistas'));
-    return {
-      slug: bloco.slug,
-      nome: bloco.nome,
-      predio: PREDIOS.find((p) => p.blocos.includes(bloco.slug))?.id,
-      abertas: abertas.length,
-      cor: topo ? COR[topo.status] : conquistadas.length > 0 ? SO_CONQUISTAS : SEM_PAUTAS,
-      urgente: abertas.some((p) => p.urgente),
-      linha: partes.join(' · '),
-      pautas: [...abertas, ...conquistadas],
-    };
-  });
+  const marcadores = blocos.map((bloco) =>
+    marcador(
+      bloco.slug,
+      bloco.nome,
+      pautas,
+      PREDIOS.find((p) => p.blocos.includes(bloco.slug))?.id,
+    ),
+  );
+  // Pauta sem bloco é do campus inteiro e não tem prédio: sem esta linha ela sumia do mapa.
+  if (pautas.some((p) => p.bloco_slug === null)) {
+    marcadores.push(marcador(SLUG_DO_CAMPUS, 'Todo o campus', pautas, undefined));
+  }
+  return marcadores;
+}
+
+/** Slug do marcador das pautas sem bloco; os de bloco de verdade nunca têm essa forma. */
+export const SLUG_DO_CAMPUS = '_campus';
+
+function marcador(
+  slug: string,
+  nome: string,
+  pautas: readonly Pauta[],
+  predio: number | undefined,
+): MarcadorDoBloco {
+  const doBloco = pautas.filter((p) =>
+    slug === SLUG_DO_CAMPUS ? p.bloco_slug === null : p.bloco_slug === slug,
+  );
+  const abertas = doBloco
+    .filter(aberta)
+    .sort(
+      (a, b) =>
+        Number(b.urgente) - Number(a.urgente) ||
+        PESO[b.status] - PESO[a.status] ||
+        b.apoios - a.apoios,
+    );
+  const conquistadas = doBloco.filter((p) => p.status === 'conquistada');
+  const topo = abertas[0];
+  const partes = topo
+    ? [plural(abertas.length, 'pauta aberta', 'pautas abertas'), ROTULO[topo.status]]
+    : ['Nenhuma pauta aberta'];
+  if (conquistadas.length > 0) partes.push(plural(conquistadas.length, 'conquista', 'conquistas'));
+  return {
+    slug,
+    nome,
+    predio,
+    abertas: abertas.length,
+    cor: topo ? COR[topo.status] : conquistadas.length > 0 ? SO_CONQUISTAS : SEM_PAUTAS,
+    urgente: abertas.some((p) => p.urgente),
+    linha: partes.join(' · '),
+    pautas: [...abertas, ...conquistadas],
+  };
 }

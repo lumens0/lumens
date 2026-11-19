@@ -26,6 +26,7 @@ import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { registrarApoio } from './apoio';
+import { versaoDoTexto } from './edicao';
 import { aprovarRelato, recusarRelato } from './moderacao';
 import { conferirAnonimato } from '../compartilhado/anonimato';
 import { transicionarStatus } from './status';
@@ -238,7 +239,8 @@ export type ResultadoDecisao =
         | 'motivo_longo'
         | 'categoria_invalida'
         | 'relato_com_dado_pessoal'
-        | 'relato_mudou';
+        | 'relato_mudou'
+        | 'pauta_editada';
     };
 
 async function decidir(
@@ -344,12 +346,19 @@ export async function aprovarPauta(
     curadorId,
     categoria,
     fotosVistas,
+    textoVisto,
     urgente = false,
     agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
     categoria: string;
+    /**
+     * A `versaoDoTexto` do título e da descrição que a tela mostrava. Se o autor editou depois, a
+     * curadoria não viu o texto que está para aprovar: nada muda e ela confere de novo. Sem o
+     * campo (chamada interna), não confere; o painel sempre manda, e sem valor a aprovação falha.
+     */
+    textoVisto?: string;
     /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
     fotosVistas: Readonly<Record<string, string | null>>;
     urgente?: boolean;
@@ -362,7 +371,11 @@ export async function aprovarPauta(
   // sai: a curadoria recusa só o relato (`recusarRelatoDeOrigem`) e aprova depois, sem ele.
   // Pauta antes do relato, na ordem de `recusarPauta` e `recusarRelatoDeOrigem`: com a ordem
   // trocada, aprovar e recusar ao mesmo tempo travariam uma à espera da outra (deadlock).
-  await tx.select({ id: pautas.id }).from(pautas).where(eq(pautas.id, pautaId)).for('update');
+  const [travada] = await tx
+    .select({ titulo: pautas.titulo, descricao: pautas.descricao })
+    .from(pautas)
+    .where(eq(pautas.id, pautaId))
+    .for('update');
   const origem = await relatosDeOrigemPendentes(tx, pautaId, { travar: true });
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
@@ -371,6 +384,14 @@ export async function aprovarPauta(
   const visto = ({ id, fotoChave }: { id: string; fotoChave: string | null }) =>
     Object.hasOwn(fotosVistas, id) && fotosVistas[id] === fotoChave;
   if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
+  // O texto lido aqui está travado (FOR UPDATE): o autor não edita entre esta conferência e o fim.
+  if (
+    textoVisto !== undefined &&
+    travada !== undefined &&
+    textoVisto !== versaoDoTexto(travada.titulo, travada.descricao)
+  ) {
+    return { decidida: false, motivo: 'pauta_editada' };
+  }
   const resultado = await decidir(tx, pautaId, curadorId, 'juntando_apoios', undefined, agora);
   if (!resultado.decidida) return resultado;
 

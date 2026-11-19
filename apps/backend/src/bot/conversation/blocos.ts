@@ -45,7 +45,10 @@ export function blocoCitado(
     const nome = nomeComparavel(b.nome);
     return nome !== '' && texto.includes(` ${nome} `);
   });
-  return citados.length === 1 ? citados[0] : undefined;
+  if (citados.length > 0) return citados.length === 1 ? citados[0] : undefined;
+  // Sem o nome inteiro, vale a sigla ("problema no IC"): o slug de uma palavra só, também inteiro.
+  const siglas = blocos.filter((b) => !b.slug.includes('-') && texto.includes(` ${b.slug} `));
+  return siglas.length === 1 ? siglas[0] : undefined;
 }
 
 /**
@@ -94,8 +97,8 @@ export function blocoEscolhido(
  */
 export const BLOCOS_EM_DESTAQUE = [
   'ru',
+  'residencia-universitaria',
   'biblioteca-central',
-  'praca-de-alimentacao',
   'ic',
   'im',
   'ctec',

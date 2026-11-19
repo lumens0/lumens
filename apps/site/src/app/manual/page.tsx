@@ -90,6 +90,59 @@ export default function Manual() {
         </p>
       </Secao>
 
+      <Secao chave="perdido">
+        <p>
+          Errou uma resposta ou não sabe o que mandar? O bot nunca deixa você preso. Em qualquer
+          momento:
+        </p>
+        <ul>
+          <li>
+            Mande <strong>menu</strong> (ou <em>menu principal</em>, <em>voltar ao menu</em>,{' '}
+            <em>início</em>) para voltar ao começo. O que você estava fazendo é descartado.
+          </li>
+          <li>
+            Nas listas de opções há sempre a opção <strong>0</strong>,{' '}
+            <em>Voltar ao menu principal</em>.
+          </li>
+          <li>
+            Mande <strong>cancelar</strong> (ou <em>desistir</em>) para largar o que estava fazendo.
+          </li>
+          <li>
+            No menu, você pode escrever o que quer fazer, como <em>quero criar uma nova pauta</em>{' '}
+            ou <em>quero relatar um problema</em>: o bot leva você para a opção certa.
+          </li>
+          <li>
+            Para escolher uma opção, vale o número (<em>2</em>), o número por extenso (<em>dois</em>
+            , <em>a segunda</em>, <em>opção 2</em>) ou o nome da opção.
+          </li>
+          <li>
+            Depois de três respostas seguidas que o bot não entendeu na mesma pergunta, ele lembra
+            como sair.
+          </li>
+        </ul>
+      </Secao>
+
+      <Secao chave="editar">
+        <p>
+          Esqueceu algo ou errou uma palavra? No menu, escolha <strong>Editar pauta</strong> (opção
+          6) e depois <em>Título</em> ou <em>Descrição</em>.
+        </p>
+        <ul>
+          <li>
+            Só dá para editar <strong>enquanto a curadoria ainda não decidiu</strong>. Assim o texto
+            corrigido é exatamente o que ela vai conferir, e nada vai ao ar sem essa conferência.
+          </li>
+          <li>
+            A curadoria vê o texto de antes e o de depois. Você recebe a decisão pelo bot, como
+            sempre.
+          </li>
+          <li>
+            Depois que a pauta é publicada, o texto não muda mais: quem já apoiou apoiou aquele
+            texto. Se algo precisar mudar, escreva para a curadoria.
+          </li>
+        </ul>
+      </Secao>
+
       <Secao chave="categoria">
         <p>
           Toda pauta tem uma categoria, como infraestrutura, para quem lê achar problemas do mesmo

@@ -27,6 +27,8 @@ export interface DependenciasDeDecisao {
     /** A foto de cada relato pendente que a tela mostrou. */
     fotosVistas: FotosVistas,
     urgente?: boolean,
+    /** A `versaoDoTexto` do título e da descrição que a tela mostrava. */
+    textoVisto?: string,
   ) => Promise<ResultadoDecisao>;
   recusar: (pautaId: string, curadorId: string, motivo: string) => Promise<ResultadoDecisao>;
 }
@@ -54,8 +56,18 @@ export function criarDecisoes({ curador, aprovar, recusar }: DependenciasDeDecis
   }
 
   return {
-    aprovar: (pautaId: string, categoria: string, fotosVistas: FotosVistas, urgente = false) =>
-      decidir(pautaId, (c) => aprovar(pautaId, c, categoria, fotosVistas, urgente), 'aprovada'),
+    aprovar: (
+      pautaId: string,
+      categoria: string,
+      fotosVistas: FotosVistas,
+      urgente = false,
+      textoVisto = '',
+    ) =>
+      decidir(
+        pautaId,
+        (c) => aprovar(pautaId, c, categoria, fotosVistas, urgente, textoVisto),
+        'aprovada',
+      ),
     recusar: (pautaId: string, motivo: string) =>
       decidir(pautaId, (c) => recusar(pautaId, c, motivo), 'recusada'),
   };

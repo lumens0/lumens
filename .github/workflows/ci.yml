@@ -55,8 +55,10 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     # Instalação, builds e os testes de todos os pacotes passam de 10 min (só o backend leva ~6,5);
-    # com 10, o job era cancelado com tudo verde.
-    timeout-minutes: 15
+    # com 10, o job era cancelado com tudo verde. Na main o job já levava ~14,5 min, colado nos 15, e
+    # cada teste novo com banco em memória custa ~3 s no runner: com 15, a PR 239 foi cancelada no
+    # meio dos testes do backend, sem nenhuma falha. 25 dá folga sem esconder um teste travado.
+    timeout-minutes: 25
 
     # Equivalente ao docker-compose.yml do ambiente local. A partir da T4 é aqui que
     # os testes de integração (migrações, trigger da T5, views da T14) vão rodar.

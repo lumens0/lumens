@@ -75,6 +75,18 @@ describe('marcadores do mapa', () => {
     expect(m?.predio).toBeUndefined();
   });
 
+  it('pauta sem bloco aparece como "Todo o campus"; sem pauta assim, a linha não existe', () => {
+    const blocos = [bloco('bloco-18', 'Bloco 18')];
+    const comCampus = marcadoresDoMapa(blocos, [pauta('juntando_apoios', 5, null)]);
+    expect(comCampus.at(-1)).toMatchObject({
+      nome: 'Todo o campus',
+      abertas: 1,
+      predio: undefined,
+    });
+    expect(comCampus[0]?.abertas).toBe(0);
+    expect(marcadoresDoMapa(blocos, [pauta('juntando_apoios', 5)])).toHaveLength(1);
+  });
+
   it('o painel recebe as abertas primeiro, a mais urgente no topo, e as conquistas no fim', () => {
     const conquista = pauta('conquistada', 900);
     const juntando = pauta('juntando_apoios', 10);
