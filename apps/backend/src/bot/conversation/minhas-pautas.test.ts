@@ -131,6 +131,21 @@ beforeEach(async () => {
   await send('oi');
 }, 60_000);
 
+describe('o aviso de saída não aparece em quem está avançando de verdade', () => {
+  it('abrir os dois caminhos e pedir o texto, em sequência, nunca mostra "Parece que está difícil"', async () => {
+    const id = await verificar();
+    await pautaDe(id, 'Pauta aberta');
+    await send('4');
+    const respostas = [
+      ...(await send('caminho:falabr')),
+      ...(await send('caminho:comunidade')),
+      ...(await send('texto:falabr')),
+      ...(await send('texto:falabr')),
+    ];
+    expect(respostas).not.toContain(SAIDA_DO_PASSO_TEXT);
+  });
+});
+
 describe('menu: 4 Minhas pautas', () => {
   it('aparece no menu, e a resposta inválida cita as 4 opções', async () => {
     expect(MENU_PRINCIPAL.linhas).toContainEqual({ id: '4', titulo: 'Minhas pautas' });

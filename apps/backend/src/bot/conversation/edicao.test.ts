@@ -227,6 +227,26 @@ describe('menu: 6 Editar pauta', () => {
     expect(await passo()).toBe('OWNER_EDIT_TEXT');
   });
 
+  it('e-mail, telefone ou matrícula no texto novo são recusados: a edição não fura a conferência', async () => {
+    const id = await novoEstudante(H);
+    const pautaId = await pautaDe(id, 'Pauta');
+    await send('6');
+    await send('descrição');
+    for (const texto of [
+      'Falar com maria@ufal.br sobre a sala',
+      'Me liga: (82) 99999-1234',
+      'Minha matrícula é 21112345',
+    ]) {
+      // Na terceira seguida o bot ainda lembra da saída; a recusa vem sempre em primeiro.
+      expect((await send(texto))[0]).toBe(EDIT_PERSONAL_TEXT);
+    }
+    expect(await passo()).toBe('OWNER_EDIT_TEXT');
+    expect((await doBanco(pautaId))?.descricao).toBe('Descrição original.');
+    // Sem dado pessoal, passa.
+    await send('Sala 3, terceiro andar, desde segunda.');
+    expect((await doBanco(pautaId))?.descricao).toBe('Sala 3, terceiro andar, desde segunda.');
+  });
+
   it('com mais de uma pauta, escolhe primeiro qual', async () => {
     const id = await novoEstudante(H);
     await pautaDe(id, 'Primeira');

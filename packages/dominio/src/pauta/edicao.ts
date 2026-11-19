@@ -10,6 +10,7 @@
  */
 import { createHash } from 'node:crypto';
 import { and, apoios, eq, isNull, papeisPauta, pautas, sql, type Db, type Tx } from '@lumens/db';
+import { conferirAnonimato } from '../compartilhado/anonimato';
 import { registrarEvento } from '../compartilhado/eventos';
 import { DESCRICAO_MAXIMA, TITULO_MAXIMO } from './pauta';
 
@@ -69,7 +70,13 @@ export type ResultadoEdicao =
   | { editada: true }
   | {
       editada: false;
-      motivo: 'texto_vazio' | 'texto_longo' | 'nao_e_owner' | 'pauta_fechada' | 'ja_tem_apoio';
+      motivo:
+        | 'texto_vazio'
+        | 'texto_longo'
+        | 'dado_pessoal'
+        | 'nao_e_owner'
+        | 'pauta_fechada'
+        | 'ja_tem_apoio';
     };
 
 /**
@@ -90,6 +97,12 @@ export async function editarPautaEmCuradoria(
   if (limpo === '') return { editada: false, motivo: 'texto_vazio' };
   const maximo = campo === 'titulo' ? TITULO_MAXIMO : DESCRICAO_MAXIMA;
   if (tamanho(limpo) > maximo) return { editada: false, motivo: 'texto_longo' };
+  // A descrição de uma pauta nova é conferida pelo relato de origem, que guarda o texto original e
+  // não muda com a edição. Por isso o texto novo é conferido aqui: e-mail, telefone ou matrícula
+  // não entram, nem pela edição.
+  if (conferirAnonimato(limpo).achados.some((achado) => achado.severidade === 'bloqueio')) {
+    return { editada: false, motivo: 'dado_pessoal' };
+  }
 
   // FOR UPDATE: um apoio ou uma decisão da curadoria que chega junto espera esta edição terminar.
   const [pauta] = await tx
