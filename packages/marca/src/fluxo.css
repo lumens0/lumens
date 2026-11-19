@@ -192,7 +192,7 @@
 }
 
 .fluxo-detalhe {
-  margin: 4px 0 4px 60px;
+  margin: 4px 0 4px 16px;
   padding: 10px 12px;
   border-left: 3px solid var(--luz-forte);
   border-radius: 0 var(--raio-controle) var(--raio-controle) 0;
@@ -253,4 +253,86 @@
   .fluxo-detalhe {
     animation: none;
   }
+}
+
+/* Ícone do passo: um bloco colorido pelo lugar onde acontece (a cor ajuda; o nome vem escrito). */
+.fluxo-icone {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--superficie-2);
+  color: var(--tinta);
+}
+
+.fluxo-icone[data-onde='bot'] {
+  background: color-mix(in srgb, var(--status-prometido) 16%, var(--superficie));
+  color: var(--status-prometido);
+}
+
+.fluxo-icone[data-onde='site'] {
+  background: color-mix(in srgb, var(--status-apoios) 16%, var(--superficie));
+  color: var(--status-apoios);
+}
+
+.fluxo-icone[data-onde='painel'] {
+  background: var(--luz-fundo);
+  color: var(--luz-tinta);
+}
+
+.fluxo-icone[data-onde='automatico'] {
+  background: color-mix(in srgb, var(--status-meta) 16%, var(--superficie));
+  color: var(--status-meta);
+}
+
+.fluxo-passo[data-estado='depois'] .fluxo-icone {
+  opacity: 0.75;
+}
+
+/* Balões de exemplo: a conversa como a pessoa a vê no celular. */
+.fluxo-exemplo {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: var(--raio-controle);
+  background: var(--fundo);
+}
+
+.fluxo-balao {
+  display: grid;
+  max-width: 88%;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.fluxo-balao[data-de='voce'] {
+  justify-self: end;
+  border-bottom-right-radius: 4px;
+  background: #dcf8c6;
+  border-color: transparent;
+  color: #161a2e;
+}
+
+.fluxo-balao[data-de='bot'] {
+  justify-self: start;
+  border-bottom-left-radius: 4px;
+}
+
+.fluxo-quem {
+  color: var(--tinta-3);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fluxo-balao[data-de='voce'] .fluxo-quem {
+  color: #3d5a2a;
 }

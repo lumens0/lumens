@@ -15,6 +15,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
     passos: [
       {
         titulo: 'Abra a fila',
+        icone: 'lista',
         onde: 'painel',
         resumo: 'Em Pautas, o filtro “Esperando decisão” já vem marcado.',
         detalhe:
@@ -22,6 +23,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Leia tudo antes de decidir',
+        icone: 'olho',
         onde: 'painel',
         resumo: 'Título, descrição, foto, relato de quem criou e a linha do tempo.',
         detalhe:
@@ -29,6 +31,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Olhe os achados',
+        icone: 'escudo',
         onde: 'painel',
         resumo: '“Barrar” (e-mail, telefone, matrícula) e “Conferir” (possível nome de pessoa).',
         detalhe:
@@ -36,6 +39,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Escolha a categoria',
+        icone: 'etiqueta',
         onde: 'painel',
         resumo: 'Obrigatória para aprovar. Marque “urgente” só se for o caso.',
         detalhe:
@@ -43,6 +47,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Marque que conferiu e aprove',
+        icone: 'visto',
         onde: 'painel',
         resumo: 'A caixa “Conferi…” é obrigatória: aprovar publica tudo no site agora.',
         detalhe:
@@ -50,6 +55,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Ou recuse com motivo',
+        icone: 'fechar',
         onde: 'painel',
         resumo: 'O motivo (até 500 caracteres) é enviado a quem criou, pelo bot.',
         detalhe: 'Escreva de um jeito que a pessoa consiga corrigir e tentar de novo.',
@@ -64,18 +70,21 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
     passos: [
       {
         titulo: 'Abra “Relatos em pautas publicadas”',
+        icone: 'lista',
         onde: 'painel',
         resumo: 'A lista agrupa os relatos pendentes por pauta.',
         detalhe: 'O relato de quem criou a pauta é conferido junto com a pauta, não aqui.',
       },
       {
         titulo: 'Confira texto e foto',
+        icone: 'camera',
         onde: 'painel',
         resumo: 'Nada de nome de pessoa, ofensa ou dado pessoal, nem na imagem.',
         detalhe: 'Aprovar e recusar valem para o texto e a foto juntos.',
       },
       {
         titulo: 'Marque que conferiu e aprove',
+        icone: 'visto',
         onde: 'painel',
         resumo: 'A caixa “Conferi…” vale por relato. Aprovado, ele aparece no site na hora.',
         detalhe:
@@ -83,6 +92,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Ou recuse',
+        icone: 'fechar',
         onde: 'painel',
         resumo: 'O relato não vai ao site. Não há motivo a escrever.',
       },
@@ -95,11 +105,13 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
     passos: [
       {
         titulo: 'Abra a pauta',
+        icone: 'lista',
         onde: 'painel',
         resumo: 'Em Pautas, filtre pela etapa ou busque pelo título.',
       },
       {
         titulo: 'Bloco e meta',
+        icone: 'ajustes',
         onde: 'painel',
         resumo: 'Corrija o bloco (a meta é recalculada) ou ajuste a meta, de 30 a 300.',
         detalhe:
@@ -107,11 +119,13 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Urgência e categoria',
+        icone: 'etiqueta',
         onde: 'painel',
         resumo: 'Troque quando a situação mudar. O motivo da urgência é opcional.',
       },
       {
         titulo: 'Texto errado? Fale com quem criou',
+        icone: 'conversa',
         onde: 'painel',
         resumo: 'A curadoria não reescreve a pauta de ninguém.',
         detalhe:
@@ -127,12 +141,14 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
     passos: [
       {
         titulo: 'Veja o que chegou',
+        icone: 'arquivo',
         onde: 'painel',
         resumo: 'Quem cuida da pauta manda a resposta oficial (PDF) pelo bot.',
         detalhe: 'O filtro “sem resposta oficial” da lista mostra as pautas que esperam você.',
       },
       {
         titulo: 'Registre resposta e promessa',
+        icone: 'lapis',
         onde: 'painel',
         resumo: 'Resumo, quem respondeu e a data prometida. O PDF fica ao lado do formulário.',
         detalhe:
@@ -140,18 +156,21 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Quem apoiou é avisado',
+        icone: 'sino',
         onde: 'automatico',
         resumo: 'O bot manda o aviso da resposta a cada apoiador.',
         detalhe: 'O painel mostra quantos apoiadores entraram na fila de aviso.',
       },
       {
         titulo: 'A conferência abre',
+        icone: 'pessoas',
         onde: 'automatico',
         resumo: 'Na data prometida, quem apoiou responde “Foi feito?” por 7 dias.',
         detalhe: 'Pelo menos 10% de quem apoiou precisa responder para a apuração valer.',
       },
       {
         titulo: 'O resultado sai sozinho',
+        icone: 'trofeu',
         onde: 'automatico',
         resumo: 'Conquistada, entregue em parte ou descumprida, pelo voto de quem respondeu.',
         detalhe:
@@ -159,6 +178,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
       },
       {
         titulo: 'Prazos mudaram?',
+        icone: 'relogio',
         onde: 'painel',
         resumo:
           'Em “Ajustes de prazo”: prorrogar, corrigir a data do protocolo ou remarcar a promessa.',
@@ -176,11 +196,13 @@ export const FLUXO_DE_ADMINISTRACAO: FluxoEmCards = {
   passos: [
     {
       titulo: 'Abra “Curadores”',
+      icone: 'pessoas',
       onde: 'painel',
       resumo: 'Link no cabeçalho, só para administrador.',
     },
     {
       titulo: 'Adicione pela tela',
+      icone: 'email',
       onde: 'painel',
       resumo: 'E-mail @ufal.br, nome e papel (curador ou administrador).',
       detalhe:
@@ -188,6 +210,7 @@ export const FLUXO_DE_ADMINISTRACAO: FluxoEmCards = {
     },
     {
       titulo: 'Desative e reative',
+      icone: 'ajustes',
       onde: 'painel',
       resumo: 'Ninguém desativa a si mesmo e o último administrador ativo não sai.',
       detalhe: 'Cada mudança fica registrada: quem fez, em quem e quando, sem o e-mail.',
