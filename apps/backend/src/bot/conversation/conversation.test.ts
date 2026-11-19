@@ -298,6 +298,24 @@ describe('limpeza agendada: fotos soltas das conversas vencidas', () => {
     expect(await store.fotoChavesDaConversa('velha')).toEqual([]);
   });
 
+  it('os arquivos saem depois de a conversa ser apagada (depois do commit)', async () => {
+    let chavesQuandoApagou: string[] | undefined;
+    await store.save('e', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/e1.jpg'] });
+    advance(25 * HOUR);
+    await limparConversasExpiradas({
+      store,
+      db,
+      fotos: {
+        guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+        removerFotos: async () => {
+          chavesQuandoApagou = await store.fotoChavesDaConversa('e');
+        },
+      },
+    });
+    // Quando o storage é chamado, a exclusão da conversa já foi confirmada.
+    expect(chavesQuandoApagou).toEqual([]);
+  });
+
   it('conversa renovada depois de a limpeza listá-la (mensagem no meio) não é tocada', async () => {
     const removidas: string[] = [];
     await store.save('c', 'NEW_ASK_PHOTO', {

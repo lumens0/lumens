@@ -1,7 +1,7 @@
 import type { Db } from '@lumens/db';
 import { apagarCodigosVencidos, apagarRegistrosVencidos } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
-import { removerFotosSoltas } from '../bot/conversation/fotos-temporarias';
+import { fotosSoltas } from '../bot/conversation/fotos-temporarias';
 import type { ConversationStore } from '../bot/conversation/store';
 import type { ServicoDeFotos } from '../fotos/servico';
 import { deleteOldDedup } from '../bot/webhook/process';
@@ -44,14 +44,18 @@ export async function limparConversasExpiradas(
 ): Promise<number> {
   let apagadas = 0;
   for (const telefone of await deps.store.telefonesExpirados(corte)) {
+    // Os arquivos só saem depois que a transação confirma: se ela desfizer, a conversa continua com
+    // as chaves e as fotos têm de continuar no storage.
+    let soltas: string[] = [];
     await deps.db.transaction(async (tx) => {
       const store = deps.store.withDb(tx);
       await store.lock(telefone);
       const chaves = await store.fotoChavesSeExpirada(telefone, corte);
       if (chaves === undefined) return; // renovada ou já apagada: nada a fazer
-      await removerFotosSoltas(tx, deps.fotos, chaves);
+      soltas = await fotosSoltas(tx, chaves);
       apagadas += await store.apagarSeExpirada(telefone, corte);
     });
+    if (soltas.length > 0) await deps.fotos?.removerFotos?.(soltas);
   }
   return apagadas;
 }
