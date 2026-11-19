@@ -473,6 +473,8 @@
 
 .eventoPauta {
   display: block;
+  /* Alvo de toque de pelo menos 24 px de altura (WCAG 2.5.8); eram 23. */
+  padding-block: 4px;
   font-weight: 500;
   font-size: 15px;
   color: var(--tinta);
