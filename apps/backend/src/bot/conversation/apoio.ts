@@ -34,6 +34,7 @@ import {
 import { z } from 'zod';
 import { conviteCoOwner } from './co-owner';
 import { estudanteVerificado } from './estudante';
+import { removerFotosSoltas } from './fotos-temporarias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { SKIP_WORDS as FIM_DAS_FOTOS, photoMoreText, photoRefusedText } from './nova-pauta';
 import type { MensagemDeImagem, Resposta } from './resposta';
@@ -339,14 +340,27 @@ export const supportAskPhoto: StepHandler = async (ctx) => {
 async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<StepResult> {
   const { state, db, segredo, phoneHmac } = ctx;
   const { apoioPautaId, relatoCifrado, relatoId, fotosJuntadas = 0 } = dadosDoApoio(state.data);
-  if (apoioPautaId === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+  // A foto já está no storage; se não virar `relato_foto` abaixo, o arquivo seria órfão.
+  const descartar = async () => {
+    if (fotoChave !== null) await removerFotosSoltas(db, ctx.fotos, [fotoChave]);
+  };
+  if (apoioPautaId === undefined) {
+    await descartar();
+    return fim([SUPPORT_DATA_LOST_TEXT]);
+  }
 
   if (relatoId === undefined) {
     // Conversa de antes da SCRUM-301, com o relato ainda nos dados: grava agora, com a foto.
     const texto = decifrado(segredo, relatoCifrado);
-    if (texto === undefined) return fim([SUPPORT_DATA_LOST_TEXT]);
+    if (texto === undefined) {
+      await descartar();
+      return fim([SUPPORT_DATA_LOST_TEXT]);
+    }
     const estudanteId = await estudanteVerificado(db, phoneHmac);
-    if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+    if (estudanteId === undefined) {
+      await descartar();
+      return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+    }
     const r = await db.transaction((tx) =>
       adicionarRelato(tx, {
         pautaId: apoioPautaId,
@@ -355,7 +369,10 @@ async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<S
         fotoChaves: fotoChave === null ? [] : [fotoChave],
       }),
     );
-    if (!r.registrado) return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
+    if (!r.registrado) {
+      await descartar();
+      return fimDoApoio(ctx, apoioPautaId, [REPORT_REFUSED_TEXT]);
+    }
     return fimDoApoio(ctx, apoioPautaId, [
       fotoChave === null ? REPORT_SENT_TEXT : REPORT_SENT_WITH_PHOTO_TEXT,
     ]);
@@ -369,11 +386,15 @@ async function juntarFoto(ctx: StepContext, fotoChave: string | null): Promise<S
   }
 
   const estudanteId = await estudanteVerificado(db, phoneHmac);
-  if (estudanteId === undefined) return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+  if (estudanteId === undefined) {
+    await descartar();
+    return fim([SUPPORT_NOT_VERIFIED_TEXT]);
+  }
   const r = await db.transaction((tx) =>
     anexarFotoAoRelato(tx, { relatoId, estudanteId, fotoChave }),
   );
   if (!r.anexada) {
+    await descartar();
     // O que já foi enviado continua valendo; o texto diz por que esta foto ficou de fora.
     return fimDoApoio(ctx, apoioPautaId, [
       r.motivo === 'limite_de_fotos' ? PHOTO_LIMIT_TEXT : PHOTO_NOT_ATTACHED_TEXT,

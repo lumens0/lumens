@@ -438,8 +438,23 @@ describe('relato não se perde no passo da foto (SCRUM-301)', () => {
         ordem: n,
       })),
     );
-    expect(await sendFoto()).toEqual([PHOTO_LIMIT_TEXT, convite(), MENU_PRINCIPAL]);
+    const removidas: string[] = [];
+    const comRemocao: ServicoDeFotos = {
+      guardarFoto: (m) => fotos.guardarFoto(m),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        return Promise.resolve();
+      },
+    };
+    expect(
+      await handleIncoming(
+        { phoneHmac: H, text: '', image: { id: 'midia-1', mimeType: 'image/jpeg' } },
+        { store, db, segredo, fotos: comRemocao },
+      ),
+    ).toEqual([PHOTO_LIMIT_TEXT, convite(), MENU_PRINCIPAL]);
     expect((await relatosDaPauta())[0]?.fotos).toHaveLength(3);
+    // A foto que não coube já estava no storage: sai de lá, senão ficaria sem dono.
+    expect(removidas).toEqual(['fotos/2026/11/abc.jpg']);
   });
 
   it('relato moderado antes da foto chegar: a foto não entra e a pessoa é avisada', async () => {
