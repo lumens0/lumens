@@ -103,6 +103,16 @@ export async function sairDoLumens(
   // SCRUM-314: relato que não foi publicado (pendente ou recusado) só existe para a curadoria; sem a
   // pessoa, não tem por que ficar. O aprovado já está no site, sem nome, e continua. Das fotos do
   // relato aprovado só ficam as aprovadas: a recusada nunca foi ao ar e sai com a pessoa.
+  //
+  // Trava os relatos da pessoa antes de mexer nas fotos: `moderar` e `recusarFoto` travam o relato e
+  // só depois as fotos, e a ordem inversa aqui (foto antes do relato) faria saída e moderação
+  // simultâneas esperarem uma pela outra (deadlock). Em ordem de id, para duas saídas não se cruzarem.
+  await tx
+    .select({ id: relatos.id })
+    .from(relatos)
+    .where(eq(relatos.estudanteId, estudanteId))
+    .orderBy(relatos.id)
+    .for('update');
   const doEstudante = tx
     .select({ id: relatos.id })
     .from(relatos)

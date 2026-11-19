@@ -105,6 +105,11 @@ export class ConversationStore {
     return chavesDosDados(linha?.dados);
   }
 
+  /** O instante de agora, pelo relógio do store: a limpeza o captura uma vez para as duas etapas. */
+  agora(): Date {
+    return this.now();
+  }
+
   /** As fotos sem relato das conversas que já venceram, para apagar antes de `deleteExpired`. */
   async fotoChavesExpiradas(now: Date = this.now()): Promise<string[]> {
     const linhas = await this.db

@@ -45,10 +45,14 @@ export async function registerCleanupJob(
   if (!(await boss.getQueue(name))) await boss.createQueue(name);
   await boss.schedule(name, CLEANUP_CRON, null, { tz: CLEANUP_TZ });
   await boss.work(name, async () => {
+    // Um instante só para as duas etapas: remover arquivos leva tempo, e uma conversa que vence
+    // nesse intervalo não pode ser apagada sem ter tido as fotos removidas (as chaves sumiriam e os
+    // arquivos ficariam órfãos). Ela fica para a próxima execução.
+    const corte = deps.store.agora();
     // Fotos da pauta nova que a pessoa deixou pela metade: os arquivos saem antes de a conversa sumir.
-    await removerFotosSoltas(deps.db, deps.fotos, await deps.store.fotoChavesExpiradas());
+    await removerFotosSoltas(deps.db, deps.fotos, await deps.store.fotoChavesExpiradas(corte));
     const result: CleanupResult = {
-      deleted: await deps.store.deleteExpired(),
+      deleted: await deps.store.deleteExpired(corte),
       dedupDeleted: await deleteOldDedup(deps.db),
       codigosDeleted: await apagarCodigosVencidos(deps.db),
       registrosDeleted: await apagarRegistrosVencidos(deps.db),

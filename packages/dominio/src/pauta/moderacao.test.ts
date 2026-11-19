@@ -12,7 +12,14 @@ import {
 } from '@lumens/db';
 import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { criarBloco, criarCurador, criarPauta, criarRelato } from '../teste/fabricas';
+import { sairDoLumens } from '../estudante/sair';
+import {
+  criarBloco,
+  criarCurador,
+  criarEstudanteVerificado,
+  criarPauta,
+  criarRelato,
+} from '../teste/fabricas';
 import { aprovarRelato, listarRelatosPendentes, recusarFoto, recusarRelato } from './moderacao';
 
 let db: Db;
@@ -482,6 +489,46 @@ const URL_TESTE = process.env.DATABASE_URL_TESTE;
 if (!URL_TESTE && process.env.CI) throw new Error('No CI, defina DATABASE_URL_TESTE.');
 
 describe.skipIf(!URL_TESTE)('moderação com Postgres de verdade', () => {
+  it('sair e moderar o relato com foto ao mesmo tempo: nenhuma das duas cai em deadlock', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const pauta = await criarPauta(real);
+      const curador = await criarCurador(real);
+      for (let rodada = 0; rodada < 15; rodada++) {
+        const estudante = await criarEstudanteVerificado(real);
+        const relato = await criarRelato(real, {
+          pautaId: pauta.id,
+          estudanteId: estudante.id,
+          fotoChaves: [`fotos/2026/11/sair-${String(rodada)}.jpg`],
+        });
+        const [foto] = await fotosDo(relato.id, real);
+
+        const resultados = await Promise.allSettled([
+          real.transaction((tx) =>
+            aprovarRelato(tx, {
+              relatoId: relato.id,
+              curadorId: curador.id,
+              fotosVistas: [foto?.id ?? ''],
+            }),
+          ),
+          real.transaction((tx) => sairDoLumens(tx, { estudanteId: estudante.id })),
+        ]);
+
+        // Sem a ordem de travas igual (relato antes da foto), uma das duas aborta com 40P01.
+        expect(resultados.filter((r) => r.status === 'rejected')).toEqual([]);
+      }
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 60_000);
+
   it('duas decisões simultâneas sobre o mesmo relato: só uma vale', async () => {
     const temporario = await criarBancoTemporario(URL_TESTE ?? '');
     // Com tratador de erro: apagar o banco temporário derruba as conexões (57P01), e uma conexão
