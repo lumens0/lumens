@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 20 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 23 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -199,14 +199,17 @@ describe('migração inicial em Postgres real', () => {
       'documento_resposta',
       'estudante',
       'evento',
+      'foto_a_remover',
       'mensagem_processada',
       'papel_pauta',
       'pauta',
+      'pedido_edicao',
       'pedido_link_login',
       'promessa',
       'proposta',
       'registro_verificacao',
       'relato',
+      'relato_foto',
       'resposta_conferencia',
       'verificacao_login',
       'voluntario',
@@ -312,6 +315,7 @@ describe('migração inicial em Postgres real', () => {
         'descumprida',
         'conquistada',
       ],
+      status_pedido_edicao: ['pendente', 'aprovado', 'recusado'],
       status_proposta: ['aberta', 'executada'],
       tipo_caminho: ['falabr', 'comunidade', 'representante'],
       tipo_disparo: [
@@ -323,6 +327,8 @@ describe('migração inicial em Postgres real', () => {
         'vitoria',
         'aprovacao',
         'remarcacao',
+        'foto_recusada',
+        'edicao_decidida',
       ],
     });
   });
@@ -580,7 +586,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(26);
+    expect(rows).toHaveLength(31);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 
@@ -612,7 +618,7 @@ describe('migração inicial em Postgres real', () => {
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
        AND column_name IN ('criado_em', 'criada_em', 'desde', 'aberto_em', 'recebida_em', 'atualizado_em')`,
     );
-    expect(criacoes).toHaveLength(11);
+    expect(criacoes).toHaveLength(13);
     expect(criacoes.every((r) => r.column_default === 'now()')).toBe(true);
   });
 

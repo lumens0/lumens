@@ -20,11 +20,11 @@ export const fixture: PautaDetalhe = {
   relatos: [
     {
       texto: 'A saída das aulas noturnas fica muito escura.',
-      foto_chave: 'relatos/1.jpg',
+      fotos: ['relatos/1.jpg'],
       curso: 'Pedagogia',
       moderado_em: '2026-02-13T12:00:00.000Z',
     },
-    { texto: 'Sem curso informado.', foto_chave: null, curso: null, moderado_em: null },
+    { texto: 'Sem curso informado.', fotos: [], curso: null, moderado_em: null },
   ],
   caminhos: [],
   linha_do_tempo: [

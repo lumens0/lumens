@@ -1,4 +1,13 @@
-import { eq, estudantes, eventos, papeisPauta, pautas, relatos, type Db } from '@lumens/db';
+import {
+  eq,
+  estudantes,
+  eventos,
+  papeisPauta,
+  pautas,
+  relatoFotos,
+  relatos,
+  type Db,
+} from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarBloco, criarEstudanteVerificado } from '../teste/fabricas';
@@ -82,7 +91,7 @@ describe('criarPauta', () => {
   it('grava o primeiro relato com a foto, pendente de moderação', async () => {
     const entrada = await entradaValida({
       relato: 'o bebedouro do bloco 18 ta quebrado, sala 12',
-      fotoChave: 'pautas/abc/foto.jpg',
+      fotoChaves: ['pautas/abc/foto.jpg', 'pautas/abc/foto2.jpg'],
     });
     const r = criada(await criar(entrada));
 
@@ -91,9 +100,16 @@ describe('criarPauta', () => {
       expect.objectContaining({
         estudanteId: entrada.estudanteId,
         texto: 'o bebedouro do bloco 18 ta quebrado, sala 12',
-        fotoChave: 'pautas/abc/foto.jpg',
         moderacao: 'pendente',
       }),
+    ]);
+    const fotos = await db
+      .select()
+      .from(relatoFotos)
+      .where(eq(relatoFotos.relatoId, lista[0]?.id ?? ''));
+    expect(fotos.map((f) => [f.chave, f.ordem]).sort()).toEqual([
+      ['pautas/abc/foto.jpg', 1],
+      ['pautas/abc/foto2.jpg', 2],
     ]);
   });
 
@@ -102,8 +118,13 @@ describe('criarPauta', () => {
     const [relato] = await db.select().from(relatos).where(eq(relatos.pautaId, r.pautaId));
     expect(relato).toMatchObject({
       texto: 'O bebedouro do térreo não funciona há duas semanas.',
-      fotoChave: null,
     });
+    expect(
+      await db
+        .select()
+        .from(relatoFotos)
+        .where(eq(relatoFotos.relatoId, relato?.id ?? '')),
+    ).toEqual([]);
   });
 
   it('registra pauta_criada (não pública) e owner_entrou', async () => {

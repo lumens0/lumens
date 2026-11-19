@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
 import { sair } from '../acoes';
 import { Moldura } from '../moldura';
+import { recusarFoto } from '../fotos/acoes';
 import { aprovar, recusar } from './acoes';
 import { Relatos } from './relatos';
 
@@ -18,7 +19,14 @@ export default async function PaginaDosRelatos({
   const { feito, erro } = await searchParams;
   return (
     <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
-      <Relatos pautas={pautas} feito={feito} erro={erro} aprovar={aprovar} recusar={recusar} />
+      <Relatos
+        pautas={pautas}
+        feito={feito}
+        erro={erro}
+        aprovar={aprovar}
+        recusar={recusar}
+        recusarFoto={recusarFoto}
+      />
     </Moldura>
   );
 }

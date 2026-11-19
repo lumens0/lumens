@@ -1,8 +1,14 @@
 import { conversas, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CLEANUP_CRON, CLEANUP_TZ, registerCleanupJob } from '../../agendador/limpeza-conversas';
+import {
+  CLEANUP_CRON,
+  CLEANUP_TZ,
+  limparConversasExpiradas,
+  registerCleanupJob,
+} from '../../agendador/limpeza-conversas';
 import { segredoCom } from '../../cripto/cifra';
+import type { ServicoDeFotos } from '../../fotos/servico';
 import { JOBS } from '../../infra/queue';
 import {
   defaultHandlers,
@@ -12,6 +18,7 @@ import {
   PHOTO_ASK_TEXT,
   PHOTO_RECEIVED_TEXT,
 } from './handlers';
+import { photoMoreText } from './nova-pauta';
 import { hashPhone } from './phone';
 import { CANCEL_TEXT, handleIncoming, NEED_TEXT } from './router';
 import { assertTransition, InvalidTransitionError, STEPS, Step, TRANSITIONS } from './steps';
@@ -250,6 +257,134 @@ describe('limpeza agendada das conversas', () => {
   });
 });
 
+describe('limpeza agendada: fotos soltas das conversas vencidas', () => {
+  async function executarLimpeza(fotos: ServicoDeFotos) {
+    let worker: (() => Promise<unknown>) | undefined;
+    const boss = {
+      getQueue: () => Promise.resolve(null),
+      createQueue: () => Promise.resolve(),
+      schedule: () => Promise.resolve(),
+      work: (_n: string, h: () => Promise<unknown>) => {
+        worker = h;
+        return Promise.resolve('w1');
+      },
+      send: () => Promise.resolve('j1'),
+    };
+    await registerCleanupJob(boss as unknown as Parameters<typeof registerCleanupJob>[0], {
+      store,
+      db,
+      fotos,
+    });
+    if (!worker) throw new Error('registerCleanupJob não registrou o worker');
+    return worker();
+  }
+
+  it('apaga as fotos da conversa vencida e a conversa; a que não venceu fica', async () => {
+    const removidas: string[] = [];
+    await store.save('velha', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/v1.jpg'] });
+    advance(25 * HOUR);
+    await store.save('nova', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/n1.jpg'] });
+
+    await executarLimpeza({
+      guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        return Promise.resolve();
+      },
+    });
+
+    expect(removidas).toEqual(['fotos/2026/11/v1.jpg']);
+    expect(await store.get('nova')).not.toBeNull();
+    expect(await store.fotoChavesDaConversa('velha')).toEqual([]);
+  });
+
+  it('os arquivos saem depois de a conversa ser apagada (depois do commit)', async () => {
+    let chavesQuandoApagou: string[] | undefined;
+    await store.save('e', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/e1.jpg'] });
+    advance(25 * HOUR);
+    await limparConversasExpiradas({
+      store,
+      db,
+      fotos: {
+        guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+        removerFotos: async () => {
+          chavesQuandoApagou = await store.fotoChavesDaConversa('e');
+        },
+      },
+    });
+    // Quando o storage é chamado, a exclusão da conversa já foi confirmada.
+    expect(chavesQuandoApagou).toEqual([]);
+  });
+
+  it('conversa renovada depois de a limpeza listá-la (mensagem no meio) não é tocada', async () => {
+    const removidas: string[] = [];
+    await store.save('c', 'NEW_ASK_PHOTO', {
+      fotoChaves: ['fotos/2026/11/c1.jpg', 'fotos/2026/11/c2.jpg'],
+    });
+    advance(25 * HOUR);
+    // A limpeza lista 'c' como vencida...
+    const lista = await store.telefonesExpirados();
+    expect(lista).toEqual(['c']);
+    // ...mas, antes de chegar nela, a pessoa manda a 3ª foto e a conversa é renovada.
+    await store.save('c', 'NEW_ASK_PHOTO', {
+      fotoChaves: ['fotos/2026/11/c1.jpg', 'fotos/2026/11/c2.jpg', 'fotos/2026/11/c3.jpg'],
+    });
+    const original = store.telefonesExpirados.bind(store);
+    store.telefonesExpirados = () => Promise.resolve(lista);
+
+    try {
+      expect(
+        await limparConversasExpiradas({
+          store,
+          db,
+          fotos: {
+            guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+            removerFotos: (chaves) => {
+              removidas.push(...chaves);
+              return Promise.resolve();
+            },
+          },
+        }),
+      ).toBe(0);
+    } finally {
+      store.telefonesExpirados = original;
+    }
+
+    // Nenhum arquivo foi apagado e a conversa segue com as três chaves.
+    expect(removidas).toEqual([]);
+    expect(await store.fotoChavesDaConversa('c')).toHaveLength(3);
+  });
+
+  it('conversa que vence enquanto os arquivos são removidos fica para a próxima execução, com as chaves', async () => {
+    const removidas: string[] = [];
+    await store.save('a', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/a1.jpg'] });
+    advance(12 * HOUR);
+    await store.save('b', 'NEW_ASK_PHOTO', { fotoChaves: ['fotos/2026/11/b1.jpg'] });
+    // 'a' vence agora (24 h depois de salva); 'b' só daqui a 12 h.
+    advance(13 * HOUR);
+
+    const fotos: ServicoDeFotos = {
+      guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        // A remoção demora: nesse intervalo, 'b' também vence.
+        advance(12 * HOUR);
+        return Promise.resolve();
+      },
+    };
+    expect(await executarLimpeza(fotos)).toMatchObject({ deleted: 1 });
+
+    // 'a' saiu com os arquivos; 'b' não foi apagada sem ter as fotos removidas: as chaves seguem lá.
+    expect(removidas).toEqual(['fotos/2026/11/a1.jpg']);
+    expect(await store.fotoChavesDaConversa('b')).toEqual(['fotos/2026/11/b1.jpg']);
+
+    // Na próxima execução, a conversa 'b' é limpa com as fotos.
+    expect(await executarLimpeza(fotos)).toMatchObject({ deleted: 1 });
+    expect(removidas).toEqual(['fotos/2026/11/a1.jpg', 'fotos/2026/11/b1.jpg']);
+    expect(await store.fotoChavesDaConversa('b')).toEqual([]);
+  });
+});
+
 describe('experiência da pessoa', () => {
   const foto = { id: 'midia-1', mimeType: 'image/jpeg' };
   // Serviço de fotos falso: a foto "chega" ao storage sem rede (o real é testado em fotos/).
@@ -302,7 +437,8 @@ describe('experiência da pessoa', () => {
       await send(t);
     expect((await store.get(H))?.step).toBe('NEW_ASK_PHOTO');
 
-    const replies = await sendFoto();
+    expect(await sendFoto()).toEqual([photoMoreText(1)]);
+    const replies = await send('pronto');
     expect(replies[0]).toBe(PHOTO_RECEIVED_TEXT);
     expect(replies.at(-1)).toBe(MENU_PRINCIPAL);
     const st = await store.get(H);

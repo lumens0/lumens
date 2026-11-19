@@ -13,6 +13,7 @@ import {
   papeisPauta,
   promessas,
   propostas,
+  relatoFotos,
   relatos,
   respostasConferencia,
   voluntarios,
@@ -281,28 +282,47 @@ describe('sairDoLumens (SCRUM-91 / RNF03 / LGPD)', () => {
       moderacao: 'pendente' | 'aprovado' | 'recusado',
       fotoChave: string | null,
     ) =>
-      db
-        .insert(relatos)
-        .values({
-          pautaId: pauta.id,
-          estudanteId,
-          texto: `relato ${moderacao}`,
-          moderacao,
-          fotoChave,
-        })
-        .returning({ id: relatos.id });
+      db.transaction(async (tx) => {
+        const criado = await tx
+          .insert(relatos)
+          .values({ pautaId: pauta.id, estudanteId, texto: `relato ${moderacao}`, moderacao })
+          .returning({ id: relatos.id });
+        if (fotoChave !== null) {
+          await tx
+            .insert(relatoFotos)
+            .values({ relatoId: criado[0]?.id ?? '', chave: fotoChave, ordem: 1 });
+        }
+        return criado;
+      });
     await relato(estudante.id, 'pendente', 'fotos/2026/11/pendente.jpg');
     await relato(estudante.id, 'recusado', 'fotos/2026/11/recusado.jpg');
     await relato(estudante.id, 'pendente', null);
     const [aprovado] = await relato(estudante.id, 'aprovado', 'fotos/2026/11/aprovado.jpg');
     const [daOutra] = await relato(outra.id, 'pendente', 'fotos/2026/11/outra.jpg');
+    // Relato publicado com uma segunda foto que a curadoria recusou: essa nunca foi ao ar e sai.
+    await db.insert(relatoFotos).values({
+      relatoId: aprovado?.id ?? '',
+      chave: 'fotos/2026/11/aprovado-recusada.jpg',
+      ordem: 2,
+      moderacao: 'recusado',
+      motivoRecusa: 'Mostra uma pessoa.',
+    });
 
     const resultado = await executarSaida(estudante.id, AGORA);
 
     if (!resultado.saiu) throw new Error('não saiu');
     expect([...resultado.fotosParaApagar].sort()).toEqual([
+      'fotos/2026/11/aprovado-recusada.jpg',
       'fotos/2026/11/pendente.jpg',
       'fotos/2026/11/recusado.jpg',
+    ]);
+    const fotasQueFicam = await db
+      .select({ chave: relatoFotos.chave })
+      .from(relatoFotos)
+      .where(inArray(relatoFotos.chave, ['fotos/2026/11/aprovado.jpg', 'fotos/2026/11/outra.jpg']));
+    expect(fotasQueFicam.map((f) => f.chave).sort()).toEqual([
+      'fotos/2026/11/aprovado.jpg',
+      'fotos/2026/11/outra.jpg',
     ]);
     // O banco é o mesmo do arquivo todo: olha só os relatos da pauta deste teste.
     const restantes = await db

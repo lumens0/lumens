@@ -21,6 +21,7 @@ import {
 } from './conversation/handlers';
 import { textoDaResposta, type Resposta } from './conversation/resposta';
 import { PAUTA_NOT_FOUND_IN_FLOW_TEXT } from './conversation/comandos-do-site';
+import { agendarRemocao, executarRemocoes } from '../fotos/remocao';
 import { handleIncoming } from './conversation/router';
 import { InvalidTransitionError } from './conversation/steps';
 import type { ConversationStore } from './conversation/store';
@@ -190,7 +191,23 @@ export async function processIncomingJob(
   }
   const lido = inputOf(conteudo);
   let saiu = false;
-  return deps.db.transaction(async (tx) => {
+  // Arquivos que a mensagem manda apagar (foto abandonada, `sair`) entram na fila durável de remoção
+  // (`foto_a_remover`) na mesma transação: se ela desfizer (falha ao enfileirar a resposta, ao concluir
+  // o job), a chave some junto e a conversa volta a guardar as fotos; se confirmar, a chave fica na
+  // fila até o storage confirmar a exclusão (storage fora do ar não perde nada: a limpeza tenta de novo).
+  const base = deps.fotos;
+  const fila = { haRemocao: false };
+  const resultado = await deps.db.transaction(async (tx) => {
+    const fotosDoTurno: ServicoDeFotos | undefined =
+      base?.removerFotos === undefined
+        ? base
+        : {
+            ...base,
+            removerFotos: async (chaves) => {
+              fila.haRemocao = true;
+              await agendarRemocao(tx, chaves);
+            },
+          };
     // Toda mensagem, entendida ou não, conta como atividade do owner (decisão 6). Vai na mesma
     // transação: se a mensagem for refeita pelo retry, a atividade não fica gravada sem ela.
     const recebidaEm = instanteDaMensagem(data.timestamp);
@@ -213,7 +230,7 @@ export async function processIncomingJob(
               db: tx,
               segredo,
               hmac: (valor) => hmacHex(valor, deps.chaves.hmac),
-              ...(deps.fotos ? { fotos: deps.fotos } : {}),
+              ...(fotosDoTurno ? { fotos: fotosDoTurno } : {}),
               ...(deps.email ? { email: deps.email } : {}),
               ...(deps.respostas ? { respostas: deps.respostas } : {}),
               ...(deps.handlers ? { handlers: deps.handlers } : {}),
@@ -258,6 +275,10 @@ export async function processIncomingJob(
     await deps.queue.complete(JOBS.incomingMessage, job, tx);
     return replies;
   });
+  // Confirmado: agora a fila pode ser esvaziada. `executarRemocoes` nunca lança, e o que falhar fica na
+  // fila para a próxima rodada da limpeza.
+  if (fila.haRemocao) await executarRemocoes(deps.db, base);
+  return resultado;
 }
 
 /**

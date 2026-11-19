@@ -86,3 +86,17 @@ describe('manual: texto do Fala.BR igual ao do bot', () => {
     expect(html).toContain('Registrar protocolo');
   });
 });
+
+describe('manual: várias fotos e edição depois da publicação', () => {
+  it('explica o limite de três fotos, o "pronto" e a recusa por foto', () => {
+    expect(html).toContain('até 3 fotos');
+    expect(html).toContain('<em>pronto</em>');
+    expect(html).toContain('recusar uma foto sem');
+  });
+
+  it('diz que a edição após a publicação vira pedido para a curadoria, com antes e depois', () => {
+    expect(html).toContain('O seu pedido vai para a curadoria');
+    expect(html).toContain('texto de antes e o de depois');
+    expect(html).not.toContain('o texto não muda mais');
+  });
+});

@@ -85,19 +85,29 @@ describe('decisões da curadoria pela tela', () => {
       { id: 'curador-1' },
       { decidida: false, motivo: 'relato_mudou' },
     );
-    const fotos = { 'relato-1': 'relatos/foto.jpg', 'relato-2': null };
+    const fotos = { 'relato-1': ['foto-1', 'foto-2'], 'relato-2': [] };
     expect(await decisoes.aprovar(ID, 'ensino', fotos)).toBe(`/pautas/${ID}?erro=relato_mudou`);
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos, false, '');
   });
 
-  it('lê do formulário a foto de cada relato que a tela mostrou; vazio é sem foto', () => {
+  it('lê do formulário as fotos de cada relato que a tela mostrou; relato visto sem foto fica vazio', () => {
     const formulario = new FormData();
     formulario.set('pautaId', ID);
-    formulario.set('fotoVista:relato-1', 'relatos/foto.jpg');
-    formulario.set('fotoVista:relato-2', '');
+    formulario.append('relatoVisto', 'relato-1');
+    formulario.append('fotoVista:relato-1', 'foto-1');
+    formulario.append('fotoVista:relato-1', 'foto-2');
+    formulario.append('relatoVisto', 'relato-2');
     expect(fotosVistasDoFormulario(formulario)).toEqual({
-      'relato-1': 'relatos/foto.jpg',
-      'relato-2': null,
+      'relato-1': ['foto-1', 'foto-2'],
+      'relato-2': [],
     });
+  });
+
+  it('relato que a tela não mostrou não entra, mesmo com campo de foto solto', () => {
+    const formulario = new FormData();
+    formulario.append('fotoVista:relato-3', 'foto-9');
+    // Sem `relatoVisto`, o relato aparece só com a foto; o domínio confere o conjunto inteiro.
+    expect(fotosVistasDoFormulario(formulario)).toEqual({ 'relato-3': ['foto-9'] });
+    expect(fotosVistasDoFormulario(new FormData())).toEqual({});
   });
 });

@@ -22,6 +22,42 @@ describe('buscarPauta', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('janela de deploy: o back-end pode responder no formato antigo ou no novo', () => {
+    const base = { slug: 'a-b' };
+    const relato = { texto: 'Relato.', curso: null, moderado_em: null };
+    const ler = async (relatos: unknown[]) => {
+      vi.stubGlobal('fetch', responder(200, { ...base, relatos }));
+      return (await buscarPauta('a-b'))?.relatos;
+    };
+
+    it('formato novo: `fotos` segue como veio', async () => {
+      expect(
+        await ler([{ ...relato, fotos: ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.jpg'] }]),
+      ).toEqual([{ ...relato, fotos: ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.jpg'] }]);
+    });
+
+    it('formato antigo: `foto_chave` vira uma foto, e a chave antiga some', async () => {
+      expect(await ler([{ ...relato, foto_chave: 'fotos/2026/11/a.jpg' }])).toEqual([
+        { ...relato, fotos: ['fotos/2026/11/a.jpg'] },
+      ]);
+    });
+
+    it('formato antigo sem foto (null) e resposta sem nenhum dos dois: lista vazia', async () => {
+      expect(await ler([{ ...relato, foto_chave: null }, { ...relato }])).toEqual([
+        { ...relato, fotos: [] },
+        { ...relato, fotos: [] },
+      ]);
+    });
+
+    it('os dois campos juntos: vale `fotos`', async () => {
+      expect(
+        await ler([
+          { ...relato, fotos: ['fotos/2026/11/n.jpg'], foto_chave: 'fotos/2026/11/v.jpg' },
+        ]),
+      ).toEqual([{ ...relato, fotos: ['fotos/2026/11/n.jpg'] }]);
+    });
+  });
+
   it('200 devolve a pauta, com o slug codificado e revalidação de 30 s', async () => {
     const fetch = responder(200, { slug: 'a-b' });
     vi.stubGlobal('fetch', fetch);

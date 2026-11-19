@@ -26,6 +26,8 @@ export type TipoDisparo =
   | 'vitoria'
   | 'aprovacao'
   | 'recusa'
+  | 'foto_recusada'
+  | 'edicao_decidida'
   | 'lembrete'
   | 'remarcacao';
 
@@ -36,7 +38,8 @@ export type TipoDisparo =
  * da RN10 corre sete dias depois do disparo, então atrasar o envio encurta o
  * prazo de quem responde. O card de vitória (3.7c) vem depois da meta batida:
  * a conquista já está no site, e o aviso é a celebração dela. A aprovação e a recusa de pauta vão
- * só para quem é responsável pela pauta, então quase não gastam cota. Lembrete vem por último
+ * só para quem é responsável pela pauta, então quase não gastam cota; a recusa de foto e a decisão
+ * de um pedido de edição vão a uma pessoa só, logo depois. Lembrete vem por último
  * porque é o único que pode esperar um dia sem mudar o resultado de nada.
  */
 export const PRIORIDADE: Readonly<Record<TipoDisparo, number>> = Object.freeze({
@@ -46,8 +49,10 @@ export const PRIORIDADE: Readonly<Record<TipoDisparo, number>> = Object.freeze({
   vitoria: 4,
   aprovacao: 5,
   recusa: 6,
-  lembrete: 7,
-  remarcacao: 8,
+  foto_recusada: 7,
+  edicao_decidida: 8,
+  lembrete: 9,
+  remarcacao: 10,
 });
 
 /** Limite da Meta para um portfólio novo, em pessoas distintas por 24h móveis (RNF06). */

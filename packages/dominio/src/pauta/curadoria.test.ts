@@ -9,6 +9,7 @@ import {
   papeisPauta,
   pautas,
   promessas,
+  relatoFotos,
   relatos,
   type Db,
 } from '@lumens/db';
@@ -26,6 +27,7 @@ import {
   resumoDaCuradoria,
 } from './curadoria';
 import { detalharPautaDaCuradoria } from './detalhe-curadoria';
+import { recusarFoto } from './moderacao';
 import { reservarLote } from '../avisos/fila';
 import { registrarPromessa } from '../caminhos/promessa';
 import { abrirConferencia } from '../conferencia/conferencia-agenda';
@@ -94,12 +96,12 @@ describe('listarFilaDeCuradoria', () => {
     await db
       .insert(papeisPauta)
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
-    await db.insert(relatos).values([
-      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro.jpg' },
-      { pautaId: pauta.id, estudanteId: owner.id, texto: 'sem foto' },
-      { pautaId: pauta.id, estudanteId: owner.id, texto: 'origem', fotoChave: 'fotos/origem.jpg' },
-      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro2.jpg' },
-    ]);
+    const de = (estudanteId: string, texto: string, fotoChaves: string[] = []) =>
+      criarRelato(db, { pautaId: pauta.id, estudanteId, texto, fotoChaves });
+    await de(outro.id, 'depois', ['fotos/outro.jpg']);
+    await de(owner.id, 'sem foto');
+    await de(owner.id, 'origem', ['fotos/origem.jpg', 'fotos/origem-2.jpg']);
+    await de(outro.id, 'depois', ['fotos/outro2.jpg']);
 
     const fila = await listarFilaDeCuradoria(db);
 
@@ -112,10 +114,13 @@ describe('listarFilaDeCuradoria', () => {
     await db
       .insert(papeisPauta)
       .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
-    await db.insert(relatos).values([
-      { pautaId: pauta.id, estudanteId: owner.id, texto: 'origem' },
-      { pautaId: pauta.id, estudanteId: outro.id, texto: 'depois', fotoChave: 'fotos/outro.jpg' },
-    ]);
+    await criarRelato(db, { pautaId: pauta.id, estudanteId: owner.id, texto: 'origem' });
+    await criarRelato(db, {
+      pautaId: pauta.id,
+      estudanteId: outro.id,
+      texto: 'depois',
+      fotoChaves: ['fotos/outro-3.jpg'],
+    });
 
     const fila = await listarFilaDeCuradoria(db);
 
@@ -350,7 +355,10 @@ describe('aprovarPauta', () => {
     return Object.fromEntries(
       (detalhe?.relatos ?? [])
         .filter(({ moderacao }) => moderacao === 'pendente')
-        .map(({ id, fotoChave }) => [id, fotoChave]),
+        .map(({ id, fotos }) => [
+          id,
+          fotos.filter((f) => f.moderacao === 'pendente').map((f) => f.id),
+        ]),
     );
   }
 
@@ -421,23 +429,35 @@ describe('aprovarPauta', () => {
   });
 
   describe('foto do relato de origem que a curadoria viu (SCRUM-301)', () => {
-    async function comRelatoDeOrigem(fotoChave: string | null) {
+    async function comRelatoDeOrigem(...fotoChaves: string[]) {
       const pauta = await novaEmCuradoria();
       const owner = await criarEstudanteVerificado(db);
       await db
         .insert(papeisPauta)
         .values({ pautaId: pauta.id, estudanteId: owner.id, papel: 'owner' });
-      const relato = await criarRelato(db, { pautaId: pauta.id, estudanteId: owner.id, fotoChave });
+      const relato = await criarRelato(db, {
+        pautaId: pauta.id,
+        estudanteId: owner.id,
+        fotoChaves,
+      });
       return { pauta, relato };
     }
     const moderacaoDe = async (id: string) =>
       (await db.select().from(relatos).where(eq(relatos.id, id)))[0]?.moderacao;
-    const aprovar = (pautaId: string, fotosVistas: Record<string, string | null>) =>
+    const aprovar = (pautaId: string, fotosVistas: Record<string, readonly string[]>) =>
       db.transaction((tx) =>
         aprovarPauta(tx, { pautaId, curadorId, categoria: 'infraestrutura', fotosVistas }),
       );
-    const juntarFoto = (relatoId: string, fotoChave: string) =>
-      db.update(relatos).set({ fotoChave }).where(eq(relatos.id, relatoId));
+    const juntarFoto = async (relatoId: string, chave: string) => {
+      const ja = await db.select().from(relatoFotos).where(eq(relatoFotos.relatoId, relatoId));
+      await db.insert(relatoFotos).values({ relatoId, chave, ordem: ja.length + 1 });
+    };
+    const fotosDo = (relatoId: string) =>
+      db
+        .select()
+        .from(relatoFotos)
+        .where(eq(relatoFotos.relatoId, relatoId))
+        .orderBy(relatoFotos.ordem);
 
     it('com a foto que a tela mostrou, aprova a pauta e o relato', async () => {
       const { pauta, relato } = await comRelatoDeOrigem('relatos/foto-vista.jpg');
@@ -446,8 +466,31 @@ describe('aprovarPauta', () => {
       expect(await moderacaoDe(relato.id)).toBe('aprovado');
     });
 
+    it('com três fotos vistas, aprova todas; recusar uma antes tira só ela e a tela velha volta', async () => {
+      const { pauta, relato } = await comRelatoDeOrigem('r/t1.jpg', 'r/t2.jpg', 'r/t3.jpg');
+      const telaVelha = await fotosDaTela(pauta.id);
+      const [, meio] = await fotosDo(relato.id);
+      await db.transaction((tx) =>
+        recusarFoto(tx, { fotoId: meio?.id ?? '', curadorId, motivo: 'Mostra uma pessoa.' }),
+      );
+
+      expect(await aprovar(pauta.id, telaVelha)).toEqual({
+        decidida: false,
+        motivo: 'relato_mudou',
+      });
+      expect((await pautaDa(pauta.id))?.status).toBe('em_curadoria');
+
+      expect(await aprovar(pauta.id, await fotosDaTela(pauta.id))).toEqual({ decidida: true });
+      expect((await fotosDo(relato.id)).map((f) => f.moderacao)).toEqual([
+        'aprovado',
+        'recusado',
+        'aprovado',
+      ]);
+      expect(await moderacaoDe(relato.id)).toBe('aprovado');
+    });
+
     it('foto anexada depois de a tela abrir: nada muda', async () => {
-      const { pauta, relato } = await comRelatoDeOrigem(null);
+      const { pauta, relato } = await comRelatoDeOrigem();
       const fotosVistas = await fotosDaTela(pauta.id);
       await juntarFoto(relato.id, 'relatos/foto-nova.jpg');
 
@@ -461,7 +504,7 @@ describe('aprovarPauta', () => {
     });
 
     it('sem foto e sem foto vista, aprova', async () => {
-      const { pauta, relato } = await comRelatoDeOrigem(null);
+      const { pauta, relato } = await comRelatoDeOrigem();
       expect(await aprovar(pauta.id, await fotosDaTela(pauta.id))).toEqual({ decidida: true });
       expect(await moderacaoDe(relato.id)).toBe('aprovado');
     });
@@ -481,7 +524,7 @@ describe('aprovarPauta', () => {
     });
 
     it('relato de origem que chegou depois de a tela abrir: nada muda', async () => {
-      const { pauta, relato } = await comRelatoDeOrigem(null);
+      const { pauta, relato } = await comRelatoDeOrigem();
       const fotosVistas = await fotosDaTela(pauta.id);
       const novo = await criarRelato(db, { pautaId: pauta.id, estudanteId: relato.estudanteId });
 

@@ -6,6 +6,7 @@ import {
   estudantes,
   papeisPauta,
   pautas,
+  relatoFotos,
   relatos,
   type Db,
 } from '@lumens/db';
@@ -26,6 +27,8 @@ import {
   NOT_VERIFIED_AT_END_TEXT,
   PHOTO_ASK_TEXT,
   PHOTO_RECEIVED_TEXT,
+  PHOTOS_RECEIVED_TEXT,
+  photoMoreText,
   TITLE_EMPTY_TEXT,
   VERIFY_FIRST_TEXT,
   descriptionTooLongText,
@@ -34,6 +37,7 @@ import {
   titleTooLongText,
 } from './nova-pauta';
 import { CATEGORY_NOT_FOUND_TEXT, CATEGORY_QUESTION_TEXT } from './categorias';
+import { limparConversasExpiradas } from '../../agendador/limpeza-conversas';
 import { hashPhone } from './phone';
 import {
   BLOCK_NOT_FOUND_TEXT,
@@ -44,7 +48,7 @@ import {
   PICK_AGAIN_TEXT,
 } from './relato';
 import type { MensagemDeLista, Resposta } from './resposta';
-import { handleIncoming } from './router';
+import { handleIncoming, NEED_TEXT } from './router';
 import { ConversationStore } from './store';
 import { NEW_TITLE_TEXT } from './texto';
 
@@ -65,7 +69,12 @@ const fotosPedidas: { id: string; mimeType: string }[] = [];
 const fotos: ServicoDeFotos = {
   guardarFoto: (midia) => {
     fotosPedidas.push(midia);
-    return Promise.resolve(resultadoDaFoto);
+    // A chave é única no banco: da segunda foto em diante, ganha um sufixo.
+    return Promise.resolve(
+      resultadoDaFoto.ok && fotosPedidas.length > 1
+        ? { ok: true as const, chave: `fotos/2026/11/abc-${String(fotosPedidas.length)}.jpg` }
+        : resultadoDaFoto,
+    );
   },
 };
 const sendFoto = (servico?: ServicoDeFotos) =>
@@ -207,17 +216,161 @@ describe('pauta nova pelo menu', () => {
     expect(await dados()).toEqual({});
   });
 
-  it('com foto, guarda a chave no primeiro relato e o resumo diz que tem foto', async () => {
+  const ateAFoto = async () => {
     for (const t of ['Bebedouro', 'não sei', 'categoria:outra', DESCRICAO]) await send(t);
-    const respostas = await sendFoto(fotos);
+  };
+  const chavesDoRelatoDeOrigem = async () => {
+    const [pauta] = await todasAsPautas();
+    if (!pauta) throw new Error('pauta não criada');
+    const [relato] = await db.select().from(relatos).where(eq(relatos.pautaId, pauta.id));
+    return (
+      await db
+        .select({ chave: relatoFotos.chave })
+        .from(relatoFotos)
+        .where(eq(relatoFotos.relatoId, relato?.id ?? ''))
+        .orderBy(relatoFotos.ordem)
+    ).map((f) => f.chave);
+  };
+
+  it('com uma foto e "pronto", guarda a chave no primeiro relato e o resumo diz que tem foto', async () => {
+    fotosPedidas.length = 0;
+    await ateAFoto();
+    // A primeira foto não fecha o passo: o bot pergunta se tem mais alguma.
+    expect(await sendFoto(fotos)).toEqual([photoMoreText(1)]);
+    expect(await passo()).toBe('NEW_ASK_PHOTO');
+    expect(await todasAsPautas()).toEqual([]);
+
+    const respostas = await send('pronto');
     expect(fotosPedidas).toEqual([{ id: 'midia-1', mimeType: 'image/jpeg' }]);
     expect(respostas[0]).toBe(PHOTO_RECEIVED_TEXT);
     expect(resumoEm(respostas)).toContain('*Foto:* sim');
-    const [pauta] = await todasAsPautas();
-    if (!pauta) throw new Error('pauta não criada');
-    expect(await db.select().from(relatos).where(eq(relatos.pautaId, pauta.id))).toMatchObject([
-      { fotoChave: 'fotos/2026/11/abc.jpg' },
+    expect(await chavesDoRelatoDeOrigem()).toEqual(['fotos/2026/11/abc.jpg']);
+  });
+
+  it('com duas fotos e "pronto", guarda as duas na ordem de envio', async () => {
+    fotosPedidas.length = 0;
+    await ateAFoto();
+    await sendFoto(fotos);
+    expect(await sendFoto(fotos)).toEqual([photoMoreText(2)]);
+    const respostas = await send('Pronto');
+    expect(respostas[0]).toBe(PHOTOS_RECEIVED_TEXT);
+    expect(await chavesDoRelatoDeOrigem()).toEqual([
+      'fotos/2026/11/abc.jpg',
+      'fotos/2026/11/abc-2.jpg',
     ]);
+  });
+
+  it('na terceira foto cria a pauta sozinho; mais de três não existe', async () => {
+    fotosPedidas.length = 0;
+    await ateAFoto();
+    await sendFoto(fotos);
+    await sendFoto(fotos);
+    const respostas = await sendFoto(fotos);
+    expect(respostas[0]).toBe(PHOTOS_RECEIVED_TEXT);
+    expect(await passo()).toBe('MENU');
+    expect(await chavesDoRelatoDeOrigem()).toHaveLength(3);
+    // Fora do passo da foto, uma quarta imagem não entra em lugar nenhum.
+    expect(await sendFoto(fotos)).toEqual([NEED_TEXT]);
+    expect(await chavesDoRelatoDeOrigem()).toHaveLength(3);
+  });
+
+  it('o aviso de foto pública e o limite de três aparecem no pedido de foto', () => {
+    expect(PHOTO_ASK_TEXT).toContain('LGPD');
+    expect(PHOTO_ASK_TEXT).toContain('até 3 fotos');
+  });
+
+  it('"pular" depois de uma foto cria a pauta com ela', async () => {
+    fotosPedidas.length = 0;
+    await ateAFoto();
+    await sendFoto(fotos);
+    expect((await send('pular'))[0]).toBe(PHOTO_RECEIVED_TEXT);
+    expect(await chavesDoRelatoDeOrigem()).toHaveLength(1);
+  });
+
+  describe('fotos soltas: abandonar a pauta nova não deixa arquivo órfão no storage', () => {
+    const removidas: string[] = [];
+    const comRemocao: ServicoDeFotos = {
+      guardarFoto: (midia) => fotos.guardarFoto(midia),
+      removerFotos: (chaves) => {
+        removidas.push(...chaves);
+        return Promise.resolve();
+      },
+    };
+    const mandar = (text: string) =>
+      handleIncoming({ phoneHmac: H, text }, { store, db, segredo, fotos: comRemocao });
+    const mandarFoto = () =>
+      handleIncoming(
+        { phoneHmac: H, text: '', image: { id: 'midia-1', mimeType: 'image/jpeg' } },
+        { store, db, segredo, fotos: comRemocao },
+      );
+    const comDuasFotos = async () => {
+      fotosPedidas.length = 0;
+      removidas.length = 0;
+      await ateAFoto();
+      await mandarFoto();
+      await mandarFoto();
+      expect((await dados()).fotoChaves).toHaveLength(2);
+    };
+    const AS_DUAS = ['fotos/2026/11/abc-2.jpg', 'fotos/2026/11/abc.jpg'];
+
+    it.each(['menu', 'cancelar', 'sair'])(
+      '"%s" depois de duas fotos apaga as duas',
+      async (cmd) => {
+        await comDuasFotos();
+        await mandar(cmd);
+        expect(removidas.sort()).toEqual(AS_DUAS);
+        expect(await todasAsPautas()).toEqual([]);
+      },
+    );
+
+    it('"sair" confirmado antes de responder "pronto" não deixa foto nenhuma sem dono', async () => {
+      await comDuasFotos();
+      await mandar('sair');
+      await mandar('sim');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('comando do site no meio do fluxo também apaga', async () => {
+      await comDuasFotos();
+      await mandar('nova pauta');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('pauta criada: as fotos viram relato e nada é apagado', async () => {
+      await comDuasFotos();
+      await mandar('pronto');
+      expect(removidas).toEqual([]);
+      expect(await chavesDoRelatoDeOrigem()).toEqual([...AS_DUAS].reverse());
+    });
+
+    it('seguir mandando fotos ou texto solto no passo não apaga nada', async () => {
+      await comDuasFotos();
+      await mandar('olha');
+      expect(removidas).toEqual([]);
+    });
+
+    it('conversa vencida: a limpeza apaga as fotos antes de apagar a conversa', async () => {
+      await comDuasFotos();
+      await db.update(conversas).set({ expiraEm: new Date(Date.now() - 1000) });
+      await limparConversasExpiradas({ store, db, fotos: comRemocao });
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('conversa vencida e a pessoa volta antes da limpeza: o recomeço apaga as fotos antigas', async () => {
+      await comDuasFotos();
+      await db.update(conversas).set({ expiraEm: new Date(Date.now() - 1000) });
+      await mandar('oi');
+      expect(removidas.sort()).toEqual(AS_DUAS);
+    });
+
+    it('pauta não criada no fim (cadastro saiu no meio): as fotos saem do storage', async () => {
+      await comDuasFotos();
+      await db.update(estudantes).set({ saiuEm: new Date() });
+      await mandar('pronto');
+      // Apagar duas vezes não faz mal (o storage ignora a chave que já saiu).
+      expect([...new Set(removidas)].sort()).toEqual(AS_DUAS);
+      expect(await todasAsPautas()).toEqual([]);
+    });
   });
 
   it.each(['formato', 'tamanho', 'invalida', 'indisponivel', 'armazenamento'] as const)(

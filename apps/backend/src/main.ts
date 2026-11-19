@@ -148,7 +148,7 @@ async function iniciar(env: Env): Promise<void> {
           },
         });
     // As filas são criadas aqui, antes do servidor aceitar o primeiro webhook.
-    await registerCleanupJob(boss, { store, db });
+    await registerCleanupJob(boss, { store, db, fotos });
     await registerAvisoMetaBatidaJob(boss, { db, logger });
     // Avisos pelo canal ativo. WhatsApp: no `pnpm dev` a fila anda sem a Meta; fora dele, envia de
     // verdade, e enquanto os modelos não forem aprovados a Meta recusa com erro passageiro e os

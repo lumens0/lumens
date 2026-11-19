@@ -400,7 +400,7 @@ describe('API de leitura pública com o seed', () => {
         relatos: [
           {
             texto: 'A saída das aulas noturnas fica muito escura perto do ponto.',
-            foto_chave: null,
+            fotos: [],
             curso: 'Pedagogia',
             moderado_em: '2026-02-13T12:00:00.000Z',
           },
@@ -791,7 +791,7 @@ describe('API de leitura pública: serialização e rotas', () => {
       meta_batida_em: null,
       proxima_etapa: 'Faltam 9 apoios',
     };
-    const relato = { texto: 'Relato', foto_chave: null, curso: null, moderado_em: null };
+    const relato = { texto: 'Relato', fotos: [], curso: null, moderado_em: null };
     // Uma lista por consulta de /pautas/:slug: pauta, relatos, caminhos, linha do tempo.
     const db = bancoFalso([{ ...pauta, ...vazamento }], [{ ...relato, ...vazamento }], [], []);
     const app = await montarApp(db);

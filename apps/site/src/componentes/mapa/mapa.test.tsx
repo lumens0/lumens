@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
 import { MapaDoCampus } from './MapaDoCampus';
 import { MapaResumo } from './MapaResumo';
-import { AREAS, PONTOS, PREDIOS, siglaDe } from './predios';
+import { AREAS, CAMINHOS, ID_DO_ESTADIO, LADO_DO_LUGAR, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
 import { LEGENDA, marcadoresDoMapa, maisUrgente } from './urgencia';
 
@@ -171,29 +171,129 @@ describe('prédios do OpenStreetMap', () => {
 });
 
 describe('lugares que faltavam no mapa (SCRUM-284)', () => {
-  it('a EDGE Academy é um ponto junto à pista de atletismo (posição do Google Maps)', () => {
-    const edge = PONTOS.find((p) => p.nome === 'EDGE Academy');
-    expect(edge).toBeDefined();
+  const lugar = (sigla: string) => PREDIOS.find((p) => p.sigla === sigla);
+
+  it('EDGE Academy, NEES e CRAD são quadrados do mesmo tamanho e do mesmo giro, ligados aos blocos', () => {
+    const lugares = [lugar('EDGE Academy'), lugar('NEES'), lugar('CRAD')];
+    expect(lugares.map((p) => p?.blocos)).toEqual([['edge-academy'], ['nees'], ['crad']]);
+    // Mesma caixa (o quadrado girado tem a mesma largura e altura nos três) e quatro cantos retos.
+    const caixas = lugares.map((p) => p?.caixa.slice(2).map((v) => Math.round(v)));
+    expect(new Set(caixas.map((c) => c?.join('x'))).size).toBe(1);
+    for (const p of lugares) {
+      expect(p?.d.match(/[ML]/g)).toHaveLength(4);
+      expect(p?.d.endsWith('Z')).toBe(true);
+      const cantos = [...(p?.d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g) ?? [])].map(
+        ([, x, y]) => [Number(x), Number(y)] as const,
+      );
+      const lado = (i: number) => {
+        const [a1, a2] = [cantos[i], cantos[(i + 1) % 4]];
+        return Math.hypot((a2?.[0] ?? 0) - (a1?.[0] ?? 0), (a2?.[1] ?? 0) - (a1?.[1] ?? 0));
+      };
+      for (let i = 0; i < 4; i++) expect(lado(i)).toBeCloseTo(LADO_DO_LUGAR, 0);
+    }
+    // Nenhuma bolinha amarela: os lugares são desenhados como prédios.
+    expect(renderToStaticMarkup(<MapaDoCampus marcadores={[]} />)).not.toContain('pontoLocal');
+  });
+
+  it('a EDGE Academy fica junto à pista de atletismo e o NEES ao lado do IC (Google Maps)', () => {
+    const perto = (p: { caixa: readonly number[] } | undefined, alvo: readonly number[]) => {
+      const [x = 0, y = 0, w = 0, h = 0] = alvo;
+      const [px = 0, py = 0, pw = 0, ph = 0] = p?.caixa ?? [];
+      const dx = Math.max(x - (px + pw), 0, px - (x + w));
+      const dy = Math.max(y - (py + ph), 0, py - (y + h));
+      return Math.hypot(dx, dy);
+    };
     const pista = AREAS.filter((a) => a.tipo === 'pista').map((a) => a.caixa);
-    const perto = pista.some(([x = 0, y = 0, w = 0, h = 0]) => {
-      const dx = Math.max(x - (edge?.x ?? 0), 0, (edge?.x ?? 0) - (x + w));
-      const dy = Math.max(y - (edge?.y ?? 0), 0, (edge?.y ?? 0) - (y + h));
-      return Math.hypot(dx, dy) < 40;
-    });
-    expect(perto).toBe(true);
-    expect(renderToStaticMarkup(<MapaDoCampus marcadores={[]} />)).toContain(
-      '<title>EDGE Academy</title>',
+    expect(Math.min(...pista.map((c) => perto(lugar('EDGE Academy'), c)))).toBeLessThan(40);
+    expect(perto(lugar('NEES'), PREDIOS.find((p) => p.id === 202492816)?.caixa ?? [])).toBeLessThan(
+      60,
     );
   });
 
-  it('o NEES (RIEH) é um quadro ao lado do IC, na posição do Google Maps', () => {
-    const nees = PONTOS.find((p) => p.nome === 'NEES (RIEH)');
-    const ic = PREDIOS.find((p) => p.id === 202492816);
-    expect(nees).toBeDefined();
-    const [x = 0, y = 0, w = 0, h = 0] = ic?.caixa ?? [];
-    const dx = Math.max(x - (nees?.x ?? 0), 0, (nees?.x ?? 0) - (x + w));
-    const dy = Math.max(y - (nees?.y ?? 0), 0, (nees?.y ?? 0) - (y + h));
-    expect(Math.hypot(dx, dy)).toBeLessThan(60);
+  it('nenhum quadrado toca outro bloco, outra área ou a linha de uma rua', () => {
+    type Pt = readonly [number, number];
+    const polis = (d: string): Pt[][] =>
+      d
+        .split('M')
+        .filter(Boolean)
+        .map((parte) =>
+          [...parte.matchAll(/(-?[\d.]+)[ ,](-?[\d.]+)/g)].map(
+            ([, x, y]) => [Number(x), Number(y)] as const,
+          ),
+        );
+    const dentro = ([x, y]: Pt, poli: Pt[]) => {
+      let em = false;
+      for (let i = 0, j = poli.length - 1; i < poli.length; j = i++) {
+        const [xi = 0, yi = 0] = poli[i] ?? [];
+        const [xj = 0, yj = 0] = poli[j] ?? [];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) em = !em;
+      }
+      return em;
+    };
+    const ponto = (p: Pt, a: Pt, b: Pt) => {
+      const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+      const t =
+        dx === 0 && dy === 0
+          ? 0
+          : Math.max(
+              0,
+              Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)),
+            );
+      return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+    };
+    const cruza = (a: Pt, b: Pt, c: Pt, d: Pt) => {
+      const o = (p: Pt, q: Pt, r: Pt) =>
+        (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+      return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+    };
+    const folga = (quad: Pt[], poli: Pt[], fechado: boolean) => {
+      if (fechado && (dentro(quad[0] as Pt, poli) || dentro(poli[0] as Pt, quad))) return 0;
+      let menor = Infinity;
+      const n = poli.length;
+      for (let i = 0; i < 4; i++) {
+        const [a, b] = [quad[i] as Pt, quad[(i + 1) % 4] as Pt];
+        for (let k = 0; k < (fechado ? n : n - 1); k++) {
+          const [c, d] = [poli[k] as Pt, poli[(k + 1) % n] as Pt];
+          if (cruza(a, b, c, d)) return 0;
+          menor = Math.min(menor, ponto(a, c, d), ponto(c, a, b), ponto(d, a, b));
+        }
+      }
+      return menor;
+    };
+    const lugares = [lugar('EDGE Academy'), lugar('NEES'), lugar('CRAD')];
+    const proprios = new Set(lugares.map((p) => p?.id));
+    for (const l of lugares) {
+      const [quad = []] = polis(l?.d ?? '');
+      const outros = [
+        ...PREDIOS.filter((p) => !proprios.has(p.id)).flatMap((p) => polis(p.d)),
+        ...AREAS.flatMap((a) => polis(a.d)),
+      ];
+      // 3 m de folga de qualquer prédio ou área, e a rua (desenhada com 6 m) com 3 m de cada lado.
+      for (const poli of outros)
+        expect(folga(quad, poli, true), l?.sigla).toBeGreaterThanOrEqual(2.5);
+      for (const rua of CAMINHOS.flatMap((d) => polis(d))) {
+        expect(folga(quad, rua, false), l?.sigla).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('os três quadrados não se sobrepõem entre si', () => {
+    const lugares = [lugar('EDGE Academy'), lugar('NEES'), lugar('CRAD')];
+    for (const [i, a] of lugares.entries()) {
+      for (const b of lugares.slice(i + 1)) {
+        const [ax = 0, ay = 0, aw = 0, ah = 0] = a?.caixa ?? [];
+        const [bx = 0, by = 0, bw = 0, bh = 0] = b?.caixa ?? [];
+        expect(ax + aw < bx || bx + bw < ax || ay + ah < by || by + bh < ay).toBe(true);
+      }
+    }
+  });
+
+  it('o Estádio da UFAL é o campo isolado, e só ele leva o nome (o outro campo fica sem rótulo)', () => {
+    const estadio = AREAS.find((a) => a.id === ID_DO_ESTADIO);
+    expect(estadio).toMatchObject({ tipo: 'quadra', nome: 'Estádio da UFAL' });
+    expect(AREAS.filter((a) => a.nome === 'Estádio da UFAL')).toHaveLength(1);
+    // O campo que tinha o rótulo antes (288827033) continua desenhado, sem nome de estádio.
+    expect(AREAS.find((a) => a.id === 288827033)?.nome).toBe('');
   });
 
   it('a Reitoria (relação multipolygon do OSM) aparece com pátio e nome', () => {

@@ -5,7 +5,7 @@
  * `BLOCOS_DO_PREDIO` liga o prédio aos blocos do banco pelo slug. Bloco sem prédio aqui aparece só
  * na lista; quando os blocos oficiais forem cadastrados, é só acrescentar o slug.
  */
-import { AREAS_OSM, PONTOS_LOCAIS, PREDIOS_OSM } from './campus-osm';
+import { AREAS_OSM, PREDIOS_OSM } from './campus-osm';
 import { pontoDoNome } from './nomes';
 
 export { ALTURA_DO_CAMPUS, CAMINHOS, CONTORNO, LARGURA_DO_CAMPUS } from './campus-osm';
@@ -59,6 +59,10 @@ const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   404593997: ['fda'],
   493988324: ['fale'],
   493988321: ['ics'],
+  // Lugares que o OSM não desenha: ver `LUGARES_SEM_PREDIO`.
+  [-1]: ['edge-academy'],
+  [-2]: ['nees'],
+  [-3]: ['crad'],
 };
 
 /**
@@ -126,24 +130,85 @@ export function siglaDe(nome: string): string {
 
 const SEM_ROTULO = new Set(['Praça de Alimentação UFAL']);
 
-export const PREDIOS: readonly Predio[] = PREDIOS_OSM.map(([id, nomeOsm, d, caixa, curto]) => {
-  const local = NOMES_LOCAIS[id];
-  const nome = NOMES_EXIBIDOS[nomeOsm] ?? (nomeOsm || local?.nome || '');
-  // A sigla do OSM (`short_name`, `ref`) vale quando tem 3 letras ou mais: "13" não diz nada.
-  const sigla = nomeOsm
-    ? (SIGLAS[nomeOsm] ?? (curto.length >= 3 ? curto : siglaDe(nomeOsm)))
-    : (local?.sigla ?? curto);
-  return {
-    id,
-    nome: nome || 'Prédio sem nome no mapa',
-    // A praça ao lado do IQB não é bloco nem nome que os estudantes usem: fica desenhada, sem rótulo.
-    sigla: nome && !SEM_ROTULO.has(nome) ? sigla || siglaDe(nome) : '',
-    d,
-    caixa,
-    rotulo: pontoDoNome(d, caixa),
-    blocos: BLOCOS_DO_PREDIO[id] ?? [],
-  };
-});
+/**
+ * Lugares do catálogo de blocos que o OpenStreetMap não desenha (a EDGE Academy, o NEES e o CRAD),
+ * marcados por um quadrado do mesmo tamanho, na posição do pino do Google Maps. Todos têm o mesmo
+ * lado e o mesmo giro (o das ruas do campus, a Av. Principal), então ficam retos e alinhados entre
+ * si e com os prédios ao redor. As posições foram conferidas contra todos os prédios, áreas e ruas
+ * do mapa: nenhum quadrado toca outro bloco nem a linha de uma rua (há teste para isso).
+ */
+export const LADO_DO_LUGAR = 22;
+export const GIRO_DAS_RUAS = -0.4795; // radianos: -27,47°, a direção da Av. Principal
+
+const LUGARES_SEM_PREDIO: readonly {
+  id: number;
+  nome: string;
+  sigla: string;
+  x: number;
+  y: number;
+}[] = [
+  { id: -1, nome: 'EDGE Academy', sigla: 'EDGE Academy', x: 415.1, y: 801.4 }, // junto à pista de atletismo
+  { id: -2, nome: 'NEES (RIEH)', sigla: 'NEES', x: 679.4, y: 806.6 }, // ao lado do IC; o pino cai na rua
+  { id: -3, nome: 'CRAD', sigla: 'CRAD', x: 1358, y: 924.5 },
+];
+
+/** Contorno, em `d` de `<path>`, e caixa de um quadrado de `lado` centrado em (`x`, `y`) e girado. */
+export function quadradoDoLugar(x: number, y: number, lado = LADO_DO_LUGAR, giro = GIRO_DAS_RUAS) {
+  const h = lado / 2;
+  const [c, s] = [Math.cos(giro), Math.sin(giro)];
+  const cantos = (
+    [
+      [-h, -h],
+      [h, -h],
+      [h, h],
+      [-h, h],
+    ] as const
+  ).map(([dx, dy]): [number, number] => [x + dx * c - dy * s, y + dx * s + dy * c]);
+  const arredonda = (n: number) => String(Math.round(n * 10) / 10);
+  const d = `${cantos.map(([px, py], i) => `${i === 0 ? 'M' : 'L'}${arredonda(px)} ${arredonda(py)}`).join('')}Z`;
+  const xs = cantos.map(([px]) => px);
+  const ys = cantos.map(([, py]) => py);
+  const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
+  const caixa = [x0, y0, Math.max(...xs) - x0, Math.max(...ys) - y0].map(arredonda).map(Number);
+  return { d, caixa, cantos };
+}
+
+const PREDIOS_DOS_LUGARES: readonly Predio[] = LUGARES_SEM_PREDIO.map(
+  ({ id, nome, sigla, x, y }) => {
+    const { d, caixa } = quadradoDoLugar(x, y);
+    return {
+      id,
+      nome,
+      sigla,
+      d,
+      caixa,
+      rotulo: pontoDoNome(d, caixa),
+      blocos: BLOCOS_DO_PREDIO[id] ?? [],
+    };
+  },
+);
+
+export const PREDIOS: readonly Predio[] = [
+  ...PREDIOS_OSM.map(([id, nomeOsm, d, caixa, curto]) => {
+    const local = NOMES_LOCAIS[id];
+    const nome = NOMES_EXIBIDOS[nomeOsm] ?? (nomeOsm || local?.nome || '');
+    // A sigla do OSM (`short_name`, `ref`) vale quando tem 3 letras ou mais: "13" não diz nada.
+    const sigla = nomeOsm
+      ? (SIGLAS[nomeOsm] ?? (curto.length >= 3 ? curto : siglaDe(nomeOsm)))
+      : (local?.sigla ?? curto);
+    return {
+      id,
+      nome: nome || 'Prédio sem nome no mapa',
+      // A praça ao lado do IQB não é bloco nem nome que os estudantes usem: fica desenhada, sem rótulo.
+      sigla: nome && !SEM_ROTULO.has(nome) ? sigla || siglaDe(nome) : '',
+      d,
+      caixa,
+      rotulo: pontoDoNome(d, caixa),
+      blocos: BLOCOS_DO_PREDIO[id] ?? [],
+    };
+  }),
+  ...PREDIOS_DOS_LUGARES,
+];
 
 export type TipoDeArea = 'pista' | 'quadra' | 'agua' | 'parque' | 'estacionamento';
 
@@ -160,8 +225,11 @@ export interface Area {
 // Área que repete o nome de um prédio (a Praça de Alimentação é parque e prédio no OSM) fica sem rótulo.
 const NOMES_DE_PREDIO = new Set(PREDIOS_OSM.map(([, nome]) => nome));
 
-/** Nomes que o OSM não tem, dados por quem conhece o campus: o campo ao lado da EDGE Academy. */
-export const ID_DO_ESTADIO = 288827033;
+/**
+ * Nomes que o OSM não tem, dados por quem conhece o campus: o Estádio da UFAL é o campo isolado,
+ * cercado pela via que faz a volta, na ponta do campus (no OSM, "Estádio Universitário do IEFE-UFAL").
+ */
+export const ID_DO_ESTADIO = 283629059;
 const NOMES_EXTRAS = new Map([[ID_DO_ESTADIO, 'Estádio da UFAL']]);
 
 export const AREAS: readonly Area[] = AREAS_OSM.map(([id, tipo, nome, d, caixa]) => ({
@@ -171,12 +239,3 @@ export const AREAS: readonly Area[] = AREAS_OSM.map(([id, tipo, nome, d, caixa])
   d,
   caixa,
 }));
-
-/** Lugar que o OpenStreetMap não tem (a EDGE Academy), marcado por um ponto. */
-export interface PontoLocal {
-  nome: string;
-  x: number;
-  y: number;
-}
-
-export const PONTOS: readonly PontoLocal[] = PONTOS_LOCAIS.map(([nome, x, y]) => ({ nome, x, y }));

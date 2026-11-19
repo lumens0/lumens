@@ -11,10 +11,12 @@ import {
   documentosResposta,
   eq,
   estudantes,
+  inArray,
   isNull,
   papeisPauta,
   pautas,
   promessas,
+  relatoFotos,
   relatos,
   sql,
   type Db,
@@ -27,7 +29,7 @@ import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
 import { registrarApoio } from './apoio';
 import { versaoDoTexto } from './edicao';
-import { aprovarRelato, recusarRelato } from './moderacao';
+import { aprovarRelato, fotosPendentesDe, mesmasFotos, recusarRelato } from './moderacao';
 import { conferirAnonimato } from '../compartilhado/anonimato';
 import { transicionarStatus } from './status';
 import { CATEGORIAS } from './pauta';
@@ -45,7 +47,7 @@ export interface PautaNaFila {
   /** `null` é pauta do campus inteiro. */
   bloco: string | null;
   blocoId: string | null;
-  /** Foto do relato que originou a pauta, se houver. */
+  /** Primeira foto do relato que originou a pauta (miniatura do card), se houver. */
   fotoChave: string | null;
   criadaEm: Date;
   prazo: Date;
@@ -77,12 +79,13 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
       // "o primeiro" não existe; relatos de outras pessoas que chegaram depois ficam de fora.
       // Relato recusado não conta; a ordem por id deixa a foto escolhida estável entre leituras.
       fotoChave: sql<string | null>`(
-        select ${relatos.fotoChave} from ${relatos}
+        select ${relatoFotos.chave} from ${relatos}
         join ${papeisPauta} on ${papeisPauta.pautaId} = ${relatos.pautaId}
           and ${papeisPauta.estudanteId} = ${relatos.estudanteId} and ${papeisPauta.papel} = 'owner'
-        where ${relatos.pautaId} = ${pautas.id} and ${relatos.fotoChave} is not null
-          and ${relatos.moderacao} <> 'recusado'
-        order by ${relatos.id}
+        join ${relatoFotos} on ${relatoFotos.relatoId} = ${relatos.id}
+          and ${relatoFotos.moderacao} <> 'recusado'
+        where ${relatos.pautaId} = ${pautas.id} and ${relatos.moderacao} <> 'recusado'
+        order by ${relatos.id}, ${relatoFotos.ordem}
         limit 1)`,
       apoios: sql<number>`(select count(*)::int from ${apoios} where ${apoios.pautaId} = ${pautas.id})`,
       meta: pautas.meta,
@@ -287,7 +290,7 @@ async function decidir(
  */
 function relatosDeOrigemPendentes(tx: Tx, pautaId: string, { travar = false } = {}) {
   const consulta = tx
-    .select({ id: relatos.id, texto: relatos.texto, fotoChave: relatos.fotoChave })
+    .select({ id: relatos.id, texto: relatos.texto })
     .from(relatos)
     .innerJoin(
       papeisPauta,
@@ -299,6 +302,16 @@ function relatosDeOrigemPendentes(tx: Tx, pautaId: string, { travar = false } = 
     )
     .where(and(eq(relatos.pautaId, pautaId), eq(relatos.moderacao, 'pendente')));
   return travar ? consulta.for('update', { of: relatos }) : consulta;
+}
+
+/** Os relatos de origem pendentes com os ids das fotos pendentes de cada um. */
+async function origemComFotos(tx: Tx, pautaId: string) {
+  const origem = await relatosDeOrigemPendentes(tx, pautaId, { travar: true });
+  const fotos = await fotosPendentesDe(
+    tx,
+    origem.map((r) => r.id),
+  );
+  return origem.map((r) => ({ ...r, fotoIds: (fotos.get(r.id) ?? []).map((f) => f.id) }));
 }
 
 const temBloqueio = (texto: string) =>
@@ -359,8 +372,8 @@ export async function aprovarPauta(
      * campo (chamada interna), não confere; o painel sempre manda, e sem valor a aprovação falha.
      */
     textoVisto?: string;
-    /** Id de cada relato que a tela mostrou → a foto dele na tela (`null` é sem foto). */
-    fotosVistas: Readonly<Record<string, string | null>>;
+    /** Id de cada relato que a tela mostrou → ids das fotos pendentes dele na tela (vazio é sem foto). */
+    fotosVistas: Readonly<Record<string, readonly string[]>>;
     urgente?: boolean;
     agora?: Date;
   },
@@ -376,13 +389,41 @@ export async function aprovarPauta(
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
-  const origem = await relatosDeOrigemPendentes(tx, pautaId, { travar: true });
+  // Donos da pauta (estudantes) antes dos relatos de origem: `registrarApoio`, no fim, trava o
+  // estudante, e `recusarFoto` e `sairDoLumens` travam o estudante e só depois o relato. Com a ordem
+  // pauta → estudante → relato em todos, aprovar a pauta e recusar uma foto do relato de origem (ou o
+  // autor sair) ao mesmo tempo não se travam (deadlock). Em ordem de id, para duas aprovações não
+  // se cruzarem.
+  const donos = await tx
+    .select({ estudanteId: papeisPauta.estudanteId })
+    .from(papeisPauta)
+    .where(
+      and(
+        eq(papeisPauta.pautaId, pautaId),
+        eq(papeisPauta.papel, 'owner'),
+        isNull(papeisPauta.ate),
+      ),
+    );
+  if (donos.length > 0) {
+    await tx
+      .select({ id: estudantes.id })
+      .from(estudantes)
+      .where(
+        inArray(
+          estudantes.id,
+          donos.map((d) => d.estudanteId),
+        ),
+      )
+      .orderBy(estudantes.id)
+      .for('update');
+  }
+  const origem = await origemComFotos(tx, pautaId);
   if (origem.some(({ texto }) => temBloqueio(texto))) {
     return { decidida: false, motivo: 'relato_com_dado_pessoal' };
   }
   // Cada relato publicado aqui precisa ter estado na tela, com a mesma foto.
-  const visto = ({ id, fotoChave }: { id: string; fotoChave: string | null }) =>
-    Object.hasOwn(fotosVistas, id) && fotosVistas[id] === fotoChave;
+  const visto = ({ id, fotoIds }: { id: string; fotoIds: string[] }) =>
+    Object.hasOwn(fotosVistas, id) && mesmasFotos(fotosVistas[id], fotoIds);
   if (!origem.every(visto)) return { decidida: false, motivo: 'relato_mudou' };
   // O texto lido aqui está travado (FOR UPDATE): o autor não edita entre esta conferência e o fim.
   if (
@@ -417,7 +458,7 @@ export async function aprovarPauta(
     await aprovarRelato(tx, {
       relatoId: relato.id,
       curadorId,
-      fotoVista: relato.fotoChave,
+      fotosVistas: relato.fotoIds,
       agora,
     });
   }

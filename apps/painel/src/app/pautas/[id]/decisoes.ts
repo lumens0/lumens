@@ -2,17 +2,24 @@ import type { ResultadoDecisao } from '@lumens/dominio';
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Id de relato → foto que a tela mostrou (`null` é sem foto). */
-export type FotosVistas = Record<string, string | null>;
+/** Id de relato → ids das fotos pendentes que a tela mostrou (vazio é sem foto). */
+export type FotosVistas = Record<string, string[]>;
 
-/** Campo do formulário de aprovação: um por relato pendente, `fotoVista:<id>` = foto na tela. */
+/**
+ * Campos do formulário de aprovação. `relatoVisto` (um por relato pendente na tela) diz que o relato
+ * foi visto, mesmo sem foto; `fotoVista:<relatoId>` repete uma vez por foto pendente na tela.
+ */
+export const CAMPO_RELATO_VISTO = 'relatoVisto';
 export const PREFIXO_FOTO_VISTA = 'fotoVista:';
 
 export function fotosVistasDoFormulario(formulario: FormData): FotosVistas {
   const fotos: FotosVistas = {};
   for (const [campo, valor] of formulario.entries()) {
-    if (!campo.startsWith(PREFIXO_FOTO_VISTA) || typeof valor !== 'string') continue;
-    fotos[campo.slice(PREFIXO_FOTO_VISTA.length)] = valor || null;
+    if (typeof valor !== 'string' || valor === '') continue;
+    if (campo === CAMPO_RELATO_VISTO) fotos[valor] ??= [];
+    else if (campo.startsWith(PREFIXO_FOTO_VISTA)) {
+      (fotos[campo.slice(PREFIXO_FOTO_VISTA.length)] ??= []).push(valor);
+    }
   }
   return fotos;
 }
@@ -24,7 +31,7 @@ export interface DependenciasDeDecisao {
     pautaId: string,
     curadorId: string,
     categoria: string,
-    /** A foto de cada relato pendente que a tela mostrou. */
+    /** As fotos pendentes de cada relato pendente que a tela mostrou. */
     fotosVistas: FotosVistas,
     urgente?: boolean,
     /** A `versaoDoTexto` do título e da descrição que a tela mostrava. */

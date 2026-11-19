@@ -1,5 +1,6 @@
 import type { PautaDetalhe } from '@lumens/contratos';
-import { altDaFoto, urlFoto as urlFotoPadrao } from './foto';
+import { FotosDoRelato } from './FotosDoRelato';
+import { urlFoto as urlFotoPadrao } from './foto';
 import estilos from './pauta.module.css';
 
 /** Relatos aprovados: texto e curso, nunca quem relatou. */
@@ -20,31 +21,19 @@ export function Relatos({
       ) : (
         <ul className={estilos.lista}>
           {relatos.map((relato, i) => {
-            const foto = relato.foto_chave ? urlFoto(relato.foto_chave) : null;
+            // Até três fotos por relato; chave fora do formato do bot não vira endereço.
+            const fotos = relato.fotos.flatMap((chave) => {
+              const url = urlFoto(chave);
+              return url === null ? [] : [url];
+            });
             return (
-              <li key={i} className={[estilos.relato, foto ? estilos.comFoto : ''].join(' ')}>
-                {/* Só uma miniatura: a foto inteira abre ao clicar, numa aba nova. */}
-                {foto && (
-                  <a
-                    href={foto}
-                    target="_blank"
-                    rel="noopener"
-                    className={estilos.fotoLink}
-                    title="Ver a foto inteira"
-                  >
-                    <img
-                      src={foto}
-                      alt={altDaFoto(relato.texto)}
-                      className={estilos.foto}
-                      loading="lazy"
-                    />
-                    <span className={estilos.somenteLeitor}>(abre em nova aba)</span>
-                  </a>
-                )}
+              <li key={i} className={estilos.relato}>
                 <div className={estilos.relatoCorpo}>
                   <p className={estilos.texto}>{relato.texto}</p>
                   {relato.curso && <p className={estilos.curso}>{relato.curso}</p>}
                 </div>
+                {/* Miniaturas lado a lado; a foto inteira abre na própria página (diálogo). */}
+                {fotos.length > 0 && <FotosDoRelato urls={fotos} texto={relato.texto} />}
               </li>
             );
           })}

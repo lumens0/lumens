@@ -1,4 +1,5 @@
 import { and, conversas, eq, gt, lt, sql, type Db } from '@lumens/db';
+import { chavesDosDados } from './fotos-temporarias';
 import { isStep, type Step } from './steps';
 
 export const CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -90,6 +91,54 @@ export class ConversationStore {
 
   async delete(phoneHmac: string): Promise<void> {
     await this.db.delete(conversas).where(eq(conversas.telefoneHmac, phoneHmac));
+  }
+
+  /**
+   * As fotos ainda sem relato que a conversa deste telefone guarda (pauta nova), mesmo se ela já
+   * venceu e a limpeza ainda não passou: `get` ignora conversa vencida, mas os arquivos continuam lá.
+   */
+  async fotoChavesDaConversa(phoneHmac: string): Promise<string[]> {
+    const [linha] = await this.db
+      .select({ dados: conversas.dados })
+      .from(conversas)
+      .where(eq(conversas.telefoneHmac, phoneHmac));
+    return chavesDosDados(linha?.dados);
+  }
+
+  /** O instante de agora, pelo relógio do store: a limpeza o captura uma vez para as duas etapas. */
+  agora(): Date {
+    return this.now();
+  }
+
+  /** Os telefones (HMAC) das conversas vencidas até `now`, para a limpeza tratar uma a uma. */
+  async telefonesExpirados(now: Date = this.now()): Promise<string[]> {
+    const linhas = await this.db
+      .select({ telefoneHmac: conversas.telefoneHmac })
+      .from(conversas)
+      .where(lt(conversas.expiraEm, now));
+    return linhas.map((l) => l.telefoneHmac);
+  }
+
+  /**
+   * As fotos sem relato de uma conversa, **só se ela ainda estiver vencida** até `now`; `undefined`
+   * se sumiu ou foi renovada (a pessoa mandou mensagem depois de a limpeza listar). Chamar depois de
+   * `lock`, para a leitura valer até o fim da transação.
+   */
+  async fotoChavesSeExpirada(phoneHmac: string, now: Date): Promise<string[] | undefined> {
+    const [linha] = await this.db
+      .select({ dados: conversas.dados })
+      .from(conversas)
+      .where(and(eq(conversas.telefoneHmac, phoneHmac), lt(conversas.expiraEm, now)));
+    return linha === undefined ? undefined : chavesDosDados(linha.dados);
+  }
+
+  /** Apaga a conversa deste telefone se ainda estiver vencida até `now`; devolve quantas apagou. */
+  async apagarSeExpirada(phoneHmac: string, now: Date): Promise<number> {
+    const apagadas = await this.db
+      .delete(conversas)
+      .where(and(eq(conversas.telefoneHmac, phoneHmac), lt(conversas.expiraEm, now)))
+      .returning({ phoneHmac: conversas.telefoneHmac });
+    return apagadas.length;
   }
 
   /** Apaga estados expirados; retorna quantos foram removidos. */

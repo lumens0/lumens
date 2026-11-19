@@ -1,7 +1,10 @@
 import type { Db } from '@lumens/db';
 import { apagarCodigosVencidos, apagarRegistrosVencidos } from '@lumens/dominio';
 import type { PgBoss } from 'pg-boss';
+import { fotosSoltas } from '../bot/conversation/fotos-temporarias';
+import { agendarRemocao, executarRemocoes } from '../fotos/remocao';
 import type { ConversationStore } from '../bot/conversation/store';
+import type { ServicoDeFotos } from '../fotos/servico';
 import { deleteOldDedup } from '../bot/webhook/process';
 import { JOBS } from '../infra/queue';
 
@@ -27,6 +30,39 @@ export interface CleanupResult {
 }
 
 /**
+ * Apaga as conversas vencidas e, antes de cada uma, as fotos da pauta nova que ela ainda guardava
+ * (arquivos sem relato). Devolve quantas conversas apagou.
+ *
+ * Cada conversa é tratada numa transação própria, com o mesmo lock por telefone que o router usa
+ * (`store.lock`): se a pessoa está no meio de uma mensagem (por exemplo, o download da 3ª foto
+ * atravessando o vencimento), a limpeza espera ela terminar, relê a conversa e, se ela foi
+ * renovada, não toca em nada. Também usa um instante de corte só: uma conversa que vence enquanto
+ * os arquivos de outra são removidos fica para a próxima execução, com as chaves.
+ */
+export async function limparConversasExpiradas(
+  deps: { store: ConversationStore; db: Db; fotos?: ServicoDeFotos },
+  corte: Date = deps.store.agora(),
+): Promise<number> {
+  let apagadas = 0;
+  for (const telefone of await deps.store.telefonesExpirados(corte)) {
+    // As chaves entram na fila durável de remoção na mesma transação que apaga a conversa: se ela
+    // desfizer, a conversa continua com as chaves e as fotos continuam no storage; se confirmar, a
+    // fila guarda as chaves até o storage confirmar a exclusão.
+    await deps.db.transaction(async (tx) => {
+      const store = deps.store.withDb(tx);
+      await store.lock(telefone);
+      const chaves = await store.fotoChavesSeExpirada(telefone, corte);
+      if (chaves === undefined) return; // renovada ou já apagada: nada a fazer
+      await agendarRemocao(tx, await fotosSoltas(tx, chaves));
+      apagadas += await store.apagarSeExpirada(telefone, corte);
+    });
+  }
+  // Esvazia a fila (as chaves daqui e as que falharam em rodadas anteriores).
+  await executarRemocoes(deps.db, deps.fotos);
+  return apagadas;
+}
+
+/**
  * Agenda a limpeza do bot, de hora em hora: conversas expiradas, o dedup antigo do webhook, os
  * códigos de verificação vencidos e os registros dos limites da verificação (SCRUM-298), que de
  * outro modo ficariam para sempre (minimização prometida no aviso de privacidade).
@@ -36,7 +72,7 @@ export interface CleanupResult {
  */
 export async function registerCleanupJob(
   boss: Boss,
-  deps: { store: ConversationStore; db: Db },
+  deps: { store: ConversationStore; db: Db; fotos?: ServicoDeFotos },
   onDone?: (result: CleanupResult) => void,
 ): Promise<void> {
   const name = JOBS.cleanupConversations;
@@ -44,7 +80,7 @@ export async function registerCleanupJob(
   await boss.schedule(name, CLEANUP_CRON, null, { tz: CLEANUP_TZ });
   await boss.work(name, async () => {
     const result: CleanupResult = {
-      deleted: await deps.store.deleteExpired(),
+      deleted: await limparConversasExpiradas(deps),
       dedupDeleted: await deleteOldDedup(deps.db),
       codigosDeleted: await apagarCodigosVencidos(deps.db),
       registrosDeleted: await apagarRegistrosVencidos(deps.db),

@@ -183,6 +183,34 @@
       "when": 1795010461456,
       "tag": "0025_view_apoios_por_semana",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795043510405,
+      "tag": "0026_fotos_e_pedidos_de_edicao",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1795043511405,
+      "tag": "0027_remove_praca_de_alimentacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795043512405,
+      "tag": "0028_blocos_residencia_edge_nees_crad",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795059360390,
+      "tag": "0029_fila_de_remocao_de_fotos",
+      "breakpoints": true
     }
   ]
 }

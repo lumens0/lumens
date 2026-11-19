@@ -3,15 +3,17 @@
  *
  *   MENU ──▶ OWNER_EDIT_PICK (só com mais de uma pauta) ──▶ OWNER_EDIT_FIELD ──▶ OWNER_EDIT_TEXT ──▶ MENU
  *
- * Só vale enquanto a pauta espera a curadoria (`pautasEditaveisDoOwner`): o texto novo é o que ela
- * vai avaliar, e o antes e o depois ficam na linha do tempo do painel. Cada passo confere de novo
- * no banco, porque a pauta pode ter sido decidida entre uma mensagem e outra.
+ * Em curadoria (`pautasEditaveisDoOwner`), o texto muda na hora: é o que a curadoria vai avaliar, e o
+ * antes e o depois ficam na linha do tempo do painel. Depois de publicada, o texto público não muda
+ * por aqui: vira um pedido que a curadoria aprova ou recusa (com o antes e o depois), e a decisão
+ * volta ao autor pelo bot. Cada passo confere de novo no banco, porque a pauta muda entre uma
+ * mensagem e outra.
  */
 import { eq, pautas } from '@lumens/db';
 import {
   DESCRICAO_MAXIMA,
   TITULO_MAXIMO,
-  editarPautaEmCuradoria,
+  editarPauta,
   pautasEditaveisDoOwner,
   type CampoEditavel,
 } from '@lumens/dominio';
@@ -22,15 +24,20 @@ import { botoes, lista } from './resposta';
 import { normalize } from './texto';
 
 export const EDIT_NONE_TEXT =
-  'Você não tem pauta que ainda possa ser editada. Só dá para corrigir enquanto a curadoria não decidiu. Para criar uma pauta, mande *menu* e escolha *Nova pauta*.';
+  'Você não tem pauta que possa ser editada. Só o responsável por uma pauta que não foi recusada pode corrigi-la. Para criar uma pauta, mande *menu* e escolha *Nova pauta*.';
 export const EDIT_PICK_TEXT = 'Qual pauta você quer corrigir?';
 export const EDIT_PICK_AGAIN_TEXT = 'Não achei essa pauta. Escolha uma da lista.';
 export const EDIT_FIELD_TEXT = 'O que você quer corrigir?';
 export const EDIT_FIELD_AGAIN_TEXT = 'Não entendi. Escolha *Título* ou *Descrição*.';
 export const EDIT_DONE_TEXT =
   'Pronto, atualizei ✅ A curadoria vai avaliar o texto novo e você recebe a decisão aqui.';
+export const EDIT_REQUESTED_TEXT =
+  'Pedido enviado ✅ O texto público continua o mesmo até a curadoria aprovar a mudança. Você recebe a decisão aqui.';
+export const EDIT_UNCHANGED_TEXT = 'Esse já é o texto atual da pauta, então não há o que mudar.';
+export const EDIT_PENDING_TEXT =
+  'Você já tem um pedido de mudança desse texto esperando a curadoria. Quando ela decidir, você recebe a resposta aqui e pode pedir de novo.';
 export const EDIT_CLOSED_TEXT =
-  'Essa pauta não pode mais ser editada: a curadoria já decidiu. Se algo precisa mudar, escreva para a curadoria.';
+  'Essa pauta não pode mais ser editada: ela foi recusada pela curadoria ou você não é mais responsável por ela. Se algo precisa mudar, escreva para a curadoria.';
 export const EDIT_LOST_TEXT = 'Perdi de qual pauta estávamos falando. Mande *6* para recomeçar.';
 export const EDIT_PERSONAL_TEXT =
   'O texto tem e-mail, telefone ou matrícula, e isso não pode aparecer no site. Tire esses dados e mande o texto de novo.';
@@ -166,9 +173,16 @@ export const ownerEditText: StepHandler = async ({ input, state, db, phoneHmac }
     return { next: 'MENU', data: LIMPAR_EDICAO, replies: [EDIT_CLOSED_TEXT] };
   }
   const resultado = await db.transaction((tx) =>
-    editarPautaEmCuradoria(tx, { pautaId, estudanteId, campo, texto: input.text }),
+    editarPauta(tx, { pautaId, estudanteId, campo, texto: input.text }),
   );
-  if (resultado.editada) return { next: 'MENU', data: LIMPAR_EDICAO, replies: [EDIT_DONE_TEXT] };
+  if (resultado.editada) {
+    const resposta = {
+      direta: EDIT_DONE_TEXT,
+      pedido: EDIT_REQUESTED_TEXT,
+      sem_mudanca: EDIT_UNCHANGED_TEXT,
+    }[resultado.modo];
+    return { next: 'MENU', data: LIMPAR_EDICAO, replies: [resposta] };
+  }
   switch (resultado.motivo) {
     case 'texto_vazio':
       return { next: 'OWNER_EDIT_TEXT', replies: [EDIT_EMPTY_TEXT] };
@@ -179,6 +193,8 @@ export const ownerEditText: StepHandler = async ({ input, state, db, phoneHmac }
         next: 'OWNER_EDIT_TEXT',
         replies: [editTooLongText(campo, Array.from(input.text.trim()).length)],
       };
+    case 'pedido_pendente':
+      return { next: 'MENU', data: LIMPAR_EDICAO, replies: [EDIT_PENDING_TEXT] };
     case 'nao_e_owner':
     case 'pauta_fechada':
     case 'ja_tem_apoio':

@@ -126,7 +126,8 @@ export const pautaParams = z.object({ slug });
 
 export const relato = z.object({
   texto: z.string(),
-  foto_chave: z.string().nullable(),
+  /** Fotos aprovadas do relato, em ordem (até três); vazio quando não há. */
+  fotos: z.array(z.string()),
   curso: z.string().nullable(),
   moderado_em: instante.nullable(),
 });

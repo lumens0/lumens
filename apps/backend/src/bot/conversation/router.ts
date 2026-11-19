@@ -16,6 +16,7 @@ import {
 } from './handlers';
 import { executarComandoDoSite, parseComandoDoSite } from './comandos-do-site';
 import { entradaDeConferencia, responderConferencia } from './conferencia';
+import { chavesDosDados, removerFotosSoltas } from './fotos-temporarias';
 import { pedirSaida, PRIVACY_NOTICE_TEXT } from './privacidade';
 import type { Resposta } from './resposta';
 import { temCadastro } from './estudante';
@@ -42,7 +43,7 @@ export interface RouterDeps {
 
 export const CANCEL_TEXT = 'Ok, cancelei.';
 /** No passo da foto o relato já está gravado: "cancelar" só deixa a foto de lado. */
-export const CANCEL_PHOTO_TEXT = 'Ok, sem foto. O seu relato já foi enviado.';
+export const CANCEL_PHOTO_TEXT = 'Ok, parei por aqui. O seu relato já foi enviado.';
 /** Depois de três respostas seguidas que não saíram da pergunta, a pessoa ganha uma saída clara. */
 export const SAIDA_DO_PASSO_TEXT =
   'Parece que está difícil por aqui. Mande *menu* para voltar ao início ou *cancelar* para desistir.';
@@ -127,7 +128,24 @@ export async function handleIncoming(
   const current = await store.get(phoneHmac);
   // SCRUM-333: conversa expirada de quem tem cadastro não é primeiro contato (já viu o aviso).
   const primeiroContato = current === null && !(await temCadastro(deps.db, phoneHmac));
-  return comAviso(primeiroContato, await responder(msg, deps, current));
+  // As fotos da pauta nova só viram relato no fim. Se a conversa deixou de guardá-las sem criar a
+  // pauta (menu, cancelar, sair, comando do site, conversa vencida, criação recusada), os arquivos
+  // ficariam órfãos no storage: apaga os que não são de nenhum relato.
+  // Conversa ativa: os dados já estão em `current`. Sem ela, pode haver uma vencida que a limpeza
+  // ainda não apagou (o `get` a ignora): só então vale uma consulta a mais.
+  const fotosAntes = current
+    ? chavesDosDados(current.data)
+    : await store.fotoChavesDaConversa(phoneHmac);
+  const respostas = await responder(msg, deps, current);
+  if (fotosAntes.length > 0) {
+    const fotosDepois = new Set(await store.fotoChavesDaConversa(phoneHmac));
+    await removerFotosSoltas(
+      deps.db,
+      deps.fotos,
+      fotosAntes.filter((c) => !fotosDepois.has(c)),
+    );
+  }
+  return comAviso(primeiroContato, respostas);
 }
 
 async function responder(

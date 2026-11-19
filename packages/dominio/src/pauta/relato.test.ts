@@ -1,4 +1,4 @@
-import { eq, estudantes, relatos, type Db } from '@lumens/db';
+import { eq, estudantes, relatoFotos, relatos, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { criarEstudanteVerificado, criarPauta } from '../teste/fabricas';
@@ -16,6 +16,17 @@ beforeAll(async () => {
   db = await criarBancoEmMemoria();
 });
 
+const fotosDoRelato = (relatoId: string) =>
+  db
+    .select({
+      chave: relatoFotos.chave,
+      ordem: relatoFotos.ordem,
+      moderacao: relatoFotos.moderacao,
+    })
+    .from(relatoFotos)
+    .where(eq(relatoFotos.relatoId, relatoId))
+    .orderBy(relatoFotos.ordem);
+
 const relatar = (entrada: NovoRelatoDoEstudante) =>
   db.transaction((tx) => adicionarRelato(tx, entrada));
 
@@ -28,7 +39,7 @@ describe('adicionarRelato', () => {
       pautaId: pauta.id,
       estudanteId: estudante.id,
       texto: '  o bebedouro voltou a vazar  ',
-      fotoChave: 'fotos/2026/11/abc.jpg',
+      fotoChaves: ['fotos/2026/11/abc.jpg', 'fotos/2026/11/def.png'],
     });
 
     if (!r.registrado) throw new Error(`recusado: ${r.motivo}`);
@@ -36,19 +47,37 @@ describe('adicionarRelato', () => {
     expect(linha).toMatchObject({
       pautaId: pauta.id,
       texto: 'o bebedouro voltou a vazar',
-      fotoChave: 'fotos/2026/11/abc.jpg',
       moderacao: 'pendente',
       moderadoEm: null,
     });
+    expect(await fotosDoRelato(r.relatoId)).toEqual([
+      { chave: 'fotos/2026/11/abc.jpg', ordem: 1, moderacao: 'pendente' },
+      { chave: 'fotos/2026/11/def.png', ordem: 2, moderacao: 'pendente' },
+    ]);
   });
 
-  it('sem foto, grava fotoChave nula', async () => {
+  it('recusa mais fotos que o limite, sem gravar nada', async () => {
+    const pauta = await criarPauta(db);
+    const estudante = await criarEstudanteVerificado(db);
+    expect(
+      await relatar({
+        pautaId: pauta.id,
+        estudanteId: estudante.id,
+        texto: 'vazando',
+        fotoChaves: ['fotos/1.jpg', 'fotos/2.jpg', 'fotos/3.jpg', 'fotos/4.jpg'],
+      }),
+    ).toEqual({ registrado: false, motivo: 'fotos_demais' });
+    expect(await db.select().from(relatos).where(eq(relatos.pautaId, pauta.id))).toEqual([]);
+  });
+
+  it('sem foto, não grava foto nenhuma', async () => {
     const pauta = await criarPauta(db);
     const estudante = await criarEstudanteVerificado(db);
     const r = await relatar({ pautaId: pauta.id, estudanteId: estudante.id, texto: 'vazando' });
     if (!r.registrado) throw new Error(`recusado: ${r.motivo}`);
     const [linha] = await db.select().from(relatos).where(eq(relatos.id, r.relatoId));
-    expect(linha?.fotoChave).toBeNull();
+    expect(linha).toBeDefined();
+    expect(await fotosDoRelato(r.relatoId)).toEqual([]);
   });
 
   it.each([
@@ -100,15 +129,17 @@ describe('anexarFotoAoRelato (SCRUM-301)', () => {
     const estudante = await criarEstudanteVerificado(db);
     const r = await relatar({ pautaId: pauta.id, estudanteId: estudante.id, texto: 'vazando' });
     if (!r.registrado) throw new Error(`recusado: ${r.motivo}`);
-    const foto = async () =>
-      (await db.select().from(relatos).where(eq(relatos.id, r.relatoId)))[0]?.fotoChave;
+    const foto = async () => (await fotosDoRelato(r.relatoId)).map((f) => f.chave);
     return { relatoId: r.relatoId, estudanteId: estudante.id, foto };
   }
 
   it('junta a foto ao mesmo relato, que continua pendente', async () => {
     const { relatoId, estudanteId, foto } = await relatoSemFoto();
-    expect(await anexar({ relatoId, estudanteId, fotoChave: FOTO })).toEqual({ anexada: true });
-    expect(await foto()).toBe(FOTO);
+    expect(await anexar({ relatoId, estudanteId, fotoChave: FOTO })).toEqual({
+      anexada: true,
+      total: 1,
+    });
+    expect(await foto()).toEqual([FOTO]);
     const [linha] = await db.select().from(relatos).where(eq(relatos.id, relatoId));
     expect(linha?.moderacao).toBe('pendente');
   });
@@ -123,17 +154,49 @@ describe('anexarFotoAoRelato (SCRUM-301)', () => {
       anexada: false,
       motivo: 'ja_moderado',
     });
-    expect(await foto()).toBeNull();
+    expect(await foto()).toEqual([]);
   });
 
-  it('não troca a foto que o relato já tem', async () => {
+  it('junta até três fotos, na ordem, e recusa a quarta', async () => {
     const { relatoId, estudanteId, foto } = await relatoSemFoto();
-    await anexar({ relatoId, estudanteId, fotoChave: FOTO });
-    expect(await anexar({ relatoId, estudanteId, fotoChave: 'fotos/outra.jpg' })).toEqual({
+    for (const n of [1, 2, 3]) {
+      expect(
+        await anexar({ relatoId, estudanteId, fotoChave: `fotos/tres-${String(n)}.jpg` }),
+      ).toEqual({
+        anexada: true,
+        total: n,
+      });
+    }
+    expect(await anexar({ relatoId, estudanteId, fotoChave: 'fotos/tres-4.jpg' })).toEqual({
       anexada: false,
-      motivo: 'ja_tem_foto',
+      motivo: 'limite_de_fotos',
     });
-    expect(await foto()).toBe(FOTO);
+    expect(await foto()).toEqual(['fotos/tres-1.jpg', 'fotos/tres-2.jpg', 'fotos/tres-3.jpg']);
+  });
+
+  it('a foto recusada continua contando no limite', async () => {
+    const { relatoId, estudanteId } = await relatoSemFoto();
+    for (const n of [1, 2, 3])
+      await anexar({ relatoId, estudanteId, fotoChave: `fotos/rec-${String(n)}.jpg` });
+    await db
+      .update(relatoFotos)
+      .set({ moderacao: 'recusado', motivoRecusa: 'x' })
+      .where(eq(relatoFotos.relatoId, relatoId));
+    expect(await anexar({ relatoId, estudanteId, fotoChave: 'fotos/rec-4.jpg' })).toEqual({
+      anexada: false,
+      motivo: 'limite_de_fotos',
+    });
+  });
+
+  it('o banco também barra a quarta foto e a chave repetida', async () => {
+    const { relatoId } = await relatoSemFoto();
+    await expect(
+      db.insert(relatoFotos).values({ relatoId, chave: 'fotos/x.jpg', ordem: 4 }),
+    ).rejects.toThrow();
+    await db.insert(relatoFotos).values({ relatoId, chave: 'fotos/y.jpg', ordem: 1 });
+    await expect(
+      db.insert(relatoFotos).values({ relatoId, chave: 'fotos/y.jpg', ordem: 2 }),
+    ).rejects.toThrow();
   });
 
   it('só quem escreveu o relato junta a foto', async () => {
@@ -143,6 +206,6 @@ describe('anexarFotoAoRelato (SCRUM-301)', () => {
       anexada: false,
       motivo: 'relato_inexistente',
     });
-    expect(await foto()).toBeNull();
+    expect(await foto()).toEqual([]);
   });
 });

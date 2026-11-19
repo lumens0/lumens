@@ -115,6 +115,7 @@ export {
   pautasComMetaBatidaSemAviso,
 } from './avisos/aviso-meta-batida';
 export { MODELO_PAUTA_APROVADA, enfileirarAvisoDeAprovacao } from './avisos/aviso-aprovacao';
+export { MODELO_FOTO_RECUSADA, enfileirarAvisoDeFotoRecusada } from './avisos/aviso-foto-recusada';
 export { MODELO_VITORIA, enfileirarAvisoDeVitoria } from './avisos/aviso-vitoria';
 export type { CanalDoBot, DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
 
@@ -161,13 +162,21 @@ export {
 } from './pauta/visao-geral';
 export type { ApoiosDaSemana, VisaoGeralDaCuradoria } from './pauta/visao-geral';
 
-export { aprovarRelato, listarRelatosPendentes, recusarRelato } from './pauta/moderacao';
+export {
+  MOTIVO_DE_FOTO_MAXIMO,
+  aprovarRelato,
+  listarRelatosPendentes,
+  recusarFoto,
+  recusarRelato,
+} from './pauta/moderacao';
 export type {
   AprovacaoDeRelato,
   DecisaoDeModeracao,
+  FotoParaModerar,
   PautaComRelatosPendentes,
   RelatoPendente,
   ResultadoModeracao,
+  ResultadoRecusaDeFoto,
 } from './pauta/moderacao';
 
 export { listarLinhaDoTempo } from './pauta/linha-do-tempo';
@@ -178,6 +187,7 @@ export { agruparEventosIguais, rotuloDeResponsaveis } from './pauta/agrupar-even
 export type { EventoAgrupavel, GrupoDeEventos } from './pauta/agrupar-eventos';
 export { detalharPautaDaCuradoria } from './pauta/detalhe-curadoria';
 export type {
+  FotoDaCuradoria,
   DetalhePautaDaCuradoria,
   PromessaDaCuradoria,
   RelatoDaCuradoria,
@@ -204,6 +214,22 @@ export {
   versaoDoTexto,
 } from './pauta/edicao';
 export type { CampoEditavel, PautaEditavel, ResultadoEdicao } from './pauta/edicao';
+export {
+  MODELO_EDICAO_APROVADA,
+  MODELO_EDICAO_RECUSADA,
+  MOTIVO_DE_EDICAO_MAXIMO,
+  decidirPedidoDeEdicao,
+  editarPauta,
+  listarPedidosDeEdicaoPendentes,
+  pedidosPendentesDaPauta,
+} from './pauta/pedido-edicao';
+export type {
+  DecisaoDePedido,
+  PedidoDeEdicao,
+  PedidoDeEdicaoNaFila,
+  ResultadoDecisaoDePedido,
+  ResultadoEditarPauta,
+} from './pauta/pedido-edicao';
 
 export {
   PALAVRAS_DA_CATEGORIA,
@@ -214,7 +240,12 @@ export {
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 
-export { RELATO_MAXIMO, adicionarRelato, anexarFotoAoRelato } from './pauta/relato';
+export {
+  FOTOS_POR_RELATO_MAXIMO,
+  RELATO_MAXIMO,
+  adicionarRelato,
+  anexarFotoAoRelato,
+} from './pauta/relato';
 export type {
   FotoDoRelato,
   NovoRelatoDoEstudante,

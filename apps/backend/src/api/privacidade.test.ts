@@ -1,4 +1,14 @@
-import { apoios, eq, estudantes, papeisPauta, pautas, relatos, sql, type Db } from '@lumens/db';
+import {
+  apoios,
+  eq,
+  estudantes,
+  papeisPauta,
+  pautas,
+  relatoFotos,
+  relatos,
+  sql,
+  type Db,
+} from '@lumens/db';
 import { executarSeed } from '@lumens/db/seed';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -198,13 +208,21 @@ describe('nenhuma rota pública devolve identidade (SCRUM-89)', () => {
     });
     await db.insert(apoios).values({ pautaId, estudanteId: SENTINELA.id, origem: 'bot' });
     await db.insert(papeisPauta).values({ pautaId, estudanteId: SENTINELA.id, papel: 'co_owner' });
-    await db.insert(relatos).values({
-      pautaId,
-      estudanteId: SENTINELA.id,
-      texto: SENTINELA.relato,
-      fotoChave: 'fotos/2026/11/a.jpg',
+    const [relatoSentinela] = await db
+      .insert(relatos)
+      .values({
+        pautaId,
+        estudanteId: SENTINELA.id,
+        texto: SENTINELA.relato,
+        moderacao: 'aprovado',
+        moderadoEm: new Date(),
+      })
+      .returning({ id: relatos.id });
+    await db.insert(relatoFotos).values({
+      relatoId: relatoSentinela?.id ?? '',
+      chave: 'fotos/2026/11/a.jpg',
+      ordem: 1,
       moderacao: 'aprovado',
-      moderadoEm: new Date(),
     });
     // Só depois de inserir: como `lumens_site`, as tabelas ficam inacessíveis.
     await db.execute(sql.raw('SET ROLE "lumens_site"'));

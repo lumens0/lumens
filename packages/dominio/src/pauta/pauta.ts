@@ -14,7 +14,17 @@
  * motivo numa mensagem para a pessoa.
  */
 import { randomUUID } from 'node:crypto';
-import { blocos, eq, estudantes, papeisPauta, pautas, relatos, type Tx } from '@lumens/db';
+import {
+  blocos,
+  eq,
+  estudantes,
+  FOTOS_POR_RELATO_MAXIMO,
+  papeisPauta,
+  pautas,
+  relatoFotos,
+  relatos,
+  type Tx,
+} from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
 import { calcularMeta } from './meta';
 
@@ -46,8 +56,8 @@ export interface NovaPautaDoEstudante {
    * relato da pauta; sem ele, o primeiro relato é a própria descrição.
    */
   relato?: string;
-  /** Chave da foto já sem metadados no storage. */
-  fotoChave?: string | null;
+  /** Chaves das fotos já sem metadados no storage, até `FOTOS_POR_RELATO_MAXIMO`. */
+  fotoChaves?: readonly string[];
   agora?: Date;
 }
 
@@ -61,7 +71,8 @@ export type ResultadoCriacao =
         | 'titulo_vazio'
         | 'titulo_longo'
         | 'descricao_vazia'
-        | 'descricao_longa';
+        | 'descricao_longa'
+        | 'fotos_demais';
     };
 
 /** Tamanho em caracteres como a pessoa conta: emoji e letra acentuada valem um. */
@@ -94,7 +105,7 @@ export async function criarPauta(
     blocoId,
     categoria,
     relato,
-    fotoChave = null,
+    fotoChaves = [],
     agora = new Date(),
   }: NovaPautaDoEstudante,
 ): Promise<ResultadoCriacao> {
@@ -106,6 +117,7 @@ export async function criarPauta(
   if (tamanho(descricaoLimpa) > DESCRICAO_MAXIMA) {
     return { criada: false, motivo: 'descricao_longa' };
   }
+  if (fotoChaves.length > FOTOS_POR_RELATO_MAXIMO) return { criada: false, motivo: 'fotos_demais' };
 
   // RN01 vale para criar também: só quem é estudante verificado, e não saiu, abre pauta.
   // FOR UPDATE serializa com sairDoLumens para impedir pauta criada por estudante em processo de saída.
@@ -153,12 +165,20 @@ export async function criarPauta(
   });
 
   const textoDoRelato = relato?.trim();
-  await tx.insert(relatos).values({
-    pautaId,
-    estudanteId,
-    texto: textoDoRelato === undefined || textoDoRelato === '' ? descricaoLimpa : textoDoRelato,
-    fotoChave,
-  });
+  const [relatoCriado] = await tx
+    .insert(relatos)
+    .values({
+      pautaId,
+      estudanteId,
+      texto: textoDoRelato === undefined || textoDoRelato === '' ? descricaoLimpa : textoDoRelato,
+    })
+    .returning({ id: relatos.id });
+  if (relatoCriado === undefined) throw new Error('relato de origem não inserido');
+  if (fotoChaves.length > 0) {
+    await tx
+      .insert(relatoFotos)
+      .values(fotoChaves.map((chave, i) => ({ relatoId: relatoCriado.id, chave, ordem: i + 1 })));
+  }
 
   await registrarEvento(tx, {
     pautaId,

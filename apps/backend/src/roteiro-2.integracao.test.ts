@@ -134,13 +134,16 @@ const PESSOAS = 5;
 
 let db: Db;
 
-/** O que o formulário de aprovação manda: a foto de cada relato pendente que a tela mostra. */
+/** O que o formulário de aprovação manda: as fotos pendentes de cada relato pendente que a tela mostra. */
 async function fotosDaTela(banco: Db, pautaId: string) {
   const detalhe = await detalharPautaDaCuradoria(banco, pautaId);
   return Object.fromEntries(
     (detalhe?.relatos ?? [])
       .filter(({ moderacao }) => moderacao === 'pendente')
-      .map(({ id, fotoChave }) => [id, fotoChave]),
+      .map(({ id, fotos }) => [
+        id,
+        fotos.filter((f) => f.moderacao === 'pendente').map((f) => f.id),
+      ]),
   );
 }
 // Opcionais: se o beforeAll falhar no meio, o afterAll fecha só o que chegou a abrir.

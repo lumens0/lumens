@@ -27,7 +27,10 @@ export type NomeModelo =
   | 'lumens_pauta_recusada'
   | 'lumens_conquista'
   | 'lumens_pauta_aprovada'
-  | 'lumens_promessa_remarcada';
+  | 'lumens_promessa_remarcada'
+  | 'lumens_foto_recusada'
+  | 'lumens_edicao_aprovada'
+  | 'lumens_edicao_recusada';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -53,7 +56,7 @@ export interface ModeloMensagem {
   categoria: 'UTILITY';
   idioma: 'pt_BR';
   /** Para quem vai. Não é enviado à Meta: documenta quem a rotina deve escolher. */
-  destinatario: 'apoiadores' | 'responsaveis';
+  destinatario: 'apoiadores' | 'responsaveis' | 'autor';
   /** Texto com variáveis posicionais `{{1}}`, `{{2}}`... */
   corpo: string;
   /** Um exemplo por variável, na mesma ordem. A Meta exige na submissão. */
@@ -184,6 +187,48 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
       'A pauta "{{1}}", pela qual você é responsável, foi aprovada pela curadoria e já está no site, ' +
       'recebendo apoios.',
     exemplos: ['Bebedouro quebrado no bloco 12'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
+  },
+
+  // Foto recusada na curadoria: vai só para quem enviou a foto. Sem botão: a foto recusada não tem
+  // página. O motivo é o que a curadoria escreveu; o texto do relato e as outras fotos não mudam.
+  lumens_foto_recusada: {
+    nome: 'lumens_foto_recusada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'autor',
+    corpo:
+      'Uma foto que você enviou na pauta "{{1}}" não foi publicada pela curadoria. Motivo: {{2}}. ' +
+      'O restante do seu relato segue o fluxo normal.',
+    exemplos: ['Bebedouro quebrado no bloco 12', 'aparece o rosto de uma pessoa'],
+    rodape: RODAPE,
+    botoes: [],
+  },
+
+  // Decisão do pedido de edição de uma pauta já publicada (aprovado e recusado são dois modelos
+  // porque a Meta não aceita texto condicional). Vai só para quem pediu.
+  lumens_edicao_aprovada: {
+    nome: 'lumens_edicao_aprovada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'autor',
+    corpo:
+      'A curadoria aprovou a mudança do {{1}} da pauta "{{2}}", que você pediu. O texto novo já está no site.',
+    exemplos: ['título', 'Bebedouro quebrado no bloco 12'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
+  },
+
+  lumens_edicao_recusada: {
+    nome: 'lumens_edicao_recusada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'autor',
+    corpo:
+      'A curadoria não aprovou a mudança do {{1}} da pauta "{{2}}", que você pediu. Motivo: {{3}}. ' +
+      'O texto publicado continua o mesmo.',
+    exemplos: ['descrição', 'Bebedouro quebrado no bloco 12', 'muda o sentido do relato'],
     rodape: RODAPE,
     botoes: [VER_PAUTA],
   },

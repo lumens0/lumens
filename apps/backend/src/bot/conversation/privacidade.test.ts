@@ -5,6 +5,7 @@ import {
   eq,
   estudantes,
   pautas,
+  relatoFotos,
   relatos,
   type Db,
 } from '@lumens/db';
@@ -201,9 +202,16 @@ describe("comando 'sair' (SCRUM-176)", () => {
 
   it('apaga os relatos não publicados e as fotos deles; o publicado fica (SCRUM-314)', async () => {
     const { estudanteId, pautaId } = await estudanteComApoio();
-    await db.insert(relatos).values([
-      { pautaId, estudanteId, texto: 'ainda na curadoria', fotoChave: 'fotos/2026/11/p.jpg' },
-      { pautaId, estudanteId, texto: 'publicado', moderacao: 'aprovado', fotoChave: 'fotos/a.jpg' },
+    const [pendente, publicado] = await db
+      .insert(relatos)
+      .values([
+        { pautaId, estudanteId, texto: 'ainda na curadoria' },
+        { pautaId, estudanteId, texto: 'publicado', moderacao: 'aprovado' },
+      ])
+      .returning({ id: relatos.id });
+    await db.insert(relatoFotos).values([
+      { relatoId: pendente?.id ?? '', chave: 'fotos/2026/11/p.jpg', ordem: 1 },
+      { relatoId: publicado?.id ?? '', chave: 'fotos/a.jpg', ordem: 1, moderacao: 'aprovado' },
     ]);
     const removidas: string[] = [];
     const fotos: ServicoDeFotos = {

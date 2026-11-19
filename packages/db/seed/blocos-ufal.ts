@@ -37,8 +37,13 @@ export const blocosUfal = [
   { slug: 'csau', nome: 'CSAU - Centro de Ciências da Saúde', baseEstudantes: 1500 },
   { slug: 'biblioteca-central', nome: 'Biblioteca Central', baseEstudantes: 7000 },
   { slug: 'ru', nome: 'RU - Restaurante Universitário', baseEstudantes: 6000 },
-  // Em frente ao RU. Base estimada pela quantidade de vagas de moradia (palpite da equipe, como as demais).
-  { slug: 'residencia-universitaria', nome: 'Residência Universitária', baseEstudantes: 300 },
+  // Em frente ao RU. Base: a capacidade da residência, de até 135 estudantes (site da UFAL).
+  { slug: 'residencia-universitaria', nome: 'Residência Universitária', baseEstudantes: 135 },
+  // Lugares que o mapa do site desenha e o OpenStreetMap não tem (EDGE Academy, NEES e CRAD), na
+  // posição do Google Maps. Base estimada, como as demais (palpite da equipe).
+  { slug: 'edge-academy', nome: 'EDGE Academy', baseEstudantes: 100 }, // informado pela equipe
+  { slug: 'nees', nome: 'NEES (RIEH)', baseEstudantes: 100 }, // sem número oficial: o mesmo da EDGE Academy
+  { slug: 'crad', nome: 'CRAD', baseEstudantes: 50 }, // não é bloco estudantil: estimativa baixa
   { slug: 'bloco-18', nome: 'Bloco 18', baseEstudantes: 2000 },
   { slug: 'bloco-07', nome: 'Bloco 07', baseEstudantes: 2000 },
   { slug: 'bloco-13', nome: 'Bloco 13', baseEstudantes: 1500 },

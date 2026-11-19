@@ -14,6 +14,7 @@ const VIEWS = [
   'v_bloco',
   'v_caminho_publico',
   'v_conquista',
+  'v_foto_publica',
   'v_linha_do_tempo',
   'v_pauta_publica',
   'v_relato_publico',
@@ -91,7 +92,7 @@ describe('views públicas com o seed', () => {
     await executarSeed(db);
   }, 60_000);
 
-  it('instala exatamente as nove views públicas', async () => {
+  it('instala exatamente as dez views públicas', async () => {
     const linhas = await consultar<{ table_name: string }>(
       db,
       sql`SELECT table_name FROM information_schema.views
@@ -130,7 +131,7 @@ describe('views públicas com o seed', () => {
       expect(await codigoDoErro(comoSite(db, sql`SELECT * FROM estudante`))).toBe('42501');
     });
 
-    it('tem só SELECT, e só nas nove views', async () => {
+    it('tem só SELECT, e só nas dez views', async () => {
       const linhas = await consultar<{ table_name: string; privilege_type: string }>(
         db,
         sql`SELECT table_name, privilege_type FROM information_schema.role_table_grants

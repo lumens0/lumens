@@ -1,4 +1,8 @@
-import type { DetalhePautaDaCuradoria, PautaComRelatosPendentes } from '@lumens/dominio';
+import type {
+  DetalhePautaDaCuradoria,
+  PautaComRelatosPendentes,
+  PedidoDeEdicao,
+} from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
@@ -126,16 +130,33 @@ describe('tela da pauta', () => {
     expect(html).toContain('Permanência');
   });
 
-  it('aprovar manda a foto de cada relato pendente que a tela mostra, e só dos pendentes', () => {
+  it('aprovar manda as fotos pendentes de cada relato pendente da tela, e só dos pendentes', () => {
     const relato = { achados: [], curso: null, data: null };
-    const FOTO = 'fotos/relato.jpg';
+    const foto = (id: string, moderacao: 'pendente' | 'aprovado' | 'recusado') => ({
+      id,
+      chave: `fotos/${id}.jpg`,
+      moderacao,
+      motivoRecusa: moderacao === 'recusado' ? 'Mostra uma pessoa.' : null,
+    });
     const html = renderToStaticMarkup(
       <Pauta
         pauta={pauta({
           relatos: [
-            { ...relato, id: 'r1', texto: 'Com foto.', fotoChave: FOTO, moderacao: 'pendente' },
-            { ...relato, id: 'r2', texto: 'Sem foto.', fotoChave: null, moderacao: 'pendente' },
-            { ...relato, id: 'r3', texto: 'Recusado.', fotoChave: FOTO, moderacao: 'recusado' },
+            {
+              ...relato,
+              id: 'r1',
+              texto: 'Com fotos.',
+              fotos: [foto('f1', 'pendente'), foto('f2', 'pendente'), foto('f3', 'recusado')],
+              moderacao: 'pendente',
+            },
+            { ...relato, id: 'r2', texto: 'Sem foto.', fotos: [], moderacao: 'pendente' },
+            {
+              ...relato,
+              id: 'r3',
+              texto: 'Recusado.',
+              fotos: [foto('f4', 'recusado')],
+              moderacao: 'recusado',
+            },
           ],
         })}
         aprovar={acao}
@@ -143,9 +164,145 @@ describe('tela da pauta', () => {
       />,
     );
 
-    expect(html).toContain(`name="fotoVista:r1" value="${FOTO}"`);
-    expect(html).toContain('name="fotoVista:r2" value=""');
+    expect(html).toContain('name="relatoVisto" value="r1"');
+    expect(html).toContain('name="fotoVista:r1" value="f1"');
+    expect(html).toContain('name="fotoVista:r1" value="f2"');
+    // A foto já recusada não conta como vista: a aprovação confere só o que está pendente.
+    expect(html).not.toContain('name="fotoVista:r1" value="f3"');
+    expect(html).toContain('name="relatoVisto" value="r2"');
+    expect(html).not.toContain('fotoVista:r2');
+    expect(html).not.toContain('relatoVisto" value="r3"');
     expect(html).not.toContain('fotoVista:r3');
+  });
+
+  it('cada foto tem a sua recusa com motivo obrigatório; a recusada mostra o motivo', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({
+          status: 'juntando_apoios',
+          relatos: [
+            {
+              id: 'r1',
+              texto: 'Relato.',
+              achados: [],
+              curso: null,
+              data: null,
+              moderacao: 'aprovado',
+              fotos: [
+                { id: 'f1', chave: 'fotos/a.jpg', moderacao: 'aprovado', motivoRecusa: null },
+                {
+                  id: 'f2',
+                  chave: 'fotos/b.jpg',
+                  moderacao: 'recusado',
+                  motivoRecusa: 'Mostra uma pessoa.',
+                },
+              ],
+            },
+          ],
+        })}
+        aprovar={acao}
+        recusar={acao}
+        recusarFoto={acao}
+      />,
+    );
+
+    expect(html).toContain('Foto 1 de 2');
+    expect(html).toContain('Foto 2 de 2');
+    expect(html.match(/Recusar só esta foto/g)).toHaveLength(1);
+    expect(html).toContain('name="fotoId" value="f1"');
+    expect(html).not.toContain('name="fotoId" value="f2"');
+    expect(html).toContain('name="voltar" value="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
+    expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
+    expect(html).toContain('Recusada. Motivo: Mostra uma pessoa.');
+  });
+
+  it('mostra o pedido de edição com o antes e o depois, e recusa exige motivo', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({ status: 'juntando_apoios' })}
+        aprovar={acao}
+        recusar={acao}
+        pedidosDeEdicao={[
+          {
+            id: 'p1',
+            pautaId: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
+            campo: 'titulo',
+            antes: 'Bebedouro quebrado',
+            depois: 'Bebedouro do bloco 12 quebrado',
+            criadoEm: new Date('2026-11-09T12:00:00.000Z'),
+            achados: [
+              {
+                severidade: 'aviso',
+                motivo: 'possivel_nome',
+                trecho: 'professora Marta',
+                inicio: 0,
+                fim: 16,
+              },
+            ],
+          },
+        ]}
+        aprovarPedido={acao}
+        recusarPedido={acao}
+      />,
+    );
+
+    expect(html).toContain('Pedidos de edição');
+    expect(html).toContain('Antes (publicado)');
+    expect(html).toContain('Bebedouro quebrado');
+    expect(html).toContain('Depois (pedido)');
+    expect(html).toContain('Bebedouro do bloco 12 quebrado');
+    // Aprovar vale para o texto que a tela mostra.
+    expect(html).toContain('name="depoisVisto" value="Bebedouro do bloco 12 quebrado"');
+    expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
+    expect(html).toContain('Aprovar mudança');
+    expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
+  });
+
+  it('pedido com e-mail, telefone ou matrícula no texto novo trava o botão de aprovar', () => {
+    const pedido = (id: string, achados: PedidoDeEdicao['achados']): PedidoDeEdicao => ({
+      id,
+      pautaId: '5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab',
+      campo: 'descricao',
+      antes: 'Antes.',
+      depois: 'Depois.',
+      criadoEm: new Date('2026-11-09T12:00:00.000Z'),
+      achados,
+    });
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({ status: 'juntando_apoios' })}
+        aprovar={acao}
+        recusar={acao}
+        pedidosDeEdicao={[
+          pedido('limpo', []),
+          pedido('barrado', [
+            {
+              severidade: 'bloqueio',
+              motivo: 'email',
+              trecho: 'fulano@ufal.br',
+              inicio: 0,
+              fim: 14,
+            },
+          ]),
+        ]}
+        aprovarPedido={acao}
+        recusarPedido={acao}
+      />,
+    );
+
+    const botoes = html.match(/<button[^>]*>Aprovar mudança<\/button>/g) ?? [];
+    expect(botoes).toHaveLength(2);
+    expect(botoes.filter((b) => b.includes(' disabled=""'))).toHaveLength(1);
+    expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');
+    // Recusar continua disponível nos dois.
+    expect(html.match(/Confirmar recusa/g)).toHaveLength(2);
+  });
+
+  it('sem pedido pendente, a seção de pedidos não aparece', () => {
+    const html = renderToStaticMarkup(
+      <Pauta pauta={pauta({ status: 'juntando_apoios' })} aprovar={acao} recusar={acao} />,
+    );
+    expect(html).not.toContain('Pedidos de edição');
   });
 
   it('pauta pública oferece formulário para marcar ou desmarcar urgência', () => {
@@ -182,7 +339,9 @@ describe('tela da pauta', () => {
               texto: 'O elevador está parado.',
               achados: [],
               curso: 'Engenharia Civil',
-              fotoChave: 'fotos/relato.jpg',
+              fotos: [
+                { id: 'f1', chave: 'fotos/relato.jpg', moderacao: 'aprovado', motivoRecusa: null },
+              ],
               moderacao: 'aprovado',
               data: new Date('2026-11-09T12:00:00.000Z'),
             },
@@ -191,7 +350,7 @@ describe('tela da pauta', () => {
               texto: 'A lâmpada continua apagada.',
               achados: [],
               curso: 'Pedagogia',
-              fotoChave: null,
+              fotos: [],
               moderacao: 'pendente',
               data: null,
             },
@@ -200,7 +359,7 @@ describe('tela da pauta', () => {
               texto: 'Relato recusado.',
               achados: [],
               curso: null,
-              fotoChave: null,
+              fotos: [],
               moderacao: 'recusado',
               data: null,
             },
@@ -324,7 +483,7 @@ describe('tela da pauta', () => {
               id: 'r4',
               texto: 'Contato: pessoa@ufal.br',
               curso: 'Engenharia Civil',
-              fotoChave: null,
+              fotos: [],
               moderacao: 'pendente',
               data: null,
               achados: [
@@ -534,7 +693,10 @@ describe('relatos novos', () => {
             {
               id: 'r1',
               texto: 'Falem com a professora Marta: fulano@ufal.br',
-              fotoChave: 'fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.jpg',
+              fotos: [
+                { id: 'f1', chave: 'fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.jpg' },
+                { id: 'f2', chave: 'fotos/2026/11/outra.jpg' },
+              ],
               achados: [
                 {
                   severidade: 'aviso',
@@ -552,11 +714,12 @@ describe('relatos novos', () => {
                 },
               ],
             },
-            { id: 'r2', texto: 'Sem água.', fotoChave: null, achados: [] },
+            { id: 'r2', texto: 'Sem água.', fotos: [], achados: [] },
           ]),
         ]}
         aprovar={acao}
         recusar={acao}
+        recusarFoto={acao}
       />,
     );
 
@@ -570,6 +733,12 @@ describe('relatos novos', () => {
       'src="/curadoria/arquivos/fotos/2026/11/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab.jpg"',
     );
     expect(html).not.toContain('ainda não mostra a imagem');
+    // Duas fotos, cada uma com a sua recusa; aprovar leva os ids das duas.
+    expect(html).toContain('src="/curadoria/arquivos/fotos/2026/11/outra.jpg"');
+    expect(html.match(/Recusar só esta foto/g)).toHaveLength(2);
+    expect(html).toContain('name="fotoVista" value="f1"');
+    expect(html).toContain('name="fotoVista" value="f2"');
+    expect(html).toContain('name="voltar" value="/relatos"');
     expect(html).toContain('Sem foto');
     expect(html).toContain('Conferir: possível nome de pessoa (professora Marta)');
     expect(html).toContain('Barrar: e-mail (fulano@ufal.br)');
@@ -580,7 +749,14 @@ describe('relatos novos', () => {
 
   it('fila vazia, aviso depois da decisão e erro de relato já moderado', () => {
     const html = renderToStaticMarkup(
-      <Relatos pautas={[]} feito="aprovado" erro="ja_moderado" aprovar={acao} recusar={acao} />,
+      <Relatos
+        pautas={[]}
+        feito="aprovado"
+        erro="ja_moderado"
+        aprovar={acao}
+        recusar={acao}
+        recusarFoto={acao}
+      />,
     );
 
     expect(html).toContain('Nenhum relato esperando moderação.');
@@ -590,7 +766,14 @@ describe('relatos novos', () => {
 
   it('valor desconhecido em ?feito e ?erro não vira texto na tela', () => {
     const html = renderToStaticMarkup(
-      <Relatos pautas={[]} feito="<script>" erro="<b>x</b>" aprovar={acao} recusar={acao} />,
+      <Relatos
+        pautas={[]}
+        feito="<script>"
+        erro="<b>x</b>"
+        aprovar={acao}
+        recusar={acao}
+        recusarFoto={acao}
+      />,
     );
 
     expect(html).not.toContain('script');

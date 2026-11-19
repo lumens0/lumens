@@ -1,0 +1,161 @@
+# Migrações 0026 e 0027: várias fotos, pedidos de edição e limpeza de blocos
+
+Este documento diz o que as duas migrações fazem num banco que já tem dados, como conferir depois
+de aplicar e como voltar atrás. O `db:migrate` aplica as duas na ordem, numa única execução.
+
+## Ordem de deploy
+
+O contrato do relato trocou `foto_chave` (uma foto) por `fotos` (lista), e o site (Vercel) e o
+back-end (VM) fazem deploy separados. O site novo aceita os dois formatos (`normalizarFotos` em
+`apps/site/src/dados/api.ts`: `foto_chave` vira `fotos: [chave]`), então:
+
+1. **Site primeiro.** Com a API antiga, ele continua mostrando uma foto por relato.
+2. **Migração 0026/0027 e back-end, em seguida e sem intervalo.** Entre a migração e o deploy do
+   back-end, o back-end antigo ainda consulta a coluna e a view que a 0026 trocou: a API de pauta
+   (`/pautas/:slug`) e a rota de foto respondem erro nesse intervalo, que é de minutos. Para
+   encurtá-lo, deixe o novo back-end pronto para subir antes de rodar o `db:migrate`.
+3. **Painel junto com o back-end** (ele usa as mesmas tabelas).
+
+Ao contrário (back-end novo com site antigo), o site antigo não quebra: lê `foto_chave`, que não vem
+mais, e mostra o relato sem foto até o site novo subir. Depois que os dois estiverem no ar, o
+tratamento de `foto_chave` no site pode sair.
+
+## 0026 · `fotos_e_pedidos_de_edicao`
+
+**O que muda**
+
+- Nova tabela `relato_foto`: até 3 fotos por relato (`ordem` de 1 a 3, única por relato; a chave do
+  arquivo também é única). Cada foto tem a própria moderação (`pendente`, `aprovado`, `recusado`) e,
+  na recusa, um **motivo obrigatório** (CHECK no banco).
+- Nova tabela `pedido_edicao`: pedido do owner para mudar o título ou a descrição de uma pauta já
+  publicada. No máximo um pedido `pendente` por pauta e campo (índice único parcial). A recusa leva
+  motivo obrigatório.
+- Dois valores novos em `tipo_disparo`: `foto_recusada` e `edicao_decidida` (avisos do bot).
+- A coluna `relato.foto_chave` **sai**, e a view pública `v_relato_publico` troca `foto_chave` por
+  `fotos` (`text[]`, só fotos aprovadas, em ordem). A view é recriada com `security_barrier` e o
+  `GRANT SELECT` ao `lumens_site`, como as outras. Uma view nova, `v_foto_publica` (só a chave das fotos
+  aprovadas de relatos aprovados de pautas públicas), serve a rota de foto do site com uma busca pela
+  chave única.
+
+**Dados existentes.** Antes de apagar a coluna, a migração copia cada `foto_chave` não nula para
+`relato_foto` como foto 1, com a moderação do relato:
+
+| Relato   | Foto 1 copiada                                    |
+| -------- | ------------------------------------------------- |
+| aprovado | `aprovado` (continua no ar)                       |
+| pendente | `pendente` (a curadoria ainda vai ver)            |
+| recusado | `recusado`, motivo `Recusada junto com o relato.` |
+
+Nenhum relato é apagado ou alterado, e nenhuma foto sai do ar nem entra no ar por causa da migração.
+O arquivo no armazenamento não é tocado: a chave é a mesma.
+
+**Conferir depois de aplicar** (os dois números devem ser iguais, e o terceiro, zero):
+
+```sql
+SELECT count(*) FROM relato_foto;                    -- fotos migradas
+SELECT count(*) FROM relato_foto WHERE ordem = 1;    -- igual ao anterior em banco que só tinha 1 foto
+SELECT count(*) FROM v_relato_publico WHERE cardinality(fotos) > 3;  -- 0
+```
+
+**Voltar atrás (só em emergência).** A migração é para frente: o Drizzle não tem "down". O SQL abaixo
+devolve o esquema anterior. **Perde** o que só existe no esquema novo: a 2ª e a 3ª foto de cada
+relato, os motivos de recusa por foto e os pedidos de edição. Faça um backup antes
+(`docs/operacao/backup.md`) e pare o back-end, o painel e o site durante o procedimento.
+
+```sql
+BEGIN;
+ALTER TABLE relato ADD COLUMN foto_chave text;
+-- Só volta uma foto que podia estar onde está: relato aprovado leva a primeira foto aprovada (se
+-- todas foram recusadas, fica sem foto, e a recusada nunca volta ao site); relato pendente leva a
+-- primeira foto pendente; relato recusado leva a primeira, que não é pública de qualquer jeito.
+UPDATE relato r SET foto_chave = (
+  SELECT f.chave FROM relato_foto f
+  WHERE f.relato_id = r.id
+    AND CASE r.moderacao::text
+          WHEN 'aprovado' THEN f.moderacao = 'aprovado'
+          WHEN 'pendente' THEN f.moderacao = 'pendente'
+          ELSE true
+        END
+  ORDER BY f.ordem LIMIT 1
+);
+DROP VIEW v_foto_publica;
+DROP VIEW v_relato_publico;
+CREATE VIEW v_relato_publico WITH (security_barrier = true) AS
+SELECT p.slug AS pauta_slug, r.texto, r.foto_chave, e.curso, r.moderado_em
+FROM relato r
+JOIN pauta p ON p.id = r.pauta_id
+JOIN estudante e ON e.id = r.estudante_id
+WHERE r.moderacao = 'aprovado' AND p.status IN ('juntando_apoios', 'meta_batida', 'cobrando',
+  'prometido', 'entregue_em_parte', 'descumprida', 'conquistada');
+GRANT SELECT ON v_relato_publico TO lumens_site;
+DROP TABLE relato_foto;
+DROP TABLE pedido_edicao;
+DROP TYPE status_pedido_edicao;
+-- Os valores novos de tipo_disparo ficam (o Postgres não remove valor de enum); nenhum código
+-- antigo os usa, e a 0026 usa ADD VALUE IF NOT EXISTS, então pode ser reaplicada por cima deles. Antes de voltar o código, apague os avisos desses tipos que ainda estejam na fila:
+DELETE FROM disparo WHERE tipo IN ('foto_recusada', 'edicao_decidida');
+-- E tire as duas migrações do registro do Drizzle, para o db:migrate poder reaplicá-las depois:
+DELETE FROM drizzle.__drizzle_migrations WHERE created_at >= 1795043510405;
+COMMIT;
+```
+
+(O valor `1795043510405` é o `when` da 0026 no `_journal.json`; o filtro tira a 0026 e a 0027. O
+teste `packages/db/src/migracao-fotos.test.ts` executa este bloco SQL sobre um banco migrado.)
+
+## 0027 · `remove_praca_de_alimentacao`
+
+A Praça de Alimentação saiu do catálogo de blocos (`packages/db/seed/blocos-ufal.ts`), mas continuava
+nos bancos que já tinham sido semeados, aparecendo na escolha do bloco do bot e no filtro do site.
+
+A migração apaga o bloco `praca-de-alimentacao` **somente se nenhuma pauta o referencia**:
+
+```sql
+DELETE FROM bloco b
+WHERE b.slug = 'praca-de-alimentacao'
+  AND NOT EXISTS (SELECT 1 FROM pauta p WHERE p.bloco_id = b.id);
+```
+
+- Se uma pauta (em qualquer status, inclusive recusada) usa o bloco, ele **fica**: a pauta guarda a
+  meta calculada com a base do bloco e o histórico dele, e a FK `pauta.bloco_id` é `RESTRICT`. O
+  bloco só some quando a curadoria corrigir o bloco dessas pautas (tela "Ajustes de meta" da
+  pauta, que registra o motivo) e a migração, ou o `DELETE` acima, rodar de novo.
+- A migração é idempotente: rodar o `DELETE` de novo não muda nada.
+- Para saber se ficou: `SELECT slug FROM bloco WHERE slug = 'praca-de-alimentacao';` (vazio = apagado).
+- Não há volta automática: o bloco apagado não tinha pauta, então nenhum dado se perde. Para
+  recriá-lo, insira a linha em `bloco` à mão (`slug`, `nome`, `base_estudantes`).
+
+## 0028 · `blocos_residencia_edge_nees_crad`
+
+A Residência Universitária (RUA) e os lugares que o mapa desenha e o OpenStreetMap não tem (EDGE
+Academy, NEES e CRAD) entraram no catálogo `packages/db/seed/blocos-ufal.ts` depois que os bancos de
+homologação e de produção já tinham sido semeados, e o `pnpm db:blocos-ufal` é manual. Sem esta
+migração, esses blocos não apareciam na lista do bot nem no filtro do site (o bot e o site mostram os
+blocos que estão no banco).
+
+- Cadastra os quatro **pelo slug** e não mexe em bloco que já existe (rodar de novo, ou depois do
+  `db:blocos-ufal`, não duplica nem muda nada).
+- Só roda onde o catálogo real já foi cadastrado (existe o bloco `ic`). Banco de desenvolvimento,
+  com os blocos fictícios do seed, e banco novo e vazio não recebem nada: eles ganham o catálogo,
+  com estes quatro, quando o `db:blocos-ufal` rodar.
+- Bases de estudantes: RUA 135 (capacidade da residência, segundo o site da UFAL), EDGE Academy 100
+  (informado pela equipe), NEES 100 (sem número oficial: o mesmo da EDGE Academy) e CRAD 50 (não é bloco
+  estudantil: estimativa baixa). Se a RUA já estava cadastrada com a estimativa antiga (300), a
+  migração a corrige para 135; a meta de pauta já criada não muda (ela congela na criação). Se houver
+  número melhor, corrija com `UPDATE` em `bloco` enquanto não houver pauta no bloco
+  (a meta congela na criação da pauta).
+- Conferir: `SELECT slug FROM bloco WHERE slug IN ('residencia-universitaria','edge-academy','nees','crad');`
+
+## 0029 · `fila_de_remocao_de_fotos`
+
+Tabela `foto_a_remover` (chave do arquivo, quando entrou, tentativas): a fila durável das fotos que
+precisam sair do storage. Fotos soltas da pauta nova (abandonadas por `menu`, `cancelar`, `sair`,
+comando do site, conversa vencida ou criação recusada) e as do `sair` entram aqui **na mesma
+transação** que muda a conversa: se a transação desfaz, a chave some junto e o arquivo continua
+valendo; se confirma, a chave fica até o storage confirmar a exclusão. Depois do commit e a cada rodada
+da limpeza (de hora em hora) o back-end tenta apagar e só tira da fila o que o storage confirmou; storage
+fora do ar não perde nada.
+
+- Conferir se algo está preso: `SELECT chave, tentativas, enfileirada_em FROM foto_a_remover ORDER BY enfileirada_em;`
+  (vazio é o normal; uma chave com muitas tentativas indica storage com problema ou chave inexistente).
+- Só o back-end lê e escreve nela; o site (`lumens_site`) não tem acesso.
+- Voltar atrás: `DROP TABLE foto_a_remover;` e tirar a migração do registro do Drizzle, como na 0026.

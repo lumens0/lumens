@@ -13,7 +13,6 @@ import {
   LARGURA_DO_CAMPUS,
   AREAS,
   ID_DO_ESTADIO,
-  PONTOS,
   PREDIOS,
   type Area,
   type Predio,
@@ -129,15 +128,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     return [
       ...(aberto?.sigla ? [nomeDoPredio(aberto)] : []),
       ...comBloco.map(nomeDoPredio),
-      // Os lugares fora do OSM (a bolinha da EDGE Academy) levam o nome em qualquer zoom: sem ele a
-      // bolinha não diz o que é.
-      ...PONTOS.map((p): Nome => ({
-        id: `n${p.nome}`,
-        texto: p.nome,
-        x: p.x,
-        y: p.y,
-        lado: 'acima',
-      })),
       ...AREAS.filter((a) => a.id === ID_DO_ESTADIO).map(nomeDaArea),
       ...(comNomes ? AREAS.filter((a) => a.nome && a.id !== ID_DO_ESTADIO).map(nomeDaArea) : []),
       ...semBloco.map(nomeDoPredio),
@@ -318,13 +308,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 </g>
               );
             })}
-            {/* Lugares que o OSM não tem (EDGE Academy): um ponto do mesmo tamanho em qualquer zoom. */}
-            {PONTOS.map((p) => (
-              <g key={p.nome} transform={`translate(${String(p.x)} ${String(p.y)})`}>
-                <title>{p.nome}</title>
-                <circle className={estilos.pontoLocal} />
-              </g>
-            ))}
             {/* Os nomes ficam numa camada por cima de todos os prédios; só vão os que cabem sem
                 cobrir outro nome, e aproximar o mapa abre espaço para mais (SCRUM-284). */}
             <g aria-hidden="true">

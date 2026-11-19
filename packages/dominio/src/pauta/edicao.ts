@@ -1,31 +1,19 @@
 /**
- * Corrigir a descrição da própria pauta (pedido da equipe, validação final).
+ * Corrigir o título ou a descrição da própria pauta (pedido da equipe, validação final).
  *
  * Quem cria a pauta é o owner. Esquecer algo ou errar uma palavra acontece, então o owner pode
- * reescrever a descrição enquanto a pauta está em curadoria. Por garantia, também recusa se outra
- * pessoa já apoiou (o apoio do próprio owner não conta). Título, bloco e categoria não mudam por aqui (o bloco mexe na meta, que é congelada).
+ * reescrever o título ou a descrição **enquanto a pauta está em curadoria** (`STATUS_EDITAVEIS`): o
+ * texto corrigido é o que a curadoria vai avaliar. Por garantia, também recusa se outra pessoa já
+ * apoiou (o apoio do próprio owner não conta). Bloco e categoria não mudam por aqui (o bloco mexe
+ * na meta, que é congelada). Depois da publicação a edição vira um pedido que a curadoria aprova
+ * (`pedido-edicao.ts`); `pautasEditaveisDoOwner` lista as pautas das duas situações.
  */
 import { createHash } from 'node:crypto';
-import {
-  and,
-  apoios,
-  eq,
-  inArray,
-  isNull,
-  papeisPauta,
-  pautas,
-  sql,
-  type Db,
-  type Tx,
-} from '@lumens/db';
+import { and, apoios, eq, isNull, papeisPauta, pautas, sql, type Db, type Tx } from '@lumens/db';
 import { conferirAnonimato } from '../compartilhado/anonimato';
 import { registrarEvento } from '../compartilhado/eventos';
 import { DESCRICAO_MAXIMA, TITULO_MAXIMO } from './pauta';
 
-/**
- * Só enquanto a curadoria ainda não decidiu: o texto corrigido é o que ela vai avaliar. Depois de
- * publicada, mudar a descrição pularia a moderação (ficaria para um pedido de edição aprovado).
- */
 /**
  * A "versão" do texto de uma pauta: um resumo do título e da descrição. A tela da curadoria leva
  * a versão do texto que mostra, e a aprovação só vale se o texto no banco ainda tiver a mesma:
@@ -38,6 +26,11 @@ export function versaoDoTexto(titulo: string, descricao: string): string {
     .digest('hex');
 }
 
+/**
+ * Status em que o texto muda direto: só enquanto a curadoria ainda não decidiu, porque o texto
+ * corrigido é o que ela vai avaliar. Depois de publicada, a edição vira um pedido que a curadoria
+ * aprova (`pedido-edicao.ts`).
+ */
 export const STATUS_EDITAVEIS = ['em_curadoria'] as const;
 
 const tamanho = (texto: string) => Array.from(texto).length;
@@ -48,7 +41,7 @@ export interface PautaEditavel {
   status: string;
 }
 
-/** Pautas do owner que ainda podem ter a descrição corrigida, a mais nova primeiro. */
+/** Pautas do owner que ainda podem ter título ou descrição corrigidos (direto ou por pedido), a mais nova primeiro. */
 export async function pautasEditaveisDoOwner(
   db: Db,
   estudanteId: string,
@@ -62,8 +55,10 @@ export async function pautasEditaveisDoOwner(
         eq(papeisPauta.estudanteId, estudanteId),
         eq(papeisPauta.papel, 'owner'),
         isNull(papeisPauta.ate),
-        inArray(pautas.status, [...STATUS_EDITAVEIS]),
-        sql`NOT EXISTS (SELECT 1 FROM apoio a WHERE a.pauta_id = ${pautas.id} AND a.estudante_id <> ${estudanteId})`,
+        // Em curadoria, só sem apoio de outra pessoa (o apoio do próprio owner não conta); publicada,
+        // qualquer status menos recusada: a edição vira pedido para a curadoria.
+        sql`${pautas.status} <> 'recusada'`,
+        sql`(${pautas.status} <> 'em_curadoria' OR NOT EXISTS (SELECT 1 FROM apoio a WHERE a.pauta_id = ${pautas.id} AND a.estudante_id <> ${estudanteId}))`,
       ),
     )
     .orderBy(sql`${pautas.criadaEm} DESC`);

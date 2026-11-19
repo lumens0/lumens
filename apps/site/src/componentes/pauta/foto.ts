@@ -12,9 +12,14 @@ export function urlFoto(chave: string): string | null {
 
 const LIMITE_ALT = 120;
 
-/** Texto alternativo da foto: o próprio relato, cortado se for longo. */
-export function altDaFoto(texto: string): string {
+/**
+ * Texto alternativo da foto: o próprio relato, cortado se for longo. Com mais de uma foto no mesmo
+ * relato, diz qual é (`Foto 2 de 3 do relato`), para quem usa leitor de tela distinguir as imagens.
+ */
+export function altDaFoto(texto: string, posicao = 1, total = 1): string {
   const limpo = texto.trim().replace(/\s+/g, ' ');
   const base = limpo.length > LIMITE_ALT ? `${limpo.slice(0, LIMITE_ALT - 1).trimEnd()}…` : limpo;
-  return `Foto do relato: ${base}`;
+  const qual =
+    total > 1 ? `Foto ${String(posicao)} de ${String(total)} do relato` : 'Foto do relato';
+  return `${qual}: ${base}`;
 }

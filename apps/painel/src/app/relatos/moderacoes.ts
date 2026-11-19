@@ -7,7 +7,7 @@ export interface DependenciasDeModeracao {
   aprovar: (
     relatoId: string,
     curadorId: string,
-    fotoVista: string | null,
+    fotosVistas: string[],
   ) => Promise<ResultadoModeracao>;
   recusar: (relatoId: string, curadorId: string) => Promise<ResultadoModeracao>;
 }
@@ -35,9 +35,9 @@ export function criarModeracoes({ curador, aprovar, recusar }: DependenciasDeMod
   }
 
   return {
-    /** `fotoVista`: a foto que a fila mostrava (`null` sem foto); se mudou, a aprovação é recusada. */
-    aprovar: (relatoId: string, fotoVista: string | null) =>
-      moderar(relatoId, (c) => aprovar(relatoId, c, fotoVista), 'aprovado'),
+    /** `fotosVistas`: as fotos pendentes que a fila mostrava; se mudaram, a aprovação é recusada. */
+    aprovar: (relatoId: string, fotosVistas: string[]) =>
+      moderar(relatoId, (c) => aprovar(relatoId, c, fotosVistas), 'aprovado'),
     recusar: (relatoId: string) => moderar(relatoId, (c) => recusar(relatoId, c), 'recusado'),
   };
 }

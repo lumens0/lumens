@@ -3,6 +3,7 @@ import {
   curadores,
   eq,
   estudantes,
+  fotosARemover,
   papeisPauta,
   pautas,
   promessas,
@@ -14,6 +15,8 @@ import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { pino } from 'pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cifrar, type Chaves } from '../cripto/cifra';
+import { executarRemocoes } from '../fotos/remocao';
+import type { ServicoDeFotos } from '../fotos/servico';
 import { JOBS, StaleJobError } from '../infra/queue';
 import {
   FakeQueue,
@@ -301,6 +304,92 @@ describe('processIncomingJob', () => {
     // Um passo só: o "2" não foi aplicado duas vezes.
     expect(await passo()).toBe('NEW_ASK_TITLE');
     expect(await jobsConcluidos(db)).toHaveLength(2);
+  });
+
+  describe('fotos soltas só saem do storage depois que a transação confirma', () => {
+    const CHAVES = ['fotos/2026/11/a.jpg', 'fotos/2026/11/b.jpg'];
+    const removidas: string[] = [];
+    const comFotos = (): WorkerDeps => ({
+      ...deps,
+      fotos: {
+        guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+        removerFotos: (chaves) => {
+          removidas.push(...chaves);
+          return Promise.resolve();
+        },
+      },
+    });
+
+    beforeEach(async () => {
+      removidas.length = 0;
+      await deps.store.save(PHONE_HMAC, 'NEW_ASK_PHOTO', { fotoChaves: CHAVES });
+    });
+
+    it('falha ao enfileirar depois do cancelamento: nada é apagado e a conversa segue com as fotos', async () => {
+      const cancelar = texto('cancelar');
+      queue.failSend = true;
+      await expect(processIncomingJob(cancelar, comFotos())).rejects.toThrow('fila fora do ar');
+
+      // A transação desfez: a conversa voltou a guardar as chaves e os arquivos continuam lá.
+      expect(removidas).toEqual([]);
+      expect(await deps.store.fotoChavesDaConversa(PHONE_HMAC)).toEqual(CHAVES);
+
+      // A reentrega confirma, e só então os arquivos saem.
+      queue.failSend = false;
+      await processIncomingJob(cancelar, comFotos());
+      expect(removidas.sort()).toEqual(CHAVES);
+      expect(await deps.store.fotoChavesDaConversa(PHONE_HMAC)).toEqual([]);
+    });
+
+    it('os arquivos saem depois do commit: quando o storage é chamado, a conversa já mudou', async () => {
+      let chavesQuandoApagou: string[] | undefined;
+      const d: WorkerDeps = {
+        ...deps,
+        fotos: {
+          guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+          removerFotos: async () => {
+            chavesQuandoApagou = await deps.store.fotoChavesDaConversa(PHONE_HMAC);
+          },
+        },
+      };
+      await processIncomingJob(texto('menu'), d);
+      expect(chavesQuandoApagou).toEqual([]);
+    });
+
+    it('storage fora do ar depois do commit: a chave fica na fila durável e sai quando ele volta', async () => {
+      let fora = true;
+      const apagadas: string[] = [];
+      const fotos: ServicoDeFotos = {
+        guardarFoto: () => Promise.resolve({ ok: false, motivo: 'indisponivel' } as const),
+        removerFotos: () => Promise.resolve(),
+        removerConfirmando: (chaves) => {
+          if (fora) return Promise.resolve([]);
+          apagadas.push(...chaves);
+          return Promise.resolve(chaves);
+        },
+      };
+      await processIncomingJob(texto('cancelar'), { ...deps, fotos });
+
+      // A mensagem foi confirmada e a conversa não guarda mais as fotos...
+      expect(await deps.store.fotoChavesDaConversa(PHONE_HMAC)).toEqual([]);
+      expect(await jobsConcluidos(db)).toHaveLength(1);
+      // ...mas as chaves não se perderam: estão na fila, à espera do storage.
+      const naFila = async () =>
+        (await db.select({ chave: fotosARemover.chave }).from(fotosARemover)).map((l) => l.chave);
+      expect((await naFila()).sort()).toEqual(CHAVES);
+
+      fora = false;
+      expect(await executarRemocoes(db, fotos)).toBe(2);
+      expect(apagadas.sort()).toEqual(CHAVES);
+      expect(await naFila()).toEqual([]);
+    });
+
+    it('falha ao apagar no storage não desfaz a mensagem', async () => {
+      const d = comFotos();
+      if (d.fotos) d.fotos.removerFotos = () => Promise.reject(new Error('storage fora do ar'));
+      await expect(processIncomingJob(texto('cancelar'), d)).resolves.toBeDefined();
+      expect(await jobsConcluidos(db)).toHaveLength(1);
+    });
   });
 
   it('job que expirou e foi pego de novo: esta tentativa desfaz tudo', async () => {
