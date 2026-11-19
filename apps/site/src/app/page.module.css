@@ -571,3 +571,20 @@
     grid-column: 2;
   }
 }
+
+/* "Ver no mapa" só a partir de 900 px: no celular o skyline já ocupa o lugar do mapa. */
+.soDesktop {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .soDesktop {
+    display: inline-flex;
+  }
+}
+
+.subtituloDosNumeros {
+  margin: 0;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
