@@ -1,10 +1,11 @@
+import type { CSSProperties } from 'react';
 import type { Grupo } from '../dados/distribuicao';
 import { resumoDosGrupos } from '../dados/distribuicao';
 import estilos from './caminho.module.css';
 
 /**
  * Barras horizontais de apoios por categoria ou por bloco (SCRUM-360), no mesmo desenho do caminho.
- * Rótulo e número ficam em texto; a barra é reforço visual, num degradê do azul-noite ao azul de status (a cor viva fica para o status).
+ * Rótulo e número ficam em texto; a barra é reforço visual, no azul-noite, com o mesmo acabamento das barras de etapa (a cor viva fica para o status).
  */
 export function PautasPorGrupo({
   id,
@@ -29,10 +30,9 @@ export function PautasPorGrupo({
             <span className={estilos.trilho} aria-hidden="true">
               <i
                 className={estilos.barra}
-                style={{
-                  width: `${String(grupo.largura)}%`,
-                  background: 'linear-gradient(90deg, var(--noite-2), var(--status-apoios))',
-                }}
+                style={
+                  { width: `${String(grupo.largura)}%`, '--cor': 'var(--noite-2)' } as CSSProperties
+                }
               />
             </span>
             <span className={estilos.valor}>{grupo.total}</span>

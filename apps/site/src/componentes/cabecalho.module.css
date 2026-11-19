@@ -100,3 +100,15 @@
     margin: 4px -8px 0;
   }
 }
+
+/* Celular estreito: as cinco abas cabem em 375 px sem rolar de lado (antes o "Manual" ficava cortado). */
+@media (max-width: 480px) {
+  .abas {
+    gap: 0;
+  }
+
+  .aba {
+    padding: 0 9px;
+    font-size: 14px;
+  }
+}

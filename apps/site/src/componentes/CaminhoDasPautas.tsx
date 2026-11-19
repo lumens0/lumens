@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { caminhoDasPautas, resumoDoCaminho } from '../dados/caminho';
 import type { Pauta } from '../dados/tipos';
 import { STATUS } from './StatusPill';
@@ -22,10 +23,12 @@ export function CaminhoDasPautas({ pautas }: { pautas: readonly Pauta[] }) {
             <span className={estilos.trilho} aria-hidden="true">
               <i
                 className={estilos.barra}
-                style={{
-                  width: `${String(etapa.largura)}%`,
-                  background: STATUS[etapa.status].ponto,
-                }}
+                style={
+                  {
+                    width: `${String(etapa.largura)}%`,
+                    '--cor': STATUS[etapa.status].ponto,
+                  } as CSSProperties
+                }
               />
             </span>
             <span className={estilos.valor}>{etapa.total}</span>

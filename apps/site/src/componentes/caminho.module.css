@@ -43,9 +43,12 @@
   border-radius: 6px;
 }
 
+/* Uma regra só para toda barra horizontal do dashboard (etapas, categorias, blocos): a cor vem de
+   `--cor` e o acabamento é o mesmo, um degradê leve que clareia no começo da barra. */
 .barra {
   display: block;
   height: 100%;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cor) 76%, #fff), var(--cor));
   border-radius: 6px;
 }
 
