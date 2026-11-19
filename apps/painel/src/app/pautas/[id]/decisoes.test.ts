@@ -105,7 +105,9 @@ describe('decisões da curadoria pela tela', () => {
       { decidida: false, motivo: 'relato_mudou' },
     );
     const fotos = { 'relato-1': ['foto-1', 'foto-2'], 'relato-2': [] };
-    expect(await decisoes.aprovar(ID, 'ensino', fotos, false, '', true)).toBe(`/pautas/${ID}?erro=relato_mudou`);
+    expect(await decisoes.aprovar(ID, 'ensino', fotos, false, '', true)).toBe(
+      `/pautas/${ID}?erro=relato_mudou`,
+    );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', 'ensino', fotos, false, '');
   });
 

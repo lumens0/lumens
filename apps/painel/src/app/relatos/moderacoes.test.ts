@@ -32,7 +32,9 @@ describe('moderação de relatos pela tela', () => {
   it('aprovar e recusar gravam com o id do curador da sessão e voltam para a fila', async () => {
     const { moderacoes, aprovar, recusar } = montar({ id: 'curador-1' });
 
-    expect(await moderacoes.aprovar(ID, ['foto-1', 'foto-2'], true)).toBe('/relatos?feito=aprovado');
+    expect(await moderacoes.aprovar(ID, ['foto-1', 'foto-2'], true)).toBe(
+      '/relatos?feito=aprovado',
+    );
     expect(aprovar).toHaveBeenCalledWith(ID, 'curador-1', ['foto-1', 'foto-2']);
 
     expect(await moderacoes.recusar(ID)).toBe('/relatos?feito=recusado');

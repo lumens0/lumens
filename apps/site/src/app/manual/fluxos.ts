@@ -73,7 +73,7 @@ export const FLUXOS: readonly FluxoEmCards[] = [
         onde: 'bot',
         resumo: 'Título, local, categoria, descrição e, se quiser, uma foto.',
         detalhe:
-          'O bot sugere uma categoria (“Parece ser Infraestrutura. Confirma?”); você aceita ou escolhe outra. Dá para corrigir o texto depois, em “Editar pauta”, até a curadoria decidir.',
+          'O bot sugere uma categoria (“Parece ser Infraestrutura. Confirma?”); você aceita ou escolhe outra. Para corrigir o texto, use “Editar pauta”: antes da decisão vale na hora; depois da publicação vira um pedido que a curadoria confere.',
       },
       {
         titulo: 'A curadoria confere',
@@ -132,9 +132,9 @@ export const FLUXOS: readonly FluxoEmCards[] = [
         titulo: 'Conte a sua experiência',
         icone: 'camera',
         onde: 'bot',
-        resumo: 'Opcional: um relato curto e uma foto.',
+        resumo: 'Opcional: um relato curto e até 3 fotos.',
         detalhe:
-          'Eles aparecem no site depois de aprovados pela moderação, sem o seu nome. As fotos perdem a localização antes de serem guardadas.',
+          'Eles aparecem no site depois de aprovados pela moderação, sem o seu nome. A curadoria pode recusar uma foto sem recusar o texto: o bot manda o motivo. As fotos perdem a localização antes de serem guardadas.',
       },
       {
         titulo: 'Compartilhe o card',

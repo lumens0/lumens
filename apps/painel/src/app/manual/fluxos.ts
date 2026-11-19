@@ -79,8 +79,9 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         titulo: 'Confira texto e foto',
         icone: 'camera',
         onde: 'painel',
-        resumo: 'Nada de nome de pessoa, ofensa ou dado pessoal, nem na imagem.',
-        detalhe: 'Aprovar e recusar valem para o texto e a foto juntos.',
+        resumo: 'Nada de nome de pessoa, ofensa ou dado pessoal, nem em nenhuma das fotos (até 3).',
+        detalhe:
+          'Para barrar só uma foto, use “Recusar só esta foto” e escreva o motivo: o texto e as outras fotos seguem, e quem enviou recebe o motivo pelo bot.',
       },
       {
         titulo: 'Marque que conferiu e aprove',
@@ -94,14 +95,15 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         titulo: 'Ou recuse',
         icone: 'fechar',
         onde: 'painel',
-        resumo: 'O relato não vai ao site. Não há motivo a escrever.',
+        resumo: 'O relato inteiro, com todas as fotos, não vai ao site. Não há motivo a escrever.',
       },
     ],
   },
   {
     id: 'ajustes',
     rotulo: 'Corrigir uma pauta publicada',
-    chamada: 'Depois de aprovada, o texto não muda. Dá para corrigir o que está em volta dele.',
+    chamada:
+      'A curadoria não reescreve a pauta de ninguém, mas pode corrigir o que está em volta do texto.',
     passos: [
       {
         titulo: 'Abra a pauta',
@@ -124,12 +126,50 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         resumo: 'Troque quando a situação mudar. O motivo da urgência é opcional.',
       },
       {
-        titulo: 'Texto errado? Fale com quem criou',
+        titulo: 'Texto errado? Quem criou pede a mudança',
         icone: 'conversa',
         onde: 'painel',
-        resumo: 'A curadoria não reescreve a pauta de ninguém.',
+        resumo: 'O pedido chega em “Pedidos de edição”. Veja o fluxo “Pedidos de edição”.',
         detalhe:
           'Quem apoiou, apoiou aquele texto. Se um dado pessoal foi publicado por engano, avise a administração na hora.',
+      },
+    ],
+  },
+  {
+    id: 'pedidos',
+    rotulo: 'Pedidos de edição',
+    chamada:
+      'Depois de publicada, quem criou a pauta não edita direto: pede a mudança pelo bot e a curadoria decide.',
+    passos: [
+      {
+        titulo: 'Abra “Pedidos de edição”',
+        icone: 'lista',
+        onde: 'painel',
+        resumo: 'A lista mostra os pedidos de título e de descrição que esperam decisão.',
+        detalhe: 'O pedido também aparece na tela da própria pauta.',
+      },
+      {
+        titulo: 'Compare o antes e o depois',
+        icone: 'olho',
+        onde: 'painel',
+        resumo: 'Cada pedido traz o texto publicado e o texto novo, lado a lado.',
+        detalhe:
+          'Se o texto da pauta ou o pedido mudou depois que a tela abriu, a decisão é barrada: confira de novo.',
+      },
+      {
+        titulo: 'Aprove: o texto novo vai ao site',
+        icone: 'visto',
+        onde: 'painel',
+        resumo: 'A mudança vale na hora e quem pediu recebe o aviso pelo bot.',
+        detalhe:
+          'Texto novo com e-mail, telefone ou matrícula não pode ser publicado: recuse o pedido, com o motivo.',
+      },
+      {
+        titulo: 'Ou recuse com motivo',
+        icone: 'fechar',
+        onde: 'painel',
+        resumo: 'O texto publicado continua o mesmo e o motivo vai pelo bot a quem pediu.',
+        detalhe: 'O motivo é obrigatório, de uma linha só.',
       },
     ],
   },
