@@ -60,9 +60,9 @@ describe('botões do WhatsApp', () => {
     expect(html).toContain('aria-label="Vou ajudar na proposta Mutirão pelo WhatsApp"');
   });
 
-  it('"Criar pauta neste bloco" abre o bot com "nova pauta" e o nome acessível começa pelo texto visível', () => {
-    const html = renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" />);
-    expect(html).toContain('?text=nova%20pauta');
+  it('"Criar pauta neste bloco" abre o bot com "nova pauta <slug>" e o nome acessível começa pelo texto visível', () => {
+    const html = renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" slug="bloco-18" />);
+    expect(html).toContain('?text=nova%20pauta%20bloco-18');
     expect(html).toContain('>Criar pauta neste bloco</a>');
     // WCAG 2.5.3: o nome acessível contém o texto visível, e diz de qual bloco se fala.
     expect(html).toContain('aria-label="Criar pauta neste bloco: Bloco 18, pelo WhatsApp"');
@@ -70,7 +70,7 @@ describe('botões do WhatsApp', () => {
 
   it('"Criar pauta neste bloco" some sem bot configurado', () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '');
-    expect(renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" />)).toBe('');
+    expect(renderToStaticMarkup(<BotaoCriarPauta bloco="Bloco 18" slug="bloco-18" />)).toBe('');
   });
 
   it.each(STATUS_PAUTA.map((status) => [status, !SEM_APOIO.has(status)] as const))(

@@ -305,6 +305,71 @@ describe('"nova pauta" vindo do site (2.8)', () => {
   });
 });
 
+describe('"nova pauta <bloco>" vindo do mapa do site (SCRUM-396)', () => {
+  const COM_BLOCO = `Vou abrir a pauta no *Bloco 18*. ${NEW_TITLE_TEXT}`;
+
+  it('o parser entende o slug do bloco', () => {
+    expect(parseComandoDoSite('nova pauta bloco-18')).toEqual({
+      kind: 'nova-pauta',
+      bloco: 'bloco-18',
+    });
+    expect(parseComandoDoSite('Nova Pauta IC')).toEqual({ kind: 'nova-pauta', bloco: 'ic' });
+  });
+
+  it('verificado: confirma o bloco e não pergunta onde é', async () => {
+    const p = pessoa('5582999990030');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    expect(await p.send('nova pauta bloco-18')).toEqual([COM_BLOCO]);
+    expect(await p.passo()).toBe('NEW_ASK_TITLE');
+    const resposta = await p.send('Wi-Fi caindo toda hora');
+    expect(await p.passo()).not.toBe('NEW_ASK_PLACE');
+    expect(JSON.stringify(resposta)).not.toContain('Em que bloco');
+  });
+
+  it('com pauta parecida no bloco, mostra a lista de parecidas depois do título', async () => {
+    const p = pessoa('5582999990031');
+    await p.jaVerificado();
+    await p.send('oi');
+    await p.send('nova pauta bloco-18');
+
+    await p.send(TITULO);
+    expect(await p.passo()).toBe('NEW_PICK_SIMILAR');
+  });
+
+  it('sem verificação: verifica e retoma já no bloco', async () => {
+    const p = pessoa('5582999990032');
+
+    expect(await p.send('nova pauta bloco-18')).toEqual([PRIVACY_NOTICE_TEXT, VERIFY_FIRST_TEXT]);
+    expect(await p.dados()).toMatchObject({
+      pendingCommand: { kind: 'nova-pauta', id: 'bloco-18' },
+    });
+    expect(await p.verificarPeloBot('aluno30@ufal.br')).toEqual([VERIFIED_TEXT, COM_BLOCO]);
+    expect(await p.passo()).toBe('NEW_ASK_TITLE');
+  });
+
+  it('slug que não existe cai no fluxo normal, sem erro', async () => {
+    const p = pessoa('5582999990033');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    expect(await p.send('nova pauta bloco-que-nao-existe')).toEqual([NEW_TITLE_TEXT]);
+    await p.send('Wi-Fi caindo toda hora');
+    expect(await p.passo()).toBe('NEW_ASK_PLACE');
+  });
+
+  it('"nova pauta" sozinho segue perguntando o bloco', async () => {
+    const p = pessoa('5582999990034');
+    await p.jaVerificado();
+    await p.send('oi');
+
+    expect(await p.send('nova pauta')).toEqual([NEW_TITLE_TEXT]);
+    await p.send('Wi-Fi caindo toda hora');
+    expect(await p.passo()).toBe('NEW_ASK_PLACE');
+  });
+});
+
 describe('"ajudar <slug>" sem proposta aberta (2.8)', () => {
   it('quem não é verificado recebe o aviso, sem ir para a verificação', async () => {
     const p = pessoa('5582999990020');

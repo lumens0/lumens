@@ -162,6 +162,8 @@ export type ResultadoDoUpdate =
 export function comandoDoStart(payload: string | undefined): string {
   if (payload === undefined) return 'menu';
   if (payload === 'nova') return 'nova pauta';
+  const comBloco = /^nova_(.+)$/.exec(payload);
+  if (comBloco) return `nova pauta ${comBloco[1] ?? ''}`;
   const partes = /^(apoiar|ajudar)_(.+)$/.exec(payload);
   // Payload desconhecido: abre o menu em vez de tratar o código como resposta a uma pergunta.
   return partes ? `${partes[1] ?? ''} ${partes[2] ?? ''}` : 'menu';
