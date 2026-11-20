@@ -846,3 +846,22 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).not.toContain('Executada em');
   });
 });
+
+describe('Compartilhar card: sem JavaScript e sem cópia automática', () => {
+  const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
+
+  it('mostra o endereço da pauta em um campo selecionável, para a cópia manual', () => {
+    expect(html).toMatch(/<input[^>]*type="text"[^>]*readOnly=""[^>]*value="[^"]*\/p\/[^"]+"/);
+    expect(html).toContain('Endereço da pauta');
+  });
+
+  it('mantém o download do card fora do diálogo, em <noscript>', () => {
+    expect(html).toMatch(
+      /<noscript>\s*<a [^>]*download="lumens-[^"]+\.png"[^>]*>Baixar card<\/a><\/noscript>/,
+    );
+  });
+
+  it('o botão de compartilhar só habilita com a imagem carregada (começa desabilitado)', () => {
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Compartilhar ou copiar o card<\/button>/);
+  });
+});

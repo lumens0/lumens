@@ -45,7 +45,10 @@ export function CompartilharCard({
 }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const [aviso, setAviso] = useState('');
-  const [ocupado, setOcupado] = useState(false);
+  // A imagem é carregada ao abrir o diálogo, e não no clique de compartilhar: no Safari, esperar o
+  // download antes de `navigator.share()` gasta a ativação do clique e o compartilhamento falha.
+  const [imagem, setImagem] = useState<Blob | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
   useEffect(() => {
     const el = dialogo.current;
@@ -63,29 +66,33 @@ export function CompartilharCard({
     dialogo.current?.close();
     document.body.style.overflow = '';
   };
+  const carregar = async () => {
+    setCarregando(true);
+    try {
+      const resposta = await fetch(`/p/${slug}/card.png`);
+      if (!resposta.ok) throw new Error('card indisponível');
+      setImagem(await resposta.blob());
+    } catch {
+      setAviso('Não deu para carregar o card agora. Use "Baixar card" ou "Copiar só o link".');
+    } finally {
+      setCarregando(false);
+    }
+  };
   const abrir = () => {
     setAviso('');
     document.body.style.overflow = 'hidden';
     dialogo.current?.showModal();
+    if (imagem === null) void carregar();
   };
 
-  const compartilhar = async () => {
-    setOcupado(true);
-    try {
-      const resposta = await fetch(`/p/${slug}/card.png`);
-      const imagem = await resposta.blob();
-      const r = await compartilharCard(
-        imagem,
-        { titulo, link },
-        recursosAgora(),
-        `lumens-${slug}.png`,
-      );
-      setAviso(r.mensagem);
-    } catch {
-      setAviso('Não deu para carregar o card agora. Use "Baixar card".');
-    } finally {
-      setOcupado(false);
-    }
+  // Sem nenhum `await` antes: o compartilhamento do aparelho precisa da ativação do clique.
+  const compartilhar = () => {
+    if (imagem === null) return;
+    void compartilharCard(imagem, { titulo, link }, recursosAgora(), `lumens-${slug}.png`).then(
+      (r) => {
+        setAviso(r.mensagem);
+      },
+    );
   };
   const copiar = async () => {
     setAviso((await copiarLink(link, recursosAgora())).mensagem);
@@ -96,6 +103,17 @@ export function CompartilharCard({
       <button type="button" className={estilos.fantasma} onClick={abrir}>
         Compartilhar card
       </button>
+      {/* Sem JavaScript o botão acima não abre o diálogo: o download continua à mão. */}
+      <noscript>
+        <a
+          href={`/p/${slug}/card.png`}
+          download={`lumens-${slug}.png`}
+          className={estilos.fantasma}
+          aria-label={`Baixar card da pauta ${titulo}`}
+        >
+          Baixar card
+        </a>
+      </noscript>
       <dialog
         ref={dialogo}
         className={estilos.dialogoCard}
@@ -132,10 +150,10 @@ export function CompartilharCard({
             <button
               type="button"
               className={estilos.dialogoPrincipal}
-              disabled={ocupado}
-              onClick={() => void compartilhar()}
+              disabled={imagem === null}
+              onClick={compartilhar}
             >
-              Compartilhar ou copiar o card
+              {carregando ? 'Preparando o card…' : 'Compartilhar ou copiar o card'}
             </button>
             <button type="button" className={estilos.fantasma} onClick={() => void copiar()}>
               Copiar só o link
@@ -149,6 +167,18 @@ export function CompartilharCard({
               Baixar card
             </a>
           </div>
+          {/* O endereço em texto: se a cópia automática falhar, dá para selecionar e copiar à mão. */}
+          <label className={estilos.dialogoEndereco}>
+            Endereço da pauta
+            <input
+              type="text"
+              readOnly
+              value={link}
+              onFocus={(e) => {
+                e.currentTarget.select();
+              }}
+            />
+          </label>
           <p role="status" className={estilos.dialogoAviso}>
             {aviso}
           </p>
