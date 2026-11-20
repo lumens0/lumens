@@ -781,11 +781,10 @@ describe('filtros da lista de pautas', () => {
   });
 
   it('"ou" dentro das situações e união sem repetir entre pendências', () => {
-    const lista = [
-      linha({ id: '1', status: 'cobrando' }),
-      linha({ id: '2', status: 'prometido' }),
-      linha({ id: '3', status: 'conquistada' }),
-    ];
+    const primeira = linha({ id: '1', status: 'cobrando' });
+    const segunda = linha({ id: '2', status: 'prometido' });
+    const terceira = linha({ id: '3', status: 'conquistada' });
+    const lista = [primeira, segunda, terceira];
     expect(filtrarPorSituacoes(lista, ['cobrando', 'prometido']).map((p) => p.id)).toEqual([
       '1',
       '2',
@@ -793,8 +792,8 @@ describe('filtros da lista de pautas', () => {
     expect(filtrarPorSituacoes(lista, [])).toHaveLength(3);
     expect(
       uniaoDePautas([
-        [lista[0]!, lista[1]!],
-        [lista[1]!, lista[2]!],
+        [primeira, segunda],
+        [segunda, terceira],
       ]).map((p) => p.id),
     ).toEqual(['1', '2', '3']);
   });
