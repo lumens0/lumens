@@ -424,7 +424,7 @@ export const verifyAskCourse: StepHandler = async (ctx) => {
     return { ...ajuda, data: { ...ajuda.data, pendingCommand: undefined } };
   }
   if (pendente?.kind === 'nova-pauta') {
-    const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT]);
+    const pauta = await entrarNaPautaNova(ctx, [VERIFIED_TEXT], pendente.id);
     return { ...pauta, data: { ...pauta.data, pendingCommand: undefined } };
   }
   if (pendente?.kind === 'apoiar' && pendente.id !== undefined) {

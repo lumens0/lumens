@@ -4,7 +4,9 @@ import { BarraApoios, formatarNumero } from '../BarraApoios';
 import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
 import comuns from '../componentes.module.css';
 import { STATUS, StatusPill } from '../StatusPill';
+import { origemDoSite } from '../../origem';
 import { nomeDoCanal } from '../../whatsapp';
+import { CompartilharCard } from './CompartilharCard';
 import estilos from './pauta.module.css';
 
 /** Título, status, bloco, categoria, responsáveis (só o curso) e os botões. */
@@ -26,15 +28,19 @@ export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
       </div>
       <p className={estilos.descricao}>{pauta.descricao}</p>
       <div className={estilos.cta}>
-        {mostraApoiar(pauta.status) && <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />}
-        <a
-          href={`/p/${pauta.slug}/card.png`}
-          download={`lumens-${pauta.slug}.png`}
-          className={estilos.fantasma}
-          aria-label={`Baixar card da pauta ${pauta.titulo}`}
-        >
-          Baixar card
-        </a>
+        {/* No celular o "Apoiar" é o da barra fixa, no fim da tela: este some para não repetir. */}
+        {mostraApoiar(pauta.status) && (
+          <span className={estilos.apoiarDoTopo}>
+            <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
+          </span>
+        )}
+        <CompartilharCard
+          slug={pauta.slug}
+          titulo={pauta.titulo}
+          apoios={formatarNumero(pauta.apoios)}
+          etapa={STATUS[pauta.status].rotulo}
+          link={new URL(`/p/${pauta.slug}`, origemDoSite()).href}
+        />
         {mostraApoiar(pauta.status) && (
           <p className={estilos.nota}>
             O botão abre o {nomeDoCanal()} com a mensagem pronta. Apoiar, relatar e ajudar acontecem

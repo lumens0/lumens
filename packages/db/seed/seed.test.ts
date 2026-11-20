@@ -18,6 +18,7 @@ const tabelasAdministradas = [
   'apoio',
   'bloco',
   'caminho',
+  'conquista_curadoria',
   'curador',
   'estudante',
   'evento',
@@ -499,7 +500,7 @@ describe('seed completo em Postgres real', () => {
       const primeiro = await registrosPersistidos(pool);
       const segundo = await registrosPersistidos(segundoPool);
 
-      expect(Object.keys(primeiro)).toHaveLength(13);
+      expect(Object.keys(primeiro)).toHaveLength(14);
       expect(Object.values(primeiro).every((registros) => (registros?.length ?? 0) > 0)).toBe(true);
       expect(segundo).toEqual(primeiro);
     } finally {
@@ -528,6 +529,7 @@ describe('falhas do seed', () => {
       apoio: 0,
       bloco: 0,
       caminho: 0,
+      conquista_curadoria: 0,
       curador: 0,
       estudante: 0,
       evento: 0,
@@ -555,6 +557,7 @@ describe('falhas do seed', () => {
       apoio: 0,
       bloco: 0,
       caminho: 0,
+      conquista_curadoria: 0,
       curador: 0,
       estudante: 0,
       evento: 0,

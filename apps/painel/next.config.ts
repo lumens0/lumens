@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // Sem `X-Powered-By: Next.js` (SCRUM-303): a resposta não anuncia o framework.
   poweredByHeader: false,
+  // A foto do card de conquista (até 5 MB) vai no próprio formulário: o padrão de 1 MB a recusaria.
+  experimental: { serverActions: { bodySizeLimit: '6mb' } },
   // Cabeçalhos de segurança, anti-clickjacking incluído (SCRUM-377).
   headers() {
     return Promise.resolve([{ source: '/:path*', headers: CABECALHOS_DE_SEGURANCA }]);

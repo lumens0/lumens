@@ -98,6 +98,7 @@ test('o botão "Apoiar" monta o link wa.me certo', async ({ page }) => {
 const CONQUISTA = {
   slug: 'laboratorios-abertos-nas-engenharias',
   titulo: 'Laboratórios de informática abertos no contraturno',
+  feito: 'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
 };
 // O seed tem 25 eventos públicos (o mesmo que `apps/backend/src/api/api.test.ts` confere): 20 na
 // primeira página e 5 na segunda. O mais novo é a entrega em parte da pauta da acessibilidade.
@@ -125,6 +126,8 @@ test('conquistas lista a pauta conquistada e leva até ela', async ({ page }) =>
     page.getByRole('heading', { level: 1, name: 'O que os estudantes já conquistaram' }),
   ).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(1);
+  // SCRUM-394: o texto que a curadoria escreveu (o seed tem só o texto, sem foto).
+  await expect(page.getByRole('article').getByText(CONQUISTA.feito)).toBeVisible();
   await page.getByRole('link', { name: CONQUISTA.titulo, exact: true }).click();
   await expect(page).toHaveURL(`/p/${CONQUISTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: CONQUISTA.titulo })).toBeVisible();
@@ -261,5 +264,61 @@ test.describe('folha "Escolher blocos"', () => {
     await folha.getByRole('searchbox').fill('SAUDE');
     await expect(folha.getByRole('button', { name: /Saúde/ })).toBeVisible();
     await expect(folha.getByRole('button', { name: BLOCO.nome })).toBeHidden();
+  });
+});
+
+// E5: o detalhe da pauta, o fio de etapas e o diálogo "Compartilhar card".
+test.describe('detalhe da pauta', () => {
+  test('mostra o fio de etapas, com a etapa atual marcada', async ({ page }) => {
+    await page.goto(`/p/${PAUTA.slug}`);
+    const fio = page.getByRole('list', { name: 'Etapas da pauta' });
+    await expect(fio.getByRole('listitem')).toHaveCount(5);
+    await expect(fio.locator('[aria-current="step"]')).toHaveCount(1);
+    await expect(fio.locator('[aria-current="step"]')).toContainText('Apoios');
+  });
+
+  test('"Compartilhar card" abre o diálogo com a imagem do servidor; Esc fecha e devolve o foco', async ({
+    page,
+  }) => {
+    await page.goto(`/p/${PAUTA.slug}`);
+    const gatilho = page.getByRole('button', { name: 'Compartilhar card' });
+    await gatilho.click();
+    const dialogo = page.getByRole('dialog', { name: 'Compartilhar card' });
+    await expect(dialogo).toBeVisible();
+    await expect(dialogo.getByRole('img')).toHaveAttribute('src', `/p/${PAUTA.slug}/card.png`);
+    await expect(dialogo.getByRole('link', { name: /^Baixar card/ })).toHaveAttribute(
+      'href',
+      `/p/${PAUTA.slug}/card.png`,
+    );
+    await expect(dialogo.getByRole('button', { name: 'Copiar só o link' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialogo).toBeHidden();
+    await expect(gatilho).toBeFocused();
+  });
+
+  test('pauta conquistada mostra os três números da conquista', async ({ page }) => {
+    await page.goto('/p/laboratorios-abertos-nas-engenharias');
+    const fatos = page.getByRole('region', { name: 'A comunidade conquistou esta pauta' });
+    await expect(fatos.getByText('Conquistada em')).toBeVisible();
+    await expect(fatos.getByText('Da criação à entrega')).toBeVisible();
+    await expect(fatos.getByText('Apoios', { exact: true })).toBeVisible();
+  });
+
+  test('pauta conquistada mostra o que foi feito, escrito pela curadoria (SCRUM-394)', async ({
+    page,
+  }) => {
+    await page.goto(`/p/${CONQUISTA.slug}`);
+    await expect(page.getByText(CONQUISTA.feito)).toBeVisible();
+    // O seed não tem foto: nenhuma imagem de "o que foi feito".
+    await expect(page.getByAltText(/^Foto do que foi feito/)).toHaveCount(0);
+  });
+
+  test('o card de conquista sai como PNG de 1080 × 1920', async ({ request }) => {
+    const resposta = await request.get('/p/laboratorios-abertos-nas-engenharias/card.png');
+    expect(resposta.status()).toBe(200);
+    expect(resposta.headers()['content-type']).toBe('image/png');
+    const png = await resposta.body();
+    expect(png.readUInt32BE(16)).toBe(1080);
+    expect(png.readUInt32BE(20)).toBe(1920);
   });
 });

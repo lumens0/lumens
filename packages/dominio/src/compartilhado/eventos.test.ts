@@ -125,7 +125,7 @@ describe('registrarEvento (RN11)', () => {
   });
 
   it('o catálogo inclui os eventos de meta, bloco, prazos, categoria e urgência da curadoria', () => {
-    expect(TIPOS_EVENTO).toHaveLength(24);
+    expect(TIPOS_EVENTO).toHaveLength(25);
     expect(TIPOS_EVENTO).toContain('categoria_alterada');
     expect(TIPOS_EVENTO).toContain('pauta_urgente');
     expect(TIPOS_EVENTO).toContain('bloco_corrigido');
