@@ -26,19 +26,12 @@ const GRAVES = new Set(['serious', 'critical']);
 
 for (const { nome, caminho } of PAGINAS) {
   test(`${nome}: nenhuma violação serious ou critical (axe)`, async ({ page }) => {
+    // O axe mede o contraste na cor que está na tela: com um card no meio da animação de entrada
+    // (opacidade parcial, inclusive a que se liga à rolagem), o texto parece claro demais. O CSS do
+    // site já desliga as animações com "reduzir movimento"; o teste pede isso e mede o estado final.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(caminho);
     await expect(page.locator('main')).toBeVisible();
-    // O axe mede o contraste na cor que está na tela: com o card ainda surgindo (opacidade no meio da
-    // animação de entrada), o texto parece claro demais. Espera as animações que terminam; as que se
-    // repetem para sempre (pulsos, cintilação) ficam de fora.
-    await page.evaluate(() =>
-      Promise.all(
-        document
-          .getAnimations()
-          .filter((animacao) => animacao.effect?.getComputedTiming().iterations !== Infinity)
-          .map((animacao) => animacao.finished),
-      ),
-    );
 
     const { violations } = await new AxeBuilder({ page }).withTags(NORMAS).analyze();
 
