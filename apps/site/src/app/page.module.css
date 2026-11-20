@@ -405,6 +405,29 @@
   gap: 8px;
 }
 
+.feito {
+  margin: 0;
+  color: var(--tinta-2);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.feitoRotulo {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+/* Foto da conquista (SCRUM-394): cabe na coluna do memorial, sem esticar a linha. */
+.fotoDoFeito {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  object-fit: cover;
+}
+
 .ano {
   font:
     700 30px/1 var(--fonte-titulo),

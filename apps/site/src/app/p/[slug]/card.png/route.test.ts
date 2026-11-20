@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buscarPauta } from '../../../../dados/api';
+import { buscarFoto, buscarPauta } from '../../../../dados/api';
 import { fixture } from '../../../../dados/pauta-detalhe-teste';
-import { janelasAcesas, qrDoLink } from '../card';
+import { fotoDaConquista, janelasAcesas, qrDoLink } from '../card';
 import { GET } from './route';
 
-vi.mock('../../../../dados/api', () => ({ buscarPauta: vi.fn() }));
+vi.mock('../../../../dados/api', () => ({ buscarPauta: vi.fn(), buscarFoto: vi.fn() }));
+
+// JPEG de verdade (1×1, cinza): o satori decodifica a imagem ao desenhar o card.
+const JPEG = Uint8Array.from(
+  Buffer.from(
+    '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
+    'base64',
+  ),
+).buffer;
 
 const pedir = (slug: string) =>
   GET(new Request(`https://lumens.teste/p/${slug}/card.png`), {
@@ -19,7 +27,10 @@ function dimensoes(png: Buffer) {
 
 // Gerar a imagem leva segundos no CI, e o primeiro teste ainda lê as fontes e inicia o satori.
 describe('GET /p/[slug]/card.png', { timeout: 30_000 }, () => {
-  beforeEach(() => vi.mocked(buscarPauta).mockReset());
+  beforeEach(() => {
+    vi.mocked(buscarPauta).mockReset();
+    vi.mocked(buscarFoto).mockReset();
+  });
 
   it('devolve PNG 1080 × 1920 com cache de 5 min, lendo a mesma pauta da página', async () => {
     vi.mocked(buscarPauta).mockResolvedValue(fixture);
@@ -85,6 +96,55 @@ describe('GET /p/[slug]/card.png', { timeout: 30_000 }, () => {
       expect(dimensoes(Buffer.from(await resposta.arrayBuffer())).altura).toBe(1920);
     });
 
+    describe('com o texto e a foto da curadoria (SCRUM-394)', () => {
+      const CHAVE = 'fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg';
+      const daCuradoria = {
+        ...(conquistada as object),
+        caminhos: [executada],
+        o_que_foi_feito: 'Trocaram as lâmpadas do corredor do bloco.',
+        foto: CHAVE,
+      } as never;
+
+      it('busca a foto pelo caminho público e desenha o card no mesmo tamanho', async () => {
+        vi.mocked(buscarPauta).mockResolvedValue(daCuradoria);
+        vi.mocked(buscarFoto).mockResolvedValue({ bytes: JPEG, tipo: 'image/jpeg' });
+        const resposta = await pedir(fixture.slug);
+        expect(resposta.status).toBe(200);
+        expect(buscarFoto).toHaveBeenCalledWith(
+          '2026',
+          '11',
+          '0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg',
+        );
+        expect(dimensoes(Buffer.from(await resposta.arrayBuffer()))).toEqual({
+          largura: 1080,
+          altura: 1920,
+        });
+      });
+
+      it('foto que não abre não derruba o card: sai com a fachada acesa', async () => {
+        vi.mocked(buscarPauta).mockResolvedValue(daCuradoria);
+        vi.mocked(buscarFoto).mockRejectedValue(new Error('API fora'));
+        const resposta = await pedir(fixture.slug);
+        expect(resposta.status).toBe(200);
+        expect(dimensoes(Buffer.from(await resposta.arrayBuffer())).altura).toBe(1920);
+      });
+
+      it('pauta sem foto da curadoria nem chega a pedir a foto', async () => {
+        vi.mocked(buscarPauta).mockResolvedValue({
+          ...(daCuradoria as object),
+          foto: null,
+        } as never);
+        expect((await pedir(fixture.slug)).status).toBe(200);
+        expect(buscarFoto).not.toHaveBeenCalled();
+      });
+
+      it('só a pauta conquistada usa a foto: o card de andamento ignora', async () => {
+        vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, foto: CHAVE });
+        expect((await pedir(fixture.slug)).status).toBe(200);
+        expect(buscarFoto).not.toHaveBeenCalled();
+      });
+    });
+
     it('renderiza sem data de conquista, sem "NaN dias"', async () => {
       vi.mocked(buscarPauta).mockResolvedValue({
         ...(conquistada as object),
@@ -106,6 +166,41 @@ describe('GET /p/[slug]/card.png', { timeout: 30_000 }, () => {
     // Status que a API nunca devolve: o card, como a página, não confia só no filtro de lá.
     vi.mocked(buscarPauta).mockResolvedValue({ ...fixture, status } as never);
     expect((await pedir(fixture.slug)).status).toBe(404);
+  });
+});
+
+describe('fotoDaConquista', () => {
+  beforeEach(() => vi.mocked(buscarFoto).mockReset());
+  const CHAVE = 'fotos/2026/11/abc-123.jpg';
+
+  it('vira data URI com o tipo que o back-end informou', async () => {
+    vi.mocked(buscarFoto).mockResolvedValue({ bytes: JPEG, tipo: 'image/jpeg' });
+    const uri = await fotoDaConquista(CHAVE);
+    expect(uri).toBe(`data:image/jpeg;base64,${Buffer.from(JPEG).toString('base64')}`);
+    expect(buscarFoto).toHaveBeenCalledWith('2026', '11', 'abc-123.jpg');
+  });
+
+  it('aceita o tipo com parâmetro e PNG', async () => {
+    vi.mocked(buscarFoto).mockResolvedValue({ bytes: JPEG, tipo: 'image/png; charset=binary' });
+    expect(await fotoDaConquista(CHAVE)).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it.each([
+    ['sem chave', null],
+    ['chave com caminho estranho', '../fotos/2026/11/a.jpg'],
+    ['chave de outro bucket', 'respostas/2026/11/a.pdf'],
+  ])('%s: nem pede a foto', async (_nome, chave) => {
+    expect(await fotoDaConquista(chave)).toBeNull();
+    expect(buscarFoto).not.toHaveBeenCalled();
+  });
+
+  it('404, tipo que o satori não abre (WebP) e erro da API dão null', async () => {
+    vi.mocked(buscarFoto).mockResolvedValueOnce(null);
+    expect(await fotoDaConquista(CHAVE)).toBeNull();
+    vi.mocked(buscarFoto).mockResolvedValueOnce({ bytes: JPEG, tipo: 'image/webp' });
+    expect(await fotoDaConquista(CHAVE)).toBeNull();
+    vi.mocked(buscarFoto).mockRejectedValueOnce(new Error('API fora'));
+    expect(await fotoDaConquista(CHAVE)).toBeNull();
   });
 });
 

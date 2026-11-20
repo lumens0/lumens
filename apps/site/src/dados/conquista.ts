@@ -14,3 +14,19 @@ export function solucaoEntregue(pauta: PautaDetalhe): Caminho | undefined {
       caminho.tipo === 'proposta' && (caminho.status === 'executada' || caminho.executada_em),
   );
 }
+
+/** O que foi feito, para o card, a página da pauta e /conquistas (SCRUM-394). */
+export interface OQueFoiFeito {
+  /** O texto da curadoria; sem ele, a descrição do caminho executado (só na pauta, que a tem). */
+  texto: string | null;
+  /** Chave da foto da curadoria (`fotos/AAAA/MM/<uuid>.jpg`); `null` sem foto. */
+  foto: string | null;
+}
+
+export function oQueFoiFeito(
+  pauta: Pick<PautaDetalhe, 'o_que_foi_feito' | 'foto' | 'caminhos'>,
+): OQueFoiFeito {
+  const daCuradoria = pauta.o_que_foi_feito?.trim();
+  const doCaminho = solucaoEntregue(pauta as PautaDetalhe)?.descricao?.trim();
+  return { texto: daCuradoria || doCaminho || null, foto: pauta.foto };
+}

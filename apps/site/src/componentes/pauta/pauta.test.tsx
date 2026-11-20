@@ -815,6 +815,66 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).not.toContain('Próxima etapa');
   });
 
+  describe('o que foi feito pela curadoria (SCRUM-394)', () => {
+    const FOTO = 'fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg';
+
+    it('o texto da curadoria ganha da descrição do caminho, e a foto aparece pela rota do site', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta
+          pauta={{ ...completa, o_que_foi_feito: 'Pintaram os laboratórios.', foto: FOTO }}
+        />,
+      );
+      expect(html).toContain('Pintaram os laboratórios.');
+      // O bloco "Solução entregue" mostra o texto da curadoria, não a descrição do caminho.
+      expect(html).toMatch(
+        /<h2[^>]*>Solução entregue<\/h2><p[^>]*>Pintaram os laboratórios\.<\/p>/,
+      );
+      expect(html).toContain(`src="/${FOTO}"`);
+      expect(html).toContain(`alt="Foto do que foi feito: ${completa.titulo}"`);
+    });
+
+    it('sem texto da curadoria, a descrição do caminho continua de reserva', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...completa, o_que_foi_feito: '  ', foto: null }} />,
+      );
+      expect(html).toMatch(
+        /<h2[^>]*>Solução entregue<\/h2><p[^>]*>Mutirão de pintura dos laboratórios<\/p>/,
+      );
+      expect(html).not.toContain('Foto do que foi feito');
+    });
+
+    it('sem solução executada, o texto e a foto da curadoria ainda formam o bloco', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta
+          pauta={{
+            ...completa,
+            caminhos: [],
+            o_que_foi_feito: 'Trocaram as lâmpadas.',
+            foto: FOTO,
+          }}
+        />,
+      );
+      expect(html).toContain('O que foi feito');
+      expect(html).toContain('Trocaram as lâmpadas.');
+      expect(html).not.toContain('Solução da comunidade');
+      expect(html).toContain(`src="/${FOTO}"`);
+    });
+
+    it('chave de foto fora do formato não vira src', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...completa, foto: '../../segredo.jpg' }} />,
+      );
+      expect(html).not.toContain('segredo');
+    });
+
+    it('pauta que não é conquistada não mostra o bloco, mesmo com a foto no dado', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...fixture, o_que_foi_feito: 'x', foto: FOTO }} />,
+      );
+      expect(html).not.toContain(FOTO);
+    });
+  });
+
   it('pauta em outro status continua como estava', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
     expect(html).not.toContain('conquistou esta pauta');

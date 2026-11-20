@@ -3,6 +3,7 @@ import {
   apoios,
   blocos,
   caminhos,
+  conquistasDaCuradoria,
   curadores,
   estudantes,
   eventos,
@@ -38,6 +39,10 @@ export async function executarSeed(db: Db): Promise<void> {
     await tx
       .insert(respostasConferencia)
       .values(dadosSeed.respostasConferencia)
+      .onConflictDoNothing();
+    await tx
+      .insert(conquistasDaCuradoria)
+      .values(dadosSeed.conquistasCuradoria)
       .onConflictDoNothing();
     await tx.insert(eventos).values(dadosSeed.eventos).onConflictDoNothing();
   });

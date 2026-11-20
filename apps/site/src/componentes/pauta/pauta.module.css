@@ -466,6 +466,20 @@
   color: #1f5c39;
 }
 
+/* Foto do que foi feito (SCRUM-394): ocupa a largura da coluna e nunca passa de 360 px de altura. */
+.fotoDoFeito {
+  margin: 12px 0 0;
+}
+
+.fotoDoFeito img {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  object-fit: cover;
+}
+
 .conquistaTitulo {
   margin: 0;
   font:

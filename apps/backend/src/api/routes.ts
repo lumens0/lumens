@@ -155,8 +155,9 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
     return listarAtividade(db, query);
   });
 
-  // Só a foto de relato aprovado (`v_relato_publico`): a chave de relato pendente ou recusado, ou
-  // de qualquer outro arquivo do bucket (PDF da resposta, por exemplo), responde 404 igual
+  // Só a foto de relato aprovado (`v_relato_publico`) ou a da conquista, com a pauta conquistada
+  // (SCRUM-394): a chave de relato pendente ou recusado, de conquista que deixou de ser conquistada
+  // ou de qualquer outro arquivo do bucket (PDF da resposta, por exemplo), responde 404 igual
   // (SCRUM-263). A chave gravada é `fotos/AAAA/MM/<uuid>.<ext>`.
   app.get('/fotos/:ano/:mes/:arquivo', async (req, reply) => {
     const { ano, mes, arquivo: nome } = req.params as Record<'ano' | 'mes' | 'arquivo', string>;
