@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { StatusPublico } from '@lumens/contratos';
 import { alternar, urlDeFiltros } from '../../dados/filtros';
+import { aplicarBlocos } from '../../dados/pendentes';
 import {
   buscarNaFolha,
   resumoDaFolha,
@@ -42,7 +43,7 @@ export function FolhaDeBlocos({
   /** Página que recebe o filtro: `/` (Início) ou `/pautas`. */
   base: string;
   /** Endereço depois de aplicar, quando a página guarda mais que etapas e blocos (busca, ordem). */
-  montarUrl?: (blocos: string[]) => string;
+  montarUrl?: (blocos: string[], status: readonly string[]) => string;
   blocos: BlocoDaFolha[];
   catalogo: Bloco[];
   siglas: Record<string, string>;
@@ -92,12 +93,12 @@ export function FolhaDeBlocos({
   };
   const aplicar = () => {
     if (escolha.length === 0) return;
-    router.replace(
-      montarUrl?.(escolha) ?? urlDeFiltros(base, { status: atual.status, bloco: escolha }),
-      {
-        scroll: false,
-      },
-    );
+    // A escolha entra na pendente compartilhada, partindo das etapas pendentes (e não das que a página
+    // ainda mostra): um clique numa etapa antes ou depois de aplicar não descarta os blocos nem a etapa.
+    const vigente = aplicarBlocos(atual, escolha);
+    router.replace(montarUrl?.(escolha, vigente.status) ?? urlDeFiltros(base, vigente), {
+      scroll: false,
+    });
     fechar();
   };
 

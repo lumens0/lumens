@@ -2,7 +2,15 @@
 
 import { STATUS_PUBLICOS, type StatusPublico } from '@lumens/contratos';
 import { useRouter } from 'next/navigation';
-import { alternar } from '../../dados/filtros';
+import { useEffect } from 'react';
+import { statusDaUrl } from '../../dados/filtros';
+import {
+  absorver,
+  chaveDe,
+  escolhaVigente,
+  limparGrupo,
+  proximaEscolha,
+} from '../../dados/pendentes';
 import type { BlocoDaFolha } from '../../dados/folha';
 import {
   ORDENS,
@@ -46,8 +54,25 @@ export function FiltrosDaLista({
   };
 }) {
   const router = useRouter();
+  const chave = chaveDe({ status, bloco });
+  useEffect(() => {
+    absorver({ status, bloco });
+    // `status` e `bloco` mudam de identidade a cada render do servidor; a chave diz se mudou o conteúdo.
+  }, [chave]);
   const ir = (mudanca: Partial<ParametrosDaLista>) => {
-    router.replace(urlDaLista({ q, ordem, status, bloco, ...mudanca }), { scroll: false });
+    // Parte da escolha vigente (a pendente, se ainda vale): mudar a ordem logo depois de escolher uma
+    // etapa ou um bloco não descarta o filtro que a página ainda não refletiu.
+    const vigente = escolhaVigente({ status, bloco });
+    router.replace(
+      urlDaLista({
+        q,
+        ordem,
+        status: statusDaUrl(vigente.status.join(',')),
+        bloco: [...vigente.bloco],
+        ...mudanca,
+      }),
+      { scroll: false },
+    );
   };
   return (
     <div className={estilos.controles}>
@@ -58,7 +83,8 @@ export function FiltrosDaLista({
             className={estilos.chip}
             aria-pressed={status.length === 0}
             onClick={() => {
-              ir({ status: [] });
+              const p = limparGrupo({ status, bloco }, 'status');
+              ir({ status: [], bloco: p.bloco });
             }}
           >
             Todas <span className={estilos.chipNumero}>{totalDaBusca}</span>
@@ -71,7 +97,9 @@ export function FiltrosDaLista({
               className={estilos.chip}
               aria-pressed={status.includes(etapa)}
               onClick={() => {
-                ir({ status: alternar(status, etapa) });
+                // Parte da escolha pendente (dois cliques antes de a página refletir não se perdem).
+                const p = proximaEscolha({ status, bloco }, 'status', etapa);
+                ir({ status: statusDaUrl(p.status.join(',')), bloco: [...p.bloco] });
               }}
             >
               <i
@@ -92,7 +120,9 @@ export function FiltrosDaLista({
           siglas={folha.siglas}
           pautas={folha.pautas}
           atual={{ status, bloco }}
-          montarUrl={(escolhidos) => urlDaLista({ q, ordem, status, bloco: escolhidos })}
+          montarUrl={(escolhidos, etapas) =>
+            urlDaLista({ q, ordem, status: statusDaUrl(etapas.join(',')), bloco: escolhidos })
+          }
         />
         <label className={estilos.ordem}>
           Ordenar por

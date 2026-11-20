@@ -2,34 +2,21 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, type CSSProperties } from 'react';
-import {
-  escolhaSeguinte,
-  urlDeFiltros,
-  type EscolhaPendente,
-  type Escolhas,
-} from '../../dados/filtros';
+import { urlDeFiltros, type Escolhas } from '../../dados/filtros';
+import { absorver, chaveDe, proximaEscolha } from '../../dados/pendentes';
 import type { StatusPauta } from '../../dados/tipos';
 import { STATUS } from '../StatusPill';
 import estilos from './inicio.module.css';
-
-/**
- * Compartilhado pelos filtros de etapa e de bloco: a última escolha enviada que a página ainda não
- * refletiu (veja `escolhaSeguinte`).
- */
-let pendente: EscolhaPendente | null = null;
-const chaveDe = (escolhas: Escolhas) => JSON.stringify([escolhas.status, escolhas.bloco]);
 
 function useAlternar(atual: Escolhas) {
   const router = useRouter();
   const chaveAtual = chaveDe(atual);
   useEffect(() => {
-    // O servidor devolveu o que foi pedido: a escolha pendente já foi absorvida.
-    if (pendente && chaveDe(pendente.escolhas) === chaveAtual) pendente = null;
+    absorver(atual);
+    // `atual` muda de identidade a cada render do servidor; a chave diz se o conteúdo mudou.
   }, [chaveAtual]);
   return (grupo: 'status' | 'bloco', valor: string) => {
-    const proxima = escolhaSeguinte({ atual, pendente, agora: Date.now(), grupo, valor });
-    pendente = { escolhas: proxima, em: Date.now() };
-    router.replace(urlDeFiltros('/', proxima), { scroll: false });
+    router.replace(urlDeFiltros('/', proximaEscolha(atual, grupo, valor)), { scroll: false });
   };
 }
 
