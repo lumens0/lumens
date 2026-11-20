@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { absorver, chaveDe, limparPendente, proximaEscolha, registrarEscolha } from './pendentes';
+import {
+  absorver,
+  aplicarBlocos,
+  chaveDe,
+  escolhaVigente,
+  limparPendente,
+  proximaEscolha,
+  registrarEscolha,
+} from './pendentes';
 
 const vazio = { status: [], bloco: [] };
 
@@ -43,5 +51,31 @@ describe('escolha pendente compartilhada', () => {
     absorver(vazio);
     const proxima = proximaEscolha(vazio, 'status', 'prometido', 1100);
     expect(proxima.status).toEqual(['cobrando', 'prometido']);
+  });
+});
+
+describe('aplicarBlocos (a folha de blocos)', () => {
+  it('mantém a etapa pendente: etapa e logo a folha, antes de a página refletir, preservam as duas', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    // `atual` ainda é "vazio": a página não refletiu a etapa.
+    const r = aplicarBlocos(vazio, ['ic', 'ctec'], 1200);
+    expect(r).toEqual({ status: ['cobrando'], bloco: ['ic', 'ctec'] });
+  });
+
+  it('sem pendente, parte do que a página mostra', () => {
+    const r = aplicarBlocos({ status: ['prometido'], bloco: [] }, ['ic'], 5000);
+    expect(r).toEqual({ status: ['prometido'], bloco: ['ic'] });
+  });
+
+  it('depois da folha, um clique numa etapa preserva os blocos', () => {
+    aplicarBlocos(vazio, ['ic'], 1000);
+    const r = proximaEscolha(vazio, 'status', 'cobrando', 1100);
+    expect(r).toEqual({ status: ['cobrando'], bloco: ['ic'] });
+  });
+
+  it('escolhaVigente devolve a pendente enquanto vale e a da página depois', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    expect(escolhaVigente(vazio, 1500).status).toEqual(['cobrando']);
+    expect(escolhaVigente(vazio, 1000 + 3000).status).toEqual([]);
   });
 });

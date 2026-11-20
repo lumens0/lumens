@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { StatusPublico } from '@lumens/contratos';
 import { alternar, urlDeFiltros } from '../../dados/filtros';
-import { registrarEscolha } from '../../dados/pendentes';
+import { aplicarBlocos } from '../../dados/pendentes';
 import {
   buscarNaFolha,
   resumoDaFolha,
@@ -90,12 +90,10 @@ export function FolhaDeBlocos({
   };
   const aplicar = () => {
     if (escolha.length === 0) return;
-    // A escolha entra na pendente compartilhada: um clique numa etapa logo depois (a folha fecha na
-    // hora, antes de a página refletir) parte dela e não descarta os blocos recém-escolhidos.
-    registrarEscolha({ status: atual.status, bloco: escolha });
-    router.replace(urlDeFiltros(base, { status: atual.status, bloco: escolha }), {
-      scroll: false,
-    });
+    // A escolha entra na pendente compartilhada, partindo das etapas pendentes (e não das que a página
+    // ainda mostra): um clique numa etapa antes ou depois de aplicar não descarta os blocos nem a etapa.
+    const vigente = aplicarBlocos(atual, escolha);
+    router.replace(urlDeFiltros(base, vigente), { scroll: false });
     fechar();
   };
 
