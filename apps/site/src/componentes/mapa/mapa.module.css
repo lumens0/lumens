@@ -801,8 +801,9 @@
   }
 
   .controles[data-painel] {
+    top: 64px;
     right: 12px;
-    bottom: 224px;
+    bottom: auto;
   }
 
   /* Girar fica com os dois dedos; os botões de giro saem para o conjunto caber sem cobrir a ajuda. */
@@ -821,8 +822,9 @@
   }
 
   .credito[data-painel] {
+    top: 214px;
     right: 12px;
-    bottom: 378px;
+    bottom: auto;
   }
 
   .painel {
@@ -831,23 +833,27 @@
     right: 0;
     bottom: 0;
     width: auto;
-    height: 68svh;
+    height: auto;
+    max-height: 54svh;
     padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
     border-radius: 22px 22px 0 0;
     border-left: none;
     border-right: none;
     border-bottom: none;
+    overflow-y: auto;
     transform: translateY(100%);
+    transition:
+      transform 320ms var(--curva),
+      max-height 320ms var(--curva),
+      opacity 220ms var(--curva);
   }
 
   .painel[data-aberto='true'] {
-    transform: translateY(calc(68svh - 210px));
-    overflow: hidden;
+    transform: none;
   }
 
   .painel[data-aberto='true'][data-expandido] {
-    transform: none;
-    overflow-y: auto;
+    max-height: 78svh;
   }
 
   .alca {

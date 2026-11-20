@@ -186,6 +186,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     setSel({ predio: p, bloco: porPredio.get(p.id) });
     setFolhaAberta(false);
     setLegendaAberta(false);
+    setAjudaVisivel(false);
     focar(p);
   };
   const clicarPredio = (p: Predio) => {
@@ -196,8 +197,9 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     setSel({ predio: p, bloco: m });
     setFolhaAberta(false);
     setLegendaAberta(false);
+    setAjudaVisivel(false);
     if (p) focar(p);
-    svg.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const fechar = () => {
     if (!camera.arrastou()) {
@@ -472,7 +474,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 className={estilos.alca}
                 aria-expanded={folhaAberta}
                 aria-label={
-                  folhaAberta ? 'Recolher as pautas do bloco' : 'Mostrar as pautas do bloco'
+                  folhaAberta ? 'Reduzir o painel do bloco' : 'Expandir o painel do bloco'
                 }
                 onClick={() => {
                   setFolhaAberta((a) => !a);
