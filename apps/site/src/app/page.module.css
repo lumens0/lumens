@@ -44,6 +44,20 @@
   color: var(--luz);
 }
 
+/* Título da aba Pautas: sem faixa de noite, o que importa é a lista logo abaixo. */
+.tituloDaLista {
+  margin: 0 0 16px;
+  font:
+    700 34px/1.1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* Chamada do Início para a lista. */
+.verPautas {
+  margin: 24px 0 0;
+}
+
 .subtitulo {
   margin: 0 0 28px;
   max-width: 54ch;

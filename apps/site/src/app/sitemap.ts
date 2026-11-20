@@ -4,7 +4,7 @@ import { buscarPautas } from '../dados/api';
 import { pautasPublicas } from '../dados/pautas-publicas';
 import { origemDoSite } from '../origem';
 
-const PAGINAS = ['/', '/conquistas', '/atividade', '/mapa', '/manual', '/privacidade'];
+const PAGINAS = ['/', '/pautas', '/conquistas', '/atividade', '/mapa', '/manual', '/privacidade'];
 
 /**
  * Páginas públicas e as pautas. Com a API fora do ar (a VM fica desligada quase sempre), responde

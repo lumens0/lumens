@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test';
 
 const PAGINAS = [
   { nome: 'início', caminho: '/' },
+  { nome: 'pautas', caminho: '/pautas' },
   // Pauta do seed com apoios, relatos e linha do tempo: a página mais cheia do site.
   { nome: 'pauta', caminho: '/p/bebedouros-no-bloco-18' },
   { nome: 'conquistas', caminho: '/conquistas' },
@@ -23,6 +24,10 @@ const GRAVES = new Set(['serious', 'critical']);
 
 for (const { nome, caminho } of PAGINAS) {
   test(`${nome}: nenhuma violação serious ou critical (axe)`, async ({ page }) => {
+    // O axe mede o contraste na cor que está na tela: com um card no meio da animação de entrada
+    // (opacidade parcial, inclusive a que se liga à rolagem), o texto parece claro demais. O CSS do
+    // site já desliga as animações com "reduzir movimento"; o teste pede isso e mede o estado final.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(caminho);
     await expect(page.locator('main')).toBeVisible();
 

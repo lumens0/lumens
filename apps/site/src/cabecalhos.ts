@@ -49,4 +49,4 @@ export const CACHE_PUBLICO = 'public, max-age=0, s-maxage=5, stale-while-revalid
 export const CACHE_DA_CDN = 'max-age=5, stale-while-revalidate=5';
 
 /** Páginas sem sessão que podem ir para a CDN. `/dados.csv` já tem o cache dele; `/p/:slug` é só a pauta (o card e o og.png ficam de fora). */
-export const PAGINAS_EM_CACHE = ['/', '/mapa', '/conquistas', '/atividade', '/p/:slug'];
+export const PAGINAS_EM_CACHE = ['/', '/pautas', '/mapa', '/conquistas', '/atividade', '/p/:slug'];
