@@ -42,10 +42,21 @@
   --raio-controle: 12px;
   --espaco: 16px;
 
+  /* Ritmo das páginas: distância do cabeçalho ao primeiro elemento e do último ao fim da tela. */
+  --pagina-topo: 24px;
+  --pagina-fim: 40px;
+
   --curva: cubic-bezier(0.2, 0.7, 0.2, 1);
   --rapido: 160ms;
   --entrada: 560ms;
 
   /* Sem a variável da fonte de rótulo: datas e números usam a do texto, com algarismos tabulares. */
   --fonte-rotulo: var(--fonte-corpo);
+}
+
+@media (min-width: 900px) {
+  :root {
+    --pagina-topo: 28px;
+    --pagina-fim: 48px;
+  }
 }

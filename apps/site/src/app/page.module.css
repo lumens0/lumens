@@ -1,7 +1,7 @@
 .pagina {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 40px 24px 64px;
+  padding: var(--pagina-topo) 24px calc(var(--pagina-fim) + env(safe-area-inset-bottom));
 }
 
 /* Cada bloco do topo entra com um atraso pequeno. */
@@ -58,14 +58,14 @@
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   gap: 40px;
-  margin: -40px 0 32px;
-  padding: 40px 0 44px;
+  margin: calc(-1 * var(--pagina-topo)) 0 32px;
+  padding: var(--pagina-topo) 0 44px;
 }
 
 /* Faixa de noite no topo das outras páginas: só o título e a introdução. */
 .faixa {
-  margin: -40px 0 40px;
-  padding: 56px 0 48px;
+  margin: calc(-1 * var(--pagina-topo)) 0 40px;
+  padding: var(--pagina-topo) 0 48px;
 }
 
 .faixa .subtitulo {
@@ -321,7 +321,7 @@
 }
 
 .rodape {
-  margin-top: 64px;
+  margin-top: 24px;
   padding-top: 24px;
   border-top: 1px solid var(--borda);
   font-size: 14px;
@@ -520,13 +520,14 @@
   }
 
   .hero {
-    padding: 40px 0 48px;
+    padding: var(--pagina-topo) 0 48px;
   }
 }
 
 @media (max-width: 560px) {
   .pagina {
-    padding: 24px 16px 48px;
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .titulo {
