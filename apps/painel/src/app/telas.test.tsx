@@ -922,3 +922,17 @@ describe('decisão: categoria de quem relatou e aviso de texto editado (E7)', ()
     );
   });
 });
+
+describe('lista de pautas: aviso de truncamento (E7)', () => {
+  it('sem truncamento, não há aviso; e com 200 pautas há', () => {
+    const sem = renderToStaticMarkup(
+      <ListaDePautas pautas={[pauta()]} situacoes={[]} pendencias={[]} q="" />,
+    );
+    expect(sem).not.toContain('mais antigas');
+    const cheia = Array.from({ length: 200 }, (_, i) => pauta({ id: `p${String(i)}` }));
+    const padrao = renderToStaticMarkup(
+      <ListaDePautas pautas={cheia} situacoes={[]} pendencias={[]} q="" />,
+    );
+    expect(padrao).toContain('mais antigas');
+  });
+});
