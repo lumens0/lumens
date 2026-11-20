@@ -128,6 +128,19 @@ describe('contarAte', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
+
+  it('um quadro com carimbo anterior ao início não mostra número negativo', () => {
+    const quadros: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => quadros.push(f));
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    vi.spyOn(performance, 'now').mockReturnValue(100);
+    const vistos: number[] = [];
+    contarAte(120, (n) => vistos.push(n), false);
+    quadros.shift()?.(84);
+    expect(vistos).toEqual([0]);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });
 
 describe('Numero', () => {

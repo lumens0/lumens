@@ -19,7 +19,9 @@ export function contarAte(
   }
   const inicio = performance.now();
   let quadro = requestAnimationFrame(function passo(agora) {
-    const t = Math.min(1, (agora - inicio) / 900);
+    // O carimbo do quadro pode ser anterior ao `inicio` (é o começo do quadro): t nunca é negativo,
+    // senão o número apareceria abaixo de zero no primeiro quadro.
+    const t = Math.min(1, Math.max(0, (agora - inicio) / 900));
     definir(Math.round(valor * (1 - (1 - t) ** 3)));
     if (t < 1) quadro = requestAnimationFrame(passo);
   });

@@ -25,6 +25,14 @@ export function BuscaDaLista({
   const filtros = useRef({ situacoes, pendencias });
   filtros.current = { situacoes, pendencias };
   useEffect(() => {
+    // Busca que chegou de fora (por exemplo, "Limpar filtros"): o campo acompanha. A que a própria
+    // pessoa digitou e já enviou não o reescreve no meio da digitação.
+    if (q.trim() !== ultimo.current.trim()) {
+      ultimo.current = q;
+      setTexto(q);
+    }
+  }, [q]);
+  useEffect(() => {
     if (texto.trim() === ultimo.current.trim()) return;
     const espera = setTimeout(() => {
       ultimo.current = texto;
