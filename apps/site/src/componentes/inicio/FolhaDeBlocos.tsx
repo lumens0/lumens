@@ -15,6 +15,7 @@ import { montarSkyline } from '../../dados/skyline';
 import type { Bloco, Pauta } from '../../dados/tipos';
 import { STATUS } from '../StatusPill';
 import estilos from './inicio.module.css';
+import { posicoesDasJanelas } from './Skyline';
 
 /** Só o que o prédio em miniatura precisa de cada pauta: a lista toda iria pesada ao navegador. */
 export type PautaDaFolha = Pick<
@@ -141,19 +142,31 @@ export function FolhaDeBlocos({
                   escolha.length > 0 && !predio.escolhido ? estilos.esmaecido : '',
                 ].join(' ')}
               >
+                <small>{predio.sigla}</small>
                 <div
                   className={estilos.miniJanelas}
                   style={{ '--colunas': predio.colunas } as CSSProperties}
                 >
-                  {predio.janelas.map((janela) => (
-                    <i
-                      key={janela.slug}
-                      style={{ background: STATUS[janela.status].ponto }}
-                      className={janela.fora ? estilos.fora : ''}
-                    />
-                  ))}
+                  {posicoesDasJanelas(predio.colunas * predio.linhas, predio.janelas.length).map(
+                    (indice, i) => {
+                      const janela = indice === null ? undefined : predio.janelas[indice];
+                      return janela ? (
+                        <i
+                          key={janela.slug}
+                          style={
+                            {
+                              background: STATUS[janela.status].ponto,
+                              '--cor': STATUS[janela.status].ponto,
+                            } as CSSProperties
+                          }
+                          className={[estilos.acesa, janela.fora ? estilos.fora : ''].join(' ')}
+                        />
+                      ) : (
+                        <i key={`apagada-${String(i)}`} />
+                      );
+                    },
+                  )}
                 </div>
-                <small>{predio.sigla}</small>
               </div>
             ))}
           </div>
@@ -190,8 +203,7 @@ export function FolhaDeBlocos({
                     setEscolha((anterior) => alternar(anterior, bloco.slug));
                   }}
                 >
-                  {bloco.nome}
-                  <span className={estilos.chipNumero}>{bloco.pautas}</span>
+                  {bloco.nome} <span className={estilos.chipNumero}>{bloco.pautas}</span>
                 </button>
               </li>
             ))}

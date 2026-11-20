@@ -101,25 +101,27 @@ describe('manual: várias fotos e edição depois da publicação', () => {
   });
 });
 
-describe('manual: o passo a passo em cards', () => {
-  it('abre com o primeiro fluxo e as abas de todos', () => {
+describe('manual: o passo a passo', () => {
+  it('abre com o primeiro fluxo e as fichas de todos', () => {
     expect(html).toContain('id="fluxos"');
-    expect(html).toContain('role="tablist"');
+    expect(html).toContain('aria-label="Escolher fluxo"');
     for (const rotulo of ['Relatar um problema', 'Apoiar uma pauta', 'Cuidar de uma pauta'])
       expect(html).toContain(`>${rotulo}</button>`);
+    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('Chame o bot');
-    expect(html).toContain('aria-expanded="true"');
   });
 
   it('cada passo diz onde acontece, com o nome escrito', () => {
-    expect(html).toContain('No bot');
-    expect(html).toContain('No site');
+    expect(html).toContain('Site');
     expect(html).toContain('Automático');
+    // O passo do bot leva o nome do canal ativo.
+    expect(html).toMatch(/<small>(WhatsApp|Telegram)<\/small>/);
   });
 
-  it('o exemplo da conversa é um grupo rotulado: as falas continuam legíveis para o leitor de tela', () => {
+  it('o detalhe fica em "Saiba mais" e o exemplo da conversa é um grupo rotulado', () => {
+    expect(html).toContain('<summary>Saiba mais</summary>');
     expect(html).toContain('role="group" aria-label="Exemplo da conversa"');
     expect(html).not.toContain('role="img"');
-    expect(html).toContain('Bot</span>');
+    expect(html).toContain('Bot: </span>');
   });
 });

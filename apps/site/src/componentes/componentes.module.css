@@ -230,39 +230,48 @@
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 10px 18px;
   border-radius: var(--raio-controle);
   font: inherit;
-  font-weight: 600;
-  font-size: 14.5px;
+  font-weight: 700;
+  font-size: 15px;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color var(--rapido) var(--curva),
-    border-color var(--rapido) var(--curva),
+    box-shadow 0.3s var(--curva),
+    background-color 0.3s var(--curva),
+    border-color 0.3s var(--curva),
     transform var(--rapido) var(--curva);
 }
 
 .botao:active,
 .botaoSecundario:active,
 .wa:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
-/* A ação principal é a luz: âmbar com texto escuro. O balão diz que abre o WhatsApp. */
+/* A ação principal é a luz: âmbar com texto escuro; no hover ganha brilho em vez de mudar de cor. */
 .botao,
 .wa {
   background: var(--luz);
-  border: 1px solid var(--luz);
-  color: #161a2e;
+  border: 1px solid transparent;
+  color: #231600;
 }
 
 .botao:hover,
 .wa:hover {
-  background: var(--luz-forte);
-  border-color: var(--luz-forte);
-  color: #161a2e;
+  color: #231600;
+  box-shadow: 0 8px 24px -6px rgb(255 164 27 / 70%);
+}
+
+/* "Relatar um problema" (cabeçalho, mapa, lista vazia): o botão da luz, com o brilho em volta. */
+.relatar {
+  padding: 11px 16px;
+}
+
+.relatar:hover {
+  box-shadow: 0 0 28px rgb(255 194 61 / 45%);
 }
 
 .botaoSecundario {

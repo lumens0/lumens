@@ -4,7 +4,7 @@
  * Fica fora de `page.tsx` porque uma página do Next só pode exportar o que o Next conhece.
  */
 export const SECOES = {
-  fluxos: { id: 'fluxos', titulo: 'O passo a passo em cards' },
+  fluxos: { id: 'fluxos', titulo: 'O passo a passo' },
   pauta: { id: 'pauta', titulo: 'O que é uma pauta' },
   relatar: { id: 'relatar-e-apoiar', titulo: 'Como relatar e apoiar' },
   perdido: { id: 'se-perder', titulo: 'Se você se perder na conversa' },

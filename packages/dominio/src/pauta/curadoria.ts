@@ -42,6 +42,8 @@ export const PRAZO_DE_CURADORIA_MS = 24 * 3_600_000;
 
 export interface PautaNaFila {
   id: string;
+  /** Endereço da pauta no site (`/p/<slug>`); a curadoria usa para abrir como o público vê. */
+  slug: string;
   titulo: string;
   descricao: string;
   /** `null` é pauta do campus inteiro. */
@@ -71,6 +73,7 @@ function lerPautas(db: Db, filtro: SQL, agora: Date, limite?: number): Promise<P
   return db
     .select({
       id: pautas.id,
+      slug: pautas.slug,
       titulo: pautas.titulo,
       descricao: pautas.descricao,
       bloco: blocos.nome,
@@ -142,7 +145,7 @@ const textoLiteral = (texto: string) => texto.replace(/[\\%_]/g, (c) => `\\${c}`
 
 /** O nome de cada situação como a curadoria lê na tela; a busca `q` também acha por ele. */
 export const ROTULOS_DE_STATUS: Record<StatusPauta, string> = {
-  em_curadoria: 'Esperando decisão da curadoria',
+  em_curadoria: 'Esperando decisão',
   recusada: 'Recusada',
   juntando_apoios: 'Juntando apoios',
   meta_batida: 'Meta batida',
@@ -152,6 +155,9 @@ export const ROTULOS_DE_STATUS: Record<StatusPauta, string> = {
   descumprida: 'Promessa descumprida',
   conquistada: 'Conquistada',
 };
+
+/** Termos que também levam a uma situação, além do rótulo da tela (quem procura "curadoria" ainda a acha). */
+const APELIDOS_DE_STATUS: Partial<Record<StatusPauta, string>> = { em_curadoria: 'da curadoria' };
 
 /** Texto do bloco quando a pauta é do campus inteiro (`bloco` nulo). */
 const ROTULO_CAMPUS = 'Campus inteiro';
@@ -188,7 +194,7 @@ function condicaoDaBusca(q: string): SQL[] {
       if (palavra === 'urgente') return sql`${pautas.urgente}`;
       const padrao = `%${textoLiteral(palavra)}%`;
       const statusDaPalavra = (Object.keys(ROTULOS_DE_STATUS) as StatusPauta[]).filter((s) =>
-        normalizar(ROTULOS_DE_STATUS[s]).includes(palavra),
+        normalizar(`${ROTULOS_DE_STATUS[s]} ${APELIDOS_DE_STATUS[s] ?? ''}`).includes(palavra),
       );
       const alternativas = [
         sql`${normalizadoNoBanco(pautas.titulo)} like ${padrao}`,

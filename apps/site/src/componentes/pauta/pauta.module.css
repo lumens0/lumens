@@ -1,323 +1,708 @@
-/* Página da pauta: cabeçalho solto, o placar de apoios em destaque e as seções em cards. */
-.pagina {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: var(--pagina-topo) 24px calc(var(--pagina-fim) + env(safe-area-inset-bottom));
-  overflow-wrap: anywhere;
+/*
+ * Página da pauta, como no protótipo: faixa de noite com o título e o placar lado a lado, o fio de
+ * etapas, e abaixo uma coluna de leitura sobre o papel claro, com seções separadas por filete.
+ */
+.caixa {
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px))
+    max(16px, env(safe-area-inset-right, 0px));
 }
 
+/* A faixa brilha na cor da etapa: 30% do raio e, na pauta conquistada, 55%. */
 .faixa {
-  margin: calc(-1 * var(--pagina-topo)) 0 24px;
-  padding: var(--pagina-topo) 0 48px;
+  --cor: var(--noite-3);
+
+  padding-bottom: 34px;
+  background:
+    radial-gradient(
+      90% 140% at 100% 0%,
+      color-mix(in srgb, var(--cor) 30%, transparent),
+      transparent 62%
+    ),
+    var(--noite);
 }
 
-.pagina > * {
-  animation: surgir var(--entrada) var(--curva) both;
-}
-
-.pagina > :nth-child(2) {
-  animation-delay: 60ms;
-}
-
-.pagina > :nth-child(n + 3) {
-  animation-delay: 120ms;
+.faixaConquistada {
+  background:
+    radial-gradient(
+      90% 140% at 100% 0%,
+      color-mix(in srgb, var(--cor) 55%, transparent),
+      transparent 62%
+    ),
+    var(--noite);
 }
 
 .voltar {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   min-height: 44px;
-  margin-bottom: 16px;
-  color: var(--tinta-2);
-  font-weight: 500;
+  margin: calc(var(--pagina-topo) - 12px) 0 -6px;
+  padding: 6px 0;
+  color: #c9cbe3;
+  font-weight: 600;
   font-size: 14px;
   text-decoration: none;
-  transition: color var(--rapido) var(--curva);
 }
 
 .voltar:hover {
-  color: var(--tinta);
+  color: #fff;
 }
 
-.cabecalho {
+.cabeca {
+  display: grid;
+  gap: 26px;
+  margin-top: 10px;
+}
+
+.etiqueta {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.glifo {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+  background: var(--cor);
+  box-shadow: 0 0 16px 2px var(--cor);
+  animation: pulsaGlifo 3s ease-in-out infinite;
+}
+
+.glifoVazado {
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px var(--cor),
+    0 0 16px 2px var(--cor);
+}
+
+@keyframes pulsaGlifo {
+  50% {
+    box-shadow: 0 0 28px 6px var(--cor);
+  }
+}
+
+.urgente {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--urgente);
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.06em;
 }
 
 .titulo {
-  margin: 0;
+  margin: 0 0 12px;
   font:
-    700 46px/1.04 var(--fonte-titulo),
+    800 clamp(32px, 8.6vw, 56px) / 1 var(--fonte-titulo),
     sans-serif;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
-.linha {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-}
-
-.owners {
+.onde {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  font-size: 14px;
-  color: var(--tinta-3);
+  color: #c9cbe3;
+  font-size: 15px;
 }
 
-.descricao {
-  margin: 4px 0 0;
-  max-width: 62ch;
-  font-size: 17px;
-  line-height: 1.55;
-  color: var(--tinta-2);
+.numero {
+  margin: 0;
+  overflow: hidden;
+  font:
+    800 clamp(72px, 22vw, 132px) / 0.85 var(--fonte-titulo),
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+}
+
+.rotuloDoNumero {
+  margin: 8px 0 12px;
+  color: #d3d5ea;
+  font-size: 15px;
+}
+
+.barra {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.barra i {
+  display: block;
+  width: var(--p);
+  height: 100%;
+  border-radius: 6px;
+  background: var(--cor);
+  box-shadow: 0 0 14px var(--cor);
+  transform-origin: left;
+  animation: cresce 1.1s var(--curva) both;
+}
+
+@keyframes cresce {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .cta {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.apoiar {
+  display: inline-flex;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--luz);
+  color: #231600;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    box-shadow 0.4s,
+    transform 0.2s;
+}
+
+.apoiar:hover {
+  box-shadow: 0 8px 24px -6px rgb(255 164 27 / 70%);
+}
+
+.apoiar:active {
+  transform: scale(0.96);
 }
 
 .fantasma {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 16px;
-  border-radius: var(--raio-controle);
-  border: 1px solid var(--borda-forte);
-  background: transparent;
-  color: var(--tinta);
-  font-weight: 500;
-  font-size: 14px;
+  padding: 12px 18px;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 12px;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
   text-decoration: none;
-  transition: border-color var(--rapido) var(--curva);
+  cursor: pointer;
 }
 
 .fantasma:hover {
-  border-color: var(--tinta-3);
+  background: rgb(255 255 255 / 8%);
 }
 
-.nota {
-  flex: 1 1 240px;
-  margin: 0;
-  font-size: 13px;
-  color: var(--tinta-3);
+/* O fio de etapas: cinco janelas ligadas por uma linha; as acesas e a atual na cor da etapa. */
+.fio {
+  --f: 0;
+
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: 34px 0 0;
+  padding: 0 0 26px;
+  list-style: none;
+}
+
+.fio::before,
+.fio::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 7px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.fio::before {
+  right: 7px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.fio::after {
+  width: calc((100% - 14px) * var(--f));
+  background: var(--cor);
+  box-shadow: 0 0 10px var(--cor);
+  transform-origin: left;
+  animation: cresce 1.2s 0.2s var(--curva) both;
+}
+
+.etapaDoFio {
+  position: relative;
+  z-index: 1;
+}
+
+.janelaDoFio {
+  display: block;
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+  background: #2d3670;
+  transition:
+    background 0.4s,
+    box-shadow 0.5s;
+}
+
+.fio_acesa .janelaDoFio {
+  background: var(--cor);
+  box-shadow: 0 0 12px var(--cor);
+}
+
+.fio_atual .janelaDoFio {
+  background: var(--cor);
+  box-shadow: 0 0 22px 3px var(--cor);
+  transform: scale(1.25);
+  animation: pulsaGlifo 2.8s ease-in-out infinite;
+}
+
+/* Promessa descumprida: a janela vazada, só o contorno vermelho. */
+.fio_vazada .janelaDoFio {
+  background: transparent;
+  box-shadow:
+    inset 0 0 0 2px var(--cor),
+    0 0 16px var(--cor);
+  transform: scale(1.25);
+}
+
+.rotuloDoFio {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  display: none;
+  translate: -50% 0;
+  color: #9095bd;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.etapaDoFio:first-of-type .rotuloDoFio {
+  left: 0;
+  translate: 0 0;
+}
+
+.etapaDoFio:last-of-type .rotuloDoFio {
+  right: 0;
+  left: auto;
+  translate: 0 0;
+}
+
+.fio_atual .rotuloDoFio,
+.fio_vazada .rotuloDoFio {
+  display: block;
+  color: #fff;
+  font-weight: 700;
+}
+
+@media (min-width: 620px) {
+  .rotuloDoFio {
+    display: block;
+  }
+}
+
+.fatos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 6px 0 0;
+}
+
+.fatos dt {
+  color: #c9cbe3;
+  font-size: 12px;
+}
+
+.fatos dd {
+  margin: 2px 0 0;
+  font:
+    800 clamp(20px, 6vw, 30px) var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Corpo: coluna de leitura sobre o papel. */
+.corpo {
+  padding-block: 34px calc(var(--pagina-fim) - 12px);
+  overflow-wrap: anywhere;
+}
+
+.coluna {
+  max-width: 760px;
+}
+
+.descricao {
+  margin: 0 0 8px;
+  color: var(--tinta-2);
+  font-size: 18px;
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .secao {
-  margin-top: 16px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  margin-top: 22px;
+  padding-block: 30px;
+  border-top: 1px solid var(--borda);
 }
 
 .secaoTitulo {
-  margin: 0;
+  margin: 0 0 12px;
   font:
-    700 22px var(--fonte-titulo),
+    800 clamp(24px, 6vw, 30px) / 1.05 var(--fonte-titulo),
     sans-serif;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  margin: -6px 0 16px;
+  color: var(--tinta-3);
+  font-size: 14px;
 }
 
 .texto {
+  max-width: 56ch;
   margin: 0;
-  line-height: 1.55;
+  color: var(--tinta-2);
 }
 
-.vazio,
+.vazio {
+  margin: 0;
+  color: var(--tinta-2);
+}
+
 .curso {
-  margin: 0;
+  margin: 8px 0 0 19px;
   color: var(--tinta-3);
-  font-size: 13.5px;
-}
-
-/* O placar: o número de apoios é o momento da página. */
-.placar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.numero {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.grande {
-  font:
-    800 72px/0.95 var(--fonte-titulo),
-    sans-serif;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
-}
-
-.de {
-  font-size: 15px;
-  color: var(--tinta-3);
+  font-size: 14px;
 }
 
 .proxima {
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--luz-fundo);
-  font-size: 14.5px;
+  margin-top: 0;
+  padding-top: 18px;
+  border-top: 0;
 }
 
-.proximaTitulo {
-  display: inline;
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--luz-tinta);
+.rotuloDaSecao {
+  margin: 0 0 6px;
+  color: var(--tinta-3);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.proximaTitulo::after {
-  content: ': ';
+.dataGrande {
+  margin: 0 0 6px;
+  color: var(--tinta-2);
+  font-size: 20px;
 }
 
-.proxima > .texto {
-  display: inline;
+.dataGrande b {
+  color: var(--tinta);
+  font:
+    800 28px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
 }
 
-.proxima > .vazio,
-.proxima > .vencido {
-  margin-top: 4px;
+.dataGrande b.ruim,
+.dataGrande .vencidoTexto {
+  color: var(--urgente);
 }
 
-/* Prazo vencido: o texto diz "venceu em", e a cor reforça (nunca é o único sinal). */
+.proxima .texto {
+  max-width: 52ch;
+}
+
 .vencido,
 .vencidoTexto {
   margin: 0;
-  font-size: 13.5px;
+  color: var(--urgente);
   font-weight: 600;
-  color: var(--vencido-tinta, #a4302a);
 }
 
 .vencidoTexto {
   font-size: inherit;
 }
 
-/* Resposta oficial recebida: o card fica verde. */
 .resposta {
-  background: #eef6f0;
-  border-color: rgb(46 125 79 / 25%);
+  margin: 0;
+  padding: 0;
+  font:
+    500 clamp(20px, 5vw, 26px) / 1.25 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
-.resposta .secaoTitulo {
-  color: #1f5c39;
+.resposta footer {
+  margin-top: 12px;
+  color: var(--tinta-3);
+  font:
+    500 14px var(--fonte-corpo),
+    sans-serif;
+  letter-spacing: 0;
+}
+
+.figura {
+  margin: 0;
+}
+
+.figura img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.figura figcaption {
+  max-width: 56ch;
+  margin-top: 12px;
+  color: var(--tinta-2);
+  font-size: 18px;
 }
 
 .caminhos {
+  display: grid;
+  gap: 18px;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
 }
 
 .caminho {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  background: var(--fundo);
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+}
+
+.glifoPequeno {
+  width: 14px;
+  height: 20px;
+  margin: 4px;
+  border-radius: 3px;
+  background: var(--c);
 }
 
 .caminhoTipo {
-  font-weight: 500;
-  font-size: 15px;
+  font:
+    700 19px var(--fonte-titulo),
+    sans-serif;
 }
 
-.chip {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
+.caminhoStatus {
+  margin-left: 10px;
+  color: var(--tinta-3);
   font-size: 13px;
+}
+
+.caminho p {
+  max-width: 54ch;
+  margin: 4px 0 10px;
   color: var(--tinta-2);
 }
 
-.chip::before {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: currentcolor;
-}
-
-.chipJuntando::before {
-  background: var(--status-apoios);
-}
-
-.chipEsperando::before {
-  background: var(--status-cobrando);
-}
-
-.chipFeito::before {
-  background: var(--status-conquistada);
-}
-
-.regra {
-  margin: 4px 0 0;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--tinta);
-  color: #f6f4ef;
+.detalhe {
+  display: block;
+  max-width: 54ch;
+  margin: 0 0 4px;
+  color: var(--tinta-2);
   font-size: 14px;
 }
 
-.regra b {
-  color: var(--luz);
-  font-weight: 600;
+.ajudar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid var(--tinta);
+  border-radius: 12px;
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background 0.3s,
+    color 0.3s;
 }
 
-.lista {
+.ajudar:hover {
+  background: var(--tinta);
+  color: #fff;
+}
+
+.regra {
+  max-width: 54ch;
+  margin: 22px 0 0;
+  color: var(--tinta-3);
+  font-size: 14px;
+}
+
+.relatos {
+  display: grid;
+  gap: 22px;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
-.relato {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 10px;
+.relato blockquote {
+  margin: 0;
+  padding-left: 16px;
+  border-left: 3px solid var(--luz);
+  font-size: 18px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.tempo {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tempo::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 10px;
+  width: 2px;
+  background: var(--borda);
+  transform-origin: top;
+  animation: cresceY 1.2s var(--curva) both;
+}
+
+@keyframes cresceY {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.tempo li {
+  position: relative;
+  padding: 0 0 24px 38px;
+}
+
+.marco,
+.marcoAtual {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
   background: var(--fundo);
+  box-shadow: inset 0 0 0 2px var(--tinta-3);
+  font-size: 0;
+}
+
+.marcoAtual {
+  background: var(--luz-forte);
+  box-shadow: 0 0 14px var(--luz);
+}
+
+.data {
+  display: block;
+  color: var(--tinta-3);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tempo strong {
+  display: block;
+  font:
+    700 18px / 1.2 var(--fonte-titulo),
+    sans-serif;
+}
+
+.rodape {
+  max-width: 60ch;
+  margin: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--borda);
+  color: var(--tinta-3);
+  font-size: 13px;
+}
+
+/* Barra fixa de apoiar, só no celular. */
+.barraFixa {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--borda);
+  background: rgb(250 247 240 / 92%);
+  backdrop-filter: blur(12px);
+}
+
+.barraFixa .caixa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.barraFixa span {
   font-size: 15px;
 }
 
-.relatoCorpo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.barraFixa b {
+  font:
+    800 20px var(--fonte-titulo),
+    sans-serif;
 }
 
+@media (min-width: 900px) {
+  .cabeca {
+    grid-template-columns: 1.3fr 1fr;
+    align-items: end;
+    gap: 56px;
+    margin-top: 26px;
+  }
+
+  .barraFixa {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glifo,
+  .fio_atual .janelaDoFio {
+    animation: none;
+  }
+}
+
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Fotos do relato (até três) e do que foi feito. */
 /* Fotos do relato (até três): miniaturas quadradas em fila, quebrando linha no celular. */
 .fotos {
   display: flex;
@@ -348,175 +733,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.somenteLeitor {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* Linha do tempo: janelas ligadas por um traço; a última, ainda acesa. */
-.tempo {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.tempo li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 12px;
-  padding-bottom: 16px;
-}
-
-.tempo li::before {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 18px;
-  bottom: 0;
-  width: 2px;
-  background: var(--borda);
-}
-
-.tempo li:last-child {
-  padding-bottom: 0;
-}
-
-.tempo li:last-child::before {
-  display: none;
-}
-
-.marco,
-.marcoAtual {
-  width: 12px;
-  height: 12px;
-  margin: 5px 4px 0;
-  border-radius: 3px;
-  font-size: 0;
-}
-
-.marco {
-  background: var(--tinta-3);
-}
-
-.marcoAtual {
-  background: var(--luz);
-  box-shadow: 0 0 0 4px var(--luz-fundo);
-}
-
-.data {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta-3);
-}
-
-.rodape {
-  margin: 24px 0 0;
-  font-size: 13.5px;
-  color: var(--tinta-3);
-}
-
-@media (max-width: 640px) {
-  .pagina {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
-  .titulo {
-    font-size: 34px;
-  }
-
-  .grande {
-    font-size: 56px;
-  }
-
-  .secao {
-    padding: 20px;
-  }
-}
-
-/* Visão de conquista (SCRUM-352): o verde do status "conquistada", no tom do memorial. */
-.conquista {
-  background: #eef6f0;
-  border-color: rgb(46 125 79 / 30%);
-  border-left: 6px solid var(--status-conquistada);
-}
-
-.seloConquista,
-.seloSolucao {
-  align-self: flex-start;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 13px;
-  /* O verde da etapa com 20% de preto: o texto branco de 13 px passa de 4,5:1 (era 4,4:1). */
-  background: color-mix(in srgb, var(--status-conquistada) 80%, #000);
-  color: #fff;
-}
-
-.seloSolucao {
-  background: transparent;
-  border: 1px solid var(--status-conquistada);
-  color: #1f5c39;
-}
-
-/* Foto do que foi feito (SCRUM-394): ocupa a largura da coluna e nunca passa de 360 px de altura. */
-.fotoDoFeito {
-  margin: 12px 0 0;
-}
-
-.fotoDoFeito img {
-  display: block;
-  width: 100%;
-  max-height: 360px;
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  object-fit: cover;
-}
-
-.conquistaTitulo {
-  margin: 0;
-  font:
-    700 24px/1.15 var(--fonte-titulo),
-    sans-serif;
-  color: #1f5c39;
-  text-wrap: balance;
-}
-
-.fatos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 32px;
-  margin: 0;
-}
-
-.fatos div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.fatos dt {
-  font-size: 13px;
-  color: var(--tinta-3);
-}
-
-.fatos dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Marcos da conquista na linha do tempo: resposta, promessa e a virada de status. */
-.tempoMarco .texto {
-  font-weight: 600;
 }
 
 /* Foto ampliada: um diálogo por cima da página, em tela cheia, que fecha ao tocar no fundo. */
@@ -607,235 +823,44 @@
   outline-offset: 2px;
 }
 
-/* ---- E5: faixa com brilho, fio de etapas, próxima etapa, barra fixa e card ---- */
-
-/* O brilho da cor da etapa no canto da faixa de noite: 30% e, na conquistada, 55%. */
-.faixa {
-  isolation: isolate;
-}
-
-.faixa::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image: radial-gradient(
-    ellipse at 85% 0%,
-    color-mix(in srgb, var(--cor) 30%, transparent),
-    transparent 65%
-  );
-  pointer-events: none;
-  /* O brilho some nas laterais: fora da caixa da faixa o fundo noite segue liso, sem emenda. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
-}
-
-.faixaConquistada::before {
-  background-image: radial-gradient(
-    ellipse at 85% 0%,
-    color-mix(in srgb, var(--cor) 55%, transparent),
-    transparent 70%
-  );
-}
-
-button.fantasma {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.fio {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  gap: 4px;
-  margin: 24px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A linha que liga as cinco janelas passa por trás delas. */
-.fio::before {
-  content: '';
-  position: absolute;
-  top: 12px;
-  right: 10px;
-  left: 10px;
-  height: 2px;
-  background: var(--borda-forte);
-}
-
-.etapaDoFio {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  text-align: center;
-}
-
-.janelaDoFio {
-  display: block;
-  width: 14px;
-  height: 20px;
-  border-radius: 3px;
-  background: var(--noite-2);
-  box-shadow: 0 0 0 3px var(--noite);
-}
-
-.fio_acesa .janelaDoFio {
-  background: var(--cor);
-  box-shadow:
-    0 0 0 3px var(--noite),
-    0 0 8px color-mix(in srgb, var(--cor) 60%, transparent);
-}
-
-.fio_atual .janelaDoFio {
-  width: 18px;
-  height: 26px;
-  background: var(--cor);
-  box-shadow:
-    0 0 0 3px var(--noite),
-    0 0 14px var(--cor);
-  animation: pulsoDaJanela 2.4s ease-in-out infinite;
-}
-
-/* Promessa descumprida: a janela vazada, só o contorno vermelho. */
-.fio_vazada .janelaDoFio {
-  width: 18px;
-  height: 26px;
-  background: var(--noite);
-  box-shadow:
-    0 0 0 3px var(--noite),
-    inset 0 0 0 2px var(--cor);
-}
-
-@keyframes pulsoDaJanela {
-  50% {
-    transform: scale(1.12);
-  }
-}
-
-.rotuloDoFio {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tinta-3);
-}
-
-.fio_atual .rotuloDoFio,
-.fio_vazada .rotuloDoFio {
-  color: var(--tinta);
-}
-
-/* No celular só o rótulo da etapa atual aparece; a lista inteira segue para o leitor de tela. */
-@media (max-width: 619px) {
-  .fio_acesa .rotuloDoFio,
-  .fio_apagada .rotuloDoFio {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-}
-
-/* A data da próxima etapa em destaque. */
-.dataGrande {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 12px;
-  margin: 4px 0 8px;
-  font:
-    700 32px/1.1 var(--fonte-titulo),
-    sans-serif;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.diasAte {
-  font:
-    500 15px var(--fonte-corpo),
-    sans-serif;
-  letter-spacing: 0;
-  color: var(--tinta-2);
-}
-
-.dataGrande .vencidoTexto {
-  font:
-    600 15px var(--fonte-corpo),
-    sans-serif;
-  letter-spacing: 0;
-  color: var(--urgente);
-}
-
-/* Barra fixa de apoiar, só no celular. No topo da pauta o "Apoiar" some no celular e fica aqui. */
-.barraFixa {
-  display: none;
-}
-
-@media (max-width: 899px) {
-  .apoiarDoTopo {
-    display: none;
-  }
-
-  .barraFixa {
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 24px -24px calc(-1 * var(--pagina-fim, 40px));
-    padding: 10px 24px calc(10px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--borda-forte);
-    background: var(--superficie);
-    font-size: 14px;
-    box-shadow: 0 -8px 24px rgb(20 25 54 / 10%);
-  }
-
-  .barraFixa strong {
-    font-size: 18px;
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-@media (max-width: 640px) {
-  .barraFixa {
-    margin-inline: -16px;
-    padding-inline: 16px;
-  }
-}
-
-/* Diálogo "Compartilhar card". */
+/*
+ * Diálogo "Compartilhar card", como o do protótipo: caixa de noite com a imagem do card de um lado
+ * (em cima, no celular) e o texto, o aviso e as ações do outro.
+ */
 .dialogoCard {
-  width: min(440px, calc(100vw - 24px));
-  max-height: 92svh;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
   padding: 0;
-  border: 0;
-  border-radius: 24px;
-  background: var(--superficie);
-  color: var(--tinta);
   overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 24px;
+  background: var(--noite);
+  color: #f5f3ff;
 }
 
 .dialogoCard[open] {
   display: flex;
   flex-direction: column;
+  animation: sobeDialogo 0.5s var(--curva);
+}
+
+@keyframes sobeDialogo {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
 }
 
 .dialogoCard::backdrop {
-  background: rgb(10 13 32 / 72%);
+  background: rgb(8 10 30 / 74%);
+  backdrop-filter: blur(6px);
 }
 
 .dialogoConteudo {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
   gap: 12px;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 22px 22px calc(22px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -843,16 +868,21 @@ button.fantasma {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .dialogoTopo h2 {
   margin: 0;
   font:
-    700 20px var(--fonte-titulo),
+    800 24px var(--fonte-titulo),
     sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .dialogoFechar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -860,42 +890,55 @@ button.fantasma {
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: var(--superficie-2);
-  color: var(--tinta);
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+  font-size: 16px;
   cursor: pointer;
 }
 
+.dialogoFechar:hover {
+  background: rgb(255 255 255 / 20%);
+}
+
 .imagemDoCard {
-  width: 100%;
-  max-height: 52svh;
+  display: block;
+  justify-self: center;
+  width: auto;
+  max-width: 100%;
+  max-height: 44svh;
   height: auto;
-  border-radius: var(--raio-controle);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px -20px rgb(0 0 0 / 70%);
   object-fit: contain;
-  background: var(--noite);
 }
 
 .dialogoTexto {
   margin: 0;
-  font-size: 14px;
-  color: var(--tinta-2);
+  color: #d3d5ea;
+  font-size: 15px;
 }
 
 .dialogoAcoes {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dialogoPrincipal {
   flex: 1 1 100%;
   min-height: 48px;
   border: 0;
-  border-radius: var(--raio-controle);
+  border-radius: 12px;
   background: var(--luz);
-  color: var(--noite);
+  color: #231600;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition: box-shadow 0.4s;
+}
+
+.dialogoPrincipal:hover:not(:disabled) {
+  box-shadow: 0 8px 24px -6px rgb(255 164 27 / 70%);
 }
 
 .dialogoPrincipal:disabled {
@@ -904,31 +947,59 @@ button.fantasma {
 }
 
 .dialogoAviso {
-  min-height: 1.5em;
+  min-height: 42px;
   margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fio_atual .janelaDoFio {
-    animation: none;
-  }
 }
 
 .dialogoEndereco {
   display: grid;
   gap: 4px;
-  font-size: 13px;
-  color: var(--tinta-2);
+  color: #a3a7c7;
+  font-size: 12.5px;
 }
 
 .dialogoEndereco input {
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--borda-forte);
-  border-radius: var(--raio-controle);
-  background: var(--superficie);
-  color: var(--tinta);
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 6%);
+  color: #fff;
   font: inherit;
+}
+
+@media (min-width: 700px) {
+  .dialogoConteudo {
+    grid-template-columns: 300px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px 28px;
+    padding: 28px;
+  }
+
+  .imagemDoCard {
+    grid-row: 1 / span 6;
+    grid-column: 1;
+    align-self: center;
+    max-height: 70svh;
+  }
+
+  .dialogoTopo,
+  .dialogoTexto,
+  .dialogoAcoes,
+  .dialogoEndereco,
+  .dialogoAviso {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogoCard[open] {
+    animation: none;
+  }
 }

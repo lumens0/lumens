@@ -1,7 +1,12 @@
 import type { CuradorListado } from '@lumens/dominio';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Curadores } from './curadores';
+
+// A caixa "Mostrar desativados" navega pelo roteador do Next, que não existe fora do navegador.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: () => undefined, replace: () => undefined }),
+}));
 
 const pessoa = (id: string, nome: string, ativo: boolean): CuradorListado => ({
   id,
@@ -38,8 +43,8 @@ describe('lista de curadores (SCRUM-350)', () => {
     expect(html).toContain('Ana');
     expect(html).toContain('Bia');
     expect(html).not.toContain('Caio');
-    expect(html).toContain('href="/curadores?desativados=1"');
     expect(html).toContain('Mostrar desativados (1)');
+    expect(html).not.toContain('checked=""');
   });
 
   it('com o filtro ligado mostra os desativados, com o botão de reativar, e oferece esconder', () => {
@@ -47,7 +52,16 @@ describe('lista de curadores (SCRUM-350)', () => {
 
     expect(html).toContain('Caio');
     expect(html).toContain('Reativar');
-    expect(html).toContain('Esconder desativados');
+    expect(html).toContain('checked=""');
+    expect(html).toContain('desativado');
+  });
+
+  it('o formulário de adicionar pede o papel, com curador como padrão', () => {
+    const html = tela(todos);
+
+    expect(html).toContain('name="papel"');
+    expect(html).toMatch(/<option value="curador"[^>]*selected[^>]*>Curador<\/option>/);
+    expect(html).toContain('<option value="administrador">Administrador</option>');
   });
 
   it('sem desativados não mostra o filtro', () => {

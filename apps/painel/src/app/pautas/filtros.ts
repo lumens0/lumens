@@ -27,24 +27,7 @@ export function pendenciasDaUrl(param: string | undefined): PendenciaDaCuradoria
   return PENDENCIAS.filter((p) => pedidas.has(p.valor)).map((p) => p.valor);
 }
 
-export interface ParametrosDaListaDoPainel {
-  situacoes: readonly string[];
-  pendencias: readonly string[];
-  q: string;
-}
-
-/**
- * Endereço de `/pautas` com os filtros. Sem situação, `status=todas` (sem o parâmetro a lista
- * voltaria a abrir em "esperando decisão"); a situação padrão sozinha não precisa de parâmetro.
- */
-export function urlDaLista({ situacoes, pendencias, q }: ParametrosDaListaDoPainel): string {
-  const partes: string[] = [];
-  const padrao = situacoes.length === 1 && situacoes[0] === 'em_curadoria';
-  if (!padrao) partes.push(`status=${situacoes.length === 0 ? 'todas' : situacoes.join(',')}`);
-  if (pendencias.length > 0) partes.push(`pendencia=${pendencias.join(',')}`);
-  if (q.trim() !== '') partes.push(`q=${encodeURIComponent(q.trim())}`);
-  return partes.length === 0 ? '/pautas' : `/pautas?${partes.join('&')}`;
-}
+export { urlDaLista, type ParametrosDaListaDoPainel } from './url-da-lista';
 
 /** Liga ou desliga um item de uma lista, sem mudar a ordem dos outros. */
 export function alternar<T>(lista: readonly T[], item: T): T[] {

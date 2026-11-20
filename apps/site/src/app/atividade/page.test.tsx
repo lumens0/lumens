@@ -1,10 +1,10 @@
 import type { Atividade, AtividadeItem } from '@lumens/contratos';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buscarAtividade } from '../../dados/api';
+import { buscarApoiosPorSemana, buscarAtividade } from '../../dados/api';
 import PaginaAtividade from './page';
 
-vi.mock('../../dados/api', () => ({ buscarAtividade: vi.fn() }));
+vi.mock('../../dados/api', () => ({ buscarAtividade: vi.fn(), buscarApoiosPorSemana: vi.fn() }));
 
 // O evento de conquista do seed (packages/db/seed/data.ts), como o GET /atividade o devolve.
 const CONQUISTA: AtividadeItem = {
@@ -15,7 +15,10 @@ const CONQUISTA: AtividadeItem = {
   pauta_titulo: 'Laboratórios de informática abertos no contraturno',
 };
 
-const responder = (resposta: Atividade) => vi.mocked(buscarAtividade).mockResolvedValue(resposta);
+const responder = (resposta: Atividade) => {
+  vi.mocked(buscarApoiosPorSemana).mockResolvedValue([]);
+  return vi.mocked(buscarAtividade).mockResolvedValue(resposta);
+};
 const render = async (pagina?: string | string[]) =>
   renderToStaticMarkup(
     await PaginaAtividade({
@@ -32,7 +35,7 @@ describe('/atividade', () => {
     expect(buscarAtividade).toHaveBeenCalledWith(1);
     expect(html).toContain('Status alterado');
     // 12h UTC são 9h em Maceió (UTC−3, sem horário de verão).
-    expect(html).toContain('>19/03/2026, 09:00</time>');
+    expect(html).toContain('>19 mar</time>');
     expect(html).toContain(
       'href="/p/laboratorios-abertos-nas-engenharias">Laboratórios de informática abertos no contraturno</a>',
     );
@@ -61,9 +64,45 @@ describe('/atividade', () => {
     expect(html).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
   });
 
+  it('descreve urgência, prazo prorrogado e promessa remarcada, com data civil e sem dado faltando', async () => {
+    responder({
+      itens: [
+        { ...CONQUISTA, tipo: 'pauta_urgente', dados: { urgente: true } },
+        { ...CONQUISTA, tipo: 'pauta_urgente', dados: { urgente: false } },
+        {
+          ...CONQUISTA,
+          tipo: 'prazo_prorrogado',
+          dados: {
+            data_antiga: '2026-03-01',
+            data_nova: '2026-04-01',
+            motivo: 'Pedido da UFAL.',
+            fonte: 'Fala.BR',
+          },
+        },
+        {
+          ...CONQUISTA,
+          tipo: 'promessa_remarcada',
+          dados: { data_antiga: '2026-05-10', data_nova: 'em breve' },
+        },
+        { ...CONQUISTA, tipo: 'protocolo_corrigido', dados: {} },
+        { ...CONQUISTA, tipo: 'bloco_corrigido', dados: {} },
+      ],
+      proximo: null,
+    });
+    const html = await render();
+    expect(html).toContain('Marcada como urgente pela curadoria');
+    expect(html).toContain('Deixou de ser urgente');
+    expect(html).toContain('01/03/2026 → 01/04/2026');
+    expect(html).toContain('Motivo: Pedido da UFAL.');
+    expect(html).toContain('Fonte: Fala.BR');
+    expect(html).toContain('10/05/2026 → em breve');
+    expect(html).toContain('? → ?');
+    expect(html).toContain('Todo o campus → Todo o campus');
+  });
+
   it('a hora não depende do fuso do servidor: 01h UTC ainda é o dia anterior em Maceió', async () => {
     responder({ itens: [{ ...CONQUISTA, criado_em: '2026-03-19T01:30:00.000Z' }], proximo: null });
-    expect(await render()).toContain('>18/03/2026, 22:30</time>');
+    expect(await render()).toContain('>18 mar</time>');
   });
 
   it('mantém a ordem da API (mais novo primeiro)', async () => {
@@ -125,7 +164,7 @@ describe('/atividade', () => {
     responder({ itens: [saida, saida, saida, outra], proximo: null });
     const html = await render();
     expect(html).toContain('3 responsáveis saíram');
-    expect(html.match(/<li /g)).toHaveLength(2);
+    expect(html.match(/<li[ >]/g)).toHaveLength(2);
     expect(html).toContain('Responsável saiu');
   });
 
@@ -133,7 +172,7 @@ describe('/atividade', () => {
     const relato = { ...CONQUISTA, tipo: 'relato_aprovado', dados: {} };
     responder({ itens: [relato, relato], proximo: null });
     const html = await render();
-    expect(html.match(/<li /g)).toHaveLength(2);
+    expect(html.match(/<li[ >]/g)).toHaveLength(2);
   });
 
   it('erro da API sobe para o error.tsx', async () => {

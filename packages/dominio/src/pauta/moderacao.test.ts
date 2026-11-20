@@ -77,9 +77,15 @@ describe('listarRelatosPendentes', () => {
       await criarRelato(db, { pautaId: antiga.id }),
     ];
 
-    const fila = (await listarRelatosPendentes(db)).filter((p) =>
+    const completa = (await listarRelatosPendentes(db)).filter((p) =>
       [nova.id, antiga.id].includes(p.id),
     );
+    // A etapa da pauta e o curso de quem escreveu vêm junto, para o cabeçalho e o rótulo do relato.
+    expect(completa.find((p) => p.id === antiga.id)?.status).toBe('juntando_apoios');
+    const fila = completa.map(({ status: _status, ...pauta }) => ({
+      ...pauta,
+      relatos: pauta.relatos.map(({ curso: _curso, ...relato }) => relato),
+    }));
 
     expect(fila).toEqual([
       {

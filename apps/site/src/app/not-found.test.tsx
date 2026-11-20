@@ -7,7 +7,7 @@ import PautaNaoEncontrada from './p/[slug]/not-found';
 describe('páginas não encontradas', () => {
   it('a 404 geral tem h1, texto em português e volta às pautas', () => {
     const html = renderToStaticMarkup(<PaginaNaoEncontrada />);
-    expect(html).toMatch(/<h1[^>]*>Não encontramos essa página<\/h1>/);
+    expect(html).toMatch(/<h1[^>]*>Essa página não está acesa\.<\/h1>/);
     expect(html).toContain('href="/pautas"');
     expect(html).not.toContain('could not be found');
     expect(metadata.title).toBe('Página não encontrada · Lumens');
@@ -15,7 +15,7 @@ describe('páginas não encontradas', () => {
 
   it('a pauta não encontrada também usa h1', () => {
     expect(renderToStaticMarkup(<PautaNaoEncontrada />)).toMatch(
-      /<h1[^>]*>Não encontramos essa pauta.<\/h1>/,
+      /<h1[^>]*>Essa página não está acesa\.<\/h1>/,
     );
   });
 });

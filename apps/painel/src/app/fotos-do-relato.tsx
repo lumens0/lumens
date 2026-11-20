@@ -30,20 +30,20 @@ export function FotosDoRelato({
   /** Para onde voltar depois de recusar: `/relatos` ou `/pautas/<id>`. */
   voltar: string;
 }) {
-  if (fotos.length === 0) return <p className={estilos.detalhes}>Sem foto</p>;
+  if (fotos.length === 0) return null;
   return (
-    <ul className={estilos.lista} aria-label="Fotos do relato">
+    <ul className={estilos.fotoLista} aria-label="Fotos do relato">
       {fotos.map((foto, indice) => (
         <li key={foto.id}>
-          <p className={estilos.detalhes}>
-            Foto {indice + 1} de {fotos.length}
-          </p>
-          <Foto chave={foto.chave} />
+          <Foto
+            chave={foto.chave}
+            rotulo={`Foto ${String(indice + 1)} de ${String(fotos.length)}`}
+          />
           {foto.moderacao === 'recusado' ? (
-            <p className={estilos.aviso}>Recusada. Motivo: {foto.motivoRecusa}</p>
+            <p className={estilos.erro}>Recusada. Motivo: {foto.motivoRecusa}</p>
           ) : (
             <details className={estilos.recusa}>
-              <summary className={estilos.botaoSecundario}>Recusar só esta foto</summary>
+              <summary className={estilos.botaoLeve}>Recusar só esta foto…</summary>
               <form action={recusarFoto} className={estilos.formulario}>
                 <input type="hidden" name="fotoId" value={foto.id} />
                 <input type="hidden" name="voltar" value={voltar} />

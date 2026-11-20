@@ -1,14 +1,15 @@
 import { agruparEventosIguais, rotuloDeResponsaveis, type AtividadeItem } from '@lumens/contratos';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import componentes from '../../componentes/componentes.module.css';
-import { formatarData, rotuloDoPapel, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
+import type { CSSProperties } from 'react';
+import { rotuloDoPapel, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
+import { diaEMes } from '../../componentes/pauta/prazos';
 import { STATUS } from '../../componentes/StatusPill';
 import type { StatusPauta } from '../../dados/tipos';
-import { buscarAtividade } from '../../dados/api';
+import { buscarApoiosPorSemana, buscarAtividade } from '../../dados/api';
+import { graficoSemanal } from '../../dados/semanas';
 import { metadadosDaMarca } from '../../metadados';
-import { nomeDoCanal } from '../../whatsapp';
-import estilos from '../page.module.css';
+import estilos from '../paginas.module.css';
 
 export const metadata: Metadata = metadadosDaMarca({
   caminho: '/atividade',
@@ -114,6 +115,17 @@ function tomDoEvento(item: AtividadeItem): Tom | undefined {
   return novo ? TOM_DO_STATUS[novo] : TOM[item.tipo];
 }
 
+/** A janela de cada movimento na cor do tom do evento; sem tom, a cor neutra do filete. */
+const COR_DO_TOM: Record<Tom, string> = {
+  azul: 'var(--status-apoios)',
+  roxo: 'var(--status-meta)',
+  turquesa: 'var(--status-prometido)',
+  ambar: 'var(--status-cobrando)',
+  amarelo: 'var(--status-parcial)',
+  vermelho: 'var(--status-descumprida)',
+  verde: 'var(--status-conquistada)',
+};
+
 const linkDaPagina = (pagina: number) =>
   pagina === 1 ? '/atividade' : `/atividade?pagina=${String(pagina)}`;
 
@@ -125,55 +137,67 @@ export default async function PaginaAtividade({
   const pagina = paginaDaUrl((await searchParams).pagina);
   // Erro da API sobe e cai no `error.tsx`. A API já manda do mais novo para o mais antigo e só
   // eventos públicos de pautas públicas (v_atividade).
-  const { itens, proximo } = await buscarAtividade(pagina);
+  const [{ itens, proximo }, semanas] = await Promise.all([
+    buscarAtividade(pagina),
+    buscarApoiosPorSemana(),
+  ]);
+  const grafico = graficoSemanal(semanas);
   return (
     <main className={estilos.pagina}>
-      <div className={[estilos.faixa, 'noite'].join(' ')}>
-        <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
-        <h1 className={estilos.titulo}>Acontecendo no campus</h1>
-        <p className={estilos.subtitulo}>
-          Cada linha vem de uma ação no {nomeDoCanal()} ou de uma resposta oficial. A mais recente
-          fica em cima.
-        </p>
-      </div>
+      <h1 className={estilos.titulo}>Atividade</h1>
+      <p className={estilos.intro}>
+        O que aconteceu nas pautas, da ação mais recente para a mais antiga.
+      </p>
+      <h2 className={estilos.subtitulo}>Apoios por semana</h2>
+      {grafico.estado !== 'vazio' && (
+        <ol className={estilos.colunas} aria-label="Apoios por semana">
+          {grafico.colunas.map((coluna, i) => (
+            <li
+              key={coluna.semana}
+              style={{ '--f': (coluna.altura / 100).toFixed(3), '--i': i } as CSSProperties}
+            >
+              <b>{coluna.apoios}</b>
+              <i aria-hidden="true" />
+              <small>{coluna.rotulo}</small>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className={estilos.resumo}>{grafico.resumo}</p>
+      <h2 className={estilos.subtitulo}>Movimentos</h2>
       {itens.length === 0 ? (
-        <div role="status" className={componentes.estado}>
-          <p className={componentes.estadoTitulo}>
-            {pagina === 1 ? 'Ainda não tem atividade.' : 'Esta página não tem atividade.'}
-          </p>
+        <div role="status" className={estilos.vazio}>
+          <p>{pagina === 1 ? 'Ainda não tem atividade.' : 'Esta página não tem atividade.'}</p>
           {pagina > 1 && (
-            <div className={componentes.acoes}>
-              <Link href={linkDaPagina(1)} className={componentes.botaoSecundario}>
-                Ver a atividade mais recente
-              </Link>
+            <div className={estilos.paginacao}>
+              <Link href={linkDaPagina(1)}>Ver a atividade mais recente</Link>
             </div>
           )}
         </div>
       ) : (
-        <ol className={estilos.registro}>
+        <ol className={estilos.tempo}>
           {/* Eventos iguais seguidos da mesma pauta viram uma linha (SCRUM-355); só vizinhos da página. */}
           {agruparEventosIguais(
             itens,
             (item) => item.criado_em,
             (item) => item.pauta_slug,
-          ).map(({ evento: item, quantidade }, i) => (
-            <li
-              key={`${String(pagina)}-${String(i)}`}
-              className={estilos.evento}
-              data-tom={tomDoEvento(item)}
-            >
-              <span className={estilos.icone} aria-hidden="true" />
-              <div>
-                <Link href={`/p/${item.pauta_slug}`} className={estilos.eventoPauta}>
-                  {item.pauta_titulo}
-                </Link>
-                <p className={estilos.eventoTexto}>{textoDoEvento(item, quantidade)}</p>
-              </div>
-              <time dateTime={item.criado_em} className={estilos.quando}>
-                {formatarData(item.criado_em)}
-              </time>
-            </li>
-          ))}
+          ).map(({ evento: item, quantidade }, i) => {
+            const tom = tomDoEvento(item);
+            return (
+              <li key={`${String(pagina)}-${String(i)}`}>
+                <i
+                  className={estilos.marco}
+                  style={tom ? ({ '--c': COR_DO_TOM[tom] } as CSSProperties) : undefined}
+                  aria-hidden="true"
+                />
+                <time dateTime={item.criado_em}>{diaEMes(item.criado_em)}</time>
+                <strong>{textoDoEvento(item, quantidade)}</strong>
+                <p>
+                  <Link href={`/p/${item.pauta_slug}`}>{item.pauta_titulo}</Link>
+                </p>
+              </li>
+            );
+          })}
         </ol>
       )}
       {/* Página além do fim já oferece a volta no estado vazio; aqui não repete. */}

@@ -33,58 +33,34 @@ describe('/conquistas', () => {
     vi.mocked(buscarConquistas).mockResolvedValue([]);
     const html = await render();
     expect(html).toContain('role="status"');
-    expect(html).toContain('Ainda não tem conquista.');
+    expect(html).toContain('Ainda não há conquistas.');
     expect(html).not.toContain('<ul');
   });
 
-  it('a conquista do seed mostra data, apoios, dias até a entrega e o link da pauta', async () => {
+  it('título e introdução como no protótipo', async () => {
+    vi.mocked(buscarConquistas).mockResolvedValue([DO_SEED]);
+    const html = await render();
+    expect(html).toMatch(/<h1[^>]*>Conquistas<\/h1>/);
+    expect(html).toContain('Pautas que viraram mudança, confirmadas por quem apoiou.');
+  });
+
+  it('a conquista do seed é uma linha com título, o que foi feito, dias, apoios, bloco e o link da pauta', async () => {
     vi.mocked(buscarConquistas).mockResolvedValue([DO_SEED]);
     const html = await render();
     expect(html).toContain('href="/p/laboratorios-abertos-nas-engenharias"');
+    expect(html).toContain('Laboratórios de informática abertos no contraturno');
+    expect(html).toContain('Os laboratórios das Engenharias passaram a abrir');
     expect(html).toContain('Bloco das Engenharias (fictício)');
-    expect(html).toContain(
-      '<dt>Conquistada em</dt><dd><time dateTime="2026-03-19T12:00:00.000Z">19/03/2026</time></dd>',
-    );
-    expect(html).toContain('<dt>Apoios</dt><dd>300</dd>');
+    expect(html).toContain('<b>300</b> apoios');
     // 10/02 a 19/03 de 2026: 37 dias.
-    expect(html).toContain('<dt>Da criação à entrega</dt><dd>37 dias</dd>');
-    expect(html).not.toContain('Solução da comunidade');
+    expect(html).toContain('<b>37 dias</b> da criação à entrega');
   });
 
-  it('mostra o que foi feito e a foto da curadoria (SCRUM-394)', async () => {
-    vi.mocked(buscarConquistas).mockResolvedValue([
-      {
-        ...DO_SEED,
-        o_que_foi_feito: 'Os laboratórios agora abrem à noite.',
-        foto: 'fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg',
-      },
-    ]);
-    const html = await render();
-    expect(html).toContain('O que foi feito:');
-    expect(html).toContain('Os laboratórios agora abrem à noite.');
-    expect(html).toContain('src="/fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg"');
-    expect(html).toContain(
-      'alt="Foto do que foi feito: Laboratórios de informática abertos no contraturno"',
-    );
-  });
-
-  it('sem texto nem foto, a conquista não ganha bloco vazio nem imagem', async () => {
+  it('sem o que foi feito, a linha não ganha texto vazio', async () => {
     vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, o_que_foi_feito: null }]);
     const html = await render();
-    expect(html).not.toContain('O que foi feito');
+    expect(html).not.toContain('Os laboratórios das Engenharias');
     expect(html).not.toContain('<img');
-  });
-
-  it('com proposta executada, mostra o selo de solução da comunidade', async () => {
-    vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, proposta_executada: true }]);
-    expect(await render()).toContain('Solução da comunidade');
-  });
-
-  it('a data sai no fuso de Maceió: 02h UTC ainda é o dia anterior', async () => {
-    vi.mocked(buscarConquistas).mockResolvedValue([
-      { ...DO_SEED, conquistada_em: '2026-03-19T02:00:00.000Z' },
-    ]);
-    expect(await render()).toContain('>18/03/2026</time>');
   });
 
   it('API antiga sem criada_em: esconde o prazo em vez de mostrar NaN', async () => {
@@ -92,8 +68,7 @@ describe('/conquistas', () => {
     vi.mocked(buscarConquistas).mockResolvedValue([semCriacao as Conquista]);
     const html = await render();
     expect(html).not.toContain('NaN');
-    expect(html).not.toContain('Da criação à entrega');
-    expect(html).toContain('>19/03/2026</time>');
+    expect(html).not.toContain('da criação à entrega');
   });
 
   it.each([
@@ -104,14 +79,13 @@ describe('/conquistas', () => {
     ['2026-02-10T12:00:00.000Z', '2026-02-12T01:00:00.000Z', '1 dia'],
   ])('dias pelo calendário de Maceió: %s → %s = %s', async (criada_em, conquistada_em, texto) => {
     vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, criada_em, conquistada_em }]);
-    expect(await render()).toContain(`<dt>Da criação à entrega</dt><dd>${texto}</dd>`);
+    expect(await render()).toContain(`<b>${texto}</b> da criação à entrega`);
   });
 
-  it('sem a data da conquista, não inventa data nem prazo', async () => {
+  it('sem a data da conquista, não inventa prazo', async () => {
     vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, conquistada_em: null }]);
     const html = await render();
-    expect(html).not.toContain('Conquistada em');
-    expect(html).not.toContain('Da criação à entrega');
-    expect(html).toContain('<dt>Apoios</dt><dd>300</dd>');
+    expect(html).not.toContain('da criação à entrega');
+    expect(html).toContain('<b>300</b> apoios');
   });
 });

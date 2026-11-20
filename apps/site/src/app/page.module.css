@@ -1,7 +1,9 @@
+/* A mesma coluna do protótipo: 1080 px de conteúdo e 16 px de folga nas laterais. */
 .pagina {
-  max-width: 1120px;
+  max-width: calc(1080px + 2 * max(16px, env(safe-area-inset-left, 0px)));
   margin: 0 auto;
-  padding: var(--pagina-topo) 24px calc(var(--pagina-fim) + env(safe-area-inset-bottom));
+  padding: var(--pagina-topo) max(16px, env(safe-area-inset-right, 0px))
+    calc(var(--pagina-fim) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left, 0px));
 }
 
 /* Cada bloco do topo entra com um atraso pequeno. */
@@ -66,14 +68,104 @@
   color: var(--tinta-2);
 }
 
-/* Hero: texto de um lado, o campus aceso do outro. */
+/* Hero: texto de um lado, o campus aceso do outro, com os prédios apoiados no "chão" (o filete). */
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  align-items: center;
-  gap: 40px;
-  margin: calc(-1 * var(--pagina-topo)) 0 32px;
-  padding: var(--pagina-topo) 0 44px;
+  gap: 16px;
+  margin: calc(-1 * var(--pagina-topo)) 0 30px;
+  padding: var(--pagina-topo) 0 0;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 100vw;
+  translate: -50% 0;
+  bottom: 0;
+  height: 1px;
+  background: rgb(255 255 255 / 10%);
+  pointer-events: none;
+}
+
+.heroSobre {
+  margin: 0 0 8px;
+  color: var(--luz);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.heroTitulo {
+  margin: 0 0 10px;
+  font:
+    800 clamp(32px, 8.6vw, 64px) / 1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+/* A palavra em destaque acende, sem itálico, e ganha o traço que se desenha por baixo. */
+.heroTitulo .destaque {
+  position: relative;
+  white-space: nowrap;
+}
+
+.heroTitulo .destaque::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.06em;
+  height: 0.09em;
+  border-radius: 4px;
+  background: var(--luz);
+  transform-origin: left;
+  animation: traco 1s 0.5s var(--curva) both;
+}
+
+@keyframes traco {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.heroSub {
+  margin: 0 0 14px;
+  max-width: 46ch;
+  color: #d3d5ea;
+  text-wrap: pretty;
+}
+
+.heroAcoes a {
+  padding: 11px 18px;
+  border-color: rgb(255 255 255 / 28%);
+  border-radius: 12px;
+}
+
+.heroAcoes a:hover {
+  background: rgb(255 255 255 / 8%);
+  border-color: rgb(255 255 255 / 50%);
+  color: var(--tinta);
+}
+
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: 1.05fr 1fr;
+    align-items: end;
+    gap: 56px;
+  }
+
+  .heroTexto {
+    padding-bottom: 26px;
+  }
+
+  .heroSobre {
+    margin-bottom: 12px;
+  }
+
+  .heroTitulo {
+    margin-bottom: 16px;
+  }
 }
 
 /* Faixa de noite no topo das outras páginas: só o título e a introdução. */
@@ -160,11 +252,9 @@
 .totaisTopo {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 12px 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--borda);
+  gap: 2px 14px;
 }
 
 .filtros {
@@ -202,10 +292,6 @@
 }
 
 @media (max-width: 520px) {
-  .pagina {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
   .filtros {
     flex-direction: column;
     width: 100%;
@@ -219,7 +305,7 @@
 .totaisTitulo {
   margin: 0;
   font:
-    700 26px var(--fonte-titulo),
+    800 clamp(26px, 6.4vw, 34px) / 1.05 var(--fonte-titulo),
     sans-serif;
   letter-spacing: -0.02em;
 }
@@ -334,24 +420,28 @@
   flex: 1;
 }
 
+/* Rodapé do protótipo: só os três links, perto do fim da página, sem filete em cima. */
 .rodape {
   margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--borda);
   font-size: 14px;
+}
+
+/* Início e Pautas terminam no rodapé: sem a folga de fim de página. */
+.comRodape {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .navegacao {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 24px;
+  gap: 0 20px;
 }
 
 .navegacao a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  color: var(--tinta-2);
+  color: var(--luz-tinta);
 }
 
 /* Rótulo em cima, valor embaixo, nos cards de conquista. */
@@ -541,12 +631,6 @@
 }
 
 @media (max-width: 860px) {
-  .hero {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    margin-bottom: 40px;
-  }
-
   /* No celular o mapa empurraria os números para baixo; o botão "Ver no mapa" cobre o caminho. */
   .heroMapa {
     display: none;
@@ -555,18 +639,9 @@
   .titulo {
     font-size: 40px;
   }
-
-  .hero {
-    padding: var(--pagina-topo) 0 48px;
-  }
 }
 
 @media (max-width: 560px) {
-  .pagina {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
   .titulo {
     font-size: 34px;
   }
@@ -610,5 +685,5 @@
 .subtituloDosNumeros {
   margin: 0;
   font-size: 14px;
-  color: var(--tinta-2);
+  color: var(--tinta-3);
 }

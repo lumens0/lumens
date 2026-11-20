@@ -1,10 +1,12 @@
 import { LIMITE_DA_LISTA, type PautaDaCuradoria, type PendenciaDaCuradoria } from '@lumens/dominio';
 import Link from 'next/link';
-import { Enviar } from '../enviar';
+import type { CSSProperties } from 'react';
+import { BuscaDaLista } from './busca';
+import { FiltroLink } from './filtro-link';
 import estilos from '../painel.module.css';
-import { alternar, PENDENCIAS, urlDaLista } from './filtros';
-import { SeloDePrazo, SeloDeStatus, SeloUrgente } from './selos';
-import { STATUS } from './status';
+import { alternar, PENDENCIAS } from './filtros';
+import { SeloDePrazo } from './selos';
+import { COR_NO_PAINEL, STATUS } from './status';
 
 /** Quantas pautas há em cada situação e em cada pendência, para os números dos chips. */
 export interface ContagensDaLista {
@@ -37,73 +39,67 @@ export function ListaDePautas({
   return (
     <>
       <h1>
-        Pautas <span className={estilos.totalDaLista}>{pautas.length}</span>
+        Pautas <small className={estilos.total}>{pautas.length}</small>
       </h1>
-      <p className={estilos.apoio}>
-        Abra uma pauta para conferir os relatos e acompanhar a resposta oficial.
-      </p>
       {pautas.length >= LIMITE_DA_LISTA && (
         <p className={estilos.aviso} role="status">
           Mostrando as {LIMITE_DA_LISTA} mais antigas. Use os filtros ou a busca para achar as
           outras.
         </p>
       )}
-      <form action="/pautas" method="get" role="search" className={estilos.buscaDaLista}>
-        <label htmlFor="busca-pautas">Buscar por título, bloco ou etapa</label>
-        <input
-          id="busca-pautas"
-          name="q"
-          type="search"
-          defaultValue={q}
-          placeholder="Título, bloco, etapa ou “urgente”"
-        />
-        {situacoes.length > 0 ? (
-          <input type="hidden" name="status" value={situacoes.join(',')} />
-        ) : (
-          <input type="hidden" name="status" value="todas" />
-        )}
-        {pendencias.length > 0 && (
-          <input type="hidden" name="pendencia" value={pendencias.join(',')} />
-        )}
-        <Enviar className={estilos.botaoSecundario}>Buscar</Enviar>
-      </form>
-
-      <ul className={estilos.chipsDaLista} aria-label="Filtrar pautas">
-        <li>
-          <Link
-            href={urlDaLista({ ...aqui, situacoes: [] })}
-            className={estilos.chipDaLista}
-            aria-current={situacoes.length === 0 ? 'true' : undefined}
-          >
-            Todas{contagens ? <b>{contagens.total}</b> : null}
-          </Link>
-        </li>
-        {Object.entries(STATUS).map(([valor, rotulo]) => (
-          <li key={valor}>
-            <Link
-              href={urlDaLista({ ...aqui, situacoes: alternar(situacoes, valor) })}
-              className={estilos.chipDaLista}
-              aria-current={situacoes.includes(valor) ? 'true' : undefined}
+      <div className={estilos.filtros}>
+        <BuscaDaLista q={q} situacoes={situacoes} pendencias={pendencias} />
+        <ul
+          className={[estilos.chips, estilos.rolagem].join(' ')}
+          aria-label="Filtrar por etapa e pendência"
+        >
+          <li>
+            <FiltroLink
+              filtros={{ ...aqui, situacoes: [], pendencias: [] }}
+              className={estilos.chip}
+              atual={situacoes.length === 0 && pendencias.length === 0}
             >
-              {rotulo}
-              {contagens ? <b>{contagens.porStatus[valor as keyof typeof STATUS] ?? 0}</b> : null}
-            </Link>
+              Todas{contagens ? <b>{contagens.total}</b> : null}
+            </FiltroLink>
           </li>
-        ))}
-        <li className={estilos.chipSeparador} aria-hidden="true" />
-        {PENDENCIAS.map(({ valor, rotulo }) => (
-          <li key={valor}>
-            <Link
-              href={urlDaLista({ ...aqui, pendencias: alternar(pendencias, valor) })}
-              className={estilos.chipDaLista}
-              aria-current={pendencias.includes(valor) ? 'true' : undefined}
-            >
-              {rotulo}
-              {contagens ? <b>{contagens.porPendencia[valor]}</b> : null}
-            </Link>
-          </li>
-        ))}
-      </ul>
+          {Object.entries(STATUS)
+            .filter(
+              ([valor]) =>
+                situacoes.includes(valor) ||
+                contagens === undefined ||
+                (contagens.porStatus[valor as keyof typeof STATUS] ?? 0) > 0,
+            )
+            .map(([valor, rotulo]) => (
+              <li key={valor}>
+                <FiltroLink
+                  filtros={{ ...aqui, situacoes: alternar(situacoes, valor) }}
+                  className={estilos.chip}
+                  style={{ '--c': COR_NO_PAINEL[valor as keyof typeof STATUS] } as CSSProperties}
+                  atual={situacoes.includes(valor)}
+                >
+                  <i aria-hidden="true" />
+                  {rotulo}
+                  {contagens ? (
+                    <b>{contagens.porStatus[valor as keyof typeof STATUS] ?? 0}</b>
+                  ) : null}
+                </FiltroLink>
+              </li>
+            ))}
+          <li className={estilos.chipSeparador} aria-hidden="true" />
+          {PENDENCIAS.map(({ valor, rotulo }) => (
+            <li key={valor}>
+              <FiltroLink
+                filtros={{ ...aqui, pendencias: alternar(pendencias, valor) }}
+                className={estilos.chip}
+                atual={pendencias.includes(valor)}
+              >
+                {rotulo}
+                {contagens ? <b>{contagens.porPendencia[valor]}</b> : null}
+              </FiltroLink>
+            </li>
+          ))}
+        </ul>
+      </div>
       {filtrando && (
         <p className={estilos.detalhes}>
           <Link href="/pautas?status=todas">Limpar filtros</Link>
@@ -111,26 +107,45 @@ export function ListaDePautas({
       )}
 
       {pautas.length === 0 ? (
-        <p className={estilos.aviso}>Nenhuma pauta encontrada.</p>
+        <p className={estilos.vazio}>Nenhuma pauta com esses filtros.</p>
       ) : (
         <ul className={estilos.lista}>
-          {pautas.map((pauta) => (
-            <li key={pauta.id} className={[estilos.cartao, estilos.cartaoClicavel].join(' ')}>
-              <h2>
-                <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
-              </h2>
-              <p className={estilos.selos}>
-                <SeloDeStatus status={pauta.status} />
-                {pauta.status === 'em_curadoria' && (
-                  <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
-                )}
-                {pauta.urgente && <SeloUrgente />}
-              </p>
-              <p className={estilos.detalhes}>
-                {pauta.bloco ?? 'Campus inteiro'} · {pauta.apoios} de {pauta.meta} apoios
-              </p>
-            </li>
-          ))}
+          {pautas.map((pauta) => {
+            const forma = pauta.status === 'recusada' || pauta.status === 'em_curadoria';
+            return (
+              <li key={pauta.id}>
+                <Link
+                  href={`/pautas/${pauta.id}`}
+                  className={estilos.linha}
+                  style={{ '--c': COR_NO_PAINEL[pauta.status] } as CSSProperties}
+                >
+                  <i
+                    className={[
+                      estilos.glifo,
+                      pauta.status === 'descumprida' ? estilos.glifoVazado : '',
+                    ].join(' ')}
+                    aria-hidden="true"
+                  />
+                  <span className={estilos.linhaTitulo}>
+                    {pauta.titulo}
+                    {pauta.urgente && <em className={estilos.urgente}>Urgente</em>}
+                  </span>
+                  <span className={estilos.linhaMeta}>
+                    {STATUS[pauta.status]} · {pauta.bloco ?? 'Campus inteiro'}
+                  </span>
+                  <span className={estilos.linhaDireita}>
+                    {pauta.status === 'em_curadoria' ? (
+                      <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
+                    ) : forma ? null : (
+                      <>
+                        <b>{pauta.apoios}</b> apoios
+                      </>
+                    )}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

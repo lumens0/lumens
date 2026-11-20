@@ -5,8 +5,8 @@ token; cor fixa só para texto sobre o âmbar (`#161a2e`) e para cores de status
 
 ## Cores
 
-- Fundo: névoa azulada `--fundo` (`#f3f5fa`); cartões brancos (`--superficie`); trilhos e fundos
-  suaves em `--superficie-2` (`#e6eaf4`). Bordas partem do azul da noite (`--borda`, `--borda-forte`).
+- Fundo: papel claro `--fundo` (`#faf7f0`), como no protótipo; cartões brancos (`--superficie`); trilhos e
+  fundos suaves em `--superficie-2` (`#f1ece1`). Bordas partem da tinta (`--borda`, `--borda-forte`).
 - Texto: `--tinta` (15,8:1 sobre o fundo), `--tinta-2` (8,3:1), `--tinta-3` (5,4:1).
 - Topo e hero em noite (`--noite`, `--noite-2`). A luz é âmbar: `--luz` no botão principal, `--luz-tinta`
   (6,0:1) para texto e links.
@@ -24,5 +24,5 @@ mínimo, 44px de altura (SCRUM-381). Gráficos são barras em HTML/CSS, com o va
 
 ## Logo
 
-Usar o arquivo de `packages/marca` sobre o fundo noite; o brilho em volta do círculo faz parte do
-desenho, então não cortar a imagem.
+No cabeçalho do site e do painel, a marca é o círculo desenhado em CSS do protótipo, sobre o fundo noite.
+O arquivo de `packages/marca` segue para quem precisa de imagem (login, favicon, prévias).

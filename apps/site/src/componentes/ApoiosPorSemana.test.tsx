@@ -17,19 +17,20 @@ describe('ApoiosPorSemana', () => {
   it('desenha 8 barras com o valor escrito, esconde as barras e dá uma tabela ao leitor de tela', () => {
     const html = renderToStaticMarkup(<ApoiosPorSemana semanas={SEMANAS} />);
     expect(html).toContain('Apoios por semana');
-    expect(html.match(/<em/g)).toHaveLength(8);
+    expect(html.match(/<b class="[^"]*valor/g)).toHaveLength(8);
     expect(html).toContain('aria-hidden="true"');
     expect(html).toContain('<caption>');
     expect(html).toContain('Esta semana');
     expect(html).toContain('agora');
-    expect(html).toContain('Pico: 18 apoios');
+    // A frase de baixo é a do protótipo: apoios da semana atual e a variação sobre a anterior.
+    expect(html).toContain('<b>9 apoios</b> nesta semana, 50% a menos que na anterior.');
   });
 
   it('sem apoios: só o convite, sem barras nem tabela', () => {
     const vazias = SEMANAS.map((s) => ({ ...s, apoios: 0 }));
     const html = renderToStaticMarkup(<ApoiosPorSemana semanas={vazias} />);
     expect(html).toContain('Ainda não há apoios');
-    expect(html).not.toContain('<em');
+    expect(html).not.toContain('class="_valor');
     expect(html).not.toContain('<table');
   });
 });

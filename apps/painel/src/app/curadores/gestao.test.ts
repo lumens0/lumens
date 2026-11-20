@@ -50,11 +50,21 @@ describe('gestão de curadores pela tela', () => {
     });
 
     expect(await gestao.adicionar('a@ufal.br', 'Ana')).toBe('/curadores?feito=adicionado');
-    expect(adicionar).toHaveBeenCalledWith('adm-1', 'a@ufal.br', 'Ana');
+    expect(adicionar).toHaveBeenCalledWith('adm-1', 'a@ufal.br', 'Ana', 'curador');
     expect(await gestao.desativar(ID)).toBe('/curadores?feito=desativado');
     expect(desativar).toHaveBeenCalledWith('adm-1', ID);
     expect(await gestao.reativar(ID)).toBe('/curadores?feito=reativado');
     expect(reativar).toHaveBeenCalledWith('adm-1', ID);
+  });
+
+  it('o papel escolhido no formulário chega ao domínio, e valor desconhecido vira curador', async () => {
+    const { gestao, adicionar } = montar({ id: 'adm-1', papel: 'administrador' });
+
+    await gestao.adicionar('a@ufal.br', 'Ana', 'administrador');
+    await gestao.adicionar('b@ufal.br', 'Bia', 'dono');
+
+    expect(adicionar).toHaveBeenNthCalledWith(1, 'adm-1', 'a@ufal.br', 'Ana', 'administrador');
+    expect(adicionar).toHaveBeenNthCalledWith(2, 'adm-1', 'b@ufal.br', 'Bia', 'curador');
   });
 
   it('recusa do domínio volta para a lista com o motivo', async () => {

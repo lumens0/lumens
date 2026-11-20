@@ -1,4 +1,5 @@
-/* O Início: céu, skyline, números, filtros de etapa e bloco, e "perto de bater a meta". */
+/* O Início, como no protótipo: céu, skyline, números, painel (semana, etapas, blocos), "perto de bater
+   a meta", filtros ativos e a folha para escolher blocos. */
 
 /* Céu estrelado: uma camada parada (SVG pequeno em public/) e outra, bem menor, que cintila. */
 .ceu {
@@ -19,13 +20,13 @@
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  animation: cintilar 4.5s ease-in-out infinite alternate;
+  animation: cintilar 3.6s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
 @keyframes cintilar {
   from {
-    opacity: 0.25;
+    opacity: 0.3;
   }
 
   to {
@@ -33,17 +34,115 @@
   }
 }
 
-/* ---- Skyline ---- */
+/* ---- Skyline: cada janela acesa é uma pauta ---- */
 
 .skyline {
-  width: 100%;
+  --jw: 15px;
+  --jg: 6px;
+
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* A legenda fica em cima dos prédios. */
+.legenda {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 112px;
+  margin: 0;
+  font-size: 14px;
+  color: #c9cbe3;
+}
+
+.legendaTexto {
+  margin: 0;
+}
+
+.rotuloPequeno {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8d92bc;
+}
+
+.legendaEtapa {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  align-self: stretch;
+  column-gap: 8px;
+  margin: 0 0 10px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid rgb(255 255 255 / 14%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.legendaEtapa .rotuloPequeno {
+  grid-column: 1 / -1;
+}
+
+.legendaEtapa .janelaMini {
+  width: 9px;
+  height: 12px;
+  margin: 0;
+  box-shadow: 0 0 10px var(--cor);
+}
+
+.legendaPauta {
+  margin: 0 0 10px;
+  color: #fff;
+  font-family: var(--fonte-titulo), sans-serif;
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.legendaPauta .rotuloPequeno {
+  font-family: var(--fonte-corpo), sans-serif;
+}
+
+.legendaAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 0;
+  margin: 0;
+  font-size: 14px;
+}
+
+.legendaAcoes > * {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-right: 14px;
+  padding: 0 14px 0 0;
+  border-right: 1px solid rgb(255 255 255 / 22%);
+  line-height: 1.1;
+  color: var(--luz);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legendaAcoes > :last-child {
+  margin-right: 0;
+  padding-right: 0;
+  border-right: 0;
 }
 
 .predios {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 150px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -52,33 +151,78 @@
 .predio {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 6px 0;
-  border: 1px solid var(--borda);
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-  background: var(--noite-2);
-  transition:
-    opacity 240ms var(--curva),
-    border-color 240ms var(--curva);
-}
-
-.escolhido {
-  border-color: var(--luz);
+  align-items: stretch;
+  transition: opacity 0.5s;
 }
 
 .esmaecido {
-  opacity: 0.45;
+  opacity: 0.42;
+}
+
+/* A sigla fica em cima do prédio. */
+.sigla {
+  align-self: center;
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d92bc;
+}
+
+.sigla small {
+  font-size: inherit;
+  font-weight: 500;
+  color: #8d92bc;
+}
+
+.escolhido .sigla {
+  color: var(--luz);
 }
 
 .janelas {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(var(--colunas), 14px);
-  gap: 6px;
+  grid-template-columns: repeat(var(--colunas), var(--jw));
+  gap: var(--jg);
+  justify-content: center;
   margin: 0;
-  padding: 0;
+  padding: 12px 8px 22px;
+  border-radius: 7px 7px 0 0;
+  background: var(--noite-2);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
   list-style: none;
+}
+
+.escolhido .janelas {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 7%),
+    0 0 0 2px var(--luz);
+}
+
+/* A porta acesa no pé do prédio e a antena no alto. */
+.janelas::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  translate: -50% 0;
+  width: calc(var(--jw) + 2px);
+  height: 13px;
+  border-radius: 3px 3px 0 0;
+  background: rgb(255 194 61 / 38%);
+  box-shadow: 0 0 14px rgb(255 194 61 / 30%);
+}
+
+.janelas::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  translate: -50% 0;
+  width: 2px;
+  height: 9px;
+  background: #3a4488;
 }
 
 .janelas li {
@@ -87,136 +231,138 @@
 
 .janela,
 .apagada {
-  width: 14px;
-  height: 20px;
-  border-radius: 3px;
-}
-
-.apagada {
+  position: relative;
+  display: block;
+  width: var(--jw);
+  height: calc(var(--jw) * 1.4);
+  border-radius: 2px;
   background: rgb(255 255 255 / 7%);
 }
 
 .janela {
-  position: relative;
   padding: 0;
   border: 0;
   background: var(--cor);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--cor) 70%, transparent);
+  box-shadow: 0 0 calc(8px + var(--g, 0) * 14px) calc(var(--g, 0) * 3px) var(--cor);
   cursor: pointer;
+  animation: acende 1.1s var(--d, 200ms) var(--curva) both;
 }
 
 /* Alvo de toque maior que a janela, sem aumentar o desenho. */
 .janela::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -8px -4px;
+}
+
+@keyframes acende {
+  0% {
+    background: rgb(255 255 255 / 7%);
+    box-shadow: none;
+  }
+
+  40% {
+    background: #fff;
+    box-shadow: 0 0 22px 4px var(--cor);
+  }
+
+  100% {
+    background: var(--cor);
+  }
+}
+
+.etapa_juntando_apoios {
+  animation:
+    acende 1.1s var(--d, 200ms) var(--curva) both,
+    piscar 4s calc(var(--d, 200ms) + 1.2s) ease-in-out infinite;
+}
+
+@keyframes piscar {
+  50% {
+    filter: brightness(0.62);
+  }
+}
+
+.etapa_conquistada {
+  background: color-mix(in srgb, var(--cor) 60%, #fff);
 }
 
 /* A etapa em que a gestão faltou com a palavra é a janela vazada: só o contorno. */
 .etapa_descumprida {
   background: transparent;
-  box-shadow: inset 0 0 0 2px var(--cor);
-}
-
-.etapa_conquistada {
-  filter: brightness(1.25);
-}
-
-.etapa_juntando_apoios {
-  animation: piscar 3.2s ease-in-out infinite;
-}
-
-@keyframes piscar {
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.fora {
-  opacity: 0.3;
+  box-shadow: inset 0 0 0 1.5px var(--cor);
   animation: none;
 }
 
+.fora {
+  opacity: 0.25;
+}
+
 .aberta {
-  outline: 2px solid var(--tinta);
-  outline-offset: 2px;
-}
-
-.sigla {
-  min-height: 24px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--tinta-2);
-}
-
-.escolhido .sigla {
-  color: var(--luz);
-}
-
-.sigla small {
-  font-weight: 500;
-  color: var(--tinta-3);
-}
-
-.legenda {
-  min-height: 84px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--borda);
-  font-size: 14px;
-}
-
-.legenda p {
-  margin: 0 0 6px;
-}
-
-.legendaTexto {
-  color: var(--tinta-2);
-}
-
-.rotuloPequeno {
-  margin-right: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tinta-3);
-}
-
-.legendaPauta {
-  font-weight: 600;
-  color: var(--tinta);
-}
-
-.legendaAcoes a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--luz);
+  z-index: 2;
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 .janelaMini {
   display: inline-block;
-  width: 10px;
-  height: 14px;
+  width: 9px;
+  height: 12px;
   margin-right: 6px;
-  vertical-align: -2px;
+  vertical-align: -1px;
   border-radius: 2px;
   background: var(--cor);
 }
 
-/* ---- O campus em números ---- */
+@media (min-width: 900px) {
+  .skyline {
+    --jw: 22px;
+    --jg: 9px;
+  }
+
+  .legenda {
+    min-height: 52px;
+  }
+
+  .predios {
+    gap: 12px;
+    min-height: 230px;
+  }
+}
+
+/* ---- O campus em números: sem caixas ---- */
+
+.secaoNumeros {
+  padding-bottom: 8px;
+}
 
 .numeros {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 16px 0 0;
+  grid-template-columns: 1fr 1fr;
+  margin: 20px 0 6px;
+  border-top: 1px solid var(--borda);
 }
 
 .numero {
+  --k: var(--status-apoios);
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: 16px 12px 16px 0;
-  border-top: 1px solid var(--borda);
+  border-bottom: 1px solid var(--borda);
+}
+
+.numero:nth-child(2) {
+  --k: var(--luz-forte);
+}
+
+.numero:nth-child(3) {
+  --k: var(--status-cobrando);
+}
+
+.numero:nth-child(4) {
+  --k: var(--status-conquistada);
 }
 
 .numero:nth-child(even) {
@@ -224,30 +370,40 @@
   border-left: 1px solid var(--borda);
 }
 
+.numeroGrande {
+  order: 1;
+  margin: 0;
+  font:
+    800 clamp(46px, 13.4vw, 80px) / 0.92 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
 .numero dt {
-  font-size: 13px;
+  order: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--tinta-2);
 }
 
-.numero dd {
-  margin: 0;
-}
-
-.numeroGrande {
-  display: block;
-  font:
-    700 40px/1.1 var(--fonte-titulo),
-    sans-serif;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
+.numero dt::before {
+  content: '';
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--k);
 }
 
 .numeroContexto {
-  display: block;
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--tinta-2);
+  order: 3;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--tinta-3);
 }
 
 .atraso {
@@ -258,22 +414,28 @@
 
 .colunas {
   display: grid;
-  gap: 32px;
-  margin-top: 32px;
+  gap: 28px;
+  margin-top: 26px;
 }
 
 .colunas h2,
 .pertoDaMeta h2 {
   margin: 0 0 12px;
-  font:
-    700 20px var(--fonte-titulo),
-    sans-serif;
-  letter-spacing: -0.02em;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
 }
 
+.pertoDaMeta h2 {
+  margin-bottom: 8px;
+}
+
+/* As linhas de etapa e de bloco são filtros: sem caixa, ficam escuras quando marcadas. */
 .linhasFiltro {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 6px;
   margin: 0;
   padding: 0;
@@ -282,165 +444,293 @@
 
 .linhaFiltro {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(40px, 30%) auto;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 34px;
   align-items: center;
-  gap: 8px;
-  width: 100%;
+  gap: 12px;
+  width: calc(100% + 24px);
   min-height: 46px;
-  padding: 0 12px;
-  border: 1px solid var(--borda);
-  border-radius: var(--raio-controle);
-  background: var(--superficie);
-  color: var(--tinta);
+  margin-inline: -12px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
   font: inherit;
-  font-size: 14px;
   text-align: left;
   cursor: pointer;
-  transition:
-    background var(--rapido) var(--curva),
-    color var(--rapido) var(--curva);
-}
-
-/* Linha de bloco não tem janela: o nome ocupa a primeira coluna. */
-.linhaFiltro:not(:has(.janelaMini)) {
-  grid-template-columns: minmax(0, 1fr) minmax(40px, 30%) auto;
+  transition: background 0.25s;
 }
 
 .linhaFiltro:hover {
-  border-color: var(--borda-forte);
+  background: rgb(22 26 46 / 4%);
 }
 
 .linhaFiltro[aria-pressed='true'] {
   background: var(--tinta);
-  color: var(--fundo);
-  border-color: var(--tinta);
-}
-
-.linhaFiltro .janelaMini {
-  margin: 0;
+  color: #fff;
 }
 
 .nomeDaLinha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 500;
   overflow-wrap: anywhere;
+}
+
+.nomeDaLinha .janelaMini {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 12px;
+  margin: 0;
 }
 
 .trilhoDaLinha {
   height: 6px;
-  border-radius: 3px;
-  background: var(--superficie-2);
+  border-radius: 6px;
+  background: rgb(22 26 46 / 9%);
   overflow: hidden;
+}
+
+.linhaFiltro[aria-pressed='true'] .trilhoDaLinha {
+  background: rgb(255 255 255 / 22%);
 }
 
 .trilhoDaLinha i {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 6px;
   background: var(--cor, var(--luz-forte));
+  transform-origin: left;
+  animation: cresce 0.9s var(--curva) both;
 }
 
-.linhaFiltro[aria-pressed='true'] .trilhoDaLinha {
-  background: rgb(255 255 255 / 25%);
+@keyframes cresce {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .valorDaLinha {
-  font-weight: 700;
+  text-align: right;
+  font-size: 14.5px;
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.botaoTexto {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--luz-tinta);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 /* ---- Perto de bater a meta ---- */
 
 .pertoDaMeta {
-  margin-top: 40px;
+  margin-top: 30px;
 }
 
 .pertoDaMeta ul {
-  display: grid;
-  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.pertoDaMeta li {
-  padding: 12px 0;
   border-top: 1px solid var(--borda);
 }
 
-.pertoDaMeta a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  font-weight: 600;
-  color: var(--tinta);
+.pertoDaMeta li {
+  border-bottom: 1px solid var(--borda);
 }
 
-.pertoDaMeta p {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--tinta-2);
+.pertoDaMeta a {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 2px 12px;
+  padding: 13px 0;
+  color: inherit;
+  text-decoration: none;
+  transition: padding 0.4s var(--curva);
+}
+
+.pertoDaMeta a:hover {
+  padding-left: 8px;
+}
+
+.pertoDaMeta .janelaMini {
+  grid-row: span 3;
+  width: 14px;
+  height: 20px;
+  margin: 3px 4px;
+  border-radius: 3px;
+}
+
+.tituloDaMeta {
+  font-family: var(--fonte-titulo), sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.detalheDaMeta {
+  font-size: 13.5px;
+  color: var(--tinta-3);
 }
 
 .barraFina {
   display: block;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--superficie-2);
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: rgb(22 26 46 / 9%);
   overflow: hidden;
 }
 
 .barraFina i {
   display: block;
   height: 100%;
-  background: var(--status-apoios);
+  background: var(--cor);
+  border-radius: 4px;
 }
 
 /* ---- Rodapé de ação: filtros ativos e o caminho para a lista ---- */
 
 .acao {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 40px;
-  padding-top: 16px;
-  border-top: 1px solid var(--borda);
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
 }
 
 .etiquetas {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+  min-height: 36px;
   margin: 0;
   padding: 0;
   list-style: none;
+  font-size: 14px;
+  color: var(--tinta-3);
 }
 
 .etiqueta {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--borda-forte);
+  gap: 8px;
+  padding: 6px 12px;
+  border: 0;
   border-radius: 999px;
-  background: var(--superficie);
-  color: var(--tinta);
-  font-size: 14px;
+  background: var(--tinta);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
   text-decoration: none;
 }
 
-.dica {
-  margin: 0;
-  font-size: 14px;
-  color: var(--tinta-2);
+/* O alvo de toque passa dos 44 px sem engordar o desenho da etiqueta. */
+.etiqueta::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }
 
-@media (min-width: 700px) {
+.limpar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--luz-tinta);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dica {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.verTodas {
+  justify-self: start;
+  min-height: 48px;
+  padding-inline: 22px;
+}
+
+/* ---- Filtros do Início (chips) ---- */
+
+.chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tinta-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    border-color 0.3s,
+    transform 0.2s;
+}
+
+.chip:hover {
+  border-color: rgb(22 26 46 / 35%);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+}
+
+.chipNumero {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
+}
+
+.chip[aria-pressed='true'] .chipNumero {
+  color: #c9cbe3;
+}
+
+@media (min-width: 900px) {
   .numeros {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 26px;
   }
 
-  .numero {
-    padding-left: 16px;
+  .numero,
+  .numero:nth-child(even) {
+    padding: 20px 20px 20px 22px;
     border-left: 1px solid var(--borda);
   }
 
@@ -449,21 +739,14 @@
     border-left: 0;
   }
 
-  .acao {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-@media (min-width: 900px) {
   .colunas {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1.15fr 1fr 1fr;
     gap: 0;
+    margin-top: 30px;
   }
 
   .colunas > * {
-    padding: 0 24px;
+    padding: 4px 26px;
     border-left: 1px solid var(--borda);
   }
 
@@ -472,39 +755,33 @@
     border-left: 0;
   }
 
-  .colunas > :last-child {
-    padding-right: 0;
+  .pertoDaMeta ul {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 32px;
+    border-top: 0;
+  }
+
+  .pertoDaMeta li {
+    border-top: 1px solid var(--borda);
+    border-bottom: 0;
+  }
+
+  .acao {
+    grid-template-columns: 1fr auto;
+    align-items: center;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ceu::before,
-  .etapa_juntando_apoios {
+  .etapa_juntando_apoios,
+  .janela {
     animation: none;
   }
 }
 
-.secaoNumeros {
-  margin-bottom: 24px;
-}
-
 /* ---- Folha "Escolher blocos" ---- */
-
-.botaoTexto {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--luz-tinta);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
 
 .somenteLeitorDoInicio {
   position: absolute;
@@ -521,24 +798,33 @@
   position: fixed;
   inset: auto 0 0;
   width: 100%;
-  max-width: none;
+  max-width: 560px;
   max-height: 88svh;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
   border: 0;
   border-radius: 24px 24px 0 0;
-  background: var(--superficie);
+  background: var(--fundo);
   color: var(--tinta);
+  box-shadow: 0 -20px 60px -20px rgb(0 0 0 / 60%);
   overflow: hidden;
 }
 
 .folha[open] {
   display: flex;
   flex-direction: column;
+  animation: sobe 0.4s var(--curva);
+}
+
+@keyframes sobe {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
 }
 
 .folha::backdrop {
-  background: rgb(10 13 32 / 72%);
+  background: rgb(8 10 30 / 72%);
 }
 
 .folhaConteudo {
@@ -546,7 +832,8 @@
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left, 0px));
   overflow-y: auto;
 }
 
@@ -559,9 +846,11 @@
 .folhaTopo h2 {
   margin: 0;
   font:
-    700 22px var(--fonte-titulo),
+    800 24px var(--fonte-titulo),
     sans-serif;
   letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--tinta);
 }
 
 .folhaFechar {
@@ -572,20 +861,23 @@
   height: 44px;
   border: 0;
   border-radius: 50%;
-  background: var(--superficie-2);
+  background: rgb(22 26 46 / 8%);
   color: var(--tinta);
   font-size: 16px;
   cursor: pointer;
 }
 
+/* O prédio em miniatura: mostra os prédios surgindo enquanto você escolhe. */
 .folhaMini {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-end;
-  justify-content: center;
-  gap: 6px;
-  min-height: 96px;
-  padding: 12px 12px 0;
-  border-radius: var(--raio-controle);
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 112px;
+  padding: 14px 16px 0;
+  border-radius: 16px;
+  background: var(--noite);
   overflow: hidden;
 }
 
@@ -593,112 +885,111 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 4px 3px 0;
-  border: 1px solid var(--borda);
-  border-bottom: 0;
-  border-radius: 4px 4px 0 0;
-  background: var(--noite-2);
-  transition: opacity 240ms var(--curva);
+  transition: opacity 0.4s;
 }
 
 .miniPredio small {
+  margin-bottom: 4px;
   font-size: 9px;
   font-weight: 700;
-  color: var(--tinta-2);
+  letter-spacing: 0.1em;
+  color: #8d92bc;
 }
 
 .miniPredio.escolhido small {
   color: var(--luz);
 }
 
+.miniPredio.esmaecido {
+  opacity: 0.35;
+}
+
 .miniJanelas {
   display: grid;
-  grid-template-columns: repeat(var(--colunas), 7px);
+  grid-template-columns: repeat(var(--colunas), 9px);
   gap: 3px;
+  padding: 7px 7px 9px;
+  border-radius: 4px 4px 0 0;
+  background: var(--noite-2);
+  transition: box-shadow 0.3s;
+}
+
+.miniPredio.escolhido .miniJanelas {
+  box-shadow: 0 0 0 2px var(--luz);
 }
 
 .miniJanelas i {
-  width: 7px;
-  height: 10px;
+  width: 9px;
+  height: 12px;
   border-radius: 1.5px;
+  background: rgb(255 255 255 / 9%);
+}
+
+.miniJanelas i.acesa {
+  box-shadow: 0 0 6px var(--cor);
 }
 
 .folhaResumo {
   margin: 0;
   font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.folhaResumo.atraso {
+  color: var(--urgente);
   font-weight: 600;
 }
 
 .folhaBusca input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--borda-forte);
-  border-radius: var(--raio-controle);
-  background: var(--superficie);
+  padding: 12px 14px;
+  border: 1px solid rgb(22 26 46 / 22%);
+  border-radius: 12px;
+  background: #fff;
   color: var(--tinta);
   font: inherit;
 }
 
 .folhaChips {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 8px;
+  min-height: 120px;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
-  border: 1px solid var(--borda-forte);
-  border-radius: 999px;
-  background: var(--superficie);
-  color: var(--tinta);
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.chip[aria-pressed='true'] {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--fundo);
-}
-
-.chipNumero {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  overflow-y: auto;
 }
 
 .folhaRodape {
   position: sticky;
   bottom: 0;
-  padding-top: 8px;
-  background: var(--superficie);
+  background: var(--fundo);
 }
 
 .folhaAplicar {
   width: 100%;
-  min-height: 48px;
+  min-height: 50px;
+  padding: 14px;
   border: 0;
-  border-radius: var(--raio-controle);
+  border-radius: 14px;
   background: var(--luz);
-  color: var(--noite);
+  color: #231600;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition: box-shadow 0.3s;
+}
+
+.folhaAplicar:hover:not(:disabled) {
+  box-shadow: 0 8px 24px -6px rgb(255 164 27 / 70%);
 }
 
 .folhaAplicar:disabled {
-  background: var(--superficie-2);
-  color: var(--tinta-3);
+  background: #e4e0d4;
+  color: #7b7d8d;
   cursor: not-allowed;
 }
 
@@ -706,8 +997,12 @@
   .folha {
     inset: 50% auto auto 50%;
     width: min(560px, calc(100vw - 48px));
-    max-height: min(720px, 90svh);
-    transform: translate(-50%, -50%);
+    max-height: 88svh;
+    translate: -50% -50%;
     border-radius: 24px;
+  }
+
+  .folhaConteudo {
+    padding: 22px 26px;
   }
 }

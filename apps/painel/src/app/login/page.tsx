@@ -8,7 +8,9 @@ export default function Login() {
       <section className={estilos.cartao} aria-labelledby="titulo-login">
         <p className={estilos.marca}>
           <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
-          Lumens <span>Curadoria</span>
+          <span>
+            Lumens <span>Curadoria</span>
+          </span>
         </p>
         <h1 id="titulo-login">Entrar no painel</h1>
         <p className={estilos.descricao}>
@@ -16,7 +18,14 @@ export default function Login() {
         </p>
         <form action={entrar} className={estilos.formulario}>
           <label htmlFor="email">E-mail</label>
-          <input id="email" name="email" type="email" autoComplete="email" required />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="nome@ufal.br"
+          />
           <Enviar className={estilos.botao}>Receber o link</Enviar>
         </form>
       </section>

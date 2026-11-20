@@ -1,34 +1,36 @@
+/* Política de privacidade: título e introdução como nas outras páginas, seções em coluna de leitura. */
 .pagina {
-  max-width: 640px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: var(--pagina-topo) var(--espaco) calc(var(--pagina-fim) + env(safe-area-inset-bottom));
+  padding: var(--pagina-topo) max(16px, env(safe-area-inset-right, 0px))
+    calc(var(--pagina-fim) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left, 0px));
 }
 
 .titulo {
-  margin: 0;
+  margin: 0 0 12px;
   font:
-    800 1.75em var(--fonte-titulo),
+    800 clamp(34px, 9vw, 54px) / 1 var(--fonte-titulo),
     sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 
 .resumo {
-  margin: 4px 0 var(--espaco);
+  max-width: 60ch;
+  margin: 0 0 16px;
   color: var(--tinta-2);
+  text-wrap: pretty;
 }
 
 .secao {
-  margin-bottom: var(--espaco);
-  padding: 12px var(--espaco);
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
+  max-width: 62ch;
+  padding-block: 8px;
 }
 
 .secaoTitulo {
-  margin: 0 0 8px;
+  margin: 18px 0 6px;
   font:
-    700 1.1875em var(--fonte-titulo),
+    700 22px var(--fonte-titulo),
     sans-serif;
 }
 
@@ -56,12 +58,12 @@
 
 .rotulo {
   margin: 0 0 4px;
+  color: var(--tinta-2);
   font:
     600 0.8125em var(--fonte-rotulo),
     monospace;
-  color: var(--tinta-2);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .voltar {

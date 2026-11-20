@@ -1,0 +1,627 @@
+/*
+ * Mapa do campus, como no protótipo: o desenho ocupa a tela abaixo do cabeçalho, os chips de etapa
+ * ficam por cima, e a lista de blocos é uma gaveta (no celular) ou um painel de 400 px (no computador).
+ */
+.mapa {
+  --sh: 188px;
+  --c: var(--luz);
+
+  position: relative;
+  height: calc(100svh - var(--hdr, 64px));
+  min-height: 540px;
+  overflow: hidden;
+  background: var(--noite);
+  color: #f5f3ff;
+}
+
+.palco {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+  outline-offset: -3px;
+}
+
+.arrastando {
+  cursor: grabbing;
+}
+
+.palco svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.solo {
+  fill: #181e4a;
+  stroke: rgb(255 255 255 / 10%);
+  stroke-width: 1.2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.via {
+  fill: none;
+  stroke: rgb(255 255 255 / 9%);
+  stroke-width: 1.2px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.predio {
+  fill: #262f6b;
+  transition: fill 0.5s;
+}
+
+.predio[data-k] {
+  cursor: pointer;
+}
+
+.predio[data-k]:not(.aceso):hover {
+  fill: #35418f;
+}
+
+.aceso {
+  fill: var(--c);
+  filter: drop-shadow(0 0 7px var(--c));
+  cursor: pointer;
+}
+
+.escolhido {
+  stroke: #fff;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.ponto {
+  fill: #fff;
+  pointer-events: none;
+}
+
+.onda {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2px;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: onda 2.8s var(--curva) infinite;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+@keyframes onda {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+.toque {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.rotulo {
+  fill: #b9bddf;
+  font-family: var(--fonte-corpo), system-ui, sans-serif;
+  font-weight: 600;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #141936;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.rotuloAceso {
+  fill: #fff;
+  opacity: 1;
+}
+
+.perto .rotulo {
+  opacity: 0.85;
+}
+
+.perto .rotuloAceso {
+  opacity: 1;
+}
+
+.topo {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 0
+    max(16px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+.topo > * {
+  pointer-events: auto;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  margin: 0 calc(max(16px, env(safe-area-inset-left, 0px)) * -1) 0
+    calc(max(16px, env(safe-area-inset-right, 0px)) * -1);
+  padding: 2px max(16px, env(safe-area-inset-right, 0px)) 4px
+    max(16px, env(safe-area-inset-left, 0px));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+  background: rgb(20 25 54 / 78%);
+  backdrop-filter: blur(10px);
+  color: #dfe1f3;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    border-color 0.3s,
+    transform 0.2s;
+}
+
+.chip:hover {
+  border-color: rgb(255 255 255 / 40%);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+.chip i {
+  width: 9px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.chip b {
+  color: #a3a7c7;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: #fff;
+  background: #fff;
+  color: var(--tinta-noite, #161a2e);
+}
+
+.chip[aria-pressed='true'] b {
+  color: #5f6378;
+}
+
+.chip[aria-pressed='true'] i {
+  box-shadow: 0 0 10px var(--c);
+}
+
+.dica {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(20 25 54 / 78%);
+  color: #d3d5ea;
+  font-size: 13px;
+  transition: opacity 0.6s;
+  pointer-events: none !important;
+}
+
+.dicaOculta {
+  opacity: 0;
+}
+
+.zoom {
+  position: absolute;
+  z-index: 3;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--sh) + 14px);
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 14%);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 60%);
+  transition: bottom 0.5s var(--curva);
+}
+
+.zoom button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: rgb(20 25 54 / 88%);
+  color: #fff;
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.zoom button:hover {
+  background: #262f6b;
+}
+
+.credito {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(var(--sh) + 8px);
+  left: max(16px, env(safe-area-inset-left, 0px));
+  margin: 0;
+  color: #8d92bc;
+  font-size: 11px;
+  transition: bottom 0.5s var(--curva);
+}
+
+.credito a {
+  color: inherit;
+}
+
+.gaveta {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  height: var(--sh);
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 24px 24px 0 0;
+  background: rgb(22 27 62 / 94%);
+  backdrop-filter: blur(18px);
+  transition: height 0.55s var(--curva);
+}
+
+.meio {
+  --sh: min(46svh, 400px);
+}
+
+.aberta {
+  --sh: min(72svh, 600px);
+}
+
+.alca {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0 6px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.alca i {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 30%);
+}
+
+.corpo {
+  flex: 1;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 18px
+    max(16px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.corpo h1,
+.corpo h2 {
+  margin: 0;
+  font:
+    800 24px / 1.1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  margin: 4px 0 8px;
+  color: #b9bddf;
+  font-size: 14px;
+}
+
+.voltar {
+  min-height: 44px;
+  padding: 0 0 6px;
+  border: 0;
+  background: none;
+  color: var(--luz);
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 2px 12px;
+  align-items: center;
+  width: 100%;
+  padding: 13px 0;
+  border: 0;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: padding 0.4s var(--curva);
+}
+
+.item:hover {
+  padding-left: 6px;
+}
+
+.glifo {
+  grid-row: span 2;
+  width: 14px;
+  height: 20px;
+  margin: 0 4px;
+  border-radius: 3px;
+  background: var(--c);
+}
+
+.glifoVazado {
+  background: transparent;
+  box-shadow: inset 0 0 2px 0 transparent;
+  outline: 2px solid var(--c);
+  outline-offset: -2px;
+}
+
+.item strong {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.item small {
+  grid-column: 2;
+  color: #b9bddf;
+  font-size: 13px;
+}
+
+.item small b,
+.pa small b {
+  color: var(--c);
+  filter: brightness(1.4);
+  font-weight: 700;
+}
+
+.item em {
+  grid-row: span 2;
+  font:
+    800 18px var(--fonte-titulo),
+    sans-serif;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.pa {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 3px 12px;
+  align-items: start;
+  padding: 14px 0;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.pa .glifo {
+  grid-row: span 3;
+  margin: 3px 4px 0;
+}
+
+.pa strong {
+  font:
+    700 18px / 1.15 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.pa strong a {
+  display: inline-block;
+  min-height: 24px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pa strong a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pa .n {
+  font:
+    800 18px var(--fonte-titulo),
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.pa small {
+  grid-column: 2 / 4;
+  color: #b9bddf;
+  font-size: 13px;
+}
+
+.fio {
+  grid-column: 2 / 4;
+  height: 4px;
+  margin: 4px 0 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.fio i {
+  display: block;
+  width: var(--p);
+  height: 100%;
+  border-radius: 4px;
+  background: var(--c);
+}
+
+.apoiar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--luz);
+  color: #231600;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    box-shadow 0.4s,
+    transform 0.2s;
+}
+
+.apoiar:hover {
+  box-shadow: 0 8px 24px -6px rgb(255 164 27 / 70%);
+}
+
+.apoiar:active {
+  transform: scale(0.96);
+}
+
+.pa .apoiar {
+  grid-column: 2 / 4;
+  justify-self: start;
+  margin-top: 8px;
+}
+
+.novo {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+
+.novo p {
+  margin: 0 0 10px;
+  color: #b9bddf;
+  font-size: 14px;
+}
+
+.novo .apoiar {
+  font-size: 15px;
+}
+
+.dicaDoPainel {
+  margin: 16px 0 0;
+  color: #8d92bc;
+  font-size: 13px;
+}
+
+.somenteLeitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 900px) {
+  .mapa {
+    --sh: 0px;
+
+    min-height: 620px;
+  }
+
+  .palco {
+    right: 400px;
+  }
+
+  .topo {
+    right: 400px;
+  }
+
+  .zoom {
+    right: 416px;
+    bottom: 20px;
+  }
+
+  .credito {
+    bottom: 8px;
+  }
+
+  .gaveta {
+    top: 0;
+    left: auto;
+    width: 400px;
+    height: auto;
+    border-top: 0;
+    border-left: 1px solid rgb(255 255 255 / 12%);
+    border-radius: 0;
+  }
+
+  .mapa.meio,
+  .mapa.aberta {
+    --sh: 0px;
+  }
+
+  .alca {
+    display: none;
+  }
+
+  .corpo {
+    padding: 24px;
+  }
+
+  .corpo h1,
+  .corpo h2 {
+    font-size: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onda {
+    animation: none;
+  }
+}
+
+.outros {
+  margin-top: 6px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.outros summary {
+  padding: 13px 0;
+  color: #b9bddf;
+  font-size: 14px;
+  cursor: pointer;
+}

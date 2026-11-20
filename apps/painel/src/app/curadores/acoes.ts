@@ -7,8 +7,8 @@ import { criarGestao } from './gestao';
 
 const gestao = criarGestao({
   curador: curadorDaSessao,
-  adicionar: (autorId, email, nome) =>
-    adicionarCurador(servidor().db, chavesDeCurador(), { autorId, email, nome }),
+  adicionar: (autorId, email, nome, papel) =>
+    adicionarCurador(servidor().db, chavesDeCurador(), { autorId, email, nome, papel }),
   desativar: (autorId, alvoId) => desativarCurador(servidor().db, { autorId, alvoId }),
   reativar: (autorId, alvoId) => reativarCurador(servidor().db, { autorId, alvoId }),
 });
@@ -19,7 +19,13 @@ const texto = (formulario: FormData, campo: string) => {
 };
 
 export async function adicionar(formulario: FormData) {
-  redirect(await gestao.adicionar(texto(formulario, 'email'), texto(formulario, 'nome')));
+  redirect(
+    await gestao.adicionar(
+      texto(formulario, 'email'),
+      texto(formulario, 'nome'),
+      texto(formulario, 'papel'),
+    ),
+  );
 }
 
 export async function desativar(formulario: FormData) {

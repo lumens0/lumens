@@ -1,77 +1,63 @@
+/* "Apoios por semana", como no protótipo: sem caixa, barras de âmbar e a semana atual em tinta. */
 .semanas {
   position: relative;
-  display: grid;
-  gap: 12px;
-  align-content: start;
   min-width: 0;
-  padding: 16px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
 }
 
+/* O título usa o estilo dos títulos das colunas do Início. */
 .titulo {
   margin: 0;
-  font:
-    700 18px var(--fonte-titulo),
-    sans-serif;
 }
 
 .colunas {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 6px;
-  height: 150px;
+  --ch: 180px;
+
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: var(--ch);
   margin: 0;
-  padding: 18px 0 0;
+  padding: 0;
   list-style: none;
-  border-bottom: 1px solid var(--borda-forte);
 }
 
 .coluna {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 4px;
-  min-width: 0;
-  text-align: center;
-}
-
-.haste {
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-/* Cinza neutro; só a semana atual leva a luz. */
-.barra {
-  position: relative;
-  display: block;
-  width: 100%;
-  max-width: 30px;
-  min-height: 2px;
-  background: var(--borda-forte);
-  border-radius: 4px 4px 0 0;
-}
-
-.agora .barra {
-  background: var(--luz);
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 100%;
+  min-width: 0;
 }
 
 .valor {
-  position: absolute;
-  top: -17px;
-  left: 50%;
   font-size: 12px;
   font-style: normal;
-  font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: var(--tinta-2);
-  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
 }
 
-.agora .valor,
-.agora .rotulo {
-  color: var(--luz-tinta);
+.barra {
+  display: block;
+  width: 100%;
+  height: calc(var(--f) * (var(--ch) - 56px));
+  min-height: 4px;
+  border-radius: 6px 6px 2px 2px;
+  background: var(--luz-forte);
+  transform-origin: bottom;
+  animation: cresceY 0.9s calc(var(--i) * 70ms) var(--curva) both;
+}
+
+.agora .barra {
+  background: var(--tinta);
+}
+
+@keyframes cresceY {
+  from {
+    transform: scaleY(0);
+  }
 }
 
 .rotulo {
@@ -86,9 +72,13 @@
 }
 
 .resumo {
-  margin: 0;
-  font-size: 13px;
-  color: var(--tinta-3);
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.resumo b {
+  color: var(--status-conquistada);
 }
 
 .somenteLeitor {
@@ -101,12 +91,8 @@
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
+@media (min-width: 900px) {
   .colunas {
-    gap: 4px;
-  }
-
-  .rotulo {
-    font-size: 10px;
+    --ch: 220px;
   }
 }

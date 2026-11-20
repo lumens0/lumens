@@ -1,7 +1,8 @@
 import type { Caminho } from '@lumens/contratos';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import { linkDoManual } from '../../app/manual/secoes';
-import { BotaoVouAjudar } from '../BotaoWhatsApp';
+import { comandoAjudar, linkDoBot, nomeDoCanal } from '../../whatsapp';
 import { formatarDia, prazoVencido, textoDoPrazo } from './prazos';
 
 export { formatarDia };
@@ -48,10 +49,27 @@ export function rotuloStatusCaminho(status: string): string {
   return STATUS[status] ?? status.replaceAll('_', ' ');
 }
 
-/** Feito em verde, juntando gente em lilás, o resto (esperando resposta) em amarelo. */
-function corDoChip(status: string): 'chipFeito' | 'chipJuntando' | 'chipEsperando' {
-  if (status === 'executada') return 'chipFeito';
-  return status === 'aberta' ? 'chipJuntando' : 'chipEsperando';
+/** "Vou ajudar" na proposta aberta: abre o bot com `ajudar <slug>`. Sem bot configurado, não aparece. */
+function VouAjudar({ slug, titulo }: { slug: string; titulo: string }) {
+  const href = linkDoBot(comandoAjudar(slug));
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      className={estilos.ajudar}
+      aria-label={`Vou ajudar na proposta ${titulo} pelo ${nomeDoCanal()}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Vou ajudar
+    </a>
+  );
+}
+
+/** A janela de cada caminho: âmbar da cobrança, azul da proposta, verde do que foi executado. */
+function corDoCaminho(caminho: Caminho): string {
+  if (caminho.status === 'executada') return 'var(--status-conquistada)';
+  return caminho.tipo === 'proposta' ? 'var(--status-apoios)' : 'var(--status-cobrando)';
 }
 
 /** Caminho que já foi respondido (Fala.BR respondido): o prazo de resposta deixa de contar. */
@@ -106,37 +124,43 @@ export function Caminhos({
       </h2>
       {caminhos.length === 0 ? (
         <p className={estilos.vazio}>
-          Quem cuida da pauta ainda vai escolher os caminhos para levá-la adiante.
+          Ainda não há caminho aberto. Ele abre depois que a meta é batida e a curadoria escolhe
+          como cobrar.
         </p>
       ) : (
         <ul className={estilos.caminhos}>
           {caminhos.map((caminho, i) => (
             <li key={i} className={estilos.caminho}>
-              <span className={estilos.caminhoTipo}>{TIPOS[caminho.tipo]}</span>
-              <strong className={[estilos.chip, estilos[corDoChip(caminho.status)]].join(' ')}>
-                {rotuloStatusCaminho(caminho.status)}
-              </strong>
-              {explicacaoDe(caminho) && (
-                <span className={estilos.vazio}>
-                  {explicacaoDe(caminho)}
-                  {caminho.tipo === 'falabr' && (
-                    <>
-                      {' '}
-                      <Link href={linkDoManual('falabr')} aria-label="Saiba mais sobre o Fala.BR">
-                        Saiba mais
-                      </Link>
-                    </>
-                  )}
-                </span>
-              )}
-              {detalhes(caminho, agora, conquistada).map((linha) => (
-                <span key={linha} className={estilos.vazio}>
-                  {linha}
-                </span>
-              ))}
-              {caminho.tipo === 'proposta' && caminho.status === 'aberta' && (
-                <BotaoVouAjudar slug={slug} titulo={caminho.descricao ?? ''} />
-              )}
+              <i
+                className={estilos.glifoPequeno}
+                style={{ '--c': corDoCaminho(caminho) } as CSSProperties}
+                aria-hidden="true"
+              />
+              <div>
+                <strong className={estilos.caminhoTipo}>{TIPOS[caminho.tipo]}</strong>
+                <span className={estilos.caminhoStatus}>{rotuloStatusCaminho(caminho.status)}</span>
+                {explicacaoDe(caminho) && (
+                  <p>
+                    {explicacaoDe(caminho)}
+                    {caminho.tipo === 'falabr' && (
+                      <>
+                        {' '}
+                        <Link href={linkDoManual('falabr')} aria-label="Saiba mais sobre o Fala.BR">
+                          Saiba mais
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                )}
+                {detalhes(caminho, agora, conquistada).map((linha) => (
+                  <span key={linha} className={estilos.detalhe}>
+                    {linha}
+                  </span>
+                ))}
+                {caminho.tipo === 'proposta' && caminho.status === 'aberta' && (
+                  <VouAjudar slug={slug} titulo={caminho.descricao ?? ''} />
+                )}
+              </div>
             </li>
           ))}
         </ul>

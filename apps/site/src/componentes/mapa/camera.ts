@@ -1,485 +1,217 @@
-import type { PointerEvent as EventoDePonteiro } from 'react';
-import { ALTURA_DO_CAMPUS, LARGURA_DO_CAMPUS } from './predios';
+// A câmera do mapa e a lista de lugares, sem React nem DOM: o componente só aplica estes números.
+import type { Pauta, StatusPauta } from '../../dados/tipos';
+import { PREDIOS, type Predio } from './predios';
+import type { MarcadorDoBloco } from './urgencia';
 
-/** Pedaço do campus que aparece na tela, em metros do desenho (antes de girar). */
-export type Visao = { x: number; y: number; w: number; h: number };
+/** Onde a câmera olha (`cx`, `cy`, em metros do desenho) e quantos metros cabem na largura. */
+export type Camera = { cx: number; cy: number; w: number };
 
-export const ZOOM_MINIMO = 150;
-export const ZOOM_MAXIMO = LARGURA_DO_CAMPUS * 1.3;
+/** O tamanho do palco em pixels. */
+export type Medida = { vw: number; vh: number };
 
-const DURACAO_MS = 550;
-/** Tempo, em ms, para a velocidade do arraste solto cair a 37%. */
-const ATRITO_MS = 300;
-/** A pinça só começa a girar o mapa depois deste ângulo: zoom com dois dedos não gira sem querer. */
-const GIRO_MINIMO = 0.2;
+/** Limites de aproximação, em metros de largura visível. */
+export const LARGURA_MINIMA = 140;
+export const LARGURA_MAXIMA = 2300;
 
-/** Um deslocamento da tela, levado para o desenho girado em `giro` radianos. */
-function desgirar(dx: number, dy: number, giro: number): [number, number] {
-  const c = Math.cos(giro);
-  const s = Math.sin(giro);
-  return [c * dx + s * dy, -s * dx + c * dy];
-}
+/** Abaixo desta largura visível, os nomes de todos os prédios aparecem ("perto"). */
+export const LARGURA_DO_PERTO = 620;
 
-/**
- * A visão depois de aproximar (`fator` < 1) ou afastar em torno de um ponto da tela (0 a 1): o que
- * está debaixo do dedo continua debaixo dele, com o mapa girado ou não.
- */
-export function aproximar(v: Visao, fator: number, px: number, py: number, giro = 0): Visao {
-  const w = Math.min(ZOOM_MAXIMO, Math.max(ZOOM_MINIMO, v.w * fator));
-  const h = (w * v.h) / v.w;
-  const [dx, dy] = desgirar((px - 0.5) * (v.w - w), (py - 0.5) * (v.h - h), giro);
-  return { x: v.x + v.w / 2 + dx - w / 2, y: v.y + v.h / 2 + dy - h / 2, w, h };
-}
+/** Celular: abaixo desta largura de tela a lista vira gaveta e a câmera sobe para abrir espaço. */
+export const LARGURA_DO_CELULAR = 900;
 
-/** A visão depois de girar o mapa de `giro` para `giro + delta` em torno de um ponto da tela. */
-export function girar(v: Visao, giro: number, delta: number, px: number, py: number): Visao {
-  const u = (px - 0.5) * v.w;
-  const t = (py - 0.5) * v.h;
-  const [ax, ay] = desgirar(u, t, giro);
-  const [bx, by] = desgirar(u, t, giro + delta);
-  return { ...v, x: v.x + ax - bx, y: v.y + ay - by };
-}
+export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+/** Quem aparece primeiro numa disputa de cor: o que mais pede atenção. */
+const PRIO: Partial<Record<StatusPauta, number>> = {
+  descumprida: 0,
+  cobrando: 1,
+  prometido: 2,
+  meta_batida: 3,
+  entregue_em_parte: 4,
+  juntando_apoios: 5,
+  conquistada: 6,
+};
+
+export const prio = (p: Pauta) => PRIO[p.status] ?? 9;
+
+/** Conquistada não é pauta aberta: a marca de urgência que sobrou nela não conta. */
+const urgenteAberta = (p: Pauta) => p.urgente && p.status !== 'conquistada';
 
 /**
- * A visão com o conteúdo empurrado para a esquerda da tela em `fracao` da largura dela (negativo,
- * para a direita). O desvio é medido na tela: com o mapa girado, vira outro eixo do desenho.
+ * Da mais para a menos urgente: a pauta aberta que a curadoria marcou como urgente vem antes de
+ * qualquer etapa (como no `maisUrgente` dos marcadores); depois, a etapa (a conquistada por
+ * último, mesmo que ainda carregue a marca de urgência); no empate, a de mais apoios.
  */
-export function desviar(v: Visao, fracao: number, giro = 0): Visao {
-  const [dx, dy] = desgirar(fracao * v.w, 0, giro);
-  return { ...v, x: v.x + dx, y: v.y + dy };
-}
+export const porPrioridade = (a: Pauta, b: Pauta) =>
+  Number(urgenteAberta(b)) - Number(urgenteAberta(a)) || prio(a) - prio(b) || b.apoios - a.apoios;
 
-/** A tela não tem a proporção do alvo: a visão cresce para cobrir a tela sem cortar o alvo. */
-export function cobrir(v: Visao, aspecto: number): Visao {
-  const h = v.w / aspecto;
-  if (h >= v.h) return { ...v, y: v.y - (h - v.h) / 2, h };
-  const w = v.h * aspecto;
-  return { x: v.x - (w - v.w) / 2, y: v.y, w, h: v.h };
-}
-
-/** O centro da tela nunca sai do campus: não dá para arrastar o mapa para o vazio. */
-export function limitar(v: Visao): Visao {
-  const cx = Math.min(LARGURA_DO_CAMPUS, Math.max(0, v.x + v.w / 2));
-  const cy = Math.min(ALTURA_DO_CAMPUS, Math.max(0, v.y + v.h / 2));
-  return { ...v, x: cx - v.w / 2, y: cy - v.h / 2 };
-}
-
-/** O mesmo ângulo, entre -180° e 180°: voltar para o norte gira pelo lado mais curto. */
-export function normalizar(giro: number): number {
-  const volta = 2 * Math.PI;
-  return giro - volta * Math.round(giro / volta);
-}
+export const melhor = (ps: readonly Pauta[]): Pauta | undefined => [...ps].sort(porPrioridade)[0];
 
 /**
- * Os seis números do `matrix()` da camada para a tela mostrar `v` girada em `giro` em torno do
- * centro. O `viewBox` do SVG fica parado em `base` (encaixado inteiro e centralizado); quem se
- * move é a camada dentro dele.
+ * Um bloco do campus e as pautas dele. `predio`, `centro` e `base` só existem quando o bloco tem
+ * prédio no desenho: o resto (as pautas de todo o campus, um bloco ainda sem prédio) fica só na
+ * lista. Blocos que moram no mesmo prédio são lugares separados, com a mesma posição.
  */
-export function matrizDaCamada(
-  base: Visao,
-  v: Visao,
-  largura: number,
-  altura: number,
-  giro = 0,
-): [number, number, number, number, number, number] {
-  const m = Math.min(largura / base.w, altura / base.h);
-  const a = largura / v.w / m;
-  const c = a * Math.cos(giro);
-  const s = a * Math.sin(giro);
-  const cx = v.x + v.w / 2;
-  const cy = v.y + v.h / 2;
-  // O centro da visão cai no centro do viewBox, que é o centro da tela.
-  return [
-    c,
-    s,
-    -s,
-    c,
-    base.x + base.w / 2 - (c * cx - s * cy),
-    base.y + base.h / 2 - (s * cx + c * cy),
-  ];
+export interface Local {
+  chave: string;
+  nome: string;
+  slug: string;
+  pautas: Pauta[];
+  predio?: Predio;
+  centro?: { x: number; y: number; s: number };
+  /** Onde o nome fica: o meio da borda de baixo do prédio. */
+  base?: { x: number; y: number };
 }
 
-/**
- * A câmera do mapa. Arrastar, pinçar, girar, a inércia e as animações escrevem o `transform` direto
- * no DOM, uma vez por quadro, sem passar pelo estado do React: redesenhar o SVG inteiro a cada
- * movimento do dedo era o que travava o mapa. `aoMudar` avisa a visão nova a cada quadro pintado.
- */
-export function criarCamera(
-  base: Visao,
-  /** A visão nova, os metros do desenho por pixel da tela e o giro em radianos. */
-  aoMudar: (v: Visao, k: number, giro: number) => void,
-  aoGesto?: () => void,
-) {
-  let svg: SVGSVGElement | null = null;
-  let camada: SVGGElement | null = null;
-  let largura = 0;
-  let altura = 0;
-  /** O que está na tela agora, já na proporção dela. */
-  let vista = base;
-  /** O que se quer ver, antes de cobrir a tela: é o que vale quando a tela muda de tamanho. */
-  let logica = base;
-  /** Quanto o mapa está girado, em radianos (0 = norte para cima). */
-  let giro = 0;
-  let pintura = 0;
-  let animacao = 0;
-  let parado: ReturnType<typeof setTimeout> | undefined;
-  /** Giro em que a animação do `irPara` em curso vai terminar; `null` sem animação. */
-  let giroFinal: number | null = null;
-
-  const dedos = new Map<number, { x: number; y: number }>();
-  let inicio: { x: number; y: number } | null = null;
-  let canto = { x: 0, y: 0 };
-  let arrastou = false;
-  let pincou = false;
-  let giroDaPinca = 0;
-  let vx = 0;
-  let vy = 0;
-  let ultimoMovimento = 0;
-  let modoPonteiro: 'mover' | 'girar' | null = null;
-  let velocidadeGiro = 0;
-
-  const reduzir = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const pintar = () => {
-    pintura = 0;
-    if (!svg || !camada || largura === 0) return;
-    const matriz = matrizDaCamada(base, vista, largura, altura, giro);
-    camada.setAttribute('transform', `matrix(${matriz.map(String).join(' ')})`);
-    // Na moldura do mapa, para o CSS dos nomes, dos contornos e da bússola: metros do desenho por
-    // pixel da tela, e o giro em radianos.
-    const moldura = svg.parentElement ?? svg;
-    moldura.style.setProperty('--k', String(vista.w / largura));
-    moldura.style.setProperty('--giro', String(giro));
-    aoMudar(vista, vista.w / largura, giro);
-  };
-
-  /** Pinta no próximo quadro e marca o mapa como "em movimento" (o CSS desliga o brilho caro). */
-  const agendar = () => {
-    if (svg) {
-      svg.setAttribute('data-movendo', '');
-      clearTimeout(parado);
-      parado = setTimeout(() => svg?.removeAttribute('data-movendo'), 160);
-    }
-    if (!pintura) pintura = requestAnimationFrame(pintar);
-  };
-
-  const parar = () => {
-    cancelAnimationFrame(animacao);
-    animacao = 0;
-    giroFinal = null;
-  };
-
-  /** Segue o dedo: muda na hora, sem animar. */
-  const mover = (v: Visao) => {
-    vista = v;
-    logica = v;
-    agendar();
-  };
-
-  /** A visão depois de arrastar o mapa `dx`, `dy` pixels na tela. */
-  const deslocada = (dx: number, dy: number): Visao => {
-    const [mx, my] = desgirar((dx / largura) * vista.w, (dy / altura) * vista.h, giro);
-    return limitar({ ...vista, x: vista.x - mx, y: vista.y - my });
-  };
-
-  /** Leva a câmera até `alvo` (e ao giro pedido) com animação; sem ela para quem pediu menos movimento. */
-  const irPara = (alvo: Visao, giroAlvo = giro) => {
-    parar();
-    logica = alvo;
-    if (largura === 0) {
-      vista = alvo;
-      giro = giroAlvo;
-      return;
-    }
-    const para = cobrir(alvo, largura / altura);
-    if (reduzir()) {
-      vista = para;
-      giro = giroAlvo;
-      agendar();
-      return;
-    }
-    const de = vista;
-    const giroDe = giro;
-    giroFinal = giroAlvo;
-    const comeco = performance.now();
-    const passo = (agora: number) => {
-      const t = Math.min(1, Math.max(0, (agora - comeco) / DURACAO_MS));
-      const e = 1 - (1 - t) ** 3;
-      vista = {
-        x: de.x + (para.x - de.x) * e,
-        y: de.y + (para.y - de.y) * e,
-        w: de.w + (para.w - de.w) * e,
-        h: de.h + (para.h - de.h) * e,
-      };
-      giro = giroDe + (giroAlvo - giroDe) * e;
-      agendar();
-      if (t < 1) animacao = requestAnimationFrame(passo);
-      else parar();
+/** Um lugar por bloco, na ordem em que os marcadores vêm. */
+export function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
+  return marcadores.map((m) => {
+    const predio = m.predio === undefined ? undefined : PREDIOS.find((p) => p.id === m.predio);
+    const local: Local = { chave: m.slug, nome: m.nome, slug: m.slug, pautas: [...m.pautas] };
+    if (!predio) return local;
+    const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
+    return {
+      ...local,
+      predio,
+      centro: { x: x + w / 2, y: y + h / 2, s: Math.max(w, h) },
+      base: { x: x + w / 2, y: y + h },
     };
-    animacao = requestAnimationFrame(passo);
-  };
-
-  /** Depois de soltar o dedo, o mapa continua deslizando e para aos poucos. */
-  const deslizar = () => {
-    let antes = performance.now();
-    const passo = (agora: number) => {
-      // Um quadro atrasado (aba em segundo plano, celular engasgando) não vira um salto no mapa.
-      const dt = Math.min(32, Math.max(0, agora - antes));
-      antes = agora;
-      mover(deslocada(vx * dt, vy * dt));
-      const atrito = Math.exp(-dt / ATRITO_MS);
-      vx *= atrito;
-      vy *= atrito;
-      animacao = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(passo) : 0;
-    };
-    animacao = requestAnimationFrame(passo);
-  };
-
-  /** Posição do ponteiro dentro do mapa, de 0 a 1. */
-  const naTela = (clientX: number, clientY: number) => ({
-    px: (clientX - canto.x) / largura,
-    py: (clientY - canto.y) / altura,
   });
+}
 
-  const medirCanto = () => {
-    const r = svg?.getBoundingClientRect();
-    if (r) canto = { x: r.left, y: r.top };
-  };
+/** Os lugares de cada prédio (um prédio pode ter mais de um bloco), pelo id do prédio. */
+export function porPredio(locais: readonly Local[]): Map<number, Local[]> {
+  const mapa = new Map<number, Local[]>();
+  for (const l of locais) {
+    if (!l.predio) continue;
+    mapa.set(l.predio.id, [...(mapa.get(l.predio.id) ?? []), l]);
+  }
+  return mapa;
+}
 
-  const onPointerDown = (e: EventoDePonteiro<SVGSVGElement>) => {
-    if (e.pointerType === 'mouse' && e.button === 2) e.preventDefault();
-    parar();
-    medirCanto();
-    dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    giroDaPinca = 0;
-    if (dedos.size === 1) {
-      arrastou = false;
-      pincou = false;
-      vx = 0;
-      vy = 0;
-      velocidadeGiro = 0;
-      inicio = { x: e.clientX, y: e.clientY };
-      modoPonteiro =
-        e.pointerType === 'mouse' && (e.button === 2 || e.ctrlKey || e.metaKey) ? 'girar' : 'mover';
-    }
-  };
+/**
+ * Qual bloco escolher ao tocar no prédio: o primeiro com pauta na etapa filtrada; se nenhum tem,
+ * o primeiro. Sem lugar no prédio, `undefined`.
+ */
+export function blocoDoToque(
+  daquelePredio: readonly Local[],
+  filtro: StatusPauta | null,
+): Local | undefined {
+  return daquelePredio.find((l) => ativas(l, filtro).length > 0) ?? daquelePredio[0];
+}
 
-  const onPointerMove = (e: EventoDePonteiro<SVGSVGElement>) => {
-    const antes = dedos.get(e.pointerId);
-    if (!antes || !svg || largura === 0) return;
-    if (!arrastou && inicio) {
-      if (Math.hypot(e.clientX - inicio.x, e.clientY - inicio.y) < 4) return;
-      aoGesto?.();
-      // Só agora o ponteiro é capturado: antes disso, o clique continua chegando ao prédio.
-      arrastou = true;
-      svg.setPointerCapture(e.pointerId);
-    }
-    if (dedos.size >= 2) {
-      pincou = true;
-      const outro = [...dedos.entries()].find(([id]) => id !== e.pointerId)?.[1];
-      if (!outro) return;
-      const distAntes = Math.hypot(antes.x - outro.x, antes.y - outro.y);
-      const distAgora = Math.hypot(e.clientX - outro.x, e.clientY - outro.y);
-      if (distAntes > 0 && distAgora > 0) {
-        const { px, py } = naTela((e.clientX + outro.x) / 2, (e.clientY + outro.y) / 2);
-        let v = aproximar(vista, distAntes / distAgora, px, py, giro);
-        // Quanto a linha entre os dois dedos girou desde o último movimento.
-        const delta = normalizar(
-          Math.atan2(e.clientY - outro.y, e.clientX - outro.x) -
-            Math.atan2(antes.y - outro.y, antes.x - outro.x),
-        );
-        const jaGirava = Math.abs(giroDaPinca) > GIRO_MINIMO;
-        giroDaPinca += delta;
-        if (jaGirava) {
-          v = girar(v, giro, delta, px, py);
-          giro += delta;
-        }
-        // Os dois dedos andando juntos arrastam o mapa: o ponto médio entre eles anda metade do
-        // que o dedo que se moveu andou.
-        const [mx, my] = desgirar(
-          ((e.clientX - antes.x) / 2 / largura) * v.w,
-          ((e.clientY - antes.y) / 2 / altura) * v.h,
-          giro,
-        );
-        mover(limitar({ ...v, x: v.x - mx, y: v.y - my }));
-      }
-    } else {
-      const dx = e.clientX - antes.x;
-      const dy = e.clientY - antes.y;
-      const agora = performance.now();
-      const dt = Math.max(1, agora - ultimoMovimento);
-      // Média móvel da velocidade (px/ms): é com ela que o mapa desliza ao soltar.
-      vx = 0.7 * (dx / dt) + 0.3 * vx;
-      vy = 0.7 * (dy / dt) + 0.3 * vy;
-      if (modoPonteiro === 'girar') {
-        const delta = (dx / Math.max(1, largura)) * Math.PI * 2;
-        velocidadeGiro = 0.7 * (delta / dt) + 0.3 * velocidadeGiro;
-        giro += delta;
-        mover(vista);
-      } else {
-        mover(deslocada(dx, dy));
-      }
-      ultimoMovimento = agora;
-    }
-    dedos.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  };
+/** As pautas do lugar na etapa filtrada (sem filtro, todas). */
+export const ativas = (l: Local, filtro: StatusPauta | null) =>
+  l.pautas.filter((p) => !filtro || p.status === filtro);
 
-  const soltar = (e: EventoDePonteiro<SVGSVGElement>) => {
-    dedos.delete(e.pointerId);
-    if (dedos.size > 0) return;
-    inicio = null;
-    const recente = performance.now() - ultimoMovimento < 80;
-    if (arrastou && !pincou && recente && !reduzir()) {
-      if (modoPonteiro === 'girar' && Math.abs(velocidadeGiro) > 0.0002) {
-        let antes = performance.now();
-        const passo = (agora: number) => {
-          const dt = Math.min(32, Math.max(0, agora - antes));
-          antes = agora;
-          giro += velocidadeGiro * dt;
-          agendar();
-          velocidadeGiro *= Math.exp(-dt / ATRITO_MS);
-          animacao = Math.abs(velocidadeGiro) > 0.00002 ? requestAnimationFrame(passo) : 0;
-        };
-        deslizarGiro(passo);
-        // Só o arrasto de mover desliza ao soltar: no giro, `vx`/`vy` também andam com o ponteiro.
-      } else if (modoPonteiro === 'mover' && Math.hypot(vx, vy) > 0.15) deslizar();
-    }
-  };
+/** Prioridade do lugar: a da pauta que mais pede atenção (urgente: -1); 9 sem pauta. */
+export const prioDoLocal = (l: Local, filtro: StatusPauta | null) => {
+  const topo = melhor(ativas(l, filtro));
+  if (!topo) return 9;
+  return urgenteAberta(topo) ? -1 : prio(topo);
+};
 
-  const deslizarGiro = (passo: (agora: number) => void) => {
-    animacao = requestAnimationFrame(passo);
-  };
-
-  /** Liga a câmera ao SVG e à camada que se move. Devolve a limpeza. */
-  const ligar = (oSvg: SVGSVGElement, aCamada: SVGGElement) => {
-    svg = oSvg;
-    camada = aCamada;
-    const observador = new ResizeObserver(([e]) => {
-      if (!e || e.contentRect.width === 0 || e.contentRect.height === 0) return;
-      largura = e.contentRect.width;
-      altura = e.contentRect.height;
-      // A tela mudou no meio de uma animação (celular virando, janela redimensionada): a animação
-      // foi calculada para a proporção antiga e sobrescreveria a visão nova. Ela termina aqui, já
-      // no destino.
-      const destino = giroFinal;
-      parar();
-      if (destino !== null) giro = destino;
-      vista = cobrir(logica, largura / altura);
-      pintar();
-    });
-    observador.observe(oSvg);
-    const aoContexto = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-    const aoTeclar = (e: KeyboardEvent) => {
-      // Alt+setas, Ctrl/⌘+mais/menos e ⌘+setas são do navegador.
-      if (e.altKey || e.ctrlKey || e.metaKey) return;
-      const passo = Math.max(24, Math.min(80, largura * 0.06));
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault();
-        giro = normalizar(giro);
-        irPara(vista, 0);
-      } else if (e.key === '+' || e.key === '=') {
-        e.preventDefault();
-        irPara(aproximar(vista, 0.8, 0.5, 0.5, giro));
-      } else if (e.key === '-' || e.key === '_') {
-        e.preventDefault();
-        irPara(aproximar(vista, 1.25, 0.5, 0.5, giro));
-      } else if (e.key.startsWith('Arrow')) {
-        e.preventDefault();
-        if (e.shiftKey)
-          irPara(
-            vista,
-            giro +
-              ({ ArrowLeft: -0.08, ArrowRight: 0.08, ArrowUp: -0.08, ArrowDown: 0.08 }[e.key] ?? 0),
-          );
-        else {
-          const [dx, dy] = (
-            {
-              ArrowLeft: [passo, 0],
-              ArrowRight: [-passo, 0],
-              ArrowUp: [0, passo],
-              ArrowDown: [0, -passo],
-            } as Record<string, [number, number]>
-          )[e.key] ?? [0, 0];
-          irPara(deslocada(dx, dy));
-        }
-      }
-    };
-    // Shift+roda gira; trackpad (delta horizontal ou fracionário) faz pan; Ctrl+roda é pinça.
-    // Roda de mouse, mesmo de alta resolução, só tem delta vertical inteiro: sempre dá zoom.
-    const roda = (e: WheelEvent) => {
-      e.preventDefault();
-      aoGesto?.();
-      parar();
-      medirCanto();
-      const { px, py } = naTela(e.clientX, e.clientY);
-      if (e.shiftKey) {
-        giro += (e.deltaY || e.deltaX) * 0.002;
-        agendar();
-      } else if ((e.ctrlKey || e.metaKey) && e.deltaMode === 0)
-        mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.01), px, py, giro)));
-      else if (e.deltaMode === 0 && (e.deltaX !== 0 || !Number.isInteger(e.deltaY)))
-        mover(deslocada(-e.deltaX, -e.deltaY));
-      else mover(limitar(aproximar(vista, Math.exp(e.deltaY * 0.0015), px, py, giro)));
-    };
-    oSvg.addEventListener('wheel', roda, { passive: false });
-    oSvg.addEventListener('contextmenu', aoContexto);
-    oSvg.addEventListener('keydown', aoTeclar);
-    // O Safari do iPhone pode começar a rolar ou ampliar a página mesmo com `touch-action: none`
-    // no SVG; cancelar o `touchmove` deixa o arrasto e a pinça só para o mapa.
-    const segurarToque = (e: TouchEvent) => {
-      e.preventDefault();
-    };
-    oSvg.addEventListener('touchmove', segurarToque, { passive: false });
-    return () => {
-      observador.disconnect();
-      oSvg.removeEventListener('wheel', roda);
-      oSvg.removeEventListener('contextmenu', aoContexto);
-      oSvg.removeEventListener('keydown', aoTeclar);
-      oSvg.removeEventListener('touchmove', segurarToque);
-      parar();
-      cancelAnimationFrame(pintura);
-      clearTimeout(parado);
-      pintura = 0;
-      svg = null;
-      camada = null;
-    };
-  };
-
+/** O `viewBox` do desenho e quantos metros vale um pixel (`k`). */
+export function quadroDaCamera(cam: Camera, medida: Medida) {
+  const k = cam.w / medida.vw;
+  const h = medida.vh * k;
   return {
-    ligar,
-    irPara,
-    /**
-     * Leva a câmera até `alvo`, mantendo o giro, com o alvo `fracao` da largura à esquerda do
-     * centro da tela: é o que tira o prédio de trás do painel.
-     */
-    focar: (alvo: Visao, fracao = 0) => {
-      irPara(desviar(alvo, fracao, giro));
-    },
-    /** Aproxima (`fator` < 1) ou afasta, com animação, em torno do centro da tela. */
-    zoom: (fator: number) => {
-      irPara(aproximar(vista, fator, 0.5, 0.5, giro));
-    },
-    /** Zoom em torno de onde o ponteiro está. */
-    zoomNoPonteiro: (fator: number, clientX: number, clientY: number) => {
-      if (largura === 0) return;
-      medirCanto();
-      const { px, py } = naTela(clientX, clientY);
-      irPara(aproximar(vista, fator, px, py, giro));
-    },
-    /** Gira o mapa `delta` radianos em torno do centro da tela, com animação. */
-    girar: (delta: number) => {
-      irPara(vista, giro + delta);
-    },
-    /** Volta o norte para cima, pelo lado mais curto. */
-    norte: () => {
-      giro = normalizar(giro);
-      irPara(vista, 0);
-    },
-    /** Se o último toque virou arraste: o clique que vem no fim dele não conta. */
-    arrastou: () => arrastou,
-    estado: () => ({ vista, giro }),
-    eventos: { onPointerDown, onPointerMove, onPointerUp: soltar, onPointerCancel: soltar },
+    k,
+    viewBox: `${String(cam.cx - cam.w / 2)} ${String(cam.cy - h / 2)} ${String(cam.w)} ${String(h)}`,
   };
 }
+
+/** Passo `e` (0 a 1, já suavizado) do voo de `de` até `para`; a largura cresce em escala. */
+export function interpolar(de: Camera, para: Camera, e: number): Camera {
+  return {
+    cx: de.cx + (para.cx - de.cx) * e,
+    cy: de.cy + (para.cy - de.cy) * e,
+    w: de.w * Math.pow(para.w / de.w, e),
+  };
+}
+
+/** Suaviza o progresso `k` (0 a 1): sai rápido e chega devagar. */
+export const suavizar = (k: number) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+
+/**
+ * Quanto o centro da câmera desce para o ponto ficar na parte livre acima da gaveta (celular).
+ * No computador, a lista fica ao lado e não há deslocamento.
+ */
+export function deslocar(w: number, gavetaPx: number, medida: Medida, celular: boolean): number {
+  if (!celular) return 0;
+  const k = w / medida.vw;
+  const alvo = (74 + medida.vh - gavetaPx) / 2;
+  return (medida.vh / 2 - alvo) * k;
+}
+
+/** Enquadra todos os lugares (ou só os da etapa filtrada); sem lugar nenhum, `null`. */
+export function enquadrarLugares(
+  locais: readonly Local[],
+  filtro: StatusPauta | null,
+  medida: Medida,
+  celular: boolean,
+): Camera | null {
+  const noMapa = locais.filter((l) => l.centro !== undefined);
+  let alvo = noMapa.filter((l) => ativas(l, filtro).length > 0);
+  if (alvo.length === 0) alvo = noMapa;
+  if (alvo.length === 0) return null;
+  const centros = alvo.flatMap((l) => (l.centro ? [l.centro] : []));
+  const xs = centros.map((c) => c.x);
+  const ys = centros.map((c) => c.y);
+  const x0 = Math.min(...xs);
+  const x1 = Math.max(...xs);
+  const y0 = Math.min(...ys);
+  const y1 = Math.max(...ys);
+  const bw = Math.max(x1 - x0, 80);
+  const bh = Math.max(y1 - y0, 80);
+  const r = medida.vh / medida.vw;
+  const util = celular ? 0.58 : 0.8;
+  const w = Math.max(bw * 1.5, (bh * 1.5) / (r * util));
+  return {
+    cx: (x0 + x1) / 2,
+    cy: (y0 + y1) / 2 + deslocar(w, 188, medida, celular),
+    w: clamp(w, 200, LARGURA_MAXIMA),
+  };
+}
+
+/** Aproxima o prédio escolhido; no celular, deixa-o acima da gaveta. */
+export function enquadrarLocal(
+  l: Local & { centro: NonNullable<Local['centro']> },
+  medida: Medida,
+  celular: boolean,
+  alturaDaTela: number,
+): Camera {
+  const w = Math.max(230, l.centro.s * 4.2);
+  return {
+    cx: l.centro.x,
+    cy: l.centro.y + deslocar(w, Math.min(0.46 * alturaDaTela, 400), medida, celular),
+    w,
+  };
+}
+
+/**
+ * Aproxima (`f` < 1) ou afasta (`f` > 1) mantendo parado o ponto da tela (`px`, `py`, relativo ao
+ * canto do palco) que está sob o dedo ou o ponteiro.
+ */
+export function zoomNoPonto(cam: Camera, medida: Medida, f: number, px: number, py: number) {
+  const k = cam.w / medida.vw;
+  const mx = cam.cx + (px - medida.vw / 2) * k;
+  const my = cam.cy + (py - medida.vh / 2) * k;
+  const w = clamp(cam.w * f, LARGURA_MINIMA, LARGURA_MAXIMA);
+  const nk = w / medida.vw;
+  return { cx: mx - (px - medida.vw / 2) * nk, cy: my - (py - medida.vh / 2) * nk, w };
+}
+
+/** Largura da câmera numa pinça: os dedos se afastando (`distancia` maior) aproximam o mapa. */
+export function larguraDaPinca(larguraInicial: number, inicial: number, distancia: number) {
+  return clamp((larguraInicial * inicial) / distancia, LARGURA_MINIMA, LARGURA_MAXIMA);
+}
+
+/** Arrastar `dx`, `dy` pixels leva a câmera no sentido contrário. */
+export function arrastar(cam: Camera, medida: Medida, dx: number, dy: number): Camera {
+  const k = cam.w / medida.vw;
+  return { ...cam, cx: cam.cx - dx * k, cy: cam.cy - dy * k };
+}
+
+/** Passo das setas do teclado: 60 pixels da tela, em metros. */
+export const passoDoTeclado = (cam: Camera, medida: Medida) => (cam.w / medida.vw) * 60;

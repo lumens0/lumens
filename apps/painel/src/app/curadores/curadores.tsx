@@ -1,7 +1,7 @@
 import type { CuradorListado } from '@lumens/dominio';
-import Link from 'next/link';
 import estilos from '../painel.module.css';
 import { Enviar } from '../enviar';
+import { MostrarDesativados } from './mostrar-desativados';
 
 const FEITO: Record<string, string> = {
   adicionado: 'Pessoa adicionada. Ela já pode pedir o link de acesso na tela de login.',
@@ -19,9 +19,14 @@ const ERRO: Record<string, string> = {
   ultimo_administrador: 'Este é o último administrador ativo; adicione outro antes de desativar.',
 };
 
-const PAPEL = { curador: 'Curador', administrador: 'Administrador' } as const;
+const PAPEL = { curador: 'curador', administrador: 'administrador' } as const;
 
-const dataBr = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Maceio' });
+const dataBr = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'America/Maceio',
+});
 
 /** Quem entra no painel (SCRUM-295): só administrador chega aqui; o e-mail é mostrado decifrado. */
 export function Curadores({
@@ -52,61 +57,69 @@ export function Curadores({
   return (
     <>
       <h1>Curadores</h1>
-      <p className={estilos.apoio}>
-        Quem pode entrar no painel. Desativar tira o acesso na hora e a pessoa sai da lista, mas o
-        histórico do que ela decidiu fica guardado.
-      </p>
       {aviso !== undefined && (
         <p className={estilos.aviso} role="status">
           {aviso}
         </p>
       )}
-      {falha !== undefined && (
-        <p className={estilos.erro} role="alert">
-          {falha}
-        </p>
-      )}
-      <form action={adicionar} className={estilos.formulario}>
-        <label htmlFor="email">E-mail @ufal.br</label>
-        <input id="email" name="email" type="email" required maxLength={120} />
-        <label htmlFor="nome">Nome</label>
-        <input id="nome" name="nome" required maxLength={120} />
-        <Enviar className={estilos.botao}>Adicionar curador</Enviar>
-      </form>
-      {desativados > 0 && (
-        <p className={estilos.filtro}>
-          {mostrarDesativados ? (
-            <Link href="/curadores">Esconder desativados</Link>
-          ) : (
-            <Link href="/curadores?desativados=1">Mostrar desativados ({desativados})</Link>
-          )}
-        </p>
-      )}
+      <p className={estilos.apoio}>
+        Só administradores veem esta tela. A pessoa entra por um link mandado ao e-mail: vale 15
+        minutos e uma vez só, e a sessão dura 7 dias.
+      </p>
       <ul className={estilos.lista}>
         {visiveis.map((c) => (
-          <li key={c.id} className={[estilos.cartao, estilos.curador].join(' ')}>
-            <div className={estilos.curadorQuem}>
-              <h2>{c.nome}</h2>
-              <p className={estilos.detalhes}>{c.email}</p>
-            </div>
-            <p className={estilos.selos}>
-              <span className={estilos.selo}>{PAPEL[c.papel]}</span>
-              <span className={estilos.selo}>{c.ativo ? 'Ativo' : 'Desativado'}</span>
-            </p>
-            <p className={[estilos.detalhes, estilos.curadorDesde].join(' ')}>
-              Desde {dataBr.format(c.criadoEm)}
-            </p>
+          <li key={c.id} className={estilos.curador}>
+            <span className={estilos.curadorQuem}>
+              {c.nome}
+              {c.id === eu && <em>você</em>}
+            </span>
+            <span className={estilos.curadorMeta}>
+              {c.email} · {PAPEL[c.papel]}
+              {c.ativo ? '' : ' · desativado'} · desde {dataBr.format(c.criadoEm)}
+            </span>
             {c.id !== eu && (
               <form action={c.ativo ? desativar : reativar} className={estilos.curadorAcao}>
                 <input type="hidden" name="curadorId" value={c.id} />
-                <Enviar className={c.ativo ? estilos.botaoPerigo : estilos.botao}>
-                  {c.ativo ? 'Desativar' : 'Reativar'}
-                </Enviar>
+                <Enviar className={estilos.botaoLeve}>{c.ativo ? 'Desativar' : 'Reativar'}</Enviar>
               </form>
             )}
           </li>
         ))}
       </ul>
+      {(desativados > 0 || mostrarDesativados) && (
+        <MostrarDesativados marcado={mostrarDesativados} total={desativados} />
+      )}
+      <h2 className={estilos.novoCurador}>Adicionar pessoa</h2>
+      <form action={adicionar} className={[estilos.formulario, estilos.linhaDeForm].join(' ')}>
+        <div>
+          <label htmlFor="nome">Nome</label>
+          <input id="nome" name="nome" required maxLength={120} />
+        </div>
+        <div>
+          <label htmlFor="email">E-mail @ufal.br</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            maxLength={120}
+            placeholder="nome@ufal.br"
+          />
+        </div>
+        <div>
+          <label htmlFor="papel">Papel</label>
+          <select id="papel" name="papel" defaultValue="curador">
+            <option value="curador">Curador</option>
+            <option value="administrador">Administrador</option>
+          </select>
+        </div>
+        <Enviar className={estilos.botao}>Adicionar</Enviar>
+      </form>
+      {falha !== undefined && (
+        <p className={estilos.erro} role="alert">
+          {falha}
+        </p>
+      )}
     </>
   );
 }

@@ -12,6 +12,10 @@ export const ETAPAS_DO_FIO: readonly { rotulo: string; status: StatusPublico }[]
   { rotulo: 'Conquista', status: 'conquistada' },
 ];
 
+/** Rótulo e cor do status; valor fora do catálogo cai na primeira etapa. */
+const infoDoStatus = (status: string) =>
+  STATUS[(Object.hasOwn(STATUS, status) ? status : 'juntando_apoios') as keyof typeof STATUS];
+
 /** Em qual das cinco janelas a pauta está; "entregue em parte" e "descumprida" ficam na 4.ª. */
 export function posicaoNoFio(status: string): number {
   switch (status) {
@@ -41,17 +45,17 @@ export interface JanelaDoFio {
 }
 
 /**
- * As cinco janelas do fio: acesas até a etapa atual (a atual é a maior); `descumprida` é a janela
- * atual vazada (só o contorno, em vermelho) e `entregue_em_parte` usa a cor do seu status na 4.ª.
+ * As cinco janelas do fio: acesas até a etapa atual (a atual é a maior), todas na cor do status da
+ * pauta; `descumprida` é a janela atual vazada (só o contorno, em vermelho). A janela atual leva o
+ * rótulo do status ("Cobrando", "Entregue em parte"); as outras, o nome da etapa.
  */
 export function etapasDoFio(status: string): JanelaDoFio[] {
   const atual = posicaoNoFio(status);
+  const { ponto: cor, rotulo } = infoDoStatus(status);
   return ETAPAS_DO_FIO.map((etapa, i) => {
-    const propria = i === atual && (status === 'descumprida' || status === 'entregue_em_parte');
-    const cor = propria ? STATUS[status].ponto : STATUS[etapa.status].ponto;
     const estado: EstadoDaJanela =
       i > atual ? 'apagada' : i < atual ? 'acesa' : status === 'descumprida' ? 'vazada' : 'atual';
-    return { rotulo: etapa.rotulo, estado, cor };
+    return { rotulo: i === atual ? rotulo : etapa.rotulo, estado, cor };
   });
 }
 
@@ -70,12 +74,20 @@ const TEXTO_DO_ESTADO: Record<EstadoDaJanela, string> = {
 export function FioDeEtapas({ status }: { status: string }) {
   const janelas = etapasDoFio(status);
   return (
-    <ol className={estilos.fio} aria-label="Etapas da pauta">
+    <ol
+      className={estilos.fio}
+      aria-label="Etapas da pauta"
+      style={
+        {
+          '--cor': infoDoStatus(status).ponto,
+          '--f': posicaoNoFio(status) / (ETAPAS_DO_FIO.length - 1),
+        } as CSSProperties
+      }
+    >
       {janelas.map((janela) => (
         <li
           key={janela.rotulo}
           className={[estilos.etapaDoFio, estilos[`fio_${janela.estado}`]].join(' ')}
-          style={{ '--cor': janela.cor } as CSSProperties}
           aria-current={
             janela.estado === 'atual' || janela.estado === 'vazada' ? 'step' : undefined
           }

@@ -22,10 +22,6 @@ export default async function PaginaDosPedidos({
   return (
     <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
       <h1>Pedidos de edição</h1>
-      <p className={estilos.apoio}>
-        O responsável por uma pauta já publicada pode pedir a mudança do título ou da descrição. O
-        texto público só muda quando a curadoria aprova aqui.
-      </p>
       {aviso !== undefined && (
         <p className={estilos.aviso} role="status">
           {aviso}
@@ -36,8 +32,12 @@ export default async function PaginaDosPedidos({
           {falha}
         </p>
       )}
+      <p className={estilos.apoio}>
+        Depois de publicada, quem criou a pauta pede a mudança pelo bot e a curadoria decide. Quem
+        apoiou, apoiou aquele texto: confira o antes e o depois.
+      </p>
       {pedidos.length === 0 ? (
-        <p className={estilos.aviso}>Nenhum pedido esperando decisão.</p>
+        <p className={estilos.vazio}>Nenhum pedido esperando decisão.</p>
       ) : (
         <PedidosPorPauta
           pedidos={pedidos}

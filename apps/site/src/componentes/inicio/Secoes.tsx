@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import { urlDeFiltros } from '../../dados/filtros';
 import { contextoDosNumeros, type NumerosDoInicio } from '../../dados/inicio';
 import type { Pauta } from '../../dados/tipos';
 import { formatarNumero } from '../BarraApoios';
 import componentes from '../componentes.module.css';
 import { Numero } from '../Numero';
+import { STATUS } from '../StatusPill';
 import estilos from './inicio.module.css';
 
 /**
@@ -30,13 +32,11 @@ export function NumerosDoCampus({ numeros }: { numeros: NumerosDoInicio }) {
       {itens.map((item) => (
         <div key={item.rotulo} className={estilos.numero}>
           <dt>{item.rotulo}</dt>
-          <dd>
-            <span className={estilos.numeroGrande}>
-              <Numero valor={item.valor} />
-            </span>
-            <span className={[estilos.numeroContexto, item.atraso ? estilos.atraso : ''].join(' ')}>
-              {item.contexto}
-            </span>
+          <dd className={estilos.numeroGrande}>
+            <Numero valor={item.valor} />
+          </dd>
+          <dd className={[estilos.numeroContexto, item.atraso ? estilos.atraso : ''].join(' ')}>
+            {item.contexto}
           </dd>
         </div>
       ))}
@@ -55,14 +55,20 @@ export function PertoDaMetaSecao({ pautas }: { pautas: readonly Pauta[] }) {
           const parte = Math.min(100, Math.round((pauta.apoios / pauta.meta) * 100));
           return (
             <li key={pauta.slug}>
-              <Link href={`/p/${pauta.slug}`}>{pauta.titulo}</Link>
-              <p>
-                {pauta.bloco_nome ?? 'Todo o campus'} · {formatarNumero(pauta.apoios)} de{' '}
-                {formatarNumero(pauta.meta)} apoios
-              </p>
-              <span className={estilos.barraFina} aria-hidden="true">
-                <i style={{ width: `${String(parte)}%` }} />
-              </span>
+              <Link
+                href={`/p/${pauta.slug}`}
+                style={{ '--cor': STATUS[pauta.status].ponto } as CSSProperties}
+              >
+                <i className={estilos.janelaMini} aria-hidden="true" />
+                <span className={estilos.tituloDaMeta}>{pauta.titulo}</span>
+                <span className={estilos.detalheDaMeta}>
+                  {pauta.bloco_nome ?? 'Todo o campus'} · {formatarNumero(pauta.apoios)} de{' '}
+                  {formatarNumero(pauta.meta)} apoios
+                </span>
+                <span className={estilos.barraFina} aria-hidden="true">
+                  <i style={{ width: `${String(parte)}%` }} />
+                </span>
+              </Link>
             </li>
           );
         })}
@@ -112,16 +118,25 @@ export function AcaoDoInicio({
                 aria-label={etiqueta.rotulo}
                 scroll={false}
               >
-                {etiqueta.texto}
-                <span aria-hidden="true">×</span>
+                {etiqueta.texto} <span aria-hidden="true">×</span>
               </Link>
             </li>
           ))}
+          {etiquetas.length >= 2 && (
+            <li>
+              <Link href="/" className={estilos.limpar} scroll={false}>
+                Limpar tudo
+              </Link>
+            </li>
+          )}
         </ul>
       ) : (
         <p className={estilos.dica}>Toque em etapas e blocos para filtrar as pautas.</p>
       )}
-      <Link href={urlDeFiltros('/pautas', { status, bloco })} className={componentes.botao}>
+      <Link
+        href={urlDeFiltros('/pautas', { status, bloco })}
+        className={[componentes.botao, estilos.verTodas].join(' ')}
+      >
         {texto}
       </Link>
     </div>
