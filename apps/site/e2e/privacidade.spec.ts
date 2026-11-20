@@ -142,6 +142,9 @@ test.describe('nenhuma página ou rota pública mostra dado pessoal (RNF01)', ()
   test.beforeEach(soNoDesktop);
 
   test('o HTML de todas as páginas públicas, inclusive cada pauta', async ({ page, request }) => {
+    // Varre todas as páginas, uma a uma: com os dois projetos e os outros arquivos rodando juntos, o
+    // limite padrão de 30 s fica apertado (sozinho, leva 15 s).
+    test.slow();
     const slugs = await slugsPublicos(request);
     // Sem pauta nenhuma, o teste passaria varrendo quase nada.
     expect(slugs.length).toBeGreaterThan(3);

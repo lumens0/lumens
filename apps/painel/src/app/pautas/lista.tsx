@@ -2,8 +2,9 @@ import { LIMITE_DA_LISTA, type PautaDaCuradoria, type PendenciaDaCuradoria } fro
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { BuscaDaLista } from './busca';
+import { FiltroLink } from './filtro-link';
 import estilos from '../painel.module.css';
-import { alternar, PENDENCIAS, urlDaLista } from './filtros';
+import { alternar, PENDENCIAS } from './filtros';
 import { SeloDePrazo } from './selos';
 import { COR_NO_PAINEL, STATUS } from './status';
 
@@ -53,13 +54,13 @@ export function ListaDePautas({
           aria-label="Filtrar por etapa e pendência"
         >
           <li>
-            <Link
-              href={urlDaLista({ ...aqui, situacoes: [], pendencias: [] })}
+            <FiltroLink
+              filtros={{ ...aqui, situacoes: [], pendencias: [] }}
               className={estilos.chip}
-              aria-current={situacoes.length === 0 && pendencias.length === 0 ? 'true' : undefined}
+              atual={situacoes.length === 0 && pendencias.length === 0}
             >
               Todas{contagens ? <b>{contagens.total}</b> : null}
-            </Link>
+            </FiltroLink>
           </li>
           {Object.entries(STATUS)
             .filter(
@@ -70,31 +71,31 @@ export function ListaDePautas({
             )
             .map(([valor, rotulo]) => (
               <li key={valor}>
-                <Link
-                  href={urlDaLista({ ...aqui, situacoes: alternar(situacoes, valor) })}
+                <FiltroLink
+                  filtros={{ ...aqui, situacoes: alternar(situacoes, valor) }}
                   className={estilos.chip}
                   style={{ '--c': COR_NO_PAINEL[valor as keyof typeof STATUS] } as CSSProperties}
-                  aria-current={situacoes.includes(valor) ? 'true' : undefined}
+                  atual={situacoes.includes(valor)}
                 >
                   <i aria-hidden="true" />
                   {rotulo}
                   {contagens ? (
                     <b>{contagens.porStatus[valor as keyof typeof STATUS] ?? 0}</b>
                   ) : null}
-                </Link>
+                </FiltroLink>
               </li>
             ))}
           <li className={estilos.chipSeparador} aria-hidden="true" />
           {PENDENCIAS.map(({ valor, rotulo }) => (
             <li key={valor}>
-              <Link
-                href={urlDaLista({ ...aqui, pendencias: alternar(pendencias, valor) })}
+              <FiltroLink
+                filtros={{ ...aqui, pendencias: alternar(pendencias, valor) }}
                 className={estilos.chip}
-                aria-current={pendencias.includes(valor) ? 'true' : undefined}
+                atual={pendencias.includes(valor)}
               >
                 {rotulo}
                 {contagens ? <b>{contagens.porPendencia[valor]}</b> : null}
-              </Link>
+              </FiltroLink>
             </li>
           ))}
         </ul>

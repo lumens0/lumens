@@ -74,7 +74,12 @@ describe('início do painel de curadoria', () => {
     expect(html).not.toContain('<span>Recusada</span>');
     expect(html).toMatch(/<strong class="[^"]*barrasNumero[^"]*">7<\/strong>/);
     expect(html).toContain('<small>14 jan</small>');
-    expect(html).toContain('<b>12</b>');
+    // O gráfico é uma lista com o valor e a semana de cada coluna em texto (não uma imagem só).
+    expect(html).toMatch(/<ol class="[^"]*colunas[^"]*" aria-label="Apoios por semana">/);
+    expect(html).not.toContain('role="img"');
+    expect(html).toContain('<b>12<span');
+    expect(html).toContain('apoios, semana de</span></b>');
+    expect(html).toContain('<i aria-hidden="true"></i>');
     expect(html).toContain('<small>07 jan</small>');
     expect(html).toContain('Tempo médio até a decisão: <b>8,0 h</b>');
   });

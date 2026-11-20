@@ -637,12 +637,15 @@
   --ch: 190px;
 
   display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   align-items: flex-end;
   gap: 8px;
   height: var(--ch);
 }
 
-.colunas > div {
+.colunas > li {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -669,7 +672,7 @@
   animation: cresceY 0.9s calc(var(--i) * 70ms) var(--curva) both;
 }
 
-.colunas > div:last-child i {
+.colunas > li:last-child i {
   background: var(--tinta);
 }
 

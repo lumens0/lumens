@@ -175,6 +175,9 @@ describe('/pautas', () => {
     expect(html).toContain('Nenhuma pauta nessa combinação.');
     expect(html).toContain('Limpar filtros');
     expect(linhas(html)).toBe(0);
+    // Sem pauta não há "Mostrando 0 a 0 de 0" nem uma navegação de páginas vazia.
+    expect(html).not.toContain('Mostrando');
+    expect(html).not.toContain('aria-label="Páginas da lista"');
   });
 
   it('bloco sem pauta resulta em lista vazia', async () => {

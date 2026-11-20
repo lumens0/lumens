@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import estilos from '../painel.module.css';
+import { registrarBusca } from './busca-enviada';
 import { mesmaBusca, urlDaLista } from './url-da-lista';
 
 /**
@@ -24,11 +25,17 @@ export function BuscaDaLista({
   // Os filtros mudam de identidade a cada render do servidor; lidos por ref, não reiniciam a pausa.
   const filtros = useRef({ situacoes, pendencias });
   filtros.current = { situacoes, pendencias };
+  // Ao entrar na tela, a busca da URL é a vigente (a de uma visita anterior não vale mais).
+  useEffect(() => {
+    registrarBusca(q);
+    // Só na entrada: depois, quem registra é o envio e a mudança vinda de fora.
+  }, []);
   useEffect(() => {
     // Busca que chegou de fora (por exemplo, "Limpar filtros"): o campo acompanha. A que a própria
     // pessoa digitou e já enviou não o reescreve no meio da digitação.
     if (!mesmaBusca(q, ultimo.current)) {
       ultimo.current = q;
+      registrarBusca(q);
       setTexto(q);
     }
   }, [q]);
@@ -36,6 +43,7 @@ export function BuscaDaLista({
     if (mesmaBusca(texto, ultimo.current)) return;
     const espera = setTimeout(() => {
       ultimo.current = texto;
+      registrarBusca(texto);
       roteador.replace(urlDaLista({ ...filtros.current, q: texto }), { scroll: false });
     }, 300);
     return () => {

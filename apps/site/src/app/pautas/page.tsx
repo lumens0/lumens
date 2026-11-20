@@ -177,55 +177,57 @@ export default async function Pautas({
         </ul>
       )}
 
-      <nav aria-label="Páginas da lista" className={estilos.paginacao}>
-        <p role="status" className={estilos.resultado}>
-          {`Mostrando ${String(lista.de)} a ${String(lista.ate)} de ${formatarNumero(lista.total)} ${lista.total === 1 ? 'pauta' : 'pautas'}`}
-        </p>
-        {lista.paginas > 1 && (
-          <div className={estilos.controlesDePagina}>
-            {lista.pagina > 1 ? (
-              <Link href={urlDaLista({ ...aqui, pagina: lista.pagina - 1 })} rel="prev">
-                Anterior
-              </Link>
-            ) : (
-              <span className={estilos.desligado}>Anterior</span>
-            )}
-            <ul className={estilos.numeros}>
-              {botoes.map((n, i) => (
-                <li key={`${String(n)}-${String(i)}`}>
-                  {n === '…' ? (
-                    <span className={estilos.reticencias} aria-hidden="true">
-                      …
-                    </span>
-                  ) : n === lista.pagina ? (
-                    <span
-                      className={estilos.atual}
-                      aria-current="page"
-                      aria-label={`Página ${String(n)}`}
-                    >
-                      {n}
-                    </span>
-                  ) : (
-                    <Link
-                      href={urlDaLista({ ...aqui, pagina: n })}
-                      aria-label={`Página ${String(n)}`}
-                    >
-                      {n}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {lista.pagina < lista.paginas ? (
-              <Link href={urlDaLista({ ...aqui, pagina: lista.pagina + 1 })} rel="next">
-                Próxima
-              </Link>
-            ) : (
-              <span className={estilos.desligado}>Próxima</span>
-            )}
-          </div>
-        )}
-      </nav>
+      {lista.total > 0 && (
+        <nav aria-label="Páginas da lista" className={estilos.paginacao}>
+          <p role="status" className={estilos.resultado}>
+            {`Mostrando ${String(lista.de)} a ${String(lista.ate)} de ${formatarNumero(lista.total)} ${lista.total === 1 ? 'pauta' : 'pautas'}`}
+          </p>
+          {lista.paginas > 1 && (
+            <div className={estilos.controlesDePagina}>
+              {lista.pagina > 1 ? (
+                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina - 1 })} rel="prev">
+                  Anterior
+                </Link>
+              ) : (
+                <span className={estilos.desligado}>Anterior</span>
+              )}
+              <ul className={estilos.numeros}>
+                {botoes.map((n, i) => (
+                  <li key={`${String(n)}-${String(i)}`}>
+                    {n === '…' ? (
+                      <span className={estilos.reticencias} aria-hidden="true">
+                        …
+                      </span>
+                    ) : n === lista.pagina ? (
+                      <span
+                        className={estilos.atual}
+                        aria-current="page"
+                        aria-label={`Página ${String(n)}`}
+                      >
+                        {n}
+                      </span>
+                    ) : (
+                      <Link
+                        href={urlDaLista({ ...aqui, pagina: n })}
+                        aria-label={`Página ${String(n)}`}
+                      >
+                        {n}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {lista.pagina < lista.paginas ? (
+                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina + 1 })} rel="next">
+                  Próxima
+                </Link>
+              ) : (
+                <span className={estilos.desligado}>Próxima</span>
+              )}
+            </div>
+          )}
+        </nav>
+      )}
 
       <footer className={pagina.rodape}>
         <nav aria-label="Mais do Lumens" className={pagina.navegacao}>

@@ -109,8 +109,6 @@ export function Inicio({
   const perto = visao.pautasPertoDeVencer;
   const totais = new Map(visao.pautasPorStatus.map((s) => [s.status, s.total]));
   const maiorSemana = Math.max(1, ...visao.apoiosPorSemana.map((s) => s.apoios));
-  const ultima = visao.apoiosPorSemana[visao.apoiosPorSemana.length - 1];
-  const primeira = visao.apoiosPorSemana[0];
   return (
     <>
       <h1>Painel de curadoria</h1>
@@ -168,24 +166,26 @@ export function Inicio({
 
         <section aria-labelledby="visao-apoios">
           <h2 id="visao-apoios">Apoios por semana</h2>
-          <div
-            className={estilos.colunas}
-            role="img"
-            aria-label={`Apoios por semana, de ${String(primeira?.apoios ?? 0)} a ${String(ultima?.apoios ?? 0)}`}
-          >
+          <ol className={estilos.colunas} aria-label="Apoios por semana">
             {visao.apoiosPorSemana.map((s, i) => (
-              <div
+              <li
                 key={s.semana}
                 style={
                   { '--f': (s.apoios / maiorSemana).toFixed(3), '--i': i } as React.CSSProperties
                 }
               >
-                <b>{s.apoios}</b>
-                <i />
+                <b>
+                  {s.apoios}
+                  <span className={estilos.vh}>
+                    {' '}
+                    {s.apoios === 1 ? 'apoio' : 'apoios'}, semana de
+                  </span>
+                </b>
+                <i aria-hidden="true" />
                 <small>{rotuloDaSemana(s.semana)}</small>
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
           <p className={estilos.detalhes}>
             {visao.tempoMedioAteDecisaoMs === null ? (
               'Nenhuma decisão nos últimos 30 dias.'
