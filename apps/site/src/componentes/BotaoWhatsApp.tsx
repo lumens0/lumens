@@ -4,6 +4,7 @@ import {
   COMANDO_NOVA_PAUTA,
   comandoAjudar,
   comandoApoiar,
+  comandoNovaPautaNoBloco,
   linkDoBot,
   nomeDoCanal,
 } from '../whatsapp';
@@ -63,6 +64,21 @@ export function BotaoApoiar({ slug, titulo }: { slug: string; titulo: string }) 
       comando={comandoApoiar(slug)}
       texto="Apoiar"
       rotulo={`Apoiar a pauta ${titulo} pelo ${nomeDoCanal()}`}
+    />
+  );
+}
+
+/**
+ * "Criar pauta neste bloco": abre o bot com `nova pauta <slug>`, e a conversa já começa nesse
+ * bloco (SCRUM-396). O `aria-label` começa pelo texto visível (WCAG 2.5.3) e diz de qual bloco se
+ * fala.
+ */
+export function BotaoCriarPauta({ bloco, slug }: { bloco: string; slug: string }) {
+  return (
+    <BotaoWhatsApp
+      comando={comandoNovaPautaNoBloco(slug)}
+      texto="Criar pauta neste bloco"
+      rotulo={`Criar pauta neste bloco: ${bloco}, pelo ${nomeDoCanal()}`}
     />
   );
 }

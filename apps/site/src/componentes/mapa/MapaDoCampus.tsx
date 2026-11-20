@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatarNumero } from '../BarraApoios';
-import { BotaoRelatar } from '../BotaoWhatsApp';
+import { BotaoCriarPauta, BotaoRelatar } from '../BotaoWhatsApp';
 import { StatusPill } from '../StatusPill';
 import { criarCamera, type Visao } from './camera';
 import {
@@ -458,7 +458,12 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 <>
                   <p className={estilos.detalhe}>{bloco.linha}</p>
                   {bloco.pautas.length === 0 ? (
-                    <p className={estilos.vazio}>Nenhuma pauta aqui ainda.</p>
+                    <>
+                      <p className={estilos.vazio}>
+                        Nenhuma pauta neste bloco ainda. Viu algo que precisa mudar aqui?
+                      </p>
+                      <BotaoCriarPauta bloco={bloco.nome} slug={bloco.slug} />
+                    </>
                   ) : (
                     <ul className={estilos.pautas}>
                       {bloco.pautas.map((pauta) => (
