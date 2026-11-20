@@ -168,16 +168,27 @@ function decifrado(segredo: Segredo, cifrado: string | undefined): string | unde
 export async function entrarNaPautaNova(
   { db, phoneHmac }: Pick<StepContext, 'db' | 'phoneHmac'>,
   antes: Resposta[] = [],
+  slugDoBloco?: string,
 ): Promise<StepResult> {
+  // SCRUM-396: `nova pauta <slug>` do mapa do site. Slug que não existe cai no fluxo normal.
+  const bloco =
+    slugDoBloco === undefined
+      ? undefined
+      : (await listarBlocos(db)).find((b) => b.slug === slugDoBloco);
   if ((await estudanteVerificado(db, phoneHmac)) === undefined) {
     // Ao fim da verificação (2.4), `verifyAskCourse` vê o `pendingCommand` e volta para cá.
     return {
       next: 'VERIFY_ASK_EMAIL',
-      data: { pendingCommand: { kind: 'nova-pauta' } },
+      data: { pendingCommand: { kind: 'nova-pauta', ...(bloco ? { id: bloco.slug } : {}) } },
       replies: [...antes, VERIFY_FIRST_TEXT],
     };
   }
-  return { next: 'NEW_ASK_TITLE', replies: [...antes, NEW_TITLE_TEXT] };
+  if (bloco === undefined) return { next: 'NEW_ASK_TITLE', replies: [...antes, NEW_TITLE_TEXT] };
+  return {
+    next: 'NEW_ASK_TITLE',
+    data: { blocoId: bloco.id },
+    replies: [...antes, `Vou abrir a pauta no *${bloco.nome}*. ${NEW_TITLE_TEXT}`],
+  };
 }
 
 export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) => {
@@ -195,6 +206,11 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
   }
   // Veio da 2.5: o lugar já foi respondido, falta a categoria.
   const { relatoCifrado } = dadosDaPauta(state.data);
+  if (relatoCifrado === undefined && blocoId !== null) {
+    // Veio do link do site (SCRUM-396): o bloco já veio escolhido, mas as pautas parecidas ainda
+    // não foram mostradas (SCRUM-346).
+    return depoisDoBloco(db, titulo, blocoId, data);
+  }
   return perguntarCategoria(
     [titulo, decifrado(segredo, relatoCifrado)].filter((t) => t !== undefined).join('\n'),
     data,
@@ -207,15 +223,21 @@ export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) =>
   if (escolha === undefined) {
     return { next: 'NEW_ASK_PLACE', replies: [BLOCK_NOT_FOUND_TEXT, listaDeBlocos(lista)] };
   }
-  const data: DataPatch = { blocoId: escolha.blocoId };
-
   // O título faz o papel do relato na busca. Sem ele (dado perdido), segue: o fim avisa.
   const tituloDaPauta = decifrado(segredo, dadosDaPauta(state.data).tituloCifrado);
+  return depoisDoBloco(db, tituloDaPauta, escolha.blocoId, {});
+};
+
+/** Com o bloco definido: pautas parecidas, se houver, e senão a categoria. */
+async function depoisDoBloco(
+  db: Db,
+  tituloDaPauta: string | undefined,
+  blocoId: string | null,
+  data: DataPatch,
+): Promise<StepResult> {
+  const dados: DataPatch = { ...data, blocoId };
   if (tituloDaPauta !== undefined) {
-    const achadas = await buscarPautasParecidas(db, {
-      relato: tituloDaPauta,
-      blocoId: escolha.blocoId,
-    });
+    const achadas = await buscarPautasParecidas(db, { relato: tituloDaPauta, blocoId });
     const parecidas: Parecida[] = achadas.map(({ id, titulo, descricao }) => ({
       id,
       titulo,
@@ -224,13 +246,13 @@ export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) =>
     if (parecidas.length > 0) {
       return {
         next: 'NEW_PICK_SIMILAR',
-        data: { ...data, parecidas },
+        data: { ...dados, parecidas },
         replies: [listaDeParecidas(parecidas, NEW_SIMILAR_LIST_TEXT)],
       };
     }
   }
-  return perguntarCategoria(tituloDaPauta, data);
-};
+  return perguntarCategoria(tituloDaPauta, dados);
+}
 
 /**
  * Abre a pergunta da categoria. O texto da pauta (título e, vindo da 2.5, o relato) passa pelas

@@ -296,7 +296,10 @@ pnpm --filter @lumens/painel build   # build de produção
 O painel usa `DATABASE_URL`, `CHAVE_CIFRA_PAINEL`, `CHAVE_HMAC`, `AUTH_SECRET` e as variáveis `EMAIL_*`
 (SMTP) do `.env`. Para mostrar a foto do relato e o PDF da resposta à curadoria, lê também
 `AWS_REGION`, `S3_BUCKET_FOTOS` e `S3_ENDPOINT`, as mesmas do bot. Na homologação, elas vêm do
-`.env.producao` da VM.
+`.env.producao` da VM. A seção "Card de conquista" da pauta conquistada (SCRUM-394) **grava** uma
+foto nesse bucket (sem metadados, em `fotos/AAAA/MM/<uuid>.jpg`): a credencial do painel precisa de
+escrita, e não só de leitura. `LUMENS_SITE_URL` (a origem pública do site) leva o botão "Ver o card
+de conquista" até o `card.png` da pauta; sem ela o botão some.
 
 **Gerir quem entra** (SCRUM-295): cada curador tem um papel, `curador` ou `administrador`. Só
 administrador vê a tela `/curadores` (link "Curadores" no cabeçalho), onde adiciona pessoas com

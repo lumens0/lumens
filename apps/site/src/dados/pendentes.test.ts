@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   absorver,
+  absorverOrdem,
   aplicarBlocos,
   chaveDe,
   escolhaVigente,
+  limparGrupo,
   limparPendente,
+  ordemVigente,
   proximaEscolha,
   registrarEscolha,
+  registrarOrdem,
 } from './pendentes';
 
 const vazio = { status: [], bloco: [] };
@@ -80,6 +84,19 @@ describe('aplicarBlocos (a folha de blocos)', () => {
   });
 });
 
+describe('limparGrupo ("Todas" nas etapas)', () => {
+  it('zera só o grupo pedido e parte da escolha pendente (inclusive os blocos da folha)', () => {
+    registrarEscolha({ status: ['cobrando'], bloco: ['ic'] }, 1000);
+    const r = limparGrupo({ status: [], bloco: [] }, 'status', 1200);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
+  });
+
+  it('sem pendente, parte do que a página mostra', () => {
+    const r = limparGrupo({ status: ['cobrando'], bloco: ['ic'] }, 'status', 5000);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
+  });
+});
+
 describe('folha aberta logo depois de escolher um bloco', () => {
   it('o rascunho da folha (escolhaVigente) inclui o bloco recém-escolhido, e aplicar o mantém', () => {
     const naPagina = { status: [], bloco: ['ic'] };
@@ -89,5 +106,32 @@ describe('folha aberta logo depois de escolher um bloco', () => {
     expect(rascunho).toEqual(['ic', 'ctec']);
     // Aplicar sem mexer nos chips mantém os dois blocos.
     expect(aplicarBlocos(naPagina, rascunho, 1200).bloco).toEqual(['ic', 'ctec']);
+  });
+});
+
+describe('ordenação pendente', () => {
+  it('ordenar e logo filtrar: a ordem recém-escolhida vale na navegação seguinte', () => {
+    registrarOrdem('apoios', 1000);
+    // As props ainda mostram a ordem padrão.
+    expect(ordemVigente('atencao', 1100)).toBe('apoios');
+  });
+
+  it('vence depois de 3 s, e é absorvida quando a página já mostra a ordem', () => {
+    registrarOrdem('apoios', 1000);
+    expect(ordemVigente('atencao', 1000 + 3000)).toBe('atencao');
+    absorverOrdem('apoios');
+    expect(ordemVigente('atencao', 1100)).toBe('atencao');
+  });
+
+  it('absorver outra ordem não apaga a pendente', () => {
+    registrarOrdem('recentes', 1000);
+    absorverOrdem('atencao');
+    expect(ordemVigente('atencao', 1100)).toBe('recentes');
+  });
+
+  it('limparPendente zera também a ordenação', () => {
+    registrarOrdem('apoios', 1000);
+    limparPendente();
+    expect(ordemVigente('atencao', 1100)).toBe('atencao');
   });
 });

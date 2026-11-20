@@ -168,6 +168,8 @@ describe('início: a média de entrega usa só as conquistas do recorte', () => 
         apoios: 1,
         proposta_executada: true,
         criada_em: '2026-10-01T12:00:00Z',
+        o_que_foi_feito: null,
+        foto: null,
       },
     ]);
     const todas = await render();

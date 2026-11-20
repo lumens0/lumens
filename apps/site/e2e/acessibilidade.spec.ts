@@ -13,6 +13,8 @@ const PAGINAS = [
   { nome: 'pautas', caminho: '/pautas' },
   // Pauta do seed com apoios, relatos e linha do tempo: a página mais cheia do site.
   { nome: 'pauta', caminho: '/p/bebedouros-no-bloco-18' },
+  // Pauta conquistada do seed: a faixa com mais brilho e a visão de conquista.
+  { nome: 'pauta conquistada', caminho: '/p/laboratorios-abertos-nas-engenharias' },
   { nome: 'conquistas', caminho: '/conquistas' },
   { nome: 'atividade', caminho: '/atividade' },
 ];

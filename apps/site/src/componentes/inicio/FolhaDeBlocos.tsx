@@ -38,9 +38,12 @@ export function FolhaDeBlocos({
   siglas,
   pautas,
   atual,
+  montarUrl,
 }: {
   /** Página que recebe o filtro: `/` (Início) ou `/pautas`. */
   base: string;
+  /** Endereço depois de aplicar, quando a página guarda mais que etapas e blocos (busca, ordem). */
+  montarUrl?: (blocos: string[], status: readonly string[]) => string;
   blocos: BlocoDaFolha[];
   catalogo: Bloco[];
   siglas: Record<string, string>;
@@ -95,7 +98,9 @@ export function FolhaDeBlocos({
     // A escolha entra na pendente compartilhada, partindo das etapas pendentes (e não das que a página
     // ainda mostra): um clique numa etapa antes ou depois de aplicar não descarta os blocos nem a etapa.
     const vigente = aplicarBlocos(atual, escolha);
-    router.replace(urlDeFiltros(base, vigente), { scroll: false });
+    router.replace(montarUrl?.(escolha, vigente.status) ?? urlDeFiltros(base, vigente), {
+      scroll: false,
+    });
     fechar();
   };
 

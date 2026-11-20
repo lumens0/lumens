@@ -1,23 +1,14 @@
-import type { Caminho, PautaDetalhe } from '@lumens/contratos';
+import type { PautaDetalhe } from '@lumens/contratos';
+import { conquistadaEm, oQueFoiFeito, solucaoEntregue } from '../../dados/conquista';
 import { diasEntre, textoDias } from '../../dados/dias';
+import { formatarNumero } from '../BarraApoios';
 import { PlacarDeApoios } from './CabecalhoPauta';
+import { urlFoto } from './foto';
 import { formatarDia } from './LinhaDoTempo';
 import estilos from './pauta.module.css';
 
-/** Quando a pauta virou conquista: o último evento de status para `conquistada`. */
-export function conquistadaEm(pauta: PautaDetalhe): string | undefined {
-  return pauta.linha_do_tempo.findLast(
-    (evento) => evento.tipo === 'status_alterado' && evento.dados.para === 'conquistada',
-  )?.criado_em;
-}
-
-/** A solução da comunidade que foi executada, se a pauta teve uma. */
-export function solucaoEntregue(pauta: PautaDetalhe): Caminho | undefined {
-  return pauta.caminhos.findLast(
-    (caminho) =>
-      caminho.tipo === 'proposta' && (caminho.status === 'executada' || caminho.executada_em),
-  );
-}
+// As duas funções moraram aqui; foram para `dados/conquista.ts` (sem CSS) para a imagem do card usá-las.
+export { conquistadaEm, solucaoEntregue };
 
 /**
  * A vitória no topo da pauta conquistada (SCRUM-352): selo, data da conquista, apoios e dias da
@@ -36,42 +27,53 @@ export function DestaqueDaConquista({ pauta }: { pauta: PautaDetalhe }) {
         A comunidade conquistou esta pauta
       </h2>
       <PlacarDeApoios pauta={pauta} />
-      {(quando || dias !== null) && (
-        <dl className={estilos.fatos}>
-          {quando && (
-            <div>
-              <dt>Conquistada em</dt>
-              <dd>
-                <time dateTime={quando}>{formatarDia(quando)}</time>
-              </dd>
-            </div>
-          )}
-          {dias !== null && (
-            <div>
-              <dt>Da criação à entrega</dt>
-              <dd>{textoDias(dias)}</dd>
-            </div>
-          )}
-        </dl>
-      )}
+      <dl className={estilos.fatos}>
+        {quando && (
+          <div>
+            <dt>Conquistada em</dt>
+            <dd>
+              <time dateTime={quando}>{formatarDia(quando)}</time>
+            </dd>
+          </div>
+        )}
+        {dias !== null && (
+          <div>
+            <dt>Da criação à entrega</dt>
+            <dd>{textoDias(dias)}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Apoios</dt>
+          <dd>{formatarNumero(pauta.apoios)}</dd>
+        </div>
+      </dl>
     </section>
   );
 }
 
-/** O que foi feito: a descrição do caminho executado e a data. Sem solução, não há bloco. */
+/**
+ * O que foi feito: o texto e a foto que a curadoria escreveu (SCRUM-394), com a descrição do
+ * caminho executado como texto de reserva, e a data. Sem solução, texto nem foto, não há bloco.
+ */
 export function SolucaoEntregue({ pauta }: { pauta: PautaDetalhe }) {
   const caminho = solucaoEntregue(pauta);
-  if (!caminho) return null;
+  const feito = oQueFoiFeito(pauta);
+  const foto = feito.foto === null ? null : urlFoto(feito.foto);
+  if (!caminho && !feito.texto && !foto) return null;
+  const texto = feito.texto ?? (caminho ? 'A proposta da comunidade foi executada.' : null);
   return (
     <section className={estilos.secao} aria-labelledby="solucao-titulo">
-      <span className={estilos.seloSolucao}>Solução da comunidade</span>
+      {caminho && <span className={estilos.seloSolucao}>Solução da comunidade</span>}
       <h2 id="solucao-titulo" className={estilos.secaoTitulo}>
-        Solução entregue
+        {caminho ? 'Solução entregue' : 'O que foi feito'}
       </h2>
-      <p className={estilos.texto}>
-        {caminho.descricao ?? 'A proposta da comunidade foi executada.'}
-      </p>
-      {caminho.executada_em && (
+      {texto && <p className={estilos.texto}>{texto}</p>}
+      {foto && (
+        <figure className={estilos.fotoDoFeito}>
+          <img src={foto} alt={`Foto do que foi feito: ${pauta.titulo}`} loading="lazy" />
+        </figure>
+      )}
+      {caminho?.executada_em && (
         <p className={estilos.vazio}>
           Executada em{' '}
           <time dateTime={caminho.executada_em}>{formatarDia(caminho.executada_em)}</time>

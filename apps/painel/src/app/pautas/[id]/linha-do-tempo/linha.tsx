@@ -39,6 +39,7 @@ const ROTULOS: Record<TipoEvento, string> = {
   meta_ajustada: 'Meta ajustada pela curadoria',
   categoria_alterada: 'Categoria alterada',
   pauta_editada: 'Texto da pauta editado pelo autor',
+  conquista_atualizada: 'Card de conquista atualizado',
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
@@ -107,6 +108,8 @@ export function detalheDoEvento(tipo: string, dados: Record<string, unknown>): s
       return `${bloco(dados.blocoAntes)} → ${bloco(dados.blocoDepois)}.`;
     case 'pauta_editada':
       return `${dados.campo === 'titulo' ? 'Título' : 'Descrição'}. Antes: “${texto(dados.antes)}” Depois: “${texto(dados.depois)}”`;
+    case 'conquista_atualizada':
+      return `${dados.texto === true ? 'Com texto' : 'Sem texto'} · ${dados.foto === true ? 'com foto' : 'sem foto'}.`;
     case 'caminho_aberto':
       return `Caminho: ${nomeado(CAMINHO, dados.tipo)}.`;
     case 'protocolo_registrado':

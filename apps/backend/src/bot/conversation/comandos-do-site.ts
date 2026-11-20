@@ -6,6 +6,7 @@
  *   "apoiar <slug>"  ──▶ apoio da 2.7 (verifica antes, se preciso, e retoma)
  *   "ajudar <slug>"  ──▶ "Vou ajudar" da proposta (3.5)
  *   "nova pauta"     ──▶ pauta nova da 2.6 (verifica antes, se preciso, e retoma)
+ *   "nova pauta <bloco>" ──▶ o mesmo, com o bloco (slug) já escolhido; slug inexistente = sem bloco
  *   "cuidar <pauta>" ──▶ virar co-owner (convite do fim do apoio)
  *
  * Valem em qualquer passo, como os comandos globais, e largam o fluxo em andamento: quem clicou
@@ -31,8 +32,10 @@ export const PAUTA_NOT_FOUND_TEXT =
   'Não encontrei essa pauta. Ela pode ter mudado de endereço: abra a página dela no site e toque no botão de novo.';
 
 export type ComandoDoSite =
-  { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string } | { kind: 'nova-pauta' };
+  { kind: 'apoiar' | 'ajudar' | 'cuidar'; alvo: string } | { kind: 'nova-pauta'; bloco?: string };
 
+/** SCRUM-396: `nova pauta <slug-do-bloco>`, do botão "Criar pauta neste bloco" do mapa. */
+const NOVA_PAUTA_COM_BLOCO = /^nova\s+pauta\s+([a-z0-9]+(?:-[a-z0-9]+)*)$/i;
 const COM_ALVO = /^(apoiar|ajudar|cuidar)\s+(\S+)$/i;
 
 /** O comando que veio do site (ou digitado igual); `null` se a mensagem não é um deles. */
@@ -41,6 +44,8 @@ export function parseComandoDoSite(texto: string): ComandoDoSite | null {
   if (m?.[1] !== undefined && m[2] !== undefined) {
     return { kind: m[1].toLowerCase() as 'apoiar' | 'ajudar' | 'cuidar', alvo: m[2] };
   }
+  const comBloco = NOVA_PAUTA_COM_BLOCO.exec(texto.trim());
+  if (comBloco?.[1] !== undefined) return { kind: 'nova-pauta', bloco: comBloco[1].toLowerCase() };
   return normalize(texto) === 'nova pauta' ? { kind: 'nova-pauta' } : null;
 }
 
@@ -82,7 +87,7 @@ export async function executarComandoDoSite(
   comando: ComandoDoSite,
 ): Promise<StepResult | AvisoNoPasso | null> {
   const limpo: StepContext = { ...ctx, state: { step: ctx.state.step, data: {} } };
-  if (comando.kind === 'nova-pauta') return entrarNaPautaNova(limpo);
+  if (comando.kind === 'nova-pauta') return entrarNaPautaNova(limpo, [], comando.bloco);
   if (comando.kind === 'ajudar') {
     // O id vem dos botões do próprio bot; o endereço, do site. Sem nenhum dos dois no meio de um
     // fluxo, é texto da pessoa.
