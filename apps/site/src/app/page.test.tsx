@@ -119,7 +119,7 @@ describe('início', () => {
       nome: slug,
       base_estudantes: 1000,
     }));
-    vi.mocked(buscarBlocos).mockResolvedValue(blocosDeTeste as never);
+    vi.mocked(buscarBlocos).mockResolvedValue(blocosDeTeste);
     vi.mocked(buscarPautas).mockResolvedValue([
       dos('b1', 60),
       dos('b2', 50),
