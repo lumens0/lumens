@@ -900,3 +900,20 @@ button.fantasma {
     animation: none;
   }
 }
+
+.dialogoEndereco {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.dialogoEndereco input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+}
