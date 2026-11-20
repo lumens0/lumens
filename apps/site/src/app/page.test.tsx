@@ -104,6 +104,41 @@ describe('início', () => {
     expect(recebido(html, 'blocos').linhas.map((l) => l.slug)).toEqual(['bloco-a']);
   });
 
+  it('bloco escolhido fora dos cinco mais ativos mostra os apoios dele, não zero', async () => {
+    const dos = (slug: string, apoios: number) =>
+      ({
+        ...PAUTAS_TESTE[2],
+        slug: 'p-' + slug,
+        bloco_slug: slug,
+        bloco_nome: slug,
+        apoios,
+        status: 'juntando_apoios',
+      }) as never;
+    const blocosDeTeste = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'].map((slug) => ({
+      slug,
+      nome: slug,
+      base_estudantes: 1000,
+    }));
+    vi.mocked(buscarBlocos).mockResolvedValue(blocosDeTeste as never);
+    vi.mocked(buscarPautas).mockResolvedValue([
+      dos('b1', 60),
+      dos('b2', 50),
+      dos('b3', 40),
+      dos('b4', 30),
+      dos('b5', 20),
+      dos('b6', 10),
+    ] as never);
+    const linhas = recebido(await render({ bloco: 'b6' }), 'blocos').linhas as {
+      slug: string;
+      apoios: number;
+      largura: number;
+    }[];
+    const sexto = linhas.find((l) => l.slug === 'b6');
+    expect(sexto?.apoios).toBe(10);
+    expect(sexto?.largura).toBeGreaterThan(0);
+    expect(linhas).toHaveLength(6);
+  });
+
   it('a raiz com filtro não chama a API de blocos mais de uma vez nem filtra na API', async () => {
     await render({ bloco: 'bloco-a' });
     expect(buscarPautas).toHaveBeenCalledWith();

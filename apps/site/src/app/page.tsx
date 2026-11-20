@@ -86,18 +86,24 @@ export default async function Home({
   const etapas = caminhoDasPautas(doBloco)
     .filter((e) => e.total > 0 || status.some((s) => s === e.status))
     .map((e) => ({ status: e.status, total: e.total, largura: e.largura }));
-  const maisAtivos = blocosMaisAtivos(daEtapa);
+  // Todos os blocos com apoios, do maior para o menor: os cinco primeiros são os mais ativos, e o
+  // bloco escolhido que ficou de fora entra na lista (para dar para tirá-lo) com os apoios dele.
+  const comApoios = blocosMaisAtivos(daEtapa, Number.MAX_SAFE_INTEGER);
+  const naLinha = (g: (typeof comApoios)[number]): LinhaDeBloco => ({
+    slug: g.chave,
+    nome: g.rotulo,
+    apoios: g.total,
+    largura: g.largura,
+  });
+  const maisAtivos = comApoios.slice(0, 5);
   const linhasDeBloco: LinhaDeBloco[] = [
-    ...maisAtivos.map((g) => ({
-      slug: g.chave,
-      nome: g.rotulo,
-      apoios: g.total,
-      largura: g.largura,
-    })),
-    // Bloco escolhido que ficou fora dos mais ativos continua na lista, para dar para tirá-lo.
+    ...maisAtivos.map(naLinha),
     ...escolhidos
       .filter((b) => !maisAtivos.some((g) => g.chave === b.slug))
-      .map((b) => ({ slug: b.slug, nome: b.nome, apoios: 0, largura: 0 })),
+      .map((b) => {
+        const grupo = comApoios.find((g) => g.chave === b.slug);
+        return grupo ? naLinha(grupo) : { slug: b.slug, nome: b.nome, apoios: 0, largura: 0 };
+      }),
   ];
 
   const predios = montarSkyline({ blocos, pautas: campus, escolhidos: slugs, status });

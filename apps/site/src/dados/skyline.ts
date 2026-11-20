@@ -1,5 +1,6 @@
 import type { StatusPublico } from '@lumens/contratos';
 import { PREDIOS, siglaDe } from '../componentes/mapa/predios';
+import { estaAberta } from './pautas-publicas';
 import type { Bloco, Pauta } from './tipos';
 
 /** Quantos prédios o skyline mostra de uma vez. */
@@ -71,8 +72,6 @@ export function tamanhoDoPredio(baseEstudantes: number): { colunas: number; linh
   };
 }
 
-const ABERTA = (status: StatusPublico) => status !== 'conquistada' && status !== 'descumprida';
-
 function ordemDasJanelas(a: JanelaDoPredio, b: JanelaDoPredio): number {
   return (
     Number(b.urgente) - Number(a.urgente) ||
@@ -105,7 +104,7 @@ export function montarSkyline({
     return {
       bloco,
       doBloco,
-      abertas: doBloco.filter((p) => ABERTA(p.status as StatusPublico)).length,
+      abertas: doBloco.filter((p) => estaAberta(p.status)).length,
       apoios: doBloco.reduce((soma, p) => soma + p.apoios, 0),
     };
   });
@@ -183,4 +182,19 @@ export function legendaDoSkyline(escolhidos: readonly { nome: string; pautas: nu
     );
   }
   return partes.join(' ');
+}
+
+/**
+ * A janela aberta na legenda só vale enquanto o prédio e a pauta dela ainda estão no skyline. Ao
+ * escolher um bloco que tira o prédio, a seleção antiga some em vez de ficar presa na legenda.
+ */
+export function janelaVigente<T extends { predio: { slug: string }; janela: { slug: string } }>(
+  aberta: T | null,
+  predios: readonly PredioDoSkyline[],
+): T | null {
+  if (aberta === null) return null;
+  const existe = predios.some(
+    (p) => p.slug === aberta.predio.slug && p.janelas.some((j) => j.slug === aberta.janela.slug),
+  );
+  return existe ? aberta : null;
 }
