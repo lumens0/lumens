@@ -97,8 +97,9 @@ describe('MapaDoCampus (no navegador)', () => {
     const itens = screen
       .getAllByRole('button', { name: /pauta/ })
       .filter((b) => b.className.includes('item'));
-    expect(itens[0]?.textContent).toContain('Residência Universitária');
-    expect(itens[1]?.textContent).toContain('Instituto de Computação');
+    // O IC tem uma pauta marcada como urgente: vem antes da promessa descumprida da Residência.
+    expect(itens[0]?.textContent).toContain('Instituto de Computação');
+    expect(itens[1]?.textContent).toContain('Residência Universitária');
   });
 
   it('o chip de cada etapa mostra a contagem; etapa sem pauta não tem chip', () => {
@@ -141,7 +142,8 @@ describe('MapaDoCampus (no navegador)', () => {
     const links = screen
       .getAllByRole('link')
       .filter((a) => a.getAttribute('href')?.startsWith('/p/'));
-    expect(links.map((a) => a.textContent)).toEqual(['Ar-condicionado', 'Carteiras']);
+    // A pauta urgente (Carteiras) vem antes da que está sendo cobrada.
+    expect(links.map((a) => a.textContent)).toEqual(['Carteiras', 'Ar-condicionado']);
     expect(caixaDoSvg().w).toBeLessThan(antes);
     expect(screen.getByText('Viu outro problema aqui?')).toBeTruthy();
   });

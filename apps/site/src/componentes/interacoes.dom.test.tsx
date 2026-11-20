@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { renderToStaticMarkup } from 'react-dom/server';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +91,19 @@ describe('LinhaDePauta (no navegador)', () => {
     );
     await usuario.click(botao);
     expect(botao.getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
+describe('LinhaDePauta sem JavaScript', () => {
+  it('deixa um link para a pauta fora da área recolhida, dentro de <noscript>', () => {
+    const html = renderToStaticMarkup(
+      <ul>
+        <LinhaDePauta pauta={pauta('cobrando', { slug: 'sala-de-descanso' })} />
+      </ul>,
+    );
+    const noscript = /<noscript>(.*?)<\/noscript>/.exec(html)?.[1] ?? '';
+    expect(noscript).toContain('href="/p/sala-de-descanso"');
+    expect(noscript).toContain('Ver a pauta');
   });
 });
 
@@ -448,6 +462,37 @@ describe('FiltrosDaLista (no navegador)', () => {
       />,
     );
     expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
+  });
+
+  it('trocar a etapa depois de buscar, com a resposta do servidor ainda pendente, mantém a busca', () => {
+    vi.useFakeTimers();
+    // A prop `q` continua vazia (o servidor ainda não respondeu), mas a busca já foi enviada.
+    desenhar();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sala' } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('q=sala');
+    fireEvent.click(screen.getByRole('button', { name: /Cobrando/ }));
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('q=sala');
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('status=cobrando');
+  });
+
+  it('a ordem e o bloco também levam a busca enviada', () => {
+    vi.useFakeTimers();
+    desenhar();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'central' } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    const ordem = screen.getByRole<HTMLSelectElement>('combobox');
+    const outra = [...ordem.options].find((o) => o.value !== 'atencao');
+    fireEvent.change(ordem, { target: { value: outra?.value ?? '' } });
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('q=central');
+    fireEvent.click(screen.getByRole('button', { name: /Escolher entre os 2 blocos/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteca Central/ }));
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('q=central');
+    expect(replace.mock.calls.at(-1)?.[0]).toContain('bloco=bc');
   });
 
   it('uma busca digitada e ainda não enviada não volta quando a URL muda de fora (digitar → remover o filtro)', () => {

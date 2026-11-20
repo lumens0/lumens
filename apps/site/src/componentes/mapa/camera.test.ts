@@ -30,7 +30,14 @@ import type { MarcadorDoBloco } from './urgencia';
 
 let n = 0;
 const pauta = (status: StatusPauta, apoios = 10): Pauta =>
-  ({ slug: `p-${String(++n)}`, titulo: `Pauta ${String(n)}`, status, apoios, meta: 100 }) as Pauta;
+  ({
+    slug: `p-${String(++n)}`,
+    titulo: `Pauta ${String(n)}`,
+    status,
+    apoios,
+    meta: 100,
+    urgente: false,
+  }) as Pauta;
 
 const predioComBlocos = (...slugs: string[]) => {
   const predio = PREDIOS.find((p) => slugs.every((s) => p.blocos.includes(s)));
@@ -66,6 +73,13 @@ describe('prioridade das pautas', () => {
       'cobrando',
       'conquistada',
     ]);
+  });
+
+  it('a pauta marcada como urgente vem antes de qualquer etapa', () => {
+    const urgente = { ...pauta('juntando_apoios', 1), urgente: true };
+    const descumprida = pauta('descumprida', 500);
+    expect(melhor([descumprida, urgente])).toBe(urgente);
+    expect([descumprida, urgente].sort(porPrioridade)[0]).toBe(urgente);
   });
 
   it('no empate de etapa, a de mais apoios vem primeiro', () => {
@@ -173,6 +187,13 @@ describe('pautas ativas e prioridade do lugar', () => {
     expect(prioDoLocal(local, null)).toBe(1);
     expect(prioDoLocal(local, 'conquistada')).toBe(6);
     expect(prioDoLocal(local, 'descumprida')).toBe(9);
+  });
+
+  it('um lugar com pauta urgente passa à frente de qualquer etapa', () => {
+    const [urgente] = locaisDe([
+      marcador('ic', predioComBlocos('ic').id, [{ ...pauta('juntando_apoios'), urgente: true }]),
+    ]);
+    expect(urgente ? prioDoLocal(urgente, null) : 0).toBe(-1);
   });
 });
 

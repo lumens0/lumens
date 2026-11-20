@@ -97,7 +97,9 @@ export function FiltrosDaLista({
     const vigente = escolhaVigente({ status, bloco });
     router.replace(
       urlDaLista({
-        q,
+        // A busca enviada por último, e não a que a página ainda mostra: depois de buscar e antes de a
+        // resposta chegar, trocar a etapa, o bloco ou a ordem não pode derrubar a busca.
+        q: enviado.current,
         ordem: ordemDaUrl(ordemVigente(ordem)),
         status: statusDaUrl(vigente.status.join(',')),
         bloco: [...vigente.bloco],

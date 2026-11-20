@@ -99,6 +99,12 @@ export function LinhaDePauta({ pauta }: { pauta: Pauta }) {
           </div>
         </div>
       </div>
+      {/* Sem JavaScript o título não abre a linha, e o conteúdo recolhido fica inerte: este link é o caminho. */}
+      <noscript>
+        <Link href={`/p/${pauta.slug}`} className={estilos.ver}>
+          Ver a pauta
+        </Link>
+      </noscript>
     </li>
   );
 }

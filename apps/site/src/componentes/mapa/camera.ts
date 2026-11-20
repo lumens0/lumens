@@ -34,8 +34,12 @@ const PRIO: Partial<Record<StatusPauta, number>> = {
 
 export const prio = (p: Pauta) => PRIO[p.status] ?? 9;
 
-/** Da mais para a menos urgente; no empate, a de mais apoios. */
-export const porPrioridade = (a: Pauta, b: Pauta) => prio(a) - prio(b) || b.apoios - a.apoios;
+/**
+ * Da mais para a menos urgente: a que a curadoria marcou como urgente vem antes de qualquer etapa
+ * (como no `maisUrgente` dos marcadores); depois, a etapa; no empate, a de mais apoios.
+ */
+export const porPrioridade = (a: Pauta, b: Pauta) =>
+  Number(b.urgente) - Number(a.urgente) || prio(a) - prio(b) || b.apoios - a.apoios;
 
 export const melhor = (ps: readonly Pauta[]): Pauta | undefined => [...ps].sort(porPrioridade)[0];
 
@@ -96,10 +100,11 @@ export function blocoDoToque(
 export const ativas = (l: Local, filtro: StatusPauta | null) =>
   l.pautas.filter((p) => !filtro || p.status === filtro);
 
-/** Prioridade do lugar: a da pauta que mais pede atenção; 9 sem pauta. */
+/** Prioridade do lugar: a da pauta que mais pede atenção (urgente: -1); 9 sem pauta. */
 export const prioDoLocal = (l: Local, filtro: StatusPauta | null) => {
   const topo = melhor(ativas(l, filtro));
-  return topo ? prio(topo) : 9;
+  if (!topo) return 9;
+  return topo.urgente ? -1 : prio(topo);
 };
 
 /** O `viewBox` do desenho e quantos metros vale um pixel (`k`). */
