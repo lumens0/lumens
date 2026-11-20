@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, type CSSProperties } from 'react';
 import { urlDeFiltros } from '../../dados/filtros';
-import type { JanelaDoPredio, PredioDoSkyline } from '../../dados/skyline';
+import { janelaVigente, type JanelaDoPredio, type PredioDoSkyline } from '../../dados/skyline';
 import { STATUS } from '../StatusPill';
 import estilos from './inicio.module.css';
 
@@ -19,9 +19,11 @@ export function nomeDaJanela(janela: JanelaDoPredio): string {
  * A legenda é uma região viva: o leitor de tela ouve o que mudou.
  */
 export function Skyline({ predios, legenda }: { predios: PredioDoSkyline[]; legenda: string }) {
-  const [aberta, setAberta] = useState<{ predio: PredioDoSkyline; janela: JanelaDoPredio } | null>(
-    null,
-  );
+  const [escolhida, setAberta] = useState<{
+    predio: PredioDoSkyline;
+    janela: JanelaDoPredio;
+  } | null>(null);
+  const aberta = janelaVigente(escolhida, predios);
   const haEscolhidos = predios.some((p) => p.escolhido);
   return (
     <div className={estilos.skyline}>

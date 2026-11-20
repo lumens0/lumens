@@ -68,3 +68,42 @@ export function filtrarPautas<T extends Pick<Pauta, 'status' | 'bloco_slug'>>(
       (blocos.length === 0 || blocos.some((bloco) => bloco.slug === pauta.bloco_slug)),
   );
 }
+
+/** As escolhas de etapa e de bloco do Início. */
+export interface Escolhas {
+  status: readonly string[];
+  bloco: readonly string[];
+}
+
+/** A última escolha enviada ao servidor que a página ainda não refletiu. */
+export interface EscolhaPendente {
+  escolhas: Escolhas;
+  em: number;
+}
+
+/** Quanto tempo uma escolha pendente vale: depois disso, uma navegação que falhou não a prende. */
+export const VALIDADE_DA_ESCOLHA_PENDENTE_MS = 3000;
+
+/**
+ * Liga ou desliga um item partindo da escolha pendente (se ainda vale) e não da que o servidor
+ * mostra: dois cliques antes de a primeira navegação terminar não perdem a primeira escolha.
+ */
+export function escolhaSeguinte({
+  atual,
+  pendente,
+  agora,
+  grupo,
+  valor,
+}: {
+  atual: Escolhas;
+  pendente: EscolhaPendente | null;
+  agora: number;
+  grupo: keyof Escolhas;
+  valor: string;
+}): Escolhas {
+  const base =
+    pendente !== null && agora - pendente.em < VALIDADE_DA_ESCOLHA_PENDENTE_MS
+      ? pendente.escolhas
+      : atual;
+  return { ...base, [grupo]: alternar(base[grupo], valor) };
+}

@@ -84,3 +84,12 @@ describe('copiarLink', () => {
     expect((await copiarLink(dados.link, negado)).resultado).toBe('sem-suporte');
   });
 });
+
+describe('ativação do clique (Safari)', () => {
+  it('compartilharCard chama o `share` do aparelho de forma síncrona, antes de qualquer espera', () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    // Sem `await` aqui: se houvesse uma espera antes, `share` ainda não teria sido chamado.
+    void compartilharCard(imagem, dados, { share, canShare: () => true });
+    expect(share).toHaveBeenCalledOnce();
+  });
+});

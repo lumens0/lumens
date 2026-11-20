@@ -3,11 +3,13 @@ import exemplo from './blocos-teste.json';
 import {
   alternar,
   blocosDaUrl,
+  escolhaSeguinte,
   filtrarPautas,
   listaDaUrl,
   statusDaUrl,
   urlDeFiltros,
   urlDosFiltros,
+  VALIDADE_DA_ESCOLHA_PENDENTE_MS,
 } from './filtros';
 import { PAUTAS_TESTE } from './pautas-teste';
 
@@ -90,5 +92,64 @@ describe('filtrarPautas', () => {
     expect(filtrarPautas(PAUTAS_TESTE, { status: [], blocos: [] })).toHaveLength(
       PAUTAS_TESTE.length,
     );
+  });
+});
+
+describe('escolhaSeguinte (cliques rápidos nos filtros do Início)', () => {
+  const vazio = { status: [], bloco: [] };
+
+  it('dois cliques antes de a primeira navegação terminar não perdem a primeira escolha', () => {
+    const primeira = escolhaSeguinte({
+      atual: vazio,
+      pendente: null,
+      agora: 1000,
+      grupo: 'status',
+      valor: 'cobrando',
+    });
+    // O servidor ainda mostra "vazio": o segundo clique parte da escolha pendente.
+    const segunda = escolhaSeguinte({
+      atual: vazio,
+      pendente: { escolhas: primeira, em: 1000 },
+      agora: 1100,
+      grupo: 'status',
+      valor: 'prometido',
+    });
+    expect(segunda.status).toEqual(['cobrando', 'prometido']);
+  });
+
+  it('vale também entre grupos: uma etapa e logo um bloco', () => {
+    const etapa = { status: ['cobrando'], bloco: [] };
+    const aposBloco = escolhaSeguinte({
+      atual: vazio,
+      pendente: { escolhas: etapa, em: 1000 },
+      agora: 1050,
+      grupo: 'bloco',
+      valor: 'ic',
+    });
+    expect(aposBloco).toEqual({ status: ['cobrando'], bloco: ['ic'] });
+  });
+
+  it('a escolha pendente vence depois de 3 s: uma navegação que falhou não prende a escolha', () => {
+    const preso = { escolhas: { status: ['cobrando'], bloco: [] }, em: 1000 };
+    const depois = escolhaSeguinte({
+      atual: vazio,
+      pendente: preso,
+      agora: 1000 + VALIDADE_DA_ESCOLHA_PENDENTE_MS,
+      grupo: 'status',
+      valor: 'prometido',
+    });
+    expect(depois.status).toEqual(['prometido']);
+  });
+
+  it('desligar uma escolha pendente também parte dela', () => {
+    const pendenteComDuas = { escolhas: { status: ['cobrando', 'prometido'], bloco: [] }, em: 10 };
+    const r = escolhaSeguinte({
+      atual: { status: ['cobrando'], bloco: [] },
+      pendente: pendenteComDuas,
+      agora: 20,
+      grupo: 'status',
+      valor: 'cobrando',
+    });
+    expect(r.status).toEqual(['prometido']);
   });
 });

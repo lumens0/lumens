@@ -51,6 +51,9 @@ const ABERTAS: ReadonlySet<StatusPauta> = new Set([
   'prometido',
 ]);
 
+/** Pauta ainda correndo (a mesma definição dos totais): o ranking do skyline e os números concordam. */
+export const estaAberta = (status: StatusPauta): boolean => ABERTAS.has(status);
+
 const plural = (n: number, um: string, varios: string) =>
   `${new Intl.NumberFormat('pt-BR').format(n)} ${n === 1 ? um : varios}`;
 
