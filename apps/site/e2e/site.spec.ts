@@ -19,8 +19,8 @@ test('o Início mostra os números do campus', async ({ page }) => {
   await expect(numeros.locator('dt')).toHaveText(['Pautas abertas', 'Apoios', 'Conquistas']);
   // Cada número aparece duas vezes no <dd>: o animado, escondido do leitor de tela, e o valor final
   // em texto oculto, que é o que o leitor lê (SCRUM-306). Os dois têm de chegar ao total.
-  await expect(numeros.locator('dd > span > [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
-  await expect(numeros.locator('dd > span > :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
+  await expect(numeros.locator('dd > [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
+  await expect(numeros.locator('dd > :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
 });
 
 test('a lista de pautas carrega, com uma busca só', async ({ page }) => {
@@ -190,10 +190,18 @@ test('o Início filtra por bloco e etapa na URL e abre a lista em diálogo', asy
 
 test('as abas Início e Pautas levam cada uma à sua página', async ({ page }) => {
   await page.goto('/');
+  // No celular, depois da hidratação as abas recolhem atrás do botão "Menu" (`data-aberto="false"`).
+  await expect(page.locator('#secoes-do-site')).toHaveAttribute('data-aberto', /.+/);
+  const menu = page.getByRole('button', { name: 'Menu' });
+  const abrirMenu = async () => {
+    if (await menu.isVisible()) await menu.click();
+  };
+  await abrirMenu();
   const abas = page.getByRole('navigation', { name: 'Seções do site' });
   await expect(abas.getByRole('link', { name: 'Início' })).toHaveAttribute('aria-current', 'page');
   await abas.getByRole('link', { name: 'Pautas' }).click();
   await expect(page).toHaveURL('/pautas');
+  await abrirMenu();
   await expect(abas.getByRole('link', { name: 'Pautas' })).toHaveAttribute('aria-current', 'page');
 });
 

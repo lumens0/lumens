@@ -23,9 +23,7 @@ const render = async (params: { bloco?: string; status?: string } = {}) =>
   renderToStaticMarkup(await Home({ searchParams: Promise.resolve(params) }));
 
 const recebidoDaFolha = (html: string) =>
-  JSON.parse(
-    /<pre id="folha">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}',
-  ) as {
+  JSON.parse(/<pre id="folha">(.*?)<\/pre>/.exec(html.replaceAll('&quot;', '"'))?.[1] ?? '{}') as {
     atual: { status: string[]; bloco: string[] };
   };
 

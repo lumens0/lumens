@@ -101,24 +101,24 @@ function FiltroEtapas({
       >
         Todas<small>{total}</small>
       </Link>
-      {STATUS_PUBLICOS.filter(
-        (etapa) => (contagens[etapa] ?? 0) > 0 || atual.includes(etapa),
-      ).map((etapa) => {
-        const ativa = atual.includes(etapa);
-        return (
-          <Link
-            key={etapa}
-            href={urlDeFiltros('/', { status: alternar(atual, etapa), bloco: blocos })}
-            scroll={false}
-            className={estilos.filtro}
-            aria-current={ativa ? 'true' : undefined}
-          >
-            <Icone nome={ICONE_DA_ETAPA[etapa]} />
-            {STATUS[etapa].rotulo}
-            <small>{contagens[etapa] ?? 0}</small>
-          </Link>
-        );
-      })}
+      {STATUS_PUBLICOS.filter((etapa) => (contagens[etapa] ?? 0) > 0 || atual.includes(etapa)).map(
+        (etapa) => {
+          const ativa = atual.includes(etapa);
+          return (
+            <Link
+              key={etapa}
+              href={urlDeFiltros('/', { status: alternar(atual, etapa), bloco: blocos })}
+              scroll={false}
+              className={estilos.filtro}
+              aria-current={ativa ? 'true' : undefined}
+            >
+              <Icone nome={ICONE_DA_ETAPA[etapa]} />
+              {STATUS[etapa].rotulo}
+              <small>{contagens[etapa] ?? 0}</small>
+            </Link>
+          );
+        },
+      )}
     </nav>
   );
 }
@@ -497,7 +497,10 @@ export default async function Home({
             </div>
             {lista.length === 0 ? (
               <div className={estilos.vazio}>
-                <ListaVazia bloco={blocoParaVazio} status={status.length === 1 ? status[0] : undefined} />
+                <ListaVazia
+                  bloco={blocoParaVazio}
+                  status={status.length === 1 ? status[0] : undefined}
+                />
               </div>
             ) : (
               <>
