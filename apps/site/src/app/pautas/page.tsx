@@ -7,7 +7,8 @@ import { ListaVazia } from '../../componentes/ListaVazia';
 import { Numero } from '../../componentes/Numero';
 import { STATUS } from '../../componentes/StatusPill';
 import { buscarBlocos, buscarPautas } from '../../dados/api';
-import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../../dados/pautas-publicas';
+import { blocosDaUrl, filtrarPautas, statusDaUrl, type ParamDaUrl } from '../../dados/filtros';
+import { pautasPublicas, resumoDosTotais, totais } from '../../dados/pautas-publicas';
 import { STATUS_PUBLICOS } from '@lumens/contratos';
 import { metadadosDaMarca } from '../../metadados';
 import estilos from '../page.module.css';
@@ -24,7 +25,7 @@ export const metadata: Metadata = metadadosDaMarca({
 export default async function Pautas({
   searchParams,
 }: {
-  searchParams: Promise<{ bloco?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{ bloco?: ParamDaUrl; status?: ParamDaUrl }>;
 }) {
   // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
   // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
@@ -32,22 +33,31 @@ export default async function Pautas({
   // `next build` não tenta pré-renderizar a página chamando a API (que pode nem estar no ar).
   const { bloco: blocoParam, status: statusParam } = await searchParams;
   const blocos = await buscarBlocos();
-  const bloco = blocoDaUrl(blocos, blocoParam);
-  const status =
-    typeof statusParam === 'string'
-      ? STATUS_PUBLICOS.find((etapa) => etapa === statusParam)
-      : undefined;
+  // Filtros múltiplos: "ou" dentro do grupo, "e" entre grupos. Os seletores abaixo ainda são de um
+  // valor só (a lista nova chega na E4); com mais de um escolhido, eles mostram "Todos".
+  const escolhidos = blocosDaUrl(blocos, blocoParam);
+  const etapas = statusDaUrl(statusParam);
+  const bloco = escolhidos.length === 1 ? escolhidos[0] : undefined;
+  const status = etapas.length === 1 ? etapas[0] : undefined;
   // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
   // segunda barreira. O status filtra a lista aqui; as contagens do filtro usam as pautas do bloco
   // inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
-  const todas = pautasPublicas(await buscarPautas(bloco?.slug), bloco);
-  const lista = status ? todas.filter((pauta) => pauta.status === status) : todas;
+  const todas = filtrarPautas(pautasPublicas(await buscarPautas(bloco?.slug)), {
+    status: [],
+    blocos: escolhidos,
+  });
+  const lista = filtrarPautas(todas, { status: etapas, blocos: [] });
   const contagens = Object.fromEntries(
     STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
   );
   const contagem = totais(lista);
   const { abertas, apoios, conquistas } = contagem;
-  const onde = bloco?.nome ?? 'Todo o campus';
+  const onde =
+    escolhidos.length === 0
+      ? 'Todo o campus'
+      : escolhidos.length === 1
+        ? (escolhidos[0]?.nome ?? '')
+        : `${String(escolhidos.length)} blocos`;
   return (
     <main className={estilos.pagina}>
       <h1 className={estilos.tituloDaLista}>Pautas</h1>

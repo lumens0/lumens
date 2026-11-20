@@ -1,17 +1,34 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
-import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
 import componentes from '../componentes/componentes.module.css';
-import { MapaResumo } from '../componentes/mapa/MapaResumo';
-import { marcadoresDoMapa } from '../componentes/mapa/urgencia';
-import { Numero } from '../componentes/Numero';
-import { PautasPorGrupo } from '../componentes/PautasPorGrupo';
-import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
-import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
-import { urlAntigaDosFiltros } from '../dados/filtros';
+import {
+  BlocosFiltraveis,
+  EtapasFiltraveis,
+  type LinhaDeBloco,
+} from '../componentes/inicio/FiltrosDoInicio';
+import estilosDoInicio from '../componentes/inicio/inicio.module.css';
+import {
+  AcaoDoInicio,
+  NumerosDoCampus,
+  PertoDaMetaSecao,
+  type EtiquetaDeFiltro,
+} from '../componentes/inicio/Secoes';
+import { Skyline } from '../componentes/inicio/Skyline';
+import { STATUS } from '../componentes/StatusPill';
+import { buscarApoiosPorSemana, buscarBlocos, buscarConquistas, buscarPautas } from '../dados/api';
+import { caminhoDasPautas } from '../dados/caminho';
+import { blocosMaisAtivos } from '../dados/distribuicao';
+import {
+  blocosDaUrl,
+  filtrarPautas,
+  statusDaUrl,
+  urlDeFiltros,
+  type ParamDaUrl,
+} from '../dados/filtros';
+import { numerosDoInicio, pertoDaMeta } from '../dados/inicio';
 import { pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import { legendaDoSkyline, montarSkyline } from '../dados/skyline';
 import { metadadosDaMarca } from '../metadados';
 import { nomeDoCanal } from '../whatsapp';
 import estilos from './page.module.css';
@@ -19,32 +36,99 @@ import estilos from './page.module.css';
 export const metadata: Metadata = metadadosDaMarca({ caminho: '/' });
 
 /**
- * Início: o painel de números do campus. A lista e os filtros moraram aqui; agora estão em
- * `/pautas`, e o link antigo com `?bloco=` e `?status=` redireciona para lá.
+ * Início: o painel de números do campus. Etapas e blocos são filtros de seleção múltipla na URL
+ * (`?status=a,b&bloco=c,d`): "ou" dentro de cada grupo, "e" entre os grupos. A lista fica em
+ * `/pautas` e recebe os mesmos filtros.
  */
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ bloco?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{ bloco?: ParamDaUrl; status?: ParamDaUrl }>;
 }) {
-  // Antes de qualquer busca: link antigo com filtro não gasta chamada à API. Ler o `searchParams`
-  // também torna a página dinâmica, então o `next build` não tenta pré-renderizá-la chamando a API.
-  const antigo = urlAntigaDosFiltros(await searchParams);
-  if (antigo) redirect(antigo);
-  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, para o
-  // Início e a lista contarem do mesmo jeito.
-  const [blocos, pautasDaApi, semanas] = await Promise.all([
+  // Erro da API sobe e cai no `error.tsx`. O `searchParams` vem antes da primeira busca: lê-lo
+  // torna a página dinâmica, então o `next build` não tenta pré-renderizá-la chamando a API.
+  const { bloco: blocoParam, status: statusParam } = await searchParams;
+  const [blocos, pautasDaApi, semanas, conquistas] = await Promise.all([
     buscarBlocos(),
     buscarPautas(),
     buscarApoiosPorSemana(),
+    buscarConquistas(),
   ]);
-  const todas = pautasPublicas(pautasDaApi);
-  const contagem = totais(todas);
-  const { abertas, apoios, conquistas } = contagem;
-  const marcadores = marcadoresDoMapa(blocos, todas);
+  const status = statusDaUrl(statusParam);
+  const escolhidos = blocosDaUrl(blocos, blocoParam);
+  const slugs = escolhidos.map((b) => b.slug);
+
+  const campus = pautasPublicas(pautasDaApi);
+  // Os recortes: o dos blocos (para contar as etapas), o das etapas (para os blocos) e o dos dois
+  // (para os números, o "perto da meta" e o botão da lista).
+  const doBloco = filtrarPautas(campus, { status: [], blocos: escolhidos });
+  const daEtapa = filtrarPautas(campus, { status, blocos: [] });
+  const recorte = filtrarPautas(campus, { status, blocos: escolhidos });
+
+  // A média de dias até a entrega usa só as conquistas do recorte (blocos e etapas escolhidos): o
+  // número de conquistas e a média falam do mesmo universo.
+  const slugsDoRecorte = new Set(recorte.map((p) => p.slug));
+  const numeros = numerosDoInicio({
+    pautas: recorte,
+    campus,
+    semanas,
+    conquistas: conquistas.filter((c) => slugsDoRecorte.has(c.pauta_slug)),
+    recortePorBloco: escolhidos.length > 0,
+  });
+  const onde =
+    escolhidos.length === 0
+      ? 'Todo o campus'
+      : escolhidos.length === 1
+        ? (escolhidos[0]?.nome ?? '')
+        : `${String(escolhidos.length)} blocos`;
+
+  const etapas = caminhoDasPautas(doBloco)
+    .filter((e) => e.total > 0 || status.some((s) => s === e.status))
+    .map((e) => ({ status: e.status, total: e.total, largura: e.largura }));
+  // Todos os blocos com apoios, do maior para o menor: os cinco primeiros são os mais ativos, e o
+  // bloco escolhido que ficou de fora entra na lista (para dar para tirá-lo) com os apoios dele.
+  const comApoios = blocosMaisAtivos(daEtapa, Number.MAX_SAFE_INTEGER);
+  const naLinha = (g: (typeof comApoios)[number]): LinhaDeBloco => ({
+    slug: g.chave,
+    nome: g.rotulo,
+    apoios: g.total,
+    largura: g.largura,
+  });
+  const maisAtivos = comApoios.slice(0, 5);
+  const linhasDeBloco: LinhaDeBloco[] = [
+    ...maisAtivos.map(naLinha),
+    ...escolhidos
+      .filter((b) => !maisAtivos.some((g) => g.chave === b.slug))
+      .map((b) => {
+        const grupo = comApoios.find((g) => g.chave === b.slug);
+        return grupo ? naLinha(grupo) : { slug: b.slug, nome: b.nome, apoios: 0, largura: 0 };
+      }),
+  ];
+
+  const predios = montarSkyline({ blocos, pautas: campus, escolhidos: slugs, status });
+  const legenda = legendaDoSkyline(
+    escolhidos.map((b) => ({
+      nome: b.nome,
+      pautas: recorte.filter((p) => p.bloco_slug === b.slug).length,
+    })),
+  );
+
+  const etiquetas: EtiquetaDeFiltro[] = [
+    ...status.map((etapa) => ({
+      texto: STATUS[etapa].rotulo,
+      rotulo: `Tirar o filtro de etapa ${STATUS[etapa].rotulo}`,
+      href: urlDeFiltros('/', { status: status.filter((s) => s !== etapa), bloco: slugs }),
+    })),
+    ...escolhidos.map((b) => ({
+      texto: b.nome,
+      rotulo: `Tirar o filtro de bloco ${b.nome}`,
+      href: urlDeFiltros('/', { status, bloco: slugs.filter((s) => s !== b.slug) }),
+    })),
+  ];
+
   return (
     <main className={estilos.pagina}>
-      <section className={[estilos.hero, 'noite'].join(' ')}>
+      <section className={[estilos.hero, estilosDoInicio.ceu, 'noite'].join(' ')}>
         <div className={estilos.heroTexto}>
           <p className={estilos.sobretitulo}>Campus A. C. Simões, Maceió</p>
           <h1 className={estilos.titulo}>
@@ -57,78 +141,48 @@ export default async function Home({
           <div className={estilos.heroAcoes}>
             {/* O "Relatar um problema" já está no cabeçalho, em todas as páginas; repetir aqui só
                 disputava o olhar com os números. */}
-            <Link href="/mapa" className={componentes.botaoSecundario}>
+            <Link
+              href="/mapa"
+              className={[componentes.botaoSecundario, estilos.soDesktop].join(' ')}
+            >
               Ver no mapa
             </Link>
           </div>
         </div>
-        {/* O nome do link vem do texto oculto, não de aria-label: as siglas desenhadas no mapa são
-            texto visível, e um aria-label sem elas fere a WCAG 2.5.3. O crédito fica fora do link
-            pelo mesmo motivo: é atribuição, não o nome do link. */}
-        <div className={estilos.heroMapa}>
-          <Link href="/mapa" className={estilos.heroMapaLink}>
-            <span className={estilos.somenteLeitor}>Abrir o mapa do campus</span>
-            <MapaResumo marcadores={marcadores} />
-          </Link>
-          <span className={estilos.heroCredito}>Contornos © OpenStreetMap</span>
-        </div>
+        <Skyline predios={predios} legenda={legenda} />
       </section>
 
       {/* A região viva é só o resumo escondido: os números visíveis sobem com animação e
           anunciariam cada quadro. */}
-      <section className={estilos.totais} aria-labelledby="totais-titulo">
+      <section className={estilosDoInicio.secaoNumeros} aria-labelledby="totais-titulo">
         <p role="status" className={estilos.somenteLeitor}>
-          {resumoDosTotais('Todo o campus', contagem)}
+          {resumoDosTotais(onde, totais(recorte))}
         </p>
         <div className={estilos.totaisTopo}>
           <h2 id="totais-titulo" className={estilos.totaisTitulo}>
-            Todo o campus
+            O campus em números
           </h2>
+          <p className={estilos.subtituloDosNumeros}>{onde}</p>
         </div>
-        <dl>
-          <div>
-            <dt>Pautas abertas</dt>
-            <dd>
-              <Numero valor={abertas} />
-            </dd>
-          </div>
-          <div>
-            <dt>Apoios</dt>
-            <dd>
-              <Numero valor={apoios} />
-            </dd>
-          </div>
-          <div>
-            <dt>Conquistas</dt>
-            <dd>
-              <Numero valor={conquistas} />
-            </dd>
-          </div>
-        </dl>
+        <NumerosDoCampus numeros={numeros} />
       </section>
-      {todas.length > 0 && (
-        <div className={estilos.dashboard}>
-          <CaminhoDasPautas pautas={todas} />
-          <ApoiosPorSemana semanas={semanas} />
-          <PautasPorGrupo
-            id="categorias-titulo"
-            titulo="Apoios por categoria"
-            vazio="Nenhum apoio por categoria ainda."
-            grupos={apoiosPorCategoria(todas)}
-          />
-          <PautasPorGrupo
-            id="blocos-titulo"
-            titulo="Blocos mais ativos"
-            vazio="Nenhum apoio por bloco ainda."
-            grupos={blocosMaisAtivos(todas)}
-          />
-        </div>
-      )}
-      <p className={estilos.verPautas}>
-        <Link href="/pautas" className={componentes.botaoSecundario}>
-          {todas.length === 1 ? 'Ver a pauta' : `Ver as ${String(todas.length)} pautas`}
-        </Link>
-      </p>
+
+      <div className={estilosDoInicio.colunas}>
+        <ApoiosPorSemana semanas={semanas} />
+        <section aria-labelledby="etapas-titulo">
+          <h2 id="etapas-titulo">Em que etapa estão</h2>
+          <EtapasFiltraveis linhas={etapas} atual={{ status, bloco: slugs }} />
+        </section>
+        <section aria-labelledby="blocos-titulo">
+          <h2 id="blocos-titulo">Blocos mais ativos</h2>
+          <BlocosFiltraveis linhas={linhasDeBloco} atual={{ status, bloco: slugs }} />
+        </section>
+      </div>
+
+      <PertoDaMetaSecao pautas={pertoDaMeta(recorte)} />
+
+      <AcaoDoInicio etiquetas={etiquetas} total={recorte.length} status={status} bloco={slugs} />
+
       <footer className={estilos.rodape}>
         <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
           <Link href="/manual">Manual</Link>

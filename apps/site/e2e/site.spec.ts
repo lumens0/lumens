@@ -152,11 +152,35 @@ test.describe('cache das páginas públicas', () => {
   }
 });
 
-// Links antigos (`/?bloco=` e `/?status=`) continuam funcionando: a lista mudou para /pautas.
-test('o link antigo com filtro na raiz leva para /pautas com o mesmo filtro', async ({ page }) => {
-  await page.goto(`/?bloco=${BLOCO.slug}`);
-  await expect(page).toHaveURL(`/pautas?bloco=${BLOCO.slug}`);
-  await expect(page.getByRole('heading', { level: 1, name: 'Pautas' })).toBeVisible();
+// Etapas e blocos do Início são filtros de seleção múltipla, guardados na URL.
+test('o Início filtra por etapas e blocos na URL e leva os filtros para /pautas', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const etapas = page.getByRole('region', { name: 'Em que etapa estão' });
+  const blocos = page.getByRole('region', { name: 'Blocos mais ativos' });
+  await etapas.getByRole('button', { name: /^Cobrando/ }).click();
+  await expect(page).toHaveURL(/status=cobrando/);
+  await blocos.getByRole('button').first().click();
+  await expect(page).toHaveURL(/status=cobrando&bloco=/);
+  await expect(etapas.getByRole('button', { name: /^Cobrando/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('link', { name: /pautas? filtradas?$/ }).click();
+  await expect(page).toHaveURL(/\/pautas\?status=cobrando&bloco=/);
+});
+
+test('uma janela do skyline mostra a pauta na legenda, com o caminho até ela', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: new RegExp(`^${PAUTA.titulo}, `) })
+    .first()
+    .click();
+  await expect(page.getByRole('link', { name: 'Abrir pauta' })).toHaveAttribute(
+    'href',
+    `/p/${PAUTA.slug}`,
+  );
 });
 
 test('as abas Início e Pautas levam cada uma à sua página', async ({ page }) => {
