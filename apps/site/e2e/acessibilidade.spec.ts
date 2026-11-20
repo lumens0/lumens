@@ -26,6 +26,17 @@ for (const { nome, caminho } of PAGINAS) {
   test(`${nome}: nenhuma violação serious ou critical (axe)`, async ({ page }) => {
     await page.goto(caminho);
     await expect(page.locator('main')).toBeVisible();
+    // O axe mede o contraste na cor que está na tela: com o card ainda surgindo (opacidade no meio da
+    // animação de entrada), o texto parece claro demais. Espera as animações que terminam; as que se
+    // repetem para sempre (pulsos, cintilação) ficam de fora.
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animacao) => animacao.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animacao) => animacao.finished),
+      ),
+    );
 
     const { violations } = await new AxeBuilder({ page }).withTags(NORMAS).analyze();
 
