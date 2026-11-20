@@ -64,6 +64,42 @@ describe('/atividade', () => {
     expect(html).toContain('Bloco corrigido pela curadoria: Bloco A → Bloco B');
   });
 
+  it('descreve urgência, prazo prorrogado e promessa remarcada, com data civil e sem dado faltando', async () => {
+    responder({
+      itens: [
+        { ...CONQUISTA, tipo: 'pauta_urgente', dados: { urgente: true } },
+        { ...CONQUISTA, tipo: 'pauta_urgente', dados: { urgente: false } },
+        {
+          ...CONQUISTA,
+          tipo: 'prazo_prorrogado',
+          dados: {
+            data_antiga: '2026-03-01',
+            data_nova: '2026-04-01',
+            motivo: 'Pedido da UFAL.',
+            fonte: 'Fala.BR',
+          },
+        },
+        {
+          ...CONQUISTA,
+          tipo: 'promessa_remarcada',
+          dados: { data_antiga: '2026-05-10', data_nova: 'em breve' },
+        },
+        { ...CONQUISTA, tipo: 'protocolo_corrigido', dados: {} },
+        { ...CONQUISTA, tipo: 'bloco_corrigido', dados: {} },
+      ],
+      proximo: null,
+    });
+    const html = await render();
+    expect(html).toContain('Marcada como urgente pela curadoria');
+    expect(html).toContain('Deixou de ser urgente');
+    expect(html).toContain('01/03/2026 → 01/04/2026');
+    expect(html).toContain('Motivo: Pedido da UFAL.');
+    expect(html).toContain('Fonte: Fala.BR');
+    expect(html).toContain('10/05/2026 → em breve');
+    expect(html).toContain('? → ?');
+    expect(html).toContain('Todo o campus → Todo o campus');
+  });
+
   it('a hora não depende do fuso do servidor: 01h UTC ainda é o dia anterior em Maceió', async () => {
     responder({ itens: [{ ...CONQUISTA, criado_em: '2026-03-19T01:30:00.000Z' }], proximo: null });
     expect(await render()).toContain('>18 mar</time>');

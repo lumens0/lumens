@@ -128,6 +128,23 @@ Um arquivo só:
 pnpm --filter @lumens/backend exec vitest run src/api/api.test.ts
 ```
 
+Quanto o site, o painel e a marca exercitam (testes de unidade e de componente; os e2e não entram):
+
+```bash
+pnpm --filter @lumens/site cobertura
+```
+
+Os componentes com efeito (busca, mapa, diálogos) são testados num DOM de verdade, com o jsdom e o
+Testing Library: o arquivo de teste começa com `// @vitest-environment jsdom`. Os outros testes
+seguem no ambiente `node`, mais rápido.
+
+```bash
+pnpm --filter @lumens/site exec playwright test
+```
+
+Os e2e do site sobem a API de leitura e o site já construído; veja o `playwright.config.ts`. Sem o
+navegador do Playwright baixado, use o Chrome instalado (`channel: 'chrome'` num config temporário).
+
 A maioria dos testes não precisa de Docker: eles sobem um Postgres em memória (PGlite) com as
 **mesmas** migrações do banco real.
 

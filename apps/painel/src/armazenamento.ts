@@ -6,7 +6,8 @@ let s3: S3Client | undefined;
 export function clienteS3(): S3Client {
   const endpoint = process.env.S3_ENDPOINT;
   s3 ??= new S3Client({
-    region: process.env.AWS_REGION ?? 'us-east-1',
+    // `||`, não `??`: uma variável definida e vazia (comum em .env) também cai na região padrão.
+    region: process.env.AWS_REGION || 'us-east-1',
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
   });
   return s3;
