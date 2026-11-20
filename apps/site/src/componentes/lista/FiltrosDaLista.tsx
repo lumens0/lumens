@@ -2,7 +2,9 @@
 
 import { STATUS_PUBLICOS, type StatusPublico } from '@lumens/contratos';
 import { useRouter } from 'next/navigation';
-import { alternar } from '../../dados/filtros';
+import { useEffect } from 'react';
+import { statusDaUrl } from '../../dados/filtros';
+import { absorver, chaveDe, limparGrupo, proximaEscolha } from '../../dados/pendentes';
 import type { BlocoDaFolha } from '../../dados/folha';
 import {
   ORDENS,
@@ -46,6 +48,11 @@ export function FiltrosDaLista({
   };
 }) {
   const router = useRouter();
+  const chave = chaveDe({ status, bloco });
+  useEffect(() => {
+    absorver({ status, bloco });
+    // `status` e `bloco` mudam de identidade a cada render do servidor; a chave diz se mudou o conteúdo.
+  }, [chave]);
   const ir = (mudanca: Partial<ParametrosDaLista>) => {
     router.replace(urlDaLista({ q, ordem, status, bloco, ...mudanca }), { scroll: false });
   };
@@ -58,7 +65,8 @@ export function FiltrosDaLista({
             className={estilos.chip}
             aria-pressed={status.length === 0}
             onClick={() => {
-              ir({ status: [] });
+              const p = limparGrupo({ status, bloco }, 'status');
+              ir({ status: [], bloco: p.bloco });
             }}
           >
             Todas <span className={estilos.chipNumero}>{totalDaBusca}</span>
@@ -71,7 +79,9 @@ export function FiltrosDaLista({
               className={estilos.chip}
               aria-pressed={status.includes(etapa)}
               onClick={() => {
-                ir({ status: alternar(status, etapa) });
+                // Parte da escolha pendente (dois cliques antes de a página refletir não se perdem).
+                const p = proximaEscolha({ status, bloco }, 'status', etapa);
+                ir({ status: statusDaUrl(p.status.join(',')), bloco: [...p.bloco] });
               }}
             >
               <i
