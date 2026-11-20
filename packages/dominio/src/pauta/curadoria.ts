@@ -160,12 +160,9 @@ const ROTULO_CAMPUS = 'Campus inteiro';
 const normalizar = (texto: string) =>
   texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-const COM_ACENTO = 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ';
-const SEM_ACENTO = 'AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn';
-
-/** Mesma normalização de `normalizar`, feita no banco (sem depender da extensão `unaccent`). */
+/** Mesma normalização de `normalizar`, feita no banco: decompõe (NFD), tira as marcas e põe em minúsculas. */
 const normalizadoNoBanco = (coluna: SQL | SQL.Aliased | typeof pautas.titulo) =>
-  sql`lower(translate(${coluna}, ${COM_ACENTO}, ${SEM_ACENTO}))`;
+  sql`lower(regexp_replace(normalize(${coluna}, NFD), ${'[̀-ͯ]'}, '', 'g'))`;
 
 const comoLista = <T>(valor: T | readonly T[] | undefined): T[] =>
   valor === undefined ? [] : Array.isArray(valor) ? [...valor] : [valor as T];

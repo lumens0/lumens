@@ -245,6 +245,15 @@ describe('buscarPautaDaCuradoria', () => {
       expect(await ids({ q: `juntando ${marca}` })).toEqual([comBloco.id]);
       expect(await ids({ q: `urgente ${marca}` })).toEqual([campus.id]);
       expect(await ids({ q: `   ` })).toEqual(await ids({}));
+
+      // Título com o acento decomposto (NFD), como vem de alguns teclados e colagens.
+      const decomposta = await criarPauta(db, {
+        status: 'cobrando',
+        titulo: `Iluminação NFD ${marca}`,
+      });
+      expect(decomposta.titulo).not.toBe(decomposta.titulo.normalize('NFC'));
+      expect(await ids({ q: `iluminacao nfd ${marca}` })).toEqual([decomposta.id]);
+      expect(await ids({ q: `ILUMINAÇÃO NFD ${marca}` })).toEqual([decomposta.id]);
     });
 
     it('várias pendências são "ou" sem repetir a pauta', async () => {
