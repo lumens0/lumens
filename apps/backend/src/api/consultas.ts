@@ -117,17 +117,18 @@ const COLUNAS_PAUTA = sql.join(
   sql.raw(', '),
 );
 
-const COM_ACENTO = 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ';
-const SEM_ACENTO = 'AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn';
-
 /** Texto sem acento e em minúsculas, igual ao `semAcento` do site. */
 export function semAcento(texto: string): string {
   return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
-/** O mesmo, em SQL: `lower` sozinho não trata acento em banco com collation C. */
+/**
+ * O mesmo, em SQL, com a mesma transformação do JS: decompõe (NFD), tira as marcas combinantes
+ * (U+0300 a U+036F) e põe em minúsculas. Vale para texto gravado composto ou decomposto.
+ * `normalize()` pede Postgres 13+ e banco UTF-8 (produção é 17; o PGlite dos testes é 16+).
+ */
 function semAcentoSql(coluna: string): SQL {
-  return sql.raw(`lower(translate(${coluna}, '${COM_ACENTO}', '${SEM_ACENTO}'))`);
+  return sql.raw(`lower(regexp_replace(normalize(${coluna}, NFD), '[\\u0300-\\u036f]', '', 'g'))`);
 }
 
 /** Etapa como o site mostra (StatusPill), para a busca achar "cobrando" ou "meta batida". */

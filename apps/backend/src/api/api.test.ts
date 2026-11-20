@@ -483,6 +483,35 @@ describe('API de leitura pública com o seed', () => {
     });
   });
 
+  describe('GET /pautas com título em NFD (SCRUM-395)', () => {
+    it('acha e ordena título gravado com acento decomposto, com a consulta em qualquer forma', async () => {
+      const nfd = 'Iluminação'.normalize('NFD');
+      expect(nfd).not.toBe('Iluminação');
+      const banco = await bancoDoSite(async (db) => {
+        await db.execute(
+          sql`UPDATE pauta SET titulo = ${`${nfd} no entorno do Bloco de Artes`}
+              WHERE slug = 'iluminacao-no-bloco-de-artes'`,
+        );
+      });
+      const app = await montarApp(banco);
+      try {
+        for (const q of ['iluminacao', 'ILUMINAÇÃO', nfd, 'Iluminação'.normalize('NFC')]) {
+          const res = await app.inject({
+            method: 'GET',
+            url: `/pautas?q=${encodeURIComponent(q)}`,
+          });
+          const { itens } = res.json<{ itens: { slug: string }[] }>();
+          expect(
+            itens.map((p) => p.slug),
+            q,
+          ).toEqual(['iluminacao-no-bloco-de-artes']);
+        }
+      } finally {
+        await app.close();
+      }
+    }, 60_000);
+  });
+
   describe('GET /pautas/:slug', () => {
     it('eventos do mesmo instante saem sempre na mesma ordem', async () => {
       const instante = new Date('2026-02-07T12:00:00.000Z');
