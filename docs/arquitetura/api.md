@@ -195,25 +195,27 @@ Uma pauta pública com relatos, caminhos e linha do tempo.
 
 Todos os campos de um item de `/pautas`, mais:
 
-| Campo                            | Tipo           | Conteúdo                                                                   |
-| -------------------------------- | -------------- | -------------------------------------------------------------------------- |
-| `relatos[].texto`                | string         | só relatos aprovados                                                       |
-| `relatos[].foto_chave`           | string, nulo   | chave da foto no armazenamento (T20)                                       |
-| `relatos[].curso`                | string, nulo   | curso de quem relatou, nunca quem é                                        |
-| `relatos[].moderado_em`          | instante, nulo | quando o relato foi aprovado                                               |
-| `caminhos[].tipo`                | string         | `falabr`, `comunidade`, `representante` ou `proposta`                      |
-| `caminhos[].status`              | string         | texto livre do caminho; na proposta, `aberta` ou `executada`               |
-| `caminhos[].protocolo`           | string, nulo   | protocolo do Fala.BR                                                       |
-| `caminhos[].prazo`               | data, nulo     | prazo de resposta (`AAAA-MM-DD`)                                           |
-| `caminhos[].prorrogado`          | boolean        | se o prazo do Fala.BR foi prorrogado                                       |
-| `caminhos[].aberto_em`           | instante, nulo | nulo na proposta                                                           |
-| `caminhos[].descricao`           | string, nulo   | o que a proposta pede; nulo nos demais tipos                               |
-| `caminhos[].pessoas_necessarias` | int, nulo      | só na proposta                                                             |
-| `caminhos[].voluntarios`         | int, nulo      | quantos já se voluntariaram; só na proposta                                |
-| `caminhos[].executada_em`        | instante, nulo | só na proposta                                                             |
-| `linha_do_tempo[].tipo`          | string         | tipo do [catálogo da T7](esquema-e-contratos.md#tipos-de-evento-decididos) |
-| `linha_do_tempo[].dados`         | objeto         | payload do catálogo sem as chaves `id` e `*_id`; `{}` se não for objeto    |
-| `linha_do_tempo[].criado_em`     | instante       |                                                                            |
+| Campo                            | Tipo           | Conteúdo                                                                                                                   |
+| -------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `relatos[].texto`                | string         | só relatos aprovados                                                                                                       |
+| `relatos[].foto_chave`           | string, nulo   | chave da foto no armazenamento (T20)                                                                                       |
+| `relatos[].curso`                | string, nulo   | curso de quem relatou, nunca quem é                                                                                        |
+| `relatos[].moderado_em`          | instante, nulo | quando o relato foi aprovado                                                                                               |
+| `caminhos[].tipo`                | string         | `falabr`, `comunidade`, `representante` ou `proposta`                                                                      |
+| `caminhos[].status`              | string         | texto livre do caminho; na proposta, `aberta` ou `executada`                                                               |
+| `caminhos[].protocolo`           | string, nulo   | protocolo do Fala.BR                                                                                                       |
+| `caminhos[].prazo`               | data, nulo     | prazo de resposta (`AAAA-MM-DD`)                                                                                           |
+| `caminhos[].prorrogado`          | boolean        | se o prazo do Fala.BR foi prorrogado                                                                                       |
+| `caminhos[].aberto_em`           | instante, nulo | nulo na proposta                                                                                                           |
+| `caminhos[].descricao`           | string, nulo   | o que a proposta pede; nulo nos demais tipos                                                                               |
+| `caminhos[].pessoas_necessarias` | int, nulo      | só na proposta                                                                                                             |
+| `caminhos[].voluntarios`         | int, nulo      | quantos já se voluntariaram; só na proposta                                                                                |
+| `caminhos[].executada_em`        | instante, nulo | só na proposta                                                                                                             |
+| `linha_do_tempo[].tipo`          | string         | tipo do [catálogo da T7](esquema-e-contratos.md#tipos-de-evento-decididos)                                                 |
+| `linha_do_tempo[].dados`         | objeto         | payload do catálogo sem as chaves `id` e `*_id`; `{}` se não for objeto                                                    |
+| `linha_do_tempo[].criado_em`     | instante       |                                                                                                                            |
+| `o_que_foi_feito`                | string, nulo   | texto de até 160 caracteres que a curadoria escreve na pauta conquistada (SCRUM-394); nulo nas demais                      |
+| `foto`                           | string, nulo   | chave da foto da conquista (`fotos/AAAA/MM/<uuid>.jpg`), servida por `GET /fotos/...` só enquanto a pauta está conquistada |
 
 Os relatos vêm por `moderado_em` crescente; os caminhos por `aberto_em` crescente (a proposta, sem
 `aberto_em`, por último), com `tipo` no desempate.
@@ -304,15 +306,17 @@ mesmo `404`.
 Pautas conquistadas, da conquista mais recente para a mais antiga; sem data de conquista vão para o
 fim (`conquistada_em DESC NULLS LAST`). Sem paginação: a lista é pequena.
 
-| Campo                        | Tipo           | Conteúdo                                                              |
-| ---------------------------- | -------------- | --------------------------------------------------------------------- |
-| `itens[].pauta_slug`         | string         |                                                                       |
-| `itens[].titulo`             | string         |                                                                       |
-| `itens[].bloco_nome`         | string, nulo   | nulo quando a pauta é do campus inteiro                               |
-| `itens[].conquistada_em`     | instante, nulo | instante do evento público `status_alterado` com `para = conquistada` |
-| `itens[].apoios`             | int            | quantas pessoas apoiaram                                              |
-| `itens[].proposta_executada` | boolean        | se alguma proposta da pauta foi executada                             |
-| `itens[].criada_em`          | instante       | criação da pauta; o site usa para contar os dias até a entrega        |
+| Campo                        | Tipo           | Conteúdo                                                                |
+| ---------------------------- | -------------- | ----------------------------------------------------------------------- |
+| `itens[].pauta_slug`         | string         |                                                                         |
+| `itens[].titulo`             | string         |                                                                         |
+| `itens[].bloco_nome`         | string, nulo   | nulo quando a pauta é do campus inteiro                                 |
+| `itens[].conquistada_em`     | instante, nulo | instante do evento público `status_alterado` com `para = conquistada`   |
+| `itens[].apoios`             | int            | quantas pessoas apoiaram                                                |
+| `itens[].proposta_executada` | boolean        | se alguma proposta da pauta foi executada                               |
+| `itens[].criada_em`          | instante       | criação da pauta; o site usa para contar os dias até a entrega          |
+| `itens[].o_que_foi_feito`    | string, nulo   | o texto que a curadoria escreveu (SCRUM-394); nulo enquanto não escreve |
+| `itens[].foto`               | string, nulo   | chave da foto da conquista, servida por `GET /fotos/...`; nulo sem foto |
 
 ```json
 {
@@ -324,7 +328,9 @@ fim (`conquistada_em DESC NULLS LAST`). Sem paginação: a lista é pequena.
       "conquistada_em": "2026-03-19T12:00:00.000Z",
       "apoios": 300,
       "proposta_executada": false,
-      "criada_em": "2026-02-10T12:00:00.000Z"
+      "criada_em": "2026-02-10T12:00:00.000Z",
+      "o_que_foi_feito": "Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.",
+      "foto": null
     }
   ]
 }

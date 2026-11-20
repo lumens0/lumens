@@ -2,12 +2,13 @@
 
 .raiz {
   --margem: 368px;
+  padding-top: var(--pagina-topo);
 }
 
 .texto {
   width: min(760px, calc(100% - var(--margem) - 48px));
   margin-left: var(--margem);
-  padding-bottom: 140px;
+  padding-bottom: calc(var(--pagina-fim) + 92px + env(safe-area-inset-bottom));
 }
 
 .secao {

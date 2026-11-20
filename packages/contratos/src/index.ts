@@ -93,9 +93,44 @@ export type Bloco = z.infer<typeof bloco>;
 export type Blocos = z.infer<typeof blocos>;
 
 // GET /pautas — v_pauta_publica
+
+/** Ordens da lista: `atencao` (urgente e etapa), `apoios` e `recentes`. */
+export const ORDENS_DA_LISTA = ['atencao', 'apoios', 'recentes'] as const;
+export type OrdemDaLista = (typeof ORDENS_DA_LISTA)[number];
+
+/** Teto de itens por filtro de lista e de caracteres da busca: protege a consulta. */
+export const FILTRO_MAXIMO = 50;
+export const BUSCA_MAXIMA = 100;
+
+/**
+ * Filtro de lista: `?bloco=a,b` e `?bloco=a&bloco=b` dão `['a', 'b']`. Valor que não passa em
+ * `valido` (e vazio, e repetido) é ignorado em vez de recusar a lista inteira, como o site faz.
+ */
+function listaDeFiltro(valido: (item: string) => boolean) {
+  return z.preprocess((entrada) => {
+    const textos = (Array.isArray(entrada) ? entrada : [entrada]).filter(
+      (t): t is string => typeof t === 'string',
+    );
+    const itens = textos.flatMap((t) => t.split(',')).map((t) => t.trim());
+    return [...new Set(itens.filter((i) => i !== '' && valido(i)))].slice(0, FILTRO_MAXIMO);
+  }, z.array(z.string()));
+}
+
 export const pautasQuery = paginacaoQuery.extend({
-  bloco: slug.optional(),
-  status: statusPublico.optional(),
+  /** "Ou" entre os blocos; slug de formato inválido é ignorado. */
+  bloco: listaDeFiltro((i) => slug.safeParse(i).success),
+  /** "Ou" entre as etapas; etapa desconhecida é ignorada. */
+  status: listaDeFiltro((i) => statusPublico.safeParse(i).success),
+  /** Busca por título, nome do bloco, etapa e a palavra "urgente"; todas as palavras têm de bater. */
+  q: z.preprocess(
+    (v) => (typeof v === 'string' ? v.trim().slice(0, BUSCA_MAXIMA) : undefined),
+    z.string().optional(),
+  ),
+  /** Sem `ordem` (ou com valor desconhecido): urgentes, mais apoios, mais recentes. */
+  ordem: z.preprocess(
+    (v) => (ORDENS_DA_LISTA.includes(v as OrdemDaLista) ? v : undefined),
+    z.enum(ORDENS_DA_LISTA).optional(),
+  ),
 });
 export type PautasQuery = z.infer<typeof pautasQuery>;
 
@@ -117,7 +152,8 @@ export const pauta = z.object({
   meta_batida_em: instante.nullable(),
   proxima_etapa: z.string().nullable(),
 });
-export const pautas = pagina(pauta);
+/** `total`: pautas que passam nos filtros e na busca, sem contar `limit` nem `offset`. */
+export const pautas = pagina(pauta).extend({ total: z.number().int() });
 export type Pauta = z.infer<typeof pauta>;
 export type Pautas = z.infer<typeof pautas>;
 
@@ -155,10 +191,22 @@ export const evento = z.object({
 });
 export type Evento = z.infer<typeof evento>;
 
+/**
+ * "O que foi feito" que a curadoria escreve para a pauta conquistada (SCRUM-394): texto de até 160
+ * caracteres e UMA foto sem metadados. Os dois vêm nulos fora de `conquistada` e enquanto a curadoria
+ * não escreve. `foto` é a chave do arquivo, no mesmo formato de `relato.fotos`: o site a serve por
+ * `/fotos/...`, que só abre a foto da conquista com a pauta conquistada.
+ */
+export const oQueFoiFeito = {
+  o_que_foi_feito: z.string().nullable(),
+  foto: z.string().nullable(),
+};
+
 export const pautaDetalhe = pauta.extend({
   relatos: z.array(relato),
   caminhos: z.array(caminho),
   linha_do_tempo: z.array(evento),
+  ...oQueFoiFeito,
 });
 export type PautaDetalhe = z.infer<typeof pautaDetalhe>;
 
@@ -172,6 +220,7 @@ export const conquista = z.object({
   proposta_executada: z.boolean(),
   /** Criação da pauta: o site conta os dias até a entrega. */
   criada_em: instante,
+  ...oQueFoiFeito,
 });
 export const conquistas = z.object({ itens: z.array(conquista) });
 export type Conquista = z.infer<typeof conquista>;

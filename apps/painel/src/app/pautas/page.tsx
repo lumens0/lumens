@@ -1,12 +1,11 @@
-import { listarPautasDaCuradoria, type PendenciaDaCuradoria } from '@lumens/dominio';
+import { listarPautasDaCuradoria, resumoDaCuradoria, visaoGeralDaCuradoria } from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
 import { sair } from '../acoes';
 import { Moldura } from '../moldura';
-import { ListaDePautas } from './lista';
+import { pendenciasDaUrl, situacoesDaUrl } from './filtros';
+import { ListaDePautas, type ContagensDaLista } from './lista';
 import { STATUS } from './status';
-
-const PENDENCIAS: readonly PendenciaDaCuradoria[] = ['sem_resposta_oficial', 'conferencia_aberta'];
 
 export default async function PaginaDasPautas({
   searchParams,
@@ -17,23 +16,39 @@ export default async function PaginaDasPautas({
   if (!curador) redirect('/login');
 
   const parametros = await searchParams;
-  const statusSolicitado = parametros.status ?? 'em_curadoria';
-  const status =
-    statusSolicitado === 'todas' || Object.hasOwn(STATUS, statusSolicitado)
-      ? statusSolicitado
-      : 'em_curadoria';
-  const pendencia = PENDENCIAS.find((p) => p === parametros.pendencia);
-  const filtro = {
-    ...(status !== 'todas' && Object.hasOwn(STATUS, status)
-      ? { status: status as keyof typeof STATUS }
-      : {}),
-    ...(parametros.q === undefined ? {} : { q: parametros.q }),
-    ...(pendencia === undefined ? {} : { pendencia }),
+  const situacoes = situacoesDaUrl(parametros.status);
+  const pendencias = pendenciasDaUrl(parametros.pendencia);
+  const q = parametros.q ?? '';
+  const { db } = servidor();
+  const agora = new Date();
+
+  // O filtro inteiro (situações, pendências e busca) é do domínio, no banco: o limite da lista
+  // vale depois dele.
+  const [pautas, resumo, visao] = await Promise.all([
+    listarPautasDaCuradoria(db, agora, { status: situacoes, pendencia: pendencias, q }),
+    resumoDaCuradoria(db, agora),
+    visaoGeralDaCuradoria(db, agora),
+  ]);
+  const porStatus = Object.fromEntries(visao.pautasPorStatus.map((s) => [s.status, s.total])) as {
+    [S in keyof typeof STATUS]?: number;
   };
-  const pautas = await listarPautasDaCuradoria(servidor().db, new Date(), filtro);
+  const contagens: ContagensDaLista = {
+    total: visao.pautasPorStatus.reduce((soma, s) => soma + s.total, 0),
+    porStatus,
+    porPendencia: {
+      sem_resposta_oficial: resumo.pautasSemRespostaOficial,
+      conferencia_aberta: resumo.conferenciasAbertas,
+    },
+  };
   return (
     <Moldura nome={curador.nome} administrador={curador.papel === 'administrador'} sair={sair}>
-      <ListaDePautas pautas={pautas} status={status} q={parametros.q ?? ''} />
+      <ListaDePautas
+        pautas={pautas}
+        situacoes={situacoes}
+        pendencias={pendencias}
+        q={q}
+        contagens={contagens}
+      />
     </Moldura>
   );
 }

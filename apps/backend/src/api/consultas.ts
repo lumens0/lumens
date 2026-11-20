@@ -1,5 +1,7 @@
 import {
   SEMANAS_DE_APOIO,
+  STATUS_PUBLICOS,
+  type StatusPublico,
   type ApoioSemana,
   type ApoiosPorSemanaQuery,
   type AtividadeItem,
@@ -17,6 +19,7 @@ import {
 import { sql, type Db } from '@lumens/db';
 
 type SQL = ReturnType<typeof sql>;
+type OQueFoiFeito = Pick<Conquista, 'o_que_foi_feito' | 'foto'>;
 
 /**
  * Consultas da API de leitura pública (SCRUM-88). Só leem as views da T14: a conexão de leitura
@@ -115,26 +118,121 @@ const COLUNAS_PAUTA = sql.join(
   sql.raw(', '),
 );
 
-/** Mesma ordem da lista do site (`apps/site/src/dados/pautas-publicas.ts`), com o slug no desempate. */
-export async function listarPautas(db: Db, query: PautasQuery) {
-  const filtros = [
-    ...(query.bloco === undefined ? [] : [sql`bloco_slug = ${query.bloco}`]),
-    ...(query.status === undefined ? [] : [sql`status = ${query.status}`]),
-  ];
-  const filtro = filtros.length === 0 ? sql`` : sql`WHERE ${sql.join(filtros, sql` AND `)}`;
-  const itens = await linhas<Pauta>(
-    db,
-    sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica ${filtro}
-        ORDER BY v_pauta_publica.urgente DESC, v_pauta_publica.apoios DESC,
-                 v_pauta_publica.criada_em DESC, slug
-        LIMIT ${query.limit + 1} OFFSET ${query.offset}`,
+/** Texto sem acento e em minúsculas, igual ao `semAcento` do site. */
+export function semAcento(texto: string): string {
+  return texto.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+/**
+ * O mesmo, em SQL, com a mesma transformação do JS: decompõe (NFD), tira as marcas combinantes
+ * (U+0300 a U+036F) e põe em minúsculas. Vale para texto gravado composto ou decomposto.
+ * `normalize()` pede Postgres 13+ e banco UTF-8 (produção é 17; o PGlite dos testes é 16+).
+ */
+function semAcentoSql(coluna: string): SQL {
+  return sql.raw(`lower(regexp_replace(normalize(${coluna}, NFD), '[\\u0300-\\u036f]', '', 'g'))`);
+}
+
+/** Etapa como o site mostra (StatusPill), para a busca achar "cobrando" ou "meta batida". */
+const ROTULO_DA_ETAPA: Record<StatusPublico, string> = {
+  juntando_apoios: 'Juntando apoios',
+  meta_batida: 'Meta batida',
+  cobrando: 'Cobrando',
+  prometido: 'Prometido',
+  entregue_em_parte: 'Entregue em parte',
+  descumprida: 'Descumprida',
+  conquistada: 'Conquistada',
+};
+
+/** Do que mais pede atenção ao que menos, depois do urgente (igual ao site). */
+const PRIORIDADE: readonly StatusPublico[] = [
+  'descumprida',
+  'cobrando',
+  'prometido',
+  'meta_batida',
+  'entregue_em_parte',
+  'juntando_apoios',
+  'conquistada',
+];
+
+const lista = (valores: readonly string[]): SQL =>
+  sql.join(
+    valores.map((v) => sql`${v}`),
+    sql.raw(', '),
   );
-  return paginar(itens, query);
+
+/**
+ * "Ou" dentro de cada grupo (blocos, etapas), "e" entre os grupos e entre as palavras da busca.
+ * Cada palavra tem de aparecer no título, no nome do bloco ou na etapa, sem acento e sem
+ * diferenciar maiúsculas; a palavra "urgente" acha as pautas urgentes. A sigla do bloco não entra:
+ * ela mora só no mapa do site (`predios.ts`), e o site manda o slug do bloco que ela identifica.
+ */
+function condicoes({ bloco, status, q }: PautasQuery): SQL {
+  const partes: SQL[] = [];
+  if (bloco.length > 0) partes.push(sql`bloco_slug IN (${lista(bloco)})`);
+  if (status.length > 0) partes.push(sql`status::text IN (${lista(status)})`);
+  const palavras = semAcento(q ?? '')
+    .split(/\s+/)
+    .filter(Boolean);
+  for (const palavra of palavras) {
+    if (palavra === 'urgente') {
+      partes.push(sql`urgente`);
+      continue;
+    }
+    const etapas = STATUS_PUBLICOS.filter((e) => semAcento(ROTULO_DA_ETAPA[e]).includes(palavra));
+    const casamentos = [
+      sql`strpos(${semAcentoSql('titulo')}, ${palavra}) > 0`,
+      sql`strpos(${semAcentoSql("coalesce(bloco_nome, '')")}, ${palavra}) > 0`,
+      ...(etapas.length > 0 ? [sql`status::text IN (${lista(etapas)})`] : []),
+    ];
+    partes.push(sql`(${sql.join(casamentos, sql` OR `)})`);
+  }
+  return partes.length === 0 ? sql`` : sql`WHERE ${sql.join(partes, sql` AND `)}`;
+}
+
+/** Posição da etapa em `PRIORIDADE`, para o `ORDER BY`. */
+const PESO_DA_ETAPA = sql.raw(
+  `CASE v_pauta_publica.status::text ${PRIORIDADE.map((e, i) => `WHEN '${e}' THEN ${String(i)}`).join(' ')} ELSE ${String(PRIORIDADE.length)} END`,
+);
+// O título desempata sem acento (como o `localeCompare` do site) e o slug fecha a ordem.
+const TITULO_ORDENADO = semAcentoSql('v_pauta_publica.titulo');
+
+function ordenacao(ordem: PautasQuery['ordem']): SQL {
+  switch (ordem) {
+    case 'atencao':
+      return sql`v_pauta_publica.urgente DESC, ${PESO_DA_ETAPA}, v_pauta_publica.apoios DESC,
+                 ${TITULO_ORDENADO}, slug`;
+    case 'apoios':
+      return sql`v_pauta_publica.apoios DESC, ${TITULO_ORDENADO}, slug`;
+    case 'recentes':
+      return sql`v_pauta_publica.criada_em DESC, ${TITULO_ORDENADO}, slug`;
+    case undefined:
+      // Padrão de antes da busca e da ordem: o que o site chamava até aqui.
+      return sql`v_pauta_publica.urgente DESC, v_pauta_publica.apoios DESC,
+                 v_pauta_publica.criada_em DESC, slug`;
+  }
+}
+
+/** Filtra, busca, ordena e pagina as pautas públicas; `total` ignora `limit` e `offset`. */
+export async function listarPautas(db: Db, query: PautasQuery) {
+  const filtro = condicoes(query);
+  const [itens, [contagem]] = await Promise.all([
+    linhas<Pauta>(
+      db,
+      sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica ${filtro}
+          ORDER BY ${ordenacao(query.ordem)}
+          LIMIT ${query.limit + 1} OFFSET ${query.offset}`,
+    ),
+    linhas<{ total: number }>(
+      db,
+      sql`SELECT count(*)::int AS total FROM v_pauta_publica ${filtro}`,
+    ),
+  ]);
+  return { ...paginar(itens, query), total: contagem?.total ?? 0 };
 }
 
 /** Nulo quando a pauta não existe ou não é pública: as views não distinguem os dois casos. */
 export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | null> {
-  const [pautas, relatos, caminhos, linhaDoTempo] = await Promise.all([
+  const [pautas, relatos, caminhos, linhaDoTempo, feito] = await Promise.all([
     linhas<Pauta>(db, sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica WHERE slug = ${slug}`),
     linhas<Relato>(
       db,
@@ -159,17 +257,30 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
           -- urgente na mesma transação) desempatam pelo tipo, sempre na mesma ordem.
           ORDER BY v_linha_do_tempo.criado_em, tipo`,
     ),
+    // Só existe linha para pauta conquistada (a view `v_conquista` não tem as outras).
+    linhas<OQueFoiFeito>(
+      db,
+      sql`SELECT o_que_foi_feito, foto_chave AS foto FROM v_conquista WHERE pauta_slug = ${slug}`,
+    ),
   ]);
   const [pauta] = pautas;
   if (!pauta) return null;
-  return { ...pauta, relatos, caminhos, linha_do_tempo: linhaDoTempo };
+  return {
+    ...pauta,
+    relatos,
+    caminhos,
+    linha_do_tempo: linhaDoTempo,
+    o_que_foi_feito: feito[0]?.o_que_foi_feito ?? null,
+    foto: feito[0]?.foto ?? null,
+  };
 }
 
 export async function listarConquistas(db: Db): Promise<Conquista[]> {
   return linhas<Conquista>(
     db,
     sql`SELECT pauta_slug, titulo, bloco_nome, ${iso('conquistada_em')},
-               apoios::int AS apoios, proposta_executada, ${iso('criada_em')}
+               apoios::int AS apoios, proposta_executada, ${iso('criada_em')},
+               o_que_foi_feito, foto_chave AS foto
         FROM v_conquista ORDER BY v_conquista.conquistada_em DESC NULLS LAST, pauta_slug`,
   );
 }
@@ -191,7 +302,10 @@ export async function listarAtividade(db: Db, query: PaginacaoQuery) {
   return paginar(itens, query);
 }
 
-/** Se a chave é foto aprovada de um relato aprovado de pauta pública (`v_foto_publica`). */
+/**
+ * Se a chave é pública (`v_foto_publica`): foto aprovada de relato aprovado de pauta pública, ou a
+ * foto que a curadoria pôs na conquista (SCRUM-394), enquanto a pauta está conquistada.
+ */
 export async function fotoEhPublica(db: Db, chave: string): Promise<boolean> {
   const achadas = await linhas<{ ok: number }>(
     db,

@@ -12,7 +12,7 @@ export default function PautaNaoEncontrada() {
         </h1>
         <p>O endereço pode estar errado, ou a pauta ainda não está pública.</p>
         <div className={estilos.acoes}>
-          <Link href="/" className={estilos.botao}>
+          <Link href="/pautas" className={estilos.botao}>
             Ver todas as pautas
           </Link>
         </div>

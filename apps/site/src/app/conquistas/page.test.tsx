@@ -19,6 +19,9 @@ const DO_SEED: Conquista = {
   apoios: 300,
   proposta_executada: false,
   criada_em: '2026-02-10T12:00:00.000Z',
+  o_que_foi_feito:
+    'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
+  foto: null,
 };
 
 const render = async () => renderToStaticMarkup(await PaginaConquistas());
@@ -46,6 +49,30 @@ describe('/conquistas', () => {
     // 10/02 a 19/03 de 2026: 37 dias.
     expect(html).toContain('<dt>Da criação à entrega</dt><dd>37 dias</dd>');
     expect(html).not.toContain('Solução da comunidade');
+  });
+
+  it('mostra o que foi feito e a foto da curadoria (SCRUM-394)', async () => {
+    vi.mocked(buscarConquistas).mockResolvedValue([
+      {
+        ...DO_SEED,
+        o_que_foi_feito: 'Os laboratórios agora abrem à noite.',
+        foto: 'fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg',
+      },
+    ]);
+    const html = await render();
+    expect(html).toContain('O que foi feito:');
+    expect(html).toContain('Os laboratórios agora abrem à noite.');
+    expect(html).toContain('src="/fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg"');
+    expect(html).toContain(
+      'alt="Foto do que foi feito: Laboratórios de informática abertos no contraturno"',
+    );
+  });
+
+  it('sem texto nem foto, a conquista não ganha bloco vazio nem imagem', async () => {
+    vi.mocked(buscarConquistas).mockResolvedValue([{ ...DO_SEED, o_que_foi_feito: null }]);
+    const html = await render();
+    expect(html).not.toContain('O que foi feito');
+    expect(html).not.toContain('<img');
   });
 
   it('com proposta executada, mostra o selo de solução da comunidade', async () => {

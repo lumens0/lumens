@@ -62,15 +62,18 @@ function respostas(sucesso: z.ZodType) {
 
 /**
  * Valida query ou params com o contrato. Parâmetro repetido (`?limit=1&limit=2`) chega como
- * lista e é recusado: o `z.coerce` transformaria `['5']` em 5 sem reclamar.
+ * lista e é recusado (salvo nos filtros de lista, `repetiveis`): o `z.coerce` transformaria `['5']` em 5 sem reclamar.
  */
 function validar<T extends z.ZodType>(
   esquema: T,
   entrada: unknown,
   reply: FastifyReply,
+  repetiveis: readonly string[] = [],
 ): z.infer<T> | undefined {
   const valores = (entrada ?? {}) as Record<string, unknown>;
-  const repetidos = Object.keys(valores).filter((chave) => Array.isArray(valores[chave]));
+  const repetidos = Object.keys(valores).filter(
+    (chave) => Array.isArray(valores[chave]) && !repetiveis.includes(chave),
+  );
   const resultado = esquema.safeParse(valores);
   const invalidos = new Set([
     ...repetidos,
@@ -131,7 +134,7 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
   });
 
   app.get('/pautas', { schema: respostas(pautas) }, async (req, reply) => {
-    const query = validar(pautasQuery, req.query, reply);
+    const query = validar(pautasQuery, req.query, reply, ['bloco', 'status']);
     if (!query) return reply;
     return listarPautas(db, query);
   });
@@ -155,8 +158,9 @@ export const apiPlugin: FastifyPluginCallback<ApiPluginOptions> = (app, opts, do
     return listarAtividade(db, query);
   });
 
-  // Só a foto de relato aprovado (`v_relato_publico`): a chave de relato pendente ou recusado, ou
-  // de qualquer outro arquivo do bucket (PDF da resposta, por exemplo), responde 404 igual
+  // Só a foto de relato aprovado (`v_relato_publico`) ou a da conquista, com a pauta conquistada
+  // (SCRUM-394): a chave de relato pendente ou recusado, de conquista que deixou de ser conquistada
+  // ou de qualquer outro arquivo do bucket (PDF da resposta, por exemplo), responde 404 igual
   // (SCRUM-263). A chave gravada é `fotos/AAAA/MM/<uuid>.<ext>`.
   app.get('/fotos/:ano/:mes/:arquivo', async (req, reply) => {
     const { ano, mes, arquivo: nome } = req.params as Record<'ano' | 'mes' | 'arquivo', string>;

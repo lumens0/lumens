@@ -10,7 +10,7 @@ import estilos from './pauta.module.css';
 export function Voltar() {
   return (
     <Link
-      href="/"
+      href="/pautas"
       className={estilos.voltar}
       onClick={(e) => {
         // A navegação dentro do site não muda o `document.referrer`; o histórico é o que diz se

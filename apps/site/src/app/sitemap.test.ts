@@ -11,7 +11,7 @@ const pauta = (slug: string, status: StatusPauta) =>
     ReturnType<typeof buscarPautas>
   >[number];
 
-const FIXAS = ['/', '/conquistas', '/atividade', '/mapa', '/manual', '/privacidade'].map(
+const FIXAS = ['/', '/pautas', '/conquistas', '/atividade', '/mapa', '/manual', '/privacidade'].map(
   (c) => `https://lumens.teste${c}`,
 );
 

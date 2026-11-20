@@ -1,6 +1,7 @@
 import { MOTIVO_DE_EDICAO_MAXIMO, type PedidoDeEdicao } from '@lumens/dominio';
 import Link from 'next/link';
 import { Enviar } from '../enviar';
+import { agruparPorPauta, CabecalhoDaPauta, seloDeQuantidade } from '../pautas/grupo';
 import estilos from '../painel.module.css';
 
 /** Textos de retorno das decisões, para as telas que mostram pedidos. */
@@ -33,6 +34,42 @@ const CAMPO = { titulo: 'Título', descricao: 'Descrição' };
 export type PedidoNaTela = PedidoDeEdicao & { pautaTitulo?: string };
 
 /**
+ * A fila de pedidos de todas as pautas, agrupada por pauta: um cabeçalho com o selo "N pedidos" e,
+ * embaixo, cada pedido no seu quadro. Cada pedido segue como em `PedidosDeEdicao`.
+ */
+export function PedidosPorPauta({
+  pedidos,
+  aprovar,
+  recusar,
+  voltar,
+}: {
+  pedidos: (PedidoDeEdicao & { pautaTitulo: string })[];
+  aprovar: (formulario: FormData) => Promise<void>;
+  recusar: (formulario: FormData) => Promise<void>;
+  voltar: string;
+}) {
+  return (
+    <>
+      {agruparPorPauta(pedidos).map((grupo) => (
+        <section key={grupo.pautaId} aria-label={`Pedidos da pauta ${grupo.titulo}`}>
+          <CabecalhoDaPauta
+            pautaId={grupo.pautaId}
+            titulo={grupo.titulo}
+            selo={seloDeQuantidade(grupo.itens.length, 'pedido', 'pedidos')}
+          />
+          <PedidosDeEdicao
+            pedidos={grupo.itens.map(({ pautaTitulo: _titulo, ...pedido }) => pedido)}
+            aprovar={aprovar}
+            recusar={recusar}
+            voltar={voltar}
+          />
+        </section>
+      ))}
+    </>
+  );
+}
+
+/**
  * Pedidos de mudança de título ou descrição de pautas já publicadas. Mostra o antes e o depois;
  * aprovar vale para o texto que está na tela, e recusar exige motivo, que vai pelo bot a quem pediu.
  */
@@ -61,11 +98,15 @@ export function PedidosDeEdicao({
               </>
             )}
           </h3>
-          <dl className={estilos.ficha}>
-            <dt>Antes (publicado)</dt>
-            <dd className={estilos.textoDoRelato}>{pedido.antes}</dd>
-            <dt>Depois (pedido)</dt>
-            <dd className={estilos.textoDoRelato}>{pedido.depois}</dd>
+          <dl className={estilos.antesDepois}>
+            <div>
+              <dt>Antes (publicado)</dt>
+              <dd className={estilos.textoDoRelato}>{pedido.antes}</dd>
+            </div>
+            <div>
+              <dt>Depois (pedido)</dt>
+              <dd className={estilos.textoDoRelato}>{pedido.depois}</dd>
+            </div>
           </dl>
           {pedido.achados.length > 0 && (
             <ul className={estilos.aviso}>

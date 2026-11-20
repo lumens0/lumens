@@ -10,8 +10,11 @@ import { expect, test } from '@playwright/test';
 
 const PAGINAS = [
   { nome: 'início', caminho: '/' },
+  { nome: 'pautas', caminho: '/pautas' },
   // Pauta do seed com apoios, relatos e linha do tempo: a página mais cheia do site.
   { nome: 'pauta', caminho: '/p/bebedouros-no-bloco-18' },
+  // Pauta conquistada do seed: a faixa com mais brilho e a visão de conquista.
+  { nome: 'pauta conquistada', caminho: '/p/laboratorios-abertos-nas-engenharias' },
   { nome: 'conquistas', caminho: '/conquistas' },
   { nome: 'atividade', caminho: '/atividade' },
 ];
@@ -23,6 +26,10 @@ const GRAVES = new Set(['serious', 'critical']);
 
 for (const { nome, caminho } of PAGINAS) {
   test(`${nome}: nenhuma violação serious ou critical (axe)`, async ({ page }) => {
+    // O axe mede o contraste na cor que está na tela: com um card no meio da animação de entrada
+    // (opacidade parcial, inclusive a que se liga à rolagem), o texto parece claro demais. O CSS do
+    // site já desliga as animações com "reduzir movimento"; o teste pede isso e mede o estado final.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(caminho);
     await expect(page.locator('main')).toBeVisible();
 
@@ -41,3 +48,21 @@ for (const { nome, caminho } of PAGINAS) {
     expect(graves).toEqual([]);
   });
 }
+
+// A folha "Escolher blocos" aberta é outra tela para o axe: diálogo modal, campo de busca e chips.
+test('início com a folha "Escolher blocos" aberta: nenhuma violação serious ou critical (axe)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /^Escolher entre os \d+ blocos$/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Escolher blocos' })).toBeVisible();
+  const { violations } = await new AxeBuilder({ page }).withTags(NORMAS).analyze();
+  const graves = violations
+    .filter((v) => v.impact != null && GRAVES.has(v.impact))
+    .map((v) => ({
+      regra: v.id,
+      problema: v.help,
+      onde: v.nodes.slice(0, 5).map((n) => n.target.join(' ')),
+    }));
+  expect(graves).toEqual([]);
+});

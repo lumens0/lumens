@@ -17,7 +17,7 @@ import { numeroDoBot } from '../src/whatsapp';
 const API = process.env.LUMENS_API_URL ?? 'http://127.0.0.1:3101';
 
 /** Páginas fixas do site; as das pautas saem da própria API, para nenhuma ficar de fora. */
-const PAGINAS_FIXAS = ['/', '/conquistas', '/atividade', '/privacidade', '/mapa'];
+const PAGINAS_FIXAS = ['/', '/pautas', '/conquistas', '/atividade', '/privacidade', '/mapa'];
 
 /** Todas as rotas GET da API de leitura (`apps/backend/src/api/routes.ts`). */
 const ROTAS_DA_API = ['/resumo', '/blocos', '/pautas', '/conquistas', '/atividade'];

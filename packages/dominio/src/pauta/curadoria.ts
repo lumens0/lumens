@@ -140,22 +140,85 @@ const promessaEmConferencia = (agora: Date) =>
 /** `%` e `_` (e a própria barra) viram texto na busca, não curinga do `ilike`. */
 const textoLiteral = (texto: string) => texto.replace(/[\\%_]/g, (c) => `\\${c}`);
 
+/** O nome de cada situação como a curadoria lê na tela; a busca `q` também acha por ele. */
+export const ROTULOS_DE_STATUS: Record<StatusPauta, string> = {
+  em_curadoria: 'Esperando decisão da curadoria',
+  recusada: 'Recusada',
+  juntando_apoios: 'Juntando apoios',
+  meta_batida: 'Meta batida',
+  cobrando: 'Em cobrança',
+  prometido: 'Prometido',
+  entregue_em_parte: 'Entregue em parte',
+  descumprida: 'Promessa descumprida',
+  conquistada: 'Conquistada',
+};
+
+/** Texto do bloco quando a pauta é do campus inteiro (`bloco` nulo). */
+const ROTULO_CAMPUS = 'Campus inteiro';
+
+/** Sem acento e em minúsculas, para a busca não depender de como se digita. */
+const normalizar = (texto: string) =>
+  texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+/** Mesma normalização de `normalizar`, feita no banco: decompõe (NFD), tira as marcas e põe em minúsculas. */
+const normalizadoNoBanco = (coluna: SQL | SQL.Aliased | typeof pautas.titulo) =>
+  sql`lower(regexp_replace(normalize(${coluna}, NFD), ${'[̀-ͯ]'}, '', 'g'))`;
+
+const comoLista = <T>(valor: T | readonly T[] | undefined): T[] =>
+  valor === undefined ? [] : Array.isArray(valor) ? [...valor] : [valor as T];
+
+export interface FiltroDaCuradoria {
+  /** Uma ou várias situações: "ou" entre elas. */
+  status?: StatusPauta | readonly StatusPauta[];
+  /**
+   * Busca única: cada palavra tem de aparecer no título, no bloco ("Campus inteiro" sem bloco) ou
+   * na situação (o rótulo da tela); a palavra "urgente" acha as pautas urgentes. Sem acento e sem
+   * diferenciar maiúsculas.
+   */
+  q?: string;
+  /** Uma ou várias pendências: "ou" entre elas. */
+  pendencia?: PendenciaDaCuradoria | readonly PendenciaDaCuradoria[];
+}
+
+function condicaoDaBusca(q: string): SQL[] {
+  return normalizar(q)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((palavra) => {
+      if (palavra === 'urgente') return sql`${pautas.urgente}`;
+      const padrao = `%${textoLiteral(palavra)}%`;
+      const statusDaPalavra = (Object.keys(ROTULOS_DE_STATUS) as StatusPauta[]).filter((s) =>
+        normalizar(ROTULOS_DE_STATUS[s]).includes(palavra),
+      );
+      const alternativas = [
+        sql`${normalizadoNoBanco(pautas.titulo)} like ${padrao}`,
+        sql`${normalizadoNoBanco(sql`coalesce(${blocos.nome}, ${ROTULO_CAMPUS})`)} like ${padrao}`,
+      ];
+      if (statusDaPalavra.length > 0)
+        alternativas.push(sql`${inArray(pautas.status, statusDaPalavra)}`);
+      return sql`(${sql.join(alternativas, sql` or `)})`;
+    });
+}
+
+/**
+ * A lista geral do painel. Os grupos se combinam com "e"; dentro de situações e de pendências vale
+ * o "ou". O filtro é feito no banco e o limite de `LIMITE_DA_LISTA` vale depois dele.
+ */
 export function listarPautasDaCuradoria(
   db: Db,
   agora = new Date(),
-  filtro: { status?: StatusPauta; q?: string; pendencia?: PendenciaDaCuradoria } = {},
+  filtro: FiltroDaCuradoria = {},
 ): Promise<PautaDaCuradoria[]> {
   const condicoes: SQL[] = [];
-  if (filtro.status !== undefined) condicoes.push(eq(pautas.status, filtro.status));
-  if (filtro.q !== undefined && filtro.q.trim() !== '') {
-    condicoes.push(sql`${pautas.titulo} ilike ${`%${textoLiteral(filtro.q.trim())}%`}`);
-  }
-  if (filtro.pendencia === 'sem_resposta_oficial') condicoes.push(semRespostaOficial());
-  if (filtro.pendencia === 'conferencia_aberta') {
-    condicoes.push(
-      sql`exists (select 1 from ${promessas} where ${promessas.pautaId} = ${pautas.id} and ${promessaEmConferencia(agora)})`,
-    );
-  }
+  const situacoes = comoLista(filtro.status);
+  if (situacoes.length > 0) condicoes.push(inArray(pautas.status, situacoes));
+  if (filtro.q !== undefined) condicoes.push(...condicaoDaBusca(filtro.q));
+  const pendencias = comoLista(filtro.pendencia).map((pendencia) =>
+    pendencia === 'sem_resposta_oficial'
+      ? semRespostaOficial()
+      : sql`exists (select 1 from ${promessas} where ${promessas.pautaId} = ${pautas.id} and ${promessaEmConferencia(agora)})`,
+  );
+  if (pendencias.length > 0) condicoes.push(sql`(${sql.join(pendencias, sql` or `)})`);
   const filtroSQL = condicoes.length === 0 ? sql`true` : (and(...condicoes) ?? sql`true`);
   return lerPautas(db, filtroSQL, agora, LIMITE_DA_LISTA);
 }

@@ -7,7 +7,6 @@ import { ApoiosPorSemana } from '../componentes/ApoiosPorSemana';
 import { BarraApoios, formatarNumero } from '../componentes/BarraApoios';
 import { BotaoRelatar } from '../componentes/BotaoWhatsApp';
 import { CaminhoDasPautas } from '../componentes/CaminhoDasPautas';
-import { FiltroBloco } from '../componentes/FiltroBloco';
 import { Hud, type ItemDoHud } from '../componentes/Hud';
 import { Icone, ICONE_DA_ETAPA } from '../componentes/Icone';
 import { ListaVazia } from '../componentes/ListaVazia';
@@ -18,12 +17,22 @@ import { CampusNoturno } from '../componentes/home/CampusNoturno';
 import { Cinema } from '../componentes/home/Cinema';
 import { ListaDePautas } from '../componentes/home/ListaDePautas';
 import estilos from '../componentes/home/home.module.css';
+import { FolhaDeBlocos } from '../componentes/inicio/FolhaDeBlocos';
 import { PREDIOS } from '../componentes/mapa/predios';
 import { maisUrgente, marcadoresDoMapa } from '../componentes/mapa/urgencia';
 import { buscarApoiosPorSemana, buscarBlocos, buscarPautas } from '../dados/api';
 import { apoiosPorCategoria, blocosMaisAtivos } from '../dados/distribuicao';
-import { urlDosFiltros } from '../dados/filtros';
-import { blocoDaUrl, pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import {
+  alternar,
+  blocosDaUrl,
+  filtrarPautas,
+  statusDaUrl,
+  urlDeFiltros,
+  type ParamDaUrl,
+} from '../dados/filtros';
+import { blocosDaFolha } from '../dados/folha';
+import { pautasPublicas, resumoDosTotais, totais } from '../dados/pautas-publicas';
+import { siglasDosBlocos } from '../dados/siglas';
 import type { Pauta } from '../dados/tipos';
 import { metadadosDaMarca } from '../metadados';
 import { nomeDoCanal } from '../whatsapp';
@@ -70,43 +79,46 @@ function Palavras({ texto, luz = false }: { texto: string; luz?: boolean }) {
   );
 }
 
-/** Filtro por etapa em links: funciona sem JavaScript e a URL guarda a escolha. */
+/** Filtro por etapa em links: funciona sem JavaScript e a URL guarda a escolha (única ou múltipla). */
 function FiltroEtapas({
   atual,
-  bloco,
+  blocos,
   contagens,
   total,
 }: {
-  atual: StatusPublico | undefined;
-  bloco: string | undefined;
+  atual: readonly StatusPublico[];
+  blocos: readonly string[];
   contagens: Record<string, number>;
   total: number;
 }) {
   return (
     <nav className={estilos.filtros} aria-label="Filtrar por etapa" data-rola="">
       <Link
-        href={urlDosFiltros(undefined, bloco)}
+        href={urlDeFiltros('/', { status: [], bloco: blocos })}
         scroll={false}
         className={estilos.filtro}
-        aria-current={atual ? undefined : 'true'}
+        aria-current={atual.length === 0 ? 'true' : undefined}
       >
         Todas<small>{total}</small>
       </Link>
-      {STATUS_PUBLICOS.filter((etapa) => (contagens[etapa] ?? 0) > 0 || etapa === atual).map(
-        (etapa) => (
+      {STATUS_PUBLICOS.filter(
+        (etapa) => (contagens[etapa] ?? 0) > 0 || atual.includes(etapa),
+      ).map((etapa) => {
+        const ativa = atual.includes(etapa);
+        return (
           <Link
             key={etapa}
-            href={urlDosFiltros(etapa, bloco)}
+            href={urlDeFiltros('/', { status: alternar(atual, etapa), bloco: blocos })}
             scroll={false}
             className={estilos.filtro}
-            aria-current={etapa === atual ? 'true' : undefined}
+            aria-current={ativa ? 'true' : undefined}
           >
             <Icone nome={ICONE_DA_ETAPA[etapa]} />
             {STATUS[etapa].rotulo}
             <small>{contagens[etapa] ?? 0}</small>
           </Link>
-        ),
-      )}
+        );
+      })}
     </nav>
   );
 }
@@ -155,38 +167,41 @@ function Cartao({ pauta }: { pauta: Pauta & { status: StatusPublico } }) {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ bloco?: string | string[]; status?: string | string[] }>;
+  searchParams: Promise<{ bloco?: ParamDaUrl; status?: ParamDaUrl }>;
 }) {
-  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
-  // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
-  // O `searchParams` vem antes da primeira busca: lê-lo torna a página dinâmica, então o
-  // `next build` não tenta pré-renderizar a home chamando a API (que pode nem estar no ar).
+  // Erro da API sobe e cai no `error.tsx`. O `searchParams` vem antes da primeira busca: lê-lo
+  // torna a página dinâmica, então o `next build` não tenta pré-renderizá-la chamando a API.
   const { bloco: blocoParam, status: statusParam } = await searchParams;
-  const blocos = await buscarBlocos();
-  const bloco = blocoDaUrl(blocos, blocoParam);
-  const status =
-    typeof statusParam === 'string'
-      ? STATUS_PUBLICOS.find((etapa) => etapa === statusParam)
-      : undefined;
-  // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
-  // segunda barreira. O status filtra a lista aqui; as contagens do filtro e o mapa usam as pautas
-  // do bloco inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
-  const [pautasDaApi, semanas] = await Promise.all([
-    buscarPautas(bloco?.slug),
-    buscarApoiosPorSemana(bloco?.slug),
+  // Uma busca só do campus inteiro: os filtros de bloco e etapa são de seleção múltipla na URL
+  // (`?status=a,b&bloco=c,d`) e também alimentam a folha "Escolher blocos" sem chamadas extras.
+  const [blocos, pautasDaApi, semanas] = await Promise.all([
+    buscarBlocos(),
+    buscarPautas(),
+    buscarApoiosPorSemana(),
   ]);
-  const todas = pautasPublicas(pautasDaApi, bloco);
-  const lista = (status ? todas.filter((pauta) => pauta.status === status) : todas) as (Pauta & {
-    status: StatusPublico;
-  })[];
+  const escolhidos = blocosDaUrl(blocos, blocoParam);
+  const slugs = escolhidos.map((b) => b.slug);
+  const status = statusDaUrl(statusParam);
+  const campus = pautasPublicas(pautasDaApi) as (Pauta & { status: StatusPublico })[];
+  const doBloco = filtrarPautas(campus, { status: [], blocos: escolhidos });
+  const lista = filtrarPautas(campus, { status, blocos: escolhidos });
   const contagens = Object.fromEntries(
-    STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
+    STATUS_PUBLICOS.map((etapa) => [
+      etapa,
+      doBloco.filter((pauta) => pauta.status === etapa).length,
+    ]),
   );
   const contagem = totais(lista);
   const { abertas, apoios, conquistas } = contagem;
-  const onde = bloco?.nome ?? 'Todo o campus';
-  const marcadores = marcadoresDoMapa(blocos, todas);
-  const destaque = maisUrgente(todas);
+  const onde =
+    escolhidos.length === 0
+      ? 'Todo o campus'
+      : escolhidos.length === 1
+        ? (escolhidos[0]?.nome ?? 'Todo o campus')
+        : `${String(escolhidos.length)} blocos`;
+  const marcadores = marcadoresDoMapa(blocos, doBloco);
+  const destaque = maisUrgente(doBloco);
+  const siglas = siglasDosBlocos(blocos);
   const canal = nomeDoCanal();
 
   // A pauta em destaque: as etapas do caminho dela, com data onde a API dá a data.
@@ -213,7 +228,18 @@ export default async function Home({
       </div>,
     ];
   });
-  const resumoDaLista = `${String(lista.length)} ${lista.length === 1 ? 'pauta pública' : 'pautas públicas'}${status ? ` em ${STATUS[status].rotulo.toLowerCase()}` : ''} · ${onde}`;
+  const rotuloEtapas =
+    status.length === 0
+      ? ''
+      : ` em ${status.map((etapa) => STATUS[etapa].rotulo.toLowerCase()).join(' e ')}`;
+  const resumoDaLista = `${String(lista.length)} ${lista.length === 1 ? 'pauta pública' : 'pautas públicas'}${rotuloEtapas} · ${onde}`;
+  const linkParaLista = urlDeFiltros('/pautas', { status, bloco: slugs });
+  const blocoParaVazio =
+    escolhidos.length === 1
+      ? escolhidos[0]
+      : escolhidos.length > 1
+        ? { slug: slugs.join(','), nome: onde, base_estudantes: 0 }
+        : undefined;
 
   return (
     <main className={estilos.home}>
@@ -222,10 +248,10 @@ export default async function Home({
         rotulo="Partes da página"
       />
       <Cinema
-        key={`${bloco?.slug ?? ''}-${status ?? ''}`}
+        key={`${slugs.join(',')}-${status.join(',')}`}
         mapa={<CampusNoturno marcadores={marcadores} />}
         pinos={pinos}
-        foco={predioDoBloco(bloco?.slug ?? null)}
+        foco={escolhidos.length === 1 ? predioDoBloco(escolhidos[0]?.slug ?? null) : undefined}
       >
         <section
           id="abertura"
@@ -242,8 +268,8 @@ export default async function Home({
                 pedindo
               </span>
             </h1>
-            {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. A região viva é só
-                o resumo escondido: os números visíveis sobem com animação e anunciariam cada quadro. */}
+            {/* Os totais acompanham o filtro: o título é o bloco ou recorte escolhido. A região viva é
+                só o resumo escondido: os números visíveis sobem com animação e anunciariam cada quadro. */}
             <section className={estilos.totais} aria-labelledby="totais-titulo" data-contadores="">
               <p role="status" className={estilos.somenteLeitor}>
                 {resumoDosTotais(onde, contagem)}
@@ -272,7 +298,51 @@ export default async function Home({
                 </div>
               </dl>
               <div className={estilos.totaisFiltro}>
-                <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
+                <FolhaDeBlocos
+                  base="/"
+                  blocos={blocosDaFolha(blocos, siglas, campus, status)}
+                  catalogo={blocos}
+                  siglas={siglas}
+                  pautas={campus.map((p) => ({
+                    slug: p.slug,
+                    titulo: p.titulo,
+                    status: p.status,
+                    apoios: p.apoios,
+                    urgente: p.urgente,
+                    bloco_slug: p.bloco_slug,
+                  }))}
+                  atual={{ status, bloco: slugs }}
+                />
+                {escolhidos.map((b) => (
+                  <Link
+                    key={b.slug}
+                    href={urlDeFiltros('/', {
+                      status,
+                      bloco: slugs.filter((s) => s !== b.slug),
+                    })}
+                    scroll={false}
+                    className={estilos.filtroAtivo}
+                    aria-label={`Tirar o filtro de bloco ${b.nome}`}
+                  >
+                    {b.nome}
+                    <span aria-hidden="true">×</span>
+                  </Link>
+                ))}
+                {status.map((etapa) => (
+                  <Link
+                    key={etapa}
+                    href={urlDeFiltros('/', {
+                      status: status.filter((s) => s !== etapa),
+                      bloco: slugs,
+                    })}
+                    scroll={false}
+                    className={estilos.filtroAtivo}
+                    aria-label={`Tirar o filtro de etapa ${STATUS[etapa].rotulo}`}
+                  >
+                    {STATUS[etapa].rotulo}
+                    <span aria-hidden="true">×</span>
+                  </Link>
+                ))}
               </div>
             </section>
           </div>
@@ -420,14 +490,14 @@ export default async function Home({
               </div>
               <FiltroEtapas
                 atual={status}
-                bloco={bloco?.slug}
+                blocos={slugs}
                 contagens={contagens}
-                total={todas.length}
+                total={doBloco.length}
               />
             </div>
             {lista.length === 0 ? (
               <div className={estilos.vazio}>
-                <ListaVazia bloco={bloco} status={status} />
+                <ListaVazia bloco={blocoParaVazio} status={status.length === 1 ? status[0] : undefined} />
               </div>
             ) : (
               <>
@@ -456,9 +526,9 @@ export default async function Home({
                   <ListaDePautas resumo={resumoDaLista}>
                     <FiltroEtapas
                       atual={status}
-                      bloco={bloco?.slug}
+                      blocos={slugs}
                       contagens={contagens}
-                      total={todas.length}
+                      total={doBloco.length}
                     />
                     <ol className={estilos.itens}>
                       {lista.map((pauta) => (
@@ -490,7 +560,7 @@ export default async function Home({
           </div>
         </section>
 
-        {todas.length > 0 && (
+        {doBloco.length > 0 && (
           <section
             id="numeros"
             data-cena="numeros"
@@ -503,24 +573,24 @@ export default async function Home({
               </div>
               <div className={estilos.lateral}>
                 <div data-subir="">
-                  <CaminhoDasPautas pautas={todas} />
+                  <CaminhoDasPautas pautas={doBloco} />
                 </div>
                 <div data-subir="">
                   <PautasPorGrupo
                     id="categorias-titulo"
                     titulo="Apoios por categoria"
                     vazio="Nenhum apoio por categoria ainda."
-                    grupos={apoiosPorCategoria(todas)}
+                    grupos={apoiosPorCategoria(doBloco)}
                   />
                 </div>
                 {/* Com um bloco escolhido, o gráfico por bloco teria uma barra só. */}
-                {!bloco && (
+                {escolhidos.length !== 1 && (
                   <div data-subir="">
                     <PautasPorGrupo
                       id="blocos-titulo"
                       titulo="Blocos mais ativos"
                       vazio="Nenhum apoio por bloco ainda."
-                      grupos={blocosMaisAtivos(todas)}
+                      grupos={blocosMaisAtivos(doBloco)}
                     />
                   </div>
                 )}
@@ -544,12 +614,18 @@ export default async function Home({
             <div className={estilos.acoesFim} data-acao="">
               {/* Com a lista vazia, o "Relatar um problema" já aparece na ListaVazia. */}
               {lista.length > 0 && <BotaoRelatar />}
+              <Link href={linkParaLista} className={componentes.botaoSecundario}>
+                {status.length > 0 || slugs.length > 0
+                  ? `Ver ${lista.length === 1 ? 'a pauta filtrada' : `as ${String(lista.length)} pautas filtradas`}`
+                  : 'Buscar nas pautas'}
+              </Link>
               <Link href="/mapa" className={componentes.botaoSecundario}>
                 Ver no mapa
               </Link>
             </div>
             <footer className={estilos.rodape}>
               <nav aria-label="Mais do Lumens">
+                <Link href="/pautas">Todas as pautas</Link>
                 <Link href="/manual">Manual</Link>
                 <Link href="/privacidade">Política de privacidade</Link>
                 {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}

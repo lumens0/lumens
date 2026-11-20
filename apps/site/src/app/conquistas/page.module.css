@@ -189,6 +189,30 @@
   text-decoration: underline;
 }
 
+.feito {
+  margin: 14px 0 0;
+  color: var(--tinta-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.feitoRotulo {
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+/* Foto da conquista (SCRUM-394): cabe no card do memorial sem esticar a altura. */
+.fotoDoFeito {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  margin-top: 14px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  object-fit: cover;
+}
+
 .numeros {
   display: flex;
   flex-wrap: wrap;

@@ -1,0 +1,718 @@
+/* O Início: céu, skyline, números, filtros de etapa e bloco, e "perto de bater a meta". */
+
+/* Céu estrelado: uma camada parada (SVG pequeno em public/) e outra, bem menor, que cintila. */
+.ceu {
+  /* Só a imagem, sem o atalho `background`: o fundo noite da classe `.noite` continua por baixo. */
+  background-image: url('/ceu-estrelado.svg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  isolation: isolate;
+}
+
+.ceu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url('/ceu-cintilante.svg');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  animation: cintilar 4.5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes cintilar {
+  from {
+    opacity: 0.25;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Skyline ---- */
+
+.skyline {
+  width: 100%;
+}
+
+.predios {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.predio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px 0;
+  border: 1px solid var(--borda);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--noite-2);
+  transition:
+    opacity 240ms var(--curva),
+    border-color 240ms var(--curva);
+}
+
+.escolhido {
+  border-color: var(--luz);
+}
+
+.esmaecido {
+  opacity: 0.45;
+}
+
+.janelas {
+  display: grid;
+  grid-template-columns: repeat(var(--colunas), 14px);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.janelas li {
+  display: flex;
+}
+
+.janela,
+.apagada {
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.apagada {
+  background: rgb(255 255 255 / 7%);
+}
+
+.janela {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: var(--cor);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--cor) 70%, transparent);
+  cursor: pointer;
+}
+
+/* Alvo de toque maior que a janela, sem aumentar o desenho. */
+.janela::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
+/* A etapa em que a gestão faltou com a palavra é a janela vazada: só o contorno. */
+.etapa_descumprida {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--cor);
+}
+
+.etapa_conquistada {
+  filter: brightness(1.25);
+}
+
+.etapa_juntando_apoios {
+  animation: piscar 3.2s ease-in-out infinite;
+}
+
+@keyframes piscar {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.fora {
+  opacity: 0.3;
+  animation: none;
+}
+
+.aberta {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.sigla {
+  min-height: 24px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--tinta-2);
+}
+
+.escolhido .sigla {
+  color: var(--luz);
+}
+
+.sigla small {
+  font-weight: 500;
+  color: var(--tinta-3);
+}
+
+.legenda {
+  min-height: 84px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borda);
+  font-size: 14px;
+}
+
+.legenda p {
+  margin: 0 0 6px;
+}
+
+.legendaTexto {
+  color: var(--tinta-2);
+}
+
+.rotuloPequeno {
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.legendaPauta {
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.legendaAcoes a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--luz);
+}
+
+.janelaMini {
+  display: inline-block;
+  width: 10px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border-radius: 2px;
+  background: var(--cor);
+}
+
+/* ---- O campus em números ---- */
+
+.numeros {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 16px 0 0;
+}
+
+.numero {
+  padding: 16px 12px 16px 0;
+  border-top: 1px solid var(--borda);
+}
+
+.numero:nth-child(even) {
+  padding-left: 16px;
+  border-left: 1px solid var(--borda);
+}
+
+.numero dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.numero dd {
+  margin: 0;
+}
+
+.numeroGrande {
+  display: block;
+  font:
+    700 40px/1.1 var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.numeroContexto {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.atraso {
+  color: var(--urgente);
+}
+
+/* ---- Três colunas: semanas, etapas e blocos ---- */
+
+.colunas {
+  display: grid;
+  gap: 32px;
+  margin-top: 32px;
+}
+
+.colunas h2,
+.pertoDaMeta h2 {
+  margin: 0 0 12px;
+  font:
+    700 20px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.linhasFiltro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.linhaFiltro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(40px, 30%) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--rapido) var(--curva),
+    color var(--rapido) var(--curva);
+}
+
+/* Linha de bloco não tem janela: o nome ocupa a primeira coluna. */
+.linhaFiltro:not(:has(.janelaMini)) {
+  grid-template-columns: minmax(0, 1fr) minmax(40px, 30%) auto;
+}
+
+.linhaFiltro:hover {
+  border-color: var(--borda-forte);
+}
+
+.linhaFiltro[aria-pressed='true'] {
+  background: var(--tinta);
+  color: var(--fundo);
+  border-color: var(--tinta);
+}
+
+.linhaFiltro .janelaMini {
+  margin: 0;
+}
+
+.nomeDaLinha {
+  overflow-wrap: anywhere;
+}
+
+.trilhoDaLinha {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+
+.trilhoDaLinha i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--cor, var(--luz-forte));
+}
+
+.linhaFiltro[aria-pressed='true'] .trilhoDaLinha {
+  background: rgb(255 255 255 / 25%);
+}
+
+.valorDaLinha {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Perto de bater a meta ---- */
+
+.pertoDaMeta {
+  margin-top: 40px;
+}
+
+.pertoDaMeta ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pertoDaMeta li {
+  padding: 12px 0;
+  border-top: 1px solid var(--borda);
+}
+
+.pertoDaMeta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.pertoDaMeta p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.barraFina {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--superficie-2);
+  overflow: hidden;
+}
+
+.barraFina i {
+  display: block;
+  height: 100%;
+  background: var(--status-apoios);
+}
+
+/* ---- Rodapé de ação: filtros ativos e o caminho para a lista ---- */
+
+.acao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--borda);
+}
+
+.etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.dica {
+  margin: 0;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+@media (min-width: 700px) {
+  .numeros {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .numero {
+    padding-left: 16px;
+    border-left: 1px solid var(--borda);
+  }
+
+  .numero:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .acao {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 900px) {
+  .colunas {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .colunas > * {
+    padding: 0 24px;
+    border-left: 1px solid var(--borda);
+  }
+
+  .colunas > :first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .colunas > :last-child {
+    padding-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ceu::before,
+  .etapa_juntando_apoios {
+    animation: none;
+  }
+}
+
+.secaoNumeros {
+  margin-bottom: 24px;
+}
+
+/* ---- Folha "Escolher blocos" ---- */
+
+.botaoTexto {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--luz-tinta);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.somenteLeitorDoInicio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* No celular a folha sobe de baixo; a partir de 700 px vira um diálogo no centro. */
+.folha {
+  position: fixed;
+  inset: auto 0 0;
+  width: 100%;
+  max-width: none;
+  max-height: 88svh;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--borda-forte);
+  border-bottom: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--superficie);
+  color: var(--tinta);
+  overflow: hidden;
+}
+
+.folha[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.folha::backdrop {
+  background: rgb(10 13 32 / 72%);
+}
+
+.folhaConteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px 16px 0;
+  overflow-y: auto;
+}
+
+.folhaTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.folhaTopo h2 {
+  margin: 0;
+  font:
+    700 22px var(--fonte-titulo),
+    sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.folhaFechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--superficie-2);
+  color: var(--tinta);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.folhaMini {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  padding: 12px 12px 0;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background: var(--noite);
+  overflow: hidden;
+}
+
+.miniPredio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 3px 0;
+  border: 1px solid var(--borda);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: var(--superficie-2);
+  transition: opacity 240ms var(--curva);
+}
+
+.miniPredio small {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.miniPredio.escolhido small {
+  color: var(--luz);
+}
+
+.miniJanelas {
+  display: grid;
+  grid-template-columns: repeat(var(--colunas), 7px);
+  gap: 3px;
+}
+
+.miniJanelas i {
+  width: 7px;
+  height: 10px;
+  border-radius: 1.5px;
+}
+
+.folhaResumo {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.folhaBusca input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+}
+
+.folhaChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--fundo);
+}
+
+.chipNumero {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+.folhaRodape {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0 calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--borda);
+  background: var(--superficie);
+}
+
+.folhaAplicar {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--raio-controle);
+  background: var(--luz);
+  color: var(--noite);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.folhaAplicar:disabled {
+  background: var(--superficie-2);
+  color: var(--tinta-3);
+  cursor: not-allowed;
+}
+
+@media (min-width: 700px) {
+  .folha {
+    inset: 50% auto auto 50%;
+    width: min(560px, calc(100vw - 48px));
+    max-height: min(720px, 90svh);
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--borda-forte);
+    border-radius: 24px;
+  }
+}

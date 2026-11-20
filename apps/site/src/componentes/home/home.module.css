@@ -260,13 +260,52 @@
 }
 
 .totaisFiltro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
   margin-top: 20px;
 }
 
-/* A seta do select padrão é escura, feita para o fundo claro. */
-.totaisFiltro select {
-  max-width: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b9bbd0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+/* Botão da folha "Escolher blocos" na abertura: vidro escuro que casa com o campus. */
+.totaisFiltro > button {
+  margin-top: 0;
+  padding: 0 16px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 10px;
+  background: rgb(16 21 59 / 76%);
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    border-color var(--rapido) var(--curva),
+    background-color var(--rapido) var(--curva);
+}
+
+.totaisFiltro > button:hover {
+  border-color: var(--luz);
+  background: rgb(20 26 71 / 88%);
+}
+
+.filtroAtivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 194 61 / 45%);
+  border-radius: 999px;
+  background: var(--luz-fundo);
+  color: var(--tinta);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color var(--rapido) var(--curva);
+}
+
+.filtroAtivo:hover {
+  border-color: var(--luz);
 }
 
 .totais dl {

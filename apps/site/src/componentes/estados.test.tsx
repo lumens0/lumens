@@ -19,7 +19,7 @@ describe('estados da lista', () => {
   it('vazio num bloco: diz o bloco e leva de volta para todos', () => {
     const html = renderToStaticMarkup(<ListaVazia bloco={exemplo.blocos[2]} />);
     expect(html).toContain('Ainda não tem pauta no Bloco C.');
-    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/pautas"');
   });
 
   it('relatar um problema abre o WhatsApp do bot quando o número está configurado', () => {

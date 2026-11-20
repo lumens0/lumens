@@ -66,7 +66,7 @@ describe('next.config', () => {
         r.headers.some((c) => c.key === 'Cache-Control'),
       );
       expect(regrasDeCache.map((r) => r.source).sort()).toEqual(
-        ['/', '/atividade', '/conquistas', '/mapa', '/p/:slug'].sort(),
+        ['/', '/atividade', '/conquistas', '/mapa', '/p/:slug', '/pautas'].sort(),
       );
       for (const regra of regrasDeCache)
         expect(valor(regra.headers, 'Cache-Control')).toContain('s-maxage=5');

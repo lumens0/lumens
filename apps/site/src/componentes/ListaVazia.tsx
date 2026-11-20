@@ -35,7 +35,7 @@ export function ListaVazia({
       <p>Viu um problema no campus? Relate pelo {nomeDoCanal()}: com apoios, ele vira pauta.</p>
       <div className={estilos.acoes}>
         {bloco && (
-          <Link href="/" className={estilos.botaoSecundario}>
+          <Link href="/pautas" className={estilos.botaoSecundario}>
             Ver todos os blocos
           </Link>
         )}

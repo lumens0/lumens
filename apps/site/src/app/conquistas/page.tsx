@@ -11,6 +11,7 @@ import { FundoInterno } from '../../componentes/internas/FundoInterno';
 import internas from '../../componentes/internas/internas.module.css';
 import { predioDoBloco } from '../../componentes/internas/predioPorNome';
 import { formatarDia } from '../../componentes/pauta/LinhaDoTempo';
+import { urlFoto } from '../../componentes/pauta/foto';
 import { buscarConquistas } from '../../dados/api';
 import { anoEmMaceio, diasEntre, textoDias } from '../../dados/dias';
 import { metadadosDaMarca } from '../../metadados';
@@ -39,7 +40,7 @@ function ItemConquista({ conquista }: { conquista: Conquista }) {
   const dias = diasAteEntrega(conquista);
   const predio = predioDoBloco(null, conquista.bloco_nome);
   const rotuloMapa = predio?.sigla || conquista.bloco_nome || '';
-
+  const foto = conquista.foto === null ? null : urlFoto(conquista.foto);
   return (
     <li
       className={estilos.conquista}
@@ -74,6 +75,20 @@ function ItemConquista({ conquista }: { conquista: Conquista }) {
               {conquista.bloco_nome}
             </span>
           </p>
+        )}
+        {conquista.o_que_foi_feito && (
+          <p className={estilos.feito}>
+            <span className={estilos.feitoRotulo}>O que foi feito:</span>{' '}
+            {conquista.o_que_foi_feito}
+          </p>
+        )}
+        {foto && (
+          <img
+            className={estilos.fotoDoFeito}
+            src={foto}
+            alt={`Foto do que foi feito: ${conquista.titulo}`}
+            loading="lazy"
+          />
         )}
         <dl className={estilos.numeros}>
           <div>
@@ -193,7 +208,7 @@ export default async function PaginaConquistas() {
             <p className={internas.estadoTitulo}>Ainda não tem conquista.</p>
             <p>Quando uma pauta for entregue, ela aparece aqui. Apoie as que estão abertas.</p>
             <div className={internas.estadoAcoes}>
-              <Link href="/" className={internas.botao}>
+              <Link href="/pautas" className={internas.botao}>
                 Ver as pautas
               </Link>
             </div>
@@ -228,7 +243,7 @@ export default async function PaginaConquistas() {
                 <h2>Ainda tem pauta a caminho</h2>
                 <p>Veja as pautas abertas que estão juntando apoios ou sendo cobradas agora.</p>
               </div>
-              <Link href="/" className={[internas.botao, internas.botaoPrincipal].join(' ')}>
+              <Link href="/pautas" className={[internas.botao, internas.botaoPrincipal].join(' ')}>
                 <Icone nome="abrir" />
                 Ver as pautas em andamento
               </Link>

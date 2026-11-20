@@ -8,7 +8,7 @@ describe('páginas não encontradas', () => {
   it('a 404 geral tem h1, texto em português e volta às pautas', () => {
     const html = renderToStaticMarkup(<PaginaNaoEncontrada />);
     expect(html).toMatch(/<h1[^>]*>Não encontramos essa página<\/h1>/);
-    expect(html).toContain('href="/"');
+    expect(html).toContain('href="/pautas"');
     expect(html).not.toContain('could not be found');
     expect(metadata.title).toBe('Página não encontrada · Lumens');
   });

@@ -67,6 +67,8 @@ describe('mensagemDoUpdate', () => {
     // SCRUM-293: slug longo demais chega como o id curto.
     ['/start apoiar_1a2b3c4d', 'apoiar 1a2b3c4d'],
     ['/start nova', 'nova pauta'],
+    // SCRUM-396: nova pauta já no bloco escolhido no mapa.
+    ['/start nova_bloco-18', 'nova pauta bloco-18'],
     ['/start@LumensBot nova', 'nova pauta'],
   ])('%s vira o comando do link do WhatsApp (%s)', (texto, esperado) => {
     expect(textoDaConversa(mensagem({ text: texto }))).toBe(esperado);

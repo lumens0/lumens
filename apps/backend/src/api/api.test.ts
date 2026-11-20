@@ -268,6 +268,7 @@ describe('API de leitura pública com o seed', () => {
 
       expect(slugs(body)).toEqual(PAUTAS_EM_ORDEM);
       expect((body as { proximo: unknown }).proximo).toBeNull();
+      expect((body as { total: unknown }).total).toBe(7);
       conferirContrato(pautas, body);
     });
 
@@ -315,6 +316,7 @@ describe('API de leitura pública com o seed', () => {
       expect(await corpo('/pautas?bloco=bloco-que-nao-existe')).toEqual({
         itens: [],
         proximo: null,
+        total: 0,
       });
     });
 
@@ -332,7 +334,7 @@ describe('API de leitura pública com o seed', () => {
 
       // Página que termina exatamente na última pauta não aponta para uma página vazia.
       expect(await corpo('/pautas?limit=7')).toMatchObject({ proximo: null });
-      expect(await corpo('/pautas?offset=50')).toEqual({ itens: [], proximo: null });
+      expect(await corpo('/pautas?offset=50')).toEqual({ itens: [], proximo: null, total: 7 });
     });
 
     it('aceita limit 100, o máximo', async () => {
@@ -344,6 +346,170 @@ describe('API de leitura pública com o seed', () => {
       expect(body).toMatchObject({ urgente: true });
       conferirContrato(pautaDetalhe, body);
     });
+
+    describe('filtros, busca e ordem (SCRUM-395)', () => {
+      const ATENCAO = [
+        'biblioteca-aberta-aos-sabados', // urgente
+        'internet-na-residencia', // descumprida
+        'iluminacao-no-bloco-de-artes', // cobrando
+        'sala-de-descanso-na-saude', // prometido
+        'acessibilidade-no-bloco-18', // entregue em parte
+        'bebedouros-no-bloco-18', // juntando apoios
+        'laboratorios-abertos-nas-engenharias', // conquistada
+      ];
+      const APOIOS = [
+        'internet-na-residencia', // 300, empate com os Laboratórios: o título decide
+        'laboratorios-abertos-nas-engenharias', // 300
+        'acessibilidade-no-bloco-18', // 124
+        'iluminacao-no-bloco-de-artes', // 84
+        'bebedouros-no-bloco-18', // 72
+        'sala-de-descanso-na-saude', // 68
+        'biblioteca-aberta-aos-sabados', // 30
+      ];
+      const total = (body: unknown) => (body as { total: number }).total;
+
+      it('bloco múltiplo: "ou" dentro do grupo, por vírgula e por parâmetro repetido', async () => {
+        const esperado = [
+          'acessibilidade-no-bloco-18',
+          'iluminacao-no-bloco-de-artes',
+          'bebedouros-no-bloco-18',
+        ];
+        for (const url of [
+          '/pautas?bloco=bloco-18,artes',
+          '/pautas?bloco=bloco-18&bloco=artes',
+          '/pautas?bloco=bloco-18,artes,bloco-18',
+        ]) {
+          const body = await corpo(url);
+          expect(slugs(body), url).toEqual(esperado);
+          expect(total(body), url).toBe(3);
+        }
+      });
+
+      it('status múltiplo, e "e" entre o grupo de blocos e o de etapas', async () => {
+        const so = await corpo('/pautas?status=cobrando,prometido');
+        expect(slugs(so)).toEqual(['iluminacao-no-bloco-de-artes', 'sala-de-descanso-na-saude']);
+        const repetido = await corpo('/pautas?status=cobrando&status=prometido');
+        expect(slugs(repetido)).toEqual(slugs(so));
+
+        const ambos = await corpo(
+          '/pautas?status=cobrando,juntando_apoios&bloco=bloco-18,artes&ordem=apoios',
+        );
+        expect(slugs(ambos)).toEqual(['iluminacao-no-bloco-de-artes', 'bebedouros-no-bloco-18']);
+        expect(total(ambos)).toBe(2);
+      });
+
+      it('valores inválidos de bloco e status são ignorados, sem 400', async () => {
+        expect(slugs(await corpo('/pautas?bloco=Bloco-18,bloco_18,,artes'))).toEqual([
+          'iluminacao-no-bloco-de-artes',
+        ]);
+        expect(slugs(await corpo('/pautas?status=em_curadoria,recusada,cobrando'))).toEqual([
+          'iluminacao-no-bloco-de-artes',
+        ]);
+        // Só valores inválidos: o filtro some e a lista vem inteira (como no site).
+        expect(total(await corpo('/pautas?bloco=Bloco-18&status=nada'))).toBe(7);
+        expect(total(await corpo('/pautas?bloco=&status='))).toBe(7);
+      });
+
+      it('busca por título, bloco, etapa e "urgente", sem acento e sem maiúsculas', async () => {
+        const busca = async (q: string) => slugs(await corpo(`/pautas?q=${encodeURIComponent(q)}`));
+        expect(await busca('ILUMINACAO')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('iluminação')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('laboratorios')).toEqual(['laboratorios-abertos-nas-engenharias']);
+        // Nome do bloco (o seed escreve "Bloco da Saúde (fictício)").
+        expect(await busca('saude ficticio')).toEqual(['sala-de-descanso-na-saude']);
+        // Etapa.
+        expect(await busca('cobrando')).toEqual(['iluminacao-no-bloco-de-artes']);
+        expect(await busca('meta batida')).toEqual(['biblioteca-aberta-aos-sabados']);
+        // "urgente" acha a urgente, mesmo sem a palavra no título.
+        expect(await busca('URGENTE')).toEqual(['biblioteca-aberta-aos-sabados']);
+        // Todas as palavras têm de bater.
+        expect(await busca('bloco bebedouros')).toEqual(['bebedouros-no-bloco-18']);
+        expect(await busca('bebedouros cobrando')).toEqual([]);
+        // Curinga do LIKE e aspas são texto comum.
+        expect(await busca('%')).toEqual([]);
+        expect(await busca("' OR 1=1")).toEqual([]);
+        // Busca vazia não filtra.
+        expect(await busca('   ')).toHaveLength(7);
+      });
+
+      it('a busca combina com os filtros', async () => {
+        const body = await corpo('/pautas?q=bloco&bloco=bloco-18&status=juntando_apoios');
+        expect(slugs(body)).toEqual(['bebedouros-no-bloco-18']);
+      });
+
+      it('ordem atencao: urgente, depois a etapa, depois os apoios', async () => {
+        expect(slugs(await corpo('/pautas?ordem=atencao'))).toEqual(ATENCAO);
+      });
+
+      it('ordem apoios e ordem recentes', async () => {
+        expect(slugs(await corpo('/pautas?ordem=apoios'))).toEqual(APOIOS);
+        const recentes = (await corpo('/pautas?ordem=recentes')) as {
+          itens: { criada_em: string }[];
+        };
+        const datas = recentes.itens.map((p) => p.criada_em);
+        expect(datas).toHaveLength(7);
+        expect(datas).toEqual([...datas].sort().reverse());
+      });
+
+      it('ordem desconhecida cai na padrão', async () => {
+        expect(slugs(await corpo('/pautas?ordem=aleatoria'))).toEqual(PAUTAS_EM_ORDEM);
+      });
+
+      it('o total ignora limit e offset, e a paginação segue a ordem pedida', async () => {
+        const primeira = await corpo('/pautas?ordem=atencao&limit=3');
+        expect(slugs(primeira)).toEqual(ATENCAO.slice(0, 3));
+        expect(primeira).toMatchObject({ total: 7, proximo: 3 });
+
+        const ultima = await corpo('/pautas?ordem=atencao&limit=3&offset=6');
+        expect(slugs(ultima)).toEqual(ATENCAO.slice(6));
+        expect(ultima).toMatchObject({ total: 7, proximo: null });
+
+        const filtrada = await corpo('/pautas?bloco=bloco-18,artes&limit=1&offset=1');
+        expect(slugs(filtrada)).toHaveLength(1);
+        expect(filtrada).toMatchObject({ total: 3, proximo: 2 });
+        conferirContrato(pautas, filtrada);
+      });
+
+      it('limit inválido ou repetido continua dando 400; q e ordem repetidos também', async () => {
+        for (const url of [
+          '/pautas?limit=0&bloco=artes',
+          '/pautas?limit=1&limit=2',
+          '/pautas?q=a&q=b',
+          '/pautas?ordem=apoios&ordem=recentes',
+        ]) {
+          expect((await get(url)).statusCode, url).toBe(400);
+        }
+      });
+    });
+  });
+
+  describe('GET /pautas com título em NFD (SCRUM-395)', () => {
+    it('acha e ordena título gravado com acento decomposto, com a consulta em qualquer forma', async () => {
+      const nfd = 'Iluminação'.normalize('NFD');
+      expect(nfd).not.toBe('Iluminação');
+      const banco = await bancoDoSite(async (db) => {
+        await db.execute(
+          sql`UPDATE pauta SET titulo = ${`${nfd} no entorno do Bloco de Artes`}
+              WHERE slug = 'iluminacao-no-bloco-de-artes'`,
+        );
+      });
+      const app = await montarApp(banco);
+      try {
+        for (const q of ['iluminacao', 'ILUMINAÇÃO', nfd, 'Iluminação'.normalize('NFC')]) {
+          const res = await app.inject({
+            method: 'GET',
+            url: `/pautas?q=${encodeURIComponent(q)}`,
+          });
+          const { itens } = res.json<{ itens: { slug: string }[] }>();
+          expect(
+            itens.map((p) => p.slug),
+            q,
+          ).toEqual(['iluminacao-no-bloco-de-artes']);
+        }
+      } finally {
+        await app.close();
+      }
+    }, 60_000);
   });
 
   describe('GET /pautas/:slug', () => {
@@ -450,6 +616,9 @@ describe('API de leitura pública com o seed', () => {
             criado_em: '2026-02-09T12:00:00.000Z',
           },
         ],
+        // Pauta que não é conquistada nunca leva texto nem foto de conquista.
+        o_que_foi_feito: null,
+        foto: null,
       });
       conferirContrato(pautaDetalhe, body);
     });
@@ -506,6 +675,9 @@ describe('API de leitura pública com o seed', () => {
             apoios: 300,
             proposta_executada: false,
             criada_em: '2026-02-10T12:00:00.000Z',
+            o_que_foi_feito:
+              'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
+            foto: null,
           },
         ],
       });
@@ -565,11 +737,6 @@ describe('API de leitura pública com o seed', () => {
 
   describe('parâmetros inválidos', () => {
     it.each([
-      '/pautas?bloco=Bloco-18',
-      '/pautas?bloco=bloco_18',
-      '/pautas?bloco=',
-      '/pautas?status=em_curadoria',
-      '/pautas?status=nao_existe',
       '/pautas?limit=0',
       '/pautas?limit=101',
       '/pautas?limit=1.5',
@@ -577,7 +744,6 @@ describe('API de leitura pública com o seed', () => {
       '/pautas?offset=-1',
       '/pautas?offset=1.5',
       '/pautas?limit=1&limit=2',
-      '/pautas?bloco=artes&bloco=saude',
       '/atividade?limit=0',
       '/atividade?limit=101',
       '/atividade?limit=1.5',
@@ -792,14 +958,21 @@ describe('API de leitura pública: serialização e rotas', () => {
       proxima_etapa: 'Faltam 9 apoios',
     };
     const relato = { texto: 'Relato', fotos: [], curso: null, moderado_em: null };
-    // Uma lista por consulta de /pautas/:slug: pauta, relatos, caminhos, linha do tempo.
-    const db = bancoFalso([{ ...pauta, ...vazamento }], [{ ...relato, ...vazamento }], [], []);
+    // Uma lista por consulta de /pautas/:slug: pauta, relatos, caminhos, linha do tempo, o que foi feito.
+    const db = bancoFalso([{ ...pauta, ...vazamento }], [{ ...relato, ...vazamento }], [], [], []);
     const app = await montarApp(db);
     try {
       const res = await app.inject({ method: 'GET', url: '/pautas/pauta' });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ ...pauta, relatos: [relato], caminhos: [], linha_do_tempo: [] });
+      expect(res.json()).toEqual({
+        ...pauta,
+        relatos: [relato],
+        caminhos: [],
+        linha_do_tempo: [],
+        o_que_foi_feito: null,
+        foto: null,
+      });
     } finally {
       await app.close();
     }
@@ -925,5 +1098,86 @@ describe('GET /fotos: só a foto de relato aprovado (SCRUM-263)', () => {
       await app.close();
       await semLeitor.close();
     }
+  });
+});
+
+describe('SCRUM-394: o que foi feito na conquista, pelo banco do site', () => {
+  const CHAVE = 'fotos/2026/11/conquista.jpg';
+  const CONQUISTADA = 'laboratorios-abertos-nas-engenharias';
+  const ABERTA = 'iluminacao-no-bloco-de-artes';
+  const bytes = Buffer.from('imagem');
+  let app: FastifyInstance;
+  let lidas: string[];
+
+  beforeAll(async () => {
+    const db = await bancoDoSite(async (dono) => {
+      // A foto de uma pauta que NÃO é conquistada também está gravada: não pode sair em lugar nenhum.
+      await dono.execute(sql`INSERT INTO conquista_curadoria (pauta_id, o_que_foi_feito, foto_chave, atualizado_por)
+        SELECT p.id, 'Trocaram as lâmpadas do corredor.', ${CHAVE}, (SELECT id FROM curador LIMIT 1)
+        FROM pauta p WHERE p.slug = ${CONQUISTADA}
+        ON CONFLICT (pauta_id) DO UPDATE SET o_que_foi_feito = excluded.o_que_foi_feito, foto_chave = excluded.foto_chave`);
+      await dono.execute(sql`INSERT INTO conquista_curadoria (pauta_id, o_que_foi_feito, foto_chave, atualizado_por)
+        SELECT p.id, 'Texto de pauta aberta.', 'fotos/2026/11/aberta.jpg', (SELECT id FROM curador LIMIT 1)
+        FROM pauta p WHERE p.slug = ${ABERTA}`);
+    });
+    lidas = [];
+    app = await buildApp({
+      config: { verifyToken: 'verify', appSecret: 'segredo' },
+      db,
+      queue: new FakeQueue(),
+      logger: pino({ level: 'silent' }),
+      chaves: { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) },
+      leitura: {
+        db,
+        origensCors: [],
+        lerFoto: (chave) => {
+          lidas.push(chave);
+          return Promise.resolve({ bytes, contentType: 'image/jpeg' });
+        },
+      },
+    });
+  }, 60_000);
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('a conquista sai com o texto e a foto, e só com eles (sem autor nem instante)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/conquistas' });
+    const body = res.json<{ itens: Record<string, unknown>[] }>();
+    expect(body.itens).toHaveLength(1);
+    expect(body.itens[0]).toMatchObject({
+      pauta_slug: CONQUISTADA,
+      o_que_foi_feito: 'Trocaram as lâmpadas do corredor.',
+      foto: CHAVE,
+    });
+    conferirContrato(conquistas, body);
+    expect(res.body).not.toMatch(/atualizado|curador/);
+  });
+
+  it('o detalhe da pauta conquistada traz o texto e a foto; o da aberta, nada', async () => {
+    const conquistada = (await app.inject({ method: 'GET', url: `/pautas/${CONQUISTADA}` })).json<
+      Record<string, unknown>
+    >();
+    expect(conquistada).toMatchObject({
+      o_que_foi_feito: 'Trocaram as lâmpadas do corredor.',
+      foto: CHAVE,
+    });
+    conferirContrato(pautaDetalhe, conquistada);
+
+    const aberta = (await app.inject({ method: 'GET', url: `/pautas/${ABERTA}` })).json<
+      Record<string, unknown>
+    >();
+    expect(aberta).toMatchObject({ o_que_foi_feito: null, foto: null });
+  });
+
+  it('a rota de foto serve a foto da conquista, mas não a de pauta que não é conquistada', async () => {
+    const ok = await app.inject({ method: 'GET', url: `/${CHAVE}` });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['content-type']).toBe('image/jpeg');
+    expect(lidas).toEqual([CHAVE]);
+
+    const fechada = await app.inject({ method: 'GET', url: '/fotos/2026/11/aberta.jpg' });
+    expect(fechada.statusCode).toBe(404);
+    expect(lidas).toEqual([CHAVE]);
   });
 });

@@ -317,7 +317,7 @@ describe('página da pauta: seções', () => {
 
   it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
-    expect(html).toMatch(/<a[^>]*href="\/"[^>]*>.*Voltar<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/pautas"[^>]*>.*Voltar<\/a>/);
   });
 
   it('sem caminhos, explica que quem cuida da pauta ainda vai escolher', () => {
@@ -720,14 +720,17 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     );
   });
 
-  it('não repete o prazo quando o texto da API já o traz', () => {
+  it('não repete o prazo na linha de apoio quando o texto da API já o traz; a data grande é o destaque', () => {
     const pauta = {
       ...fixture,
       proxima_etapa: 'Prazo do Fala.BR venceu em 20/03/2026',
       caminhos: [falabr()],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={HOJE} />);
-    expect(html.match(/20\/03\/2026/g)).toHaveLength(1);
+    // A data grande (destaque) e o texto da API: duas vezes, e nunca uma terceira na linha de apoio.
+    expect(html.match(/20\/03\/2026/g)).toHaveLength(2);
+    expect(html).toContain('venceu há');
+    expect(html).not.toContain('Prazo de resposta do Fala.BR');
   });
 
   it('o dia do prazo ainda conta como em dia; o dia seguinte, não', () => {
@@ -812,6 +815,66 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).not.toContain('Próxima etapa');
   });
 
+  describe('o que foi feito pela curadoria (SCRUM-394)', () => {
+    const FOTO = 'fotos/2026/11/0b6c1f7e-5d1a-4a53-9a47-3f2b9a1c7d10.jpg';
+
+    it('o texto da curadoria ganha da descrição do caminho, e a foto aparece pela rota do site', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta
+          pauta={{ ...completa, o_que_foi_feito: 'Pintaram os laboratórios.', foto: FOTO }}
+        />,
+      );
+      expect(html).toContain('Pintaram os laboratórios.');
+      // O bloco "Solução entregue" mostra o texto da curadoria, não a descrição do caminho.
+      expect(html).toMatch(
+        /<h2[^>]*>Solução entregue<\/h2><p[^>]*>Pintaram os laboratórios\.<\/p>/,
+      );
+      expect(html).toContain(`src="/${FOTO}"`);
+      expect(html).toContain(`alt="Foto do que foi feito: ${completa.titulo}"`);
+    });
+
+    it('sem texto da curadoria, a descrição do caminho continua de reserva', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...completa, o_que_foi_feito: '  ', foto: null }} />,
+      );
+      expect(html).toMatch(
+        /<h2[^>]*>Solução entregue<\/h2><p[^>]*>Mutirão de pintura dos laboratórios<\/p>/,
+      );
+      expect(html).not.toContain('Foto do que foi feito');
+    });
+
+    it('sem solução executada, o texto e a foto da curadoria ainda formam o bloco', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta
+          pauta={{
+            ...completa,
+            caminhos: [],
+            o_que_foi_feito: 'Trocaram as lâmpadas.',
+            foto: FOTO,
+          }}
+        />,
+      );
+      expect(html).toContain('O que foi feito');
+      expect(html).toContain('Trocaram as lâmpadas.');
+      expect(html).not.toContain('Solução da comunidade');
+      expect(html).toContain(`src="/${FOTO}"`);
+    });
+
+    it('chave de foto fora do formato não vira src', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...completa, foto: '../../segredo.jpg' }} />,
+      );
+      expect(html).not.toContain('segredo');
+    });
+
+    it('pauta que não é conquistada não mostra o bloco, mesmo com a foto no dado', () => {
+      const html = renderToStaticMarkup(
+        <ConteudoPauta pauta={{ ...fixture, o_que_foi_feito: 'x', foto: FOTO }} />,
+      );
+      expect(html).not.toContain(FOTO);
+    });
+  });
+
   it('pauta em outro status continua como estava', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
     expect(html).not.toContain('conquistou esta pauta');
@@ -828,7 +891,8 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).not.toContain('Solução entregue');
     expect(html).not.toContain('Conquistada em');
     expect(html).not.toContain('Da criação à entrega');
-    expect(html).not.toContain('<dl');
+    // Só o número de apoios, que a pauta sempre tem.
+    expect(html).toContain('<dt>Apoios</dt>');
   });
 
   it('solução sem descrição ou data não mostra "null"', () => {
@@ -840,5 +904,24 @@ describe('visão de conquista (SCRUM-352)', () => {
     expect(html).toContain('A proposta da comunidade foi executada.');
     expect(html).not.toContain('null');
     expect(html).not.toContain('Executada em');
+  });
+});
+
+describe('Compartilhar card: sem JavaScript e sem cópia automática', () => {
+  const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
+
+  it('mostra o endereço da pauta em um campo selecionável, para a cópia manual', () => {
+    expect(html).toMatch(/<input[^>]*type="text"[^>]*readOnly=""[^>]*value="[^"]*\/p\/[^"]+"/);
+    expect(html).toContain('Endereço da pauta');
+  });
+
+  it('mantém o download do card fora do diálogo, em <noscript>', () => {
+    expect(html).toMatch(
+      /<noscript>\s*<a [^>]*download="lumens-[^"]+\.png"[^>]*>Baixar card<\/a><\/noscript>/,
+    );
+  });
+
+  it('o botão de compartilhar só habilita com a imagem carregada (começa desabilitado)', () => {
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Compartilhar ou copiar o card<\/button>/);
   });
 });

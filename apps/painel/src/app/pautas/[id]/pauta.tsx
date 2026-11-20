@@ -1,7 +1,9 @@
 import {
   CATEGORIAS,
   MOTIVO_RECUSA_MAXIMO,
+  O_QUE_FOI_FEITO_MAXIMO,
   type BlocoParaRelato,
+  type ConquistaDaCuradoria,
   type DetalhePautaDaCuradoria,
   type EventoDaLinha,
   type PedidoDeEdicao,
@@ -16,10 +18,13 @@ import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../../fotos-do-relat
 import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from '../../pedidos/pedidos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
 import { CAMPO_CONFERIDO, CAMPO_RELATO_VISTO, PREFIXO_FOTO_VISTA } from './decisoes';
+import { categoriaDeQuemRelatou, textoFoiEditado } from './editada';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
 import { Enviar } from '../../enviar';
+import { caminhoDoArquivo } from '../../curadoria/arquivos/[...chave]/arquivo';
+import { FormularioDaConquista } from './conquista-formulario';
 
 const ERRO: Record<string, string> = {
   pauta_inexistente: 'A pauta não foi encontrada.',
@@ -40,6 +45,15 @@ const ERRO: Record<string, string> = {
   sem_relato: 'Esta pauta não tem relato pendente de quem a criou.',
   pauta_nao_publicada:
     'A categoria só muda depois de a pauta ser aprovada; antes disso, escolha ao aprovar.',
+  texto_longo: `O texto do card passou de ${String(O_QUE_FOI_FEITO_MAXIMO)} caracteres. Resuma e salve de novo.`,
+  texto_com_dado_pessoal:
+    'O texto do card tem e-mail ou telefone. Tire esse dado e salve de novo: nada foi gravado.',
+  sem_conteudo: 'Escreva o que foi feito ou envie uma foto: o card não pode ficar vazio.',
+  pauta_nao_conquistada: 'O card de conquista só existe para pauta conquistada.',
+  foto_formato: 'A foto precisa ser JPEG, PNG ou WebP.',
+  foto_tamanho: 'A foto passa de 5 MB. Envie uma menor.',
+  foto_invalida: 'Não foi possível abrir essa foto. Envie outra.',
+  foto_armazenamento: 'Não foi possível guardar a foto agora. Tente de novo em instantes.',
   ...ERRO_DE_FOTO,
   ...ERRO_DE_PEDIDO,
 };
@@ -86,6 +100,9 @@ export function Pauta({
   pedidosDeEdicao = [],
   aprovarPedido = acaoVazia,
   recusarPedido = acaoVazia,
+  conquista,
+  salvarConquista = acaoVazia,
+  origemDoSite,
 }: {
   pauta: DetalhePautaDaCuradoria;
   erro?: string | undefined;
@@ -111,12 +128,18 @@ export function Pauta({
   pedidosDeEdicao?: PedidoDeEdicao[];
   aprovarPedido?: Acao;
   recusarPedido?: Acao;
+  /** "O que foi feito" salvo (só de pauta conquistada, SCRUM-394). */
+  conquista?: ConquistaDaCuradoria | undefined;
+  salvarConquista?: Acao;
+  /** Origem pública do site (`LUMENS_SITE_URL`), para o botão "Ver o card de conquista". */
+  origemDoSite?: string | undefined;
 }) {
   const aviso = erro === undefined ? undefined : ERRO[erro];
   const categoria =
     pauta.categoria === 'a_classificar'
       ? 'A classificar'
       : ((CATEGORIAS as Record<string, string | undefined>)[pauta.categoria] ?? pauta.categoria);
+  const inicial = categoriaDeQuemRelatou(pauta.categoria);
   const relatoComDadoPessoal = pauta.relatos.some(
     (relato) =>
       relato.moderacao === 'pendente' &&
@@ -199,6 +222,12 @@ export function Pauta({
         )}
       </dl>
       <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
+      {pauta.status === 'em_curadoria' && textoFoiEditado(eventos) && (
+        <p className={estilos.aviso} role="status">
+          O responsável editou o texto antes da decisão. Esta é a versão atual: leia de novo antes
+          de aprovar.
+        </p>
+      )}
       {feito === 'urgencia' && (
         <p className={estilos.aviso} role="status">
           Urgência atualizada.
@@ -333,6 +362,32 @@ export function Pauta({
         </section>
       )}
 
+      {pauta.status === 'conquistada' && conquista !== undefined && (
+        <section aria-labelledby="conquista-pauta-titulo" id="conquista-pauta">
+          <h2 id="conquista-pauta-titulo">Card de conquista</h2>
+          <p className={estilos.detalhes}>
+            O que a curadoria escreve aqui aparece no card de conquista e na página pública da
+            pauta. Sem texto, o card usa a descrição do caminho executado.
+          </p>
+          {feito === 'conquista' && (
+            <p className={estilos.aviso} role="status">
+              Card de conquista salvo. O site pode levar alguns segundos para mostrar.
+            </p>
+          )}
+          <FormularioDaConquista
+            pautaId={pauta.id}
+            textoSalvo={conquista.texto ?? ''}
+            fotoAtual={conquista.fotoChave === null ? null : caminhoDoArquivo(conquista.fotoChave)}
+            urlDoCard={
+              origemDoSite === undefined
+                ? null
+                : `${origemDoSite.replace(/\/+$/, '')}/p/${encodeURIComponent(conquista.slug)}/card.png`
+            }
+            salvar={salvarConquista}
+          />
+        </section>
+      )}
+
       <LinhaDoTempo
         pautaId={pauta.id}
         titulo={pauta.titulo}
@@ -402,8 +457,17 @@ export function Pauta({
               value={versaoDoTexto(pauta.titulo, pauta.descricao)}
             />
             <label className={estilos.campo}>
-              Categoria
-              <select id="categoria" name="categoria" required defaultValue="">
+              Categoria{' '}
+              {inicial !== '' && <span className={estilos.dica}>(escolhida por quem relatou)</span>}
+              {/* Já vem marcada com a de quem relatou: só se troca se estiver errada. Sem categoria
+                  de quem relatou, continua obrigatória. */}
+              <select
+                id="categoria"
+                name="categoria"
+                required={inicial === ''}
+                defaultValue={inicial}
+                aria-describedby={inicial === '' ? undefined : 'dica-categoria'}
+              >
                 <option value="" disabled>
                   Escolha uma categoria
                 </option>
@@ -413,6 +477,11 @@ export function Pauta({
                   </option>
                 ))}
               </select>
+              {inicial !== '' && (
+                <small id="dica-categoria" className={estilos.dica}>
+                  Troque só se estiver errada.
+                </small>
+              )}
             </label>
             <label className={estilos.marcar}>
               <input type="checkbox" name="urgente" /> Marcar como urgente
