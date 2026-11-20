@@ -7,8 +7,9 @@
 }
 
 .faixa {
-  margin: -40px 0 24px;
-  padding: 40px 0 48px;
+  margin: 0 0 28px;
+  padding: 0 0 28px;
+  border-bottom: 1px solid var(--borda);
 }
 
 .pagina > * {
@@ -49,9 +50,10 @@
 .titulo {
   margin: 0;
   font:
-    700 46px/1.04 var(--fonte-titulo),
+    480 44px/1.05 var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.04em;
   text-wrap: balance;
 }
 
@@ -129,9 +131,10 @@
 .secaoTitulo {
   margin: 0;
   font:
-    700 22px var(--fonte-titulo),
+    500 22px var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.025em;
 }
 
 .texto {
@@ -162,10 +165,11 @@
 
 .grande {
   font:
-    800 72px/0.95 var(--fonte-titulo),
+    330 72px/0.95 var(--fonte-titulo),
+    system-ui,
     sans-serif;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.05em;
 }
 
 .de {
@@ -201,27 +205,31 @@
   margin-top: 4px;
 }
 
+.proxima > .vazio {
+  color: var(--tinta-2);
+}
+
 /* Prazo vencido: o texto diz "venceu em", e a cor reforça (nunca é o único sinal). */
 .vencido,
 .vencidoTexto {
   margin: 0;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--vencido-tinta, #a4302a);
+  color: var(--urgente);
 }
 
 .vencidoTexto {
   font-size: inherit;
 }
 
-/* Resposta oficial recebida: o card fica verde. */
+/* Resposta oficial recebida: o card fica verde sobre o fundo noturno. */
 .resposta {
-  background: #eef6f0;
-  border-color: rgb(46 125 79 / 25%);
+  background: color-mix(in srgb, var(--status-conquistada) 14%, var(--superficie));
+  border-color: rgb(127 209 154 / 32%);
 }
 
 .resposta .secaoTitulo {
-  color: #1f5c39;
+  color: #7fd19a;
 }
 
 .caminhos {
@@ -240,7 +248,7 @@
   padding: 16px;
   border: 1px solid var(--borda);
   border-radius: 12px;
-  background: var(--fundo);
+  background: var(--superficie-2);
 }
 
 .caminhoTipo {
@@ -281,9 +289,10 @@
 .regra {
   margin: 4px 0 0;
   padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--tinta);
-  color: #f6f4ef;
+  border-radius: 12px;
+  border: 1px solid rgb(255 194 61 / 38%);
+  background: rgb(255 194 61 / 8%);
+  color: var(--tinta);
   font-size: 14px;
 }
 
@@ -306,8 +315,9 @@
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--superficie-2);
   font-size: 15px;
 }
 
@@ -441,11 +451,11 @@
   }
 }
 
-/* Visão de conquista (SCRUM-352): o verde do status "conquistada", no tom do memorial. */
+/* Visão de conquista (SCRUM-352): o verde do status "conquistada", no tom noturno do memorial. */
 .conquista {
-  background: #eef6f0;
-  border-color: rgb(46 125 79 / 30%);
-  border-left: 6px solid var(--status-conquistada);
+  background: color-mix(in srgb, var(--status-conquistada) 14%, var(--superficie));
+  border-color: rgb(127 209 154 / 32%);
+  border-left: 5px solid var(--status-conquistada);
 }
 
 .seloConquista,
@@ -455,22 +465,29 @@
   border-radius: 999px;
   font-weight: 600;
   font-size: 13px;
-  background: var(--status-conquistada);
+  background: #276e3e;
   color: #fff;
+}
+
+.conquista .de,
+.conquista .fatos dt {
+  color: var(--tinta-2);
 }
 
 .seloSolucao {
   background: transparent;
-  border: 1px solid var(--status-conquistada);
-  color: #1f5c39;
+  border: 1px solid rgb(127 209 154 / 50%);
+  color: #7fd19a;
 }
 
 .conquistaTitulo {
   margin: 0;
   font:
-    700 24px/1.15 var(--fonte-titulo),
+    500 24px/1.15 var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  color: #1f5c39;
+  letter-spacing: -0.03em;
+  color: #7fd19a;
   text-wrap: balance;
 }
 

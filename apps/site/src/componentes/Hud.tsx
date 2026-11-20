@@ -73,9 +73,11 @@ export function Hud({
     const el = document.getElementById(id);
     if (!el) return;
     const topo = document.querySelector('header')?.getBoundingClientRect().height ?? 0;
+    const margem = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const folga = Math.max(topo + 12, margem);
     const reduzir = matchMedia('(prefers-reduced-motion: reduce)').matches;
     scrollTo({
-      top: el.getBoundingClientRect().top + scrollY - topo - 12,
+      top: el.getBoundingClientRect().top + scrollY - folga,
       behavior: reduzir ? 'auto' : 'smooth',
     });
   };

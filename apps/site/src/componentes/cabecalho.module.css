@@ -80,6 +80,10 @@
 }
 
 @media (max-width: 720px) {
+  .cabecalho {
+    background: #090c20;
+  }
+
   .faixa {
     gap: 8px;
     padding: 0 12px 0 20px;

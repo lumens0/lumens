@@ -216,7 +216,7 @@ export default async function Home({
   const resumoDaLista = `${String(lista.length)} ${lista.length === 1 ? 'pauta pública' : 'pautas públicas'}${status ? ` em ${STATUS[status].rotulo.toLowerCase()}` : ''} · ${onde}`;
 
   return (
-    <main className={[estilos.home, 'paginaNoite'].join(' ')}>
+    <main className={estilos.home}>
       <Hud
         itens={destaque ? HUD : HUD.filter((h) => h.id !== 'em-destaque')}
         rotulo="Partes da página"

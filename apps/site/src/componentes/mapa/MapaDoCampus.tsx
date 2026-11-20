@@ -1,25 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { formatarNumero } from '../BarraApoios';
 import { BotaoRelatar } from '../BotaoWhatsApp';
-import { StatusPill } from '../StatusPill';
+import { Icone } from '../Icone';
+import { STATUS, StatusPill } from '../StatusPill';
 import { criarCamera, type Visao } from './camera';
+import { enquadrar } from './MapaResumo';
+import { nomesQueCabem, type Nome } from './nomes';
 import {
   ALTURA_DO_CAMPUS,
+  AREAS,
   CAMINHOS,
   CONTORNO,
-  LARGURA_DO_CAMPUS,
-  AREAS,
   ID_DO_ESTADIO,
+  LARGURA_DO_CAMPUS,
   PREDIOS,
   type Area,
   type Predio,
 } from './predios';
-import { enquadrar } from './MapaResumo';
-import { nomesQueCabem, type Nome } from './nomes';
-import { LEGENDA, type MarcadorDoBloco } from './urgencia';
+import { LEGENDA, SLUG_DO_CAMPUS, type MarcadorDoBloco } from './urgencia';
 import estilos from './mapa.module.css';
 
 /** Enquadra o prédio com folga, mantendo a proporção do desenho. */
@@ -34,11 +35,6 @@ function visaoDoPredio(predio: Predio): Visao {
 
 const DY = { abaixo: '1.15em', centro: '0.35em', acima: '-0.9em' } as const;
 
-/**
- * Nome de um prédio, área ou ponto. O tamanho e o giro vêm do CSS: o nome não muda com o zoom e
- * fica em pé quando o mapa gira. O grupo põe a origem no ponto do nome, e é em torno dela que o
- * nome gira.
- */
 function Rotulo({ nome }: { nome: Nome }) {
   return (
     <g transform={`translate(${String(nome.x)} ${String(nome.y)})`}>
@@ -64,23 +60,17 @@ const nomeDaArea = (a: Area): Nome => {
     texto: a.nome,
     x: x + largura / 2,
     y: y + altura / 2,
-    // O estádio fica entre dois nomes de ponto: o dele vai acima do centro para não disputar com eles.
     lado: a.id === ID_DO_ESTADIO ? 'acima' : 'centro',
   };
 };
 
 const tamanho = (p: Predio) => (p.caixa[2] ?? 0) * (p.caixa[3] ?? 0);
 
-/**
- * Retângulo invisível em volta do prédio: no celular um prédio tem poucos pixels, e o vão entre
- * duas alas (o Bloco 18 tem duas) contaria como chão. A folga de toque é o contorno, no CSS.
- */
 function AreaDeToque({ caixa }: { caixa: readonly number[] }) {
   const [x = 0, y = 0, w = 0, h = 0] = caixa;
   return <rect x={x} y={y} width={w} height={h} className={estilos.alvo} />;
 }
 
-/** Prédio aberto no painel: o do OpenStreetMap, o bloco do Lumens ligado a ele, ou os dois. */
 type Selecao = { predio: Predio | undefined; bloco: MarcadorDoBloco | undefined };
 
 /**
@@ -94,13 +84,13 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     [marcadores],
   );
   const [sel, setSel] = useState<Selecao | null>(null);
-  // Abre enquadrado nos prédios com bloco: o campus inteiro tem 2 km e eles sumiriam.
+  const [folhaAberta, setFolhaAberta] = useState(false);
+  const [legendaAberta, setLegendaAberta] = useState(false);
   const geral = useMemo(() => enquadrar([...porPredio.keys()]), [porPredio]);
-  // Com o campus inteiro na tela, os nomes se amontoam; aparecem quando o mapa aproxima.
   const [comNomes, setComNomes] = useState(false);
-  // Bem de perto cabem todos os nomes; antes disso, só os dos prédios com bloco (sem se atropelarem).
   const [todosOsNomes, setTodosOsNomes] = useState(false);
   const [ajudaVisivel, setAjudaVisivel] = useState(true);
+
   useEffect(() => {
     try {
       if (localStorage.getItem('mapa-ajuda-fechada') === 'sim') setAjudaVisivel(false);
@@ -108,8 +98,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       /* armazenamento indisponível */
     }
   }, []);
-  // Nomes que podem aparecer, do mais importante para o menos: o prédio aberto, os com pauta
-  // aberta, os outros com bloco (os maiores antes), e de perto os lugares e os prédios sem bloco.
+
   const candidatos = useMemo(() => {
     const aberto = sel?.predio;
     const peso = (p: Predio) => {
@@ -133,8 +122,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
       ...semBloco.map(nomeDoPredio),
     ];
   }, [porPredio, sel, comNomes, todosOsNomes]);
-  // Quais candidatos cabem na tela agora; `null` antes da câmera medir a tela (aparecem todos).
-  // A conta roda a cada quadro, mas o React só redesenha quando a lista de nomes muda.
+
   const [cabem, setCabem] = useState<ReadonlySet<string> | null>(null);
   const escala = useRef<{ k: number; giro: number } | null>(null);
   const candidatosAtuais = useRef(candidatos);
@@ -149,10 +137,9 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     candidatosAtuais.current = candidatos;
     decidirNomes();
   }, [candidatos, decidirNomes]);
-  // O `viewBox` fica parado na visão de abertura; a câmera move a camada dentro dele.
+
   const [base] = useState(geral);
   const [camera] = useState(() => {
-    // O primeiro gesto fecha a ajuda; os seguintes não regravam nada.
     let ajudaFechada = false;
     return criarCamera(
       base,
@@ -181,25 +168,24 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
     return camera.ligar(svg.current, camada.current);
   }, [camera]);
 
-  // Os prédios com bloco vêm por último: ficam por cima e ganham o toque na disputa.
   const predios = useMemo(
     () => [...PREDIOS].sort((a, b) => Number(porPredio.has(a.id)) - Number(porPredio.has(b.id))),
     [porPredio],
   );
 
-  // No computador o painel ocupa a direita: o prédio aberto fica um pouco à esquerda do centro
-  // da tela, com o mapa girado ou não.
   const focar = (p: Predio) => {
     camera.focar(visaoDoPredio(p), matchMedia('(min-width: 721px)').matches ? 0.18 : 0);
   };
 
-  // O teclado chama direto; o clique passa por `clicarPredio`, que ignora o clique do fim do arraste.
   const abrirPredio = (p: Predio) => {
     if (sel?.predio?.id === p.id) {
       setSel(null);
+      setFolhaAberta(false);
       return;
     }
     setSel({ predio: p, bloco: porPredio.get(p.id) });
+    setFolhaAberta(false);
+    setLegendaAberta(false);
     focar(p);
   };
   const clicarPredio = (p: Predio) => {
@@ -208,17 +194,22 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
   const abrirBloco = (m: MarcadorDoBloco) => {
     const p = m.predio ? PREDIOS.find((x) => x.id === m.predio) : undefined;
     setSel({ predio: p, bloco: m });
+    setFolhaAberta(false);
+    setLegendaAberta(false);
     if (p) focar(p);
     svg.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
   const fechar = () => {
-    if (!camera.arrastou()) setSel(null);
+    if (!camera.arrastou()) {
+      setSel(null);
+      setFolhaAberta(false);
+    }
   };
 
   const bloco = sel?.bloco;
   return (
     <>
-      <div className={[estilos.tela, 'noite'].join(' ')}>
+      <div className={estilos.tela}>
         <svg
           ref={svg}
           {...camera.eventos}
@@ -234,7 +225,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           }}
         >
           <g ref={camada}>
-            {/* Dois toques (ou dois cliques) no chão aproximam o mapa naquele ponto. */}
             <g
               onClick={fechar}
               onDoubleClick={(e) => {
@@ -249,7 +239,6 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 className={estilos.chao}
               />
               <path d={CONTORNO} className={estilos.terreno} />
-              {/* As áreas abertas ficam sob as vias e os prédios: são chão com uso (SCRUM-284). */}
               {AREAS.map((a) => (
                 <path key={a.id} d={a.d} className={[estilos.area, estilos[a.tipo]].join(' ')}>
                   {a.nome && <title>{a.nome}</title>}
@@ -261,12 +250,9 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             </g>
             {predios.map((p) => {
               const m = porPredio.get(p.id);
-              // Só acende (cor viva e halo) o prédio com pauta; o bloco sem pauta fica apagado.
               const aceso = m !== undefined && m.pautas.length > 0;
               const aberto = sel?.predio?.id === p.id;
               const rotulo = m ? `${m.nome}: ${m.linha}` : p.nome;
-              // Prédio com bloco é botão de verdade (teclado e leitor de tela). Os outros com nome
-              // também abrem o painel ao toque; quem usa teclado tem a lista com os blocos.
               const acessivel = m
                 ? {
                     role: 'button' as const,
@@ -302,14 +288,11 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 >
                   <title>{rotulo}</title>
                   {p.sigla && <AreaDeToque caixa={p.caixa} />}
-                  {/* O halo é só um contorno largo: fica aceso mesmo com o mapa em movimento. */}
                   {aceso && <path d={p.d} className={estilos.halo} />}
                   <path d={p.d} />
                 </g>
               );
             })}
-            {/* Os nomes ficam numa camada por cima de todos os prédios; só vão os que cabem sem
-                cobrir outro nome, e aproximar o mapa abre espaço para mais (SCRUM-284). */}
             <g aria-hidden="true">
               {candidatos
                 .filter((n) => cabem?.has(n.id) ?? true)
@@ -324,15 +307,60 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           Atalhos do mapa: setas movem, mais e menos alteram o zoom, Shift com setas gira e N volta
           ao norte.
         </p>
+
+        {/* Ações no topo: legenda (só no celular), enquadrar tudo e ir para a lista. */}
+        <div className={estilos.acoesTopo}>
+          <button
+            type="button"
+            className={[estilos.verCampus, estilos.botaoLegenda].join(' ')}
+            aria-expanded={legendaAberta}
+            aria-controls="legenda-mapa"
+            onClick={() => {
+              setLegendaAberta((a) => !a);
+            }}
+          >
+            <Icone nome="camadas" />
+            Legenda
+          </button>
+          <button
+            type="button"
+            className={estilos.verCampus}
+            onClick={() => {
+              setSel(null);
+              setFolhaAberta(false);
+              camera.irPara(geral, 0);
+            }}
+          >
+            <Icone nome="mapa" />
+            <span className={estilos.longo}>Todos os blocos</span>
+            <span className={estilos.curto}>Blocos</span>
+          </button>
+          <a href="#lista-do-mapa" className={estilos.verCampus}>
+            <Icone nome="lista" />
+            <span className={estilos.longo}>Ver em lista</span>
+            <span className={estilos.curto}>Lista</span>
+          </a>
+        </div>
+
         {/* O título fica na página mesmo com a ajuda fechada: é o único h1 do mapa. */}
         {!ajudaVisivel && <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>}
         {ajudaVisivel && (
           <div className={estilos.hudTitulo}>
             <h1 className={estilos.hudNome}>Mapa do campus</h1>
-            <p className={estilos.hudDica}>
-              Toque num prédio e arraste para mover o mapa. Com dois dedos, aproxime e gire. No
-              computador, o botão direito gira e a roda aproxima.
-            </p>
+            <ul className={estilos.hudLista}>
+              <li>
+                <Icone nome="local" />
+                <span>Toque num prédio para ver as pautas dele.</span>
+              </li>
+              <li>
+                <Icone nome="mao" />
+                <span>Arraste para mover. Com dois dedos, aproxime e gire.</span>
+              </li>
+              <li className={estilos.dicaPc}>
+                <Icone nome="mira" />
+                <span>No computador, o botão direito gira e a roda aproxima.</span>
+              </li>
+            </ul>
             <button
               type="button"
               className={estilos.fecharAjuda}
@@ -346,12 +374,17 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 }
               }}
             >
-              ×
+              <Icone nome="fechar" />
             </button>
           </div>
         )}
 
-        <ul className={estilos.legenda} aria-label="Legenda das cores">
+        <ul
+          id="legenda-mapa"
+          className={estilos.legenda}
+          data-aberta={legendaAberta || undefined}
+          aria-label="Legenda das cores"
+        >
           {LEGENDA.map((l) => (
             <li key={l.rotulo}>
               <i className={estilos.ponto} style={{ background: l.cor }} />
@@ -360,23 +393,8 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           ))}
         </ul>
 
-        <div className={estilos.controles}>
-          <button
-            type="button"
-            className={estilos.verCampus}
-            onClick={() => {
-              setSel(null);
-              camera.irPara(geral, 0);
-            }}
-          >
-            Ver todos os blocos
-          </button>
-          {/* No celular o mapa toma a tela e o dedo move o mapa: este atalho leva à lista. */}
-          <a href="#lista-do-mapa" className={estilos.verCampus}>
-            Ver em lista
-          </a>
+        <div className={estilos.controles} data-painel={sel !== null || undefined}>
           <div className={estilos.zoom}>
-            {/* A seta aponta o norte: gira junto com o mapa, e o botão o endireita. */}
             <button
               type="button"
               aria-label="Voltar o norte para cima"
@@ -391,21 +409,23 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
             </button>
             <button
               type="button"
+              className={estilos.girar}
               aria-label="Girar o mapa para a esquerda"
               onClick={() => {
                 camera.girar(-Math.PI / 6);
               }}
             >
-              ↺
+              <Icone nome="girarEsquerda" />
             </button>
             <button
               type="button"
+              className={estilos.girar}
               aria-label="Girar o mapa para a direita"
               onClick={() => {
                 camera.girar(Math.PI / 6);
               }}
             >
-              ↻
+              <Icone nome="girarDireita" />
             </button>
             <button
               type="button"
@@ -414,7 +434,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 camera.zoom(1 / 1.6);
               }}
             >
-              +
+              <Icone nome="mais" />
             </button>
             <button
               type="button"
@@ -423,12 +443,12 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                 camera.zoom(1.6);
               }}
             >
-              −
+              <Icone nome="menos" />
             </button>
           </div>
         </div>
 
-        <p className={estilos.credito}>
+        <p className={estilos.credito} data-painel={sel !== null || undefined}>
           ©{' '}
           <a
             href="https://www.openstreetmap.org/copyright"
@@ -439,20 +459,40 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
           </a>
         </p>
 
-        <aside className={estilos.painel} data-aberto={sel !== null} aria-live="polite">
+        <aside
+          className={estilos.painel}
+          data-aberto={sel !== null}
+          data-expandido={folhaAberta || undefined}
+          aria-live="polite"
+        >
           {sel ? (
             <>
+              <button
+                type="button"
+                className={estilos.alca}
+                aria-expanded={folhaAberta}
+                aria-label={
+                  folhaAberta ? 'Recolher as pautas do bloco' : 'Mostrar as pautas do bloco'
+                }
+                onClick={() => {
+                  setFolhaAberta((a) => !a);
+                }}
+              />
               <button
                 type="button"
                 className={estilos.fechar}
                 aria-label="Fechar o painel"
                 onClick={() => {
                   setSel(null);
+                  setFolhaAberta(false);
                 }}
               >
-                ×
+                <Icone nome="fechar" />
               </button>
-              <p className={estilos.eyebrow}>{sel.predio?.nome ?? 'Bloco'}</p>
+              <p className={estilos.eyebrow}>
+                <Icone nome="local" />
+                {sel.predio?.nome ?? 'Bloco'}
+              </p>
               <h2 className={estilos.tituloPainel}>{bloco?.nome ?? sel.predio?.sigla}</h2>
               {bloco ? (
                 <>
@@ -461,16 +501,37 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                     <p className={estilos.vazio}>Nenhuma pauta aqui ainda.</p>
                   ) : (
                     <ul className={estilos.pautas}>
-                      {bloco.pautas.map((pauta) => (
-                        <li key={pauta.slug} className={estilos.pauta}>
-                          <StatusPill status={pauta.status} />
-                          <Link href={`/p/${pauta.slug}`}>{pauta.titulo}</Link>
-                          <span className={estilos.detalhe}>
-                            {formatarNumero(pauta.apoios)} de {formatarNumero(pauta.meta)} apoios
-                          </span>
-                        </li>
-                      ))}
+                      {bloco.pautas.map((pauta) => {
+                        const pct = Math.min(
+                          100,
+                          Math.round((pauta.apoios / Math.max(1, pauta.meta)) * 100),
+                        );
+                        const cor = STATUS[pauta.status].ponto;
+                        return (
+                          <li
+                            key={pauta.slug}
+                            className={estilos.pauta}
+                            style={{ '--c': cor } as CSSProperties}
+                          >
+                            <StatusPill status={pauta.status} />
+                            <Link href={`/p/${pauta.slug}`}>{pauta.titulo}</Link>
+                            <span className={estilos.detalhe}>
+                              <strong>{formatarNumero(pauta.apoios)}</strong> de{' '}
+                              {formatarNumero(pauta.meta)} apoios
+                            </span>
+                            <div className={estilos.barraPauta} aria-hidden="true">
+                              <span style={{ width: `${String(pct)}%` }} />
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
+                  )}
+                  {bloco.slug !== SLUG_DO_CAMPUS && (
+                    <Link href={`/?bloco=${bloco.slug}`} className={estilos.verBloco}>
+                      <Icone nome="abrir" />
+                      Ver as pautas do bloco
+                    </Link>
                   )}
                 </>
               ) : (

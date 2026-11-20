@@ -1,7 +1,7 @@
 'use client';
 
 import estilos from '../componentes/componentes.module.css';
-import pagina from './page.module.css';
+import pagina from '../componentes/pauta/pauta.module.css';
 
 /** Falha ao carregar a página: o `retry` do Next busca e renderiza de novo. */
 export default function Erro({ retry }: { retry: () => void }) {

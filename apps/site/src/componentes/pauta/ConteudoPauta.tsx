@@ -30,7 +30,7 @@ export function ConteudoPauta({
   );
   return (
     <main className={estilos.pagina}>
-      <div className={[estilos.faixa, 'noite'].join(' ')}>
+      <div className={estilos.faixa}>
         <Voltar />
         <CabecalhoPauta pauta={pauta} />
       </div>

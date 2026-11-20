@@ -19,6 +19,14 @@
   background: #0d1130;
 }
 
+.hud[data-aberto] {
+  top: 88px;
+  transform: none;
+  max-height: calc(100svh - 108px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
 .hud ol {
   display: grid;
   gap: 6px;
@@ -100,9 +108,10 @@
 .hud:hover .nome,
 .hud:focus-within .nome,
 .hud[data-aberto] .nome {
-  max-width: 260px;
+  max-width: 224px;
   margin: 0 6px 0 12px;
   opacity: 1;
+  text-overflow: ellipsis;
 }
 
 /* Celular: barra de ícones no rodapé, acima da barra do sistema; os nomes ficam para o leitor de tela. */
@@ -113,9 +122,18 @@
     top: auto;
     bottom: calc(10px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
     padding: 6px;
     border-radius: 18px;
     background: rgb(13 17 48 / 94%);
+  }
+
+  .hud::-webkit-scrollbar {
+    display: none;
   }
 
   .hud ol {
