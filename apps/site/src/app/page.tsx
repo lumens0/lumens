@@ -250,7 +250,6 @@ export default async function Home({
               </p>
               <div className={estilos.totaisTopo}>
                 <h2 id="totais-titulo">{onde}</h2>
-                <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
               </div>
               <dl>
                 <div>
@@ -272,6 +271,9 @@ export default async function Home({
                   </dd>
                 </div>
               </dl>
+              <div className={estilos.totaisFiltro}>
+                <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
+              </div>
             </section>
           </div>
         </section>
