@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Dados do seed da Parte 1 (packages/db/seed/data.ts): fixos, não mudam entre execuções.
 const PAUTA = { slug: 'bebedouros-no-bloco-18', titulo: 'Bebedouros funcionando no Bloco 18' };
@@ -22,17 +22,21 @@ test('o Início mostra os quatro números do campus', async ({ page }) => {
     'Em cobrança',
     'Conquistas',
   ]);
-  // Cada número aparece duas vezes no <dd>: o animado, escondido do leitor de tela, e o valor final
-  // em texto oculto, que é o que o leitor lê (SCRUM-306). Os dois têm de chegar ao total.
-  await expect(numeros.locator('dd > span > [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
-  await expect(numeros.locator('dd > span > :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
+  // Cada número aparece duas vezes no <dd> grande: o animado, escondido do leitor de tela, e o valor
+  // final em texto oculto, que é o que o leitor lê (SCRUM-306). Os dois têm de chegar ao total.
+  const grandes = numeros.locator('dd[class*=numeroGrande]');
+  await expect(grandes.locator('> [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
+  await expect(grandes.locator('> :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
 });
+
+// A lista é uma <ul> de linhas: cada uma abre com o botão do título e mostra "Ver a pauta".
+const linhas = (page: Page) => page.locator('ul > li[class*=linha]');
 
 test('a lista de pautas carrega, com uma busca só', async ({ page }) => {
   await page.goto('/pautas');
-  await expect(page.getByRole('article')).toHaveCount(TOTAL_DE_PAUTAS);
+  await expect(linhas(page)).toHaveCount(TOTAL_DE_PAUTAS);
   await expect(page.getByRole('searchbox')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: PAUTA.titulo, exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: new RegExp(PAUTA.titulo) })).toBeVisible();
   // Pauta em curadoria nunca aparece na lista.
   await expect(page.locator(`a[href="/p/${EM_CURADORIA}"]`)).toHaveCount(0);
 });
@@ -41,13 +45,13 @@ test('buscar o nome de um bloco oferece o filtro por ele e a lista fica só com 
   page,
 }) => {
   await page.goto('/pautas');
+  // A busca filtra enquanto se digita: não há botão "Buscar".
   await page.getByRole('searchbox').fill('Bloco 18');
-  await page.getByRole('button', { name: 'Buscar' }).click();
-  await page.getByRole('link', { name: `Filtrar pelo bloco: ${BLOCO.nome}` }).click();
-  await expect(page).toHaveURL(`/pautas?bloco=${BLOCO.slug}`);
-  await expect(page.getByRole('article')).toHaveCount(TOTAIS_DO_BLOCO.cards);
-  for (const card of await page.getByRole('article').all()) {
-    await expect(card).toContainText(BLOCO.nome);
+  await page.getByRole('link', { name: BLOCO.nome, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`bloco=${BLOCO.slug}`));
+  await expect(linhas(page)).toHaveCount(TOTAIS_DO_BLOCO.cards);
+  for (const linha of await linhas(page).all()) {
+    await expect(linha).toContainText(BLOCO.nome);
   }
 });
 
@@ -55,16 +59,18 @@ test('os chips de etapa filtram a lista e vão para a URL', async ({ page }) => 
   await page.goto('/pautas');
   await page.getByRole('button', { name: /^Cobrando/ }).click();
   await expect(page).toHaveURL(/status=cobrando/);
-  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(linhas(page)).toHaveCount(1);
   await page.getByRole('link', { name: 'Tirar o filtro de etapa Cobrando' }).click();
-  await expect(page.getByRole('article')).toHaveCount(TOTAL_DE_PAUTAS);
+  await expect(linhas(page)).toHaveCount(TOTAL_DE_PAUTAS);
 });
 
 test('a ordenação muda a URL e a ordem da lista', async ({ page }) => {
   await page.goto('/pautas');
   await page.getByRole('combobox', { name: 'Ordenar por' }).selectOption('apoios');
   await expect(page).toHaveURL(/ordem=apoios/);
-  const apoios = await page.locator('article [class*=apoios]').allTextContents();
+  const apoios = await page
+    .locator('li[class*=linha] [class*=apoios] > [aria-hidden]')
+    .allTextContents();
   const numeros = apoios.map((t) => Number(t.replace(/\D/g, '')));
   // Sem número legível, `Number('')` seria 0 e a ordem "passaria" sem provar nada.
   expect(numeros.length).toBeGreaterThan(1);
@@ -74,7 +80,8 @@ test('a ordenação muda a URL e a ordem da lista', async ({ page }) => {
 
 test('abrir uma pauta pela lista', async ({ page }) => {
   await page.goto('/pautas');
-  await page.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
+  await page.getByRole('button', { name: new RegExp(PAUTA.titulo) }).click();
+  await page.locator(`a[href="/p/${PAUTA.slug}"]`).click();
   await expect(page).toHaveURL(`/p/${PAUTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: PAUTA.titulo })).toBeVisible();
 });
@@ -82,12 +89,12 @@ test('abrir uma pauta pela lista', async ({ page }) => {
 test('pauta em curadoria dá 404', async ({ page }) => {
   const resposta = await page.goto(`/p/${EM_CURADORIA}`);
   expect(resposta?.status()).toBe(404);
-  await expect(page.getByText('Não encontramos essa pauta.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Essa página não está acesa.' })).toBeVisible();
 });
 
 test('o botão "Apoiar" monta o link wa.me certo', async ({ page }) => {
   await page.goto(`/p/${PAUTA.slug}`);
-  const botao = page.getByRole('link', { name: `Apoiar a pauta ${PAUTA.titulo} pelo WhatsApp` });
+  const botao = page.getByRole('link', { name: `Apoiar pelo WhatsApp: ${PAUTA.titulo}` });
   await expect(botao).toHaveAttribute(
     'href',
     `https://wa.me/${NUMERO_DO_BOT}?text=${encodeURIComponent(`apoiar ${PAUTA.slug}`)}`,
@@ -122,13 +129,12 @@ test('o card da pauta é um PNG de 1080 × 1920', async ({ request }) => {
 
 test('conquistas lista a pauta conquistada e leva até ela', async ({ page }) => {
   await page.goto('/conquistas');
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'O que os estudantes já conquistaram' }),
-  ).toBeVisible();
-  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('heading', { level: 1, name: 'Conquistas' })).toBeVisible();
+  const linhas = page.getByRole('main').getByRole('listitem');
+  await expect(linhas).toHaveCount(1);
   // SCRUM-394: o texto que a curadoria escreveu (o seed tem só o texto, sem foto).
-  await expect(page.getByRole('article').getByText(CONQUISTA.feito)).toBeVisible();
-  await page.getByRole('link', { name: CONQUISTA.titulo, exact: true }).click();
+  await expect(linhas.getByText(CONQUISTA.feito)).toBeVisible();
+  await linhas.getByRole('link').click();
   await expect(page).toHaveURL(`/p/${CONQUISTA.slug}`);
   await expect(page.getByRole('heading', { level: 1, name: CONQUISTA.titulo })).toBeVisible();
 });
@@ -274,7 +280,7 @@ test.describe('detalhe da pauta', () => {
     const fio = page.getByRole('list', { name: 'Etapas da pauta' });
     await expect(fio.getByRole('listitem')).toHaveCount(5);
     await expect(fio.locator('[aria-current="step"]')).toHaveCount(1);
-    await expect(fio.locator('[aria-current="step"]')).toContainText('Apoios');
+    await expect(fio.locator('[aria-current="step"]')).toContainText('Juntando apoios');
   });
 
   test('"Compartilhar card" abre o diálogo com a imagem do servidor; Esc fecha e devolve o foco', async ({
@@ -298,7 +304,7 @@ test.describe('detalhe da pauta', () => {
 
   test('pauta conquistada mostra os três números da conquista', async ({ page }) => {
     await page.goto('/p/laboratorios-abertos-nas-engenharias');
-    const fatos = page.getByRole('region', { name: 'A comunidade conquistou esta pauta' });
+    const fatos = page.locator('dl', { hasText: 'Conquistada em' });
     await expect(fatos.getByText('Conquistada em')).toBeVisible();
     await expect(fatos.getByText('Da criação à entrega')).toBeVisible();
     await expect(fatos.getByText('Apoios', { exact: true })).toBeVisible();

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import componentes from '../../componentes/componentes.module.css';
 import { LinhaDePauta } from '../../componentes/lista/LinhaDePauta';
 import { FiltrosDaLista } from '../../componentes/lista/FiltrosDaLista';
 import estilos from '../../componentes/lista/lista.module.css';
@@ -93,43 +92,15 @@ export default async function Pautas({
   const botoes = janelaDePaginas(lista.pagina, lista.paginas);
 
   return (
-    <main className={pagina.pagina}>
+    <main className={[pagina.pagina, pagina.comRodape].join(' ')}>
       <header className={estilos.cabecalho}>
         <h1>
-          Pautas<span className={estilos.total}>{formatarNumero(campus.length)}</span>
+          Pautas <small className={estilos.total}>{formatarNumero(lista.total)}</small>
         </h1>
         <Link href="/" className={estilos.verPainel}>
           Ver o painel de números
         </Link>
       </header>
-
-      <form role="search" action="/pautas" method="get" className={estilos.busca}>
-        <label>
-          <span className={estilos.somenteLeitor}>Buscar pauta ou bloco</span>
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Buscar pauta ou bloco"
-            autoComplete="off"
-          />
-        </label>
-        {status.length > 0 && <input type="hidden" name="status" value={status.join(',')} />}
-        {slugs.length > 0 && <input type="hidden" name="bloco" value={slugs.join(',')} />}
-        {ordem !== 'atencao' && <input type="hidden" name="ordem" value={ordem} />}
-        <button type="submit">Buscar</button>
-      </form>
-      {sugestoes.length > 0 && (
-        <ul className={estilos.sugestoes} aria-label="Sugestões de bloco">
-          {sugestoes.map((b) => (
-            <li key={b.slug}>
-              <Link href={urlDaLista({ ordem, status, bloco: [...slugs, b.slug] })}>
-                Filtrar pelo bloco: {b.nome}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
 
       <FiltrosDaLista
         q={q}
@@ -138,69 +109,66 @@ export default async function Pautas({
         bloco={slugs}
         etapas={etapas}
         totalDaBusca={doRecorte.length}
-        folha={{
-          blocos: todosOsBlocos,
-          catalogo: blocos,
-          siglas,
-          pautas: campus.map((p) => ({
-            slug: p.slug,
-            titulo: p.titulo,
-            status: p.status,
-            apoios: p.apoios,
-            urgente: p.urgente,
-            bloco_slug: p.bloco_slug,
-          })),
-        }}
+        blocos={todosOsBlocos}
+        totalDeBlocos={blocos.length}
+        sugestoes={
+          sugestoes.length > 0 ? (
+            <ul className={[estilos.chips, estilos.quebra, estilos.sugestoes].join(' ')}>
+              <li className={estilos.rotulo}>Filtrar pelo bloco:</li>
+              {sugestoes.map((b) => (
+                <li key={b.slug}>
+                  <Link
+                    href={urlDaLista({ ordem, status, bloco: [...slugs, b.slug] })}
+                    className={estilos.chip}
+                    title={b.nome}
+                  >
+                    {b.nome}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null
+        }
+        ativos={
+          etiquetas.length > 0 ? (
+            <ul className={estilos.etiquetas} aria-label="Filtros ativos">
+              {etiquetas.map((etiqueta) => (
+                <li key={etiqueta.href}>
+                  <Link
+                    href={etiqueta.href}
+                    className={estilos.etiqueta}
+                    aria-label={etiqueta.rotulo}
+                    scroll={false}
+                  >
+                    {etiqueta.texto} <span aria-hidden="true">×</span>
+                  </Link>
+                </li>
+              ))}
+              {etiquetas.length >= 2 && (
+                <li>
+                  <Link href={urlDaLista({ ordem })} className={estilos.limpar}>
+                    Limpar tudo
+                  </Link>
+                </li>
+              )}
+            </ul>
+          ) : null
+        }
       />
 
-      {etiquetas.length > 0 && (
-        <ul className={estilos.etiquetas} aria-label="Filtros ativos">
-          {etiquetas.map((etiqueta) => (
-            <li key={etiqueta.href}>
-              <Link
-                href={etiqueta.href}
-                className={estilos.etiqueta}
-                aria-label={etiqueta.rotulo}
-                scroll={false}
-              >
-                {etiqueta.texto}
-                <span aria-hidden="true">×</span>
-              </Link>
-            </li>
-          ))}
-          {etiquetas.length >= 2 && (
-            <li>
-              <Link href={urlDaLista({ ordem })} className={estilos.limpar}>
-                Limpar tudo
-              </Link>
-            </li>
-          )}
-        </ul>
-      )}
-
-      <p role="status" className={estilos.resultado}>
-        {lista.total === 0
-          ? 'Nenhuma pauta encontrada.'
-          : `Mostrando ${String(lista.de)} a ${String(lista.ate)} de ${formatarNumero(lista.total)} ${lista.total === 1 ? 'pauta' : 'pautas'}`}
-      </p>
-
       {lista.total === 0 ? (
-        <div className={estilos.vazio}>
-          {campus.length === 0 ? (
+        campus.length === 0 ? (
+          <div className={estilos.vazioDoCampus}>
             <ListaVazia bloco={undefined} />
-          ) : (
-            <div role="status" className={componentes.estado}>
-              <p className={componentes.estadoTitulo}>Nenhuma pauta nessa combinação.</p>
-              {filtrando && (
-                <div className={componentes.acoes}>
-                  <Link href="/pautas" className={componentes.botaoSecundario}>
-                    Limpar filtros
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <ul className={estilos.lista}>
+            <li className={estilos.vazio} role="status">
+              Nenhuma pauta nessa combinação.{' '}
+              {filtrando && <Link href="/pautas">Limpar filtros</Link>}
+            </li>
+          </ul>
+        )
       ) : (
         <ul className={estilos.lista}>
           {lista.itens.map((pauta) => (
@@ -209,50 +177,55 @@ export default async function Pautas({
         </ul>
       )}
 
-      {lista.paginas > 1 && (
-        <nav aria-label="Páginas da lista" className={estilos.paginacao}>
-          <ul>
-            <li>
-              {lista.pagina > 1 ? (
-                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina - 1 })} rel="prev">
-                  Anterior
-                </Link>
-              ) : null}
-            </li>
-            {botoes.map((n, i) => (
-              <li key={`${String(n)}-${String(i)}`}>
-                {n === '…' ? (
-                  <span className={estilos.reticencias} aria-hidden="true">
-                    …
-                  </span>
-                ) : n === lista.pagina ? (
-                  <span
-                    className={estilos.atual}
-                    aria-current="page"
-                    aria-label={`Página ${String(n)}`}
-                  >
-                    {n}
-                  </span>
-                ) : (
-                  <Link
-                    href={urlDaLista({ ...aqui, pagina: n })}
-                    aria-label={`Página ${String(n)}`}
-                  >
-                    {n}
-                  </Link>
-                )}
-              </li>
-            ))}
-            <li>
-              {lista.pagina < lista.paginas ? (
-                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina + 1 })} rel="next">
-                  Próxima
-                </Link>
-              ) : null}
-            </li>
-          </ul>
-        </nav>
-      )}
+      <nav aria-label="Páginas da lista" className={estilos.paginacao}>
+        <p role="status" className={estilos.resultado}>
+          {`Mostrando ${String(lista.de)} a ${String(lista.ate)} de ${formatarNumero(lista.total)} ${lista.total === 1 ? 'pauta' : 'pautas'}`}
+        </p>
+        {lista.paginas > 1 && (
+          <div className={estilos.controlesDePagina}>
+            {lista.pagina > 1 ? (
+              <Link href={urlDaLista({ ...aqui, pagina: lista.pagina - 1 })} rel="prev">
+                Anterior
+              </Link>
+            ) : (
+              <span className={estilos.desligado}>Anterior</span>
+            )}
+            <ul className={estilos.numeros}>
+              {botoes.map((n, i) => (
+                <li key={`${String(n)}-${String(i)}`}>
+                  {n === '…' ? (
+                    <span className={estilos.reticencias} aria-hidden="true">
+                      …
+                    </span>
+                  ) : n === lista.pagina ? (
+                    <span
+                      className={estilos.atual}
+                      aria-current="page"
+                      aria-label={`Página ${String(n)}`}
+                    >
+                      {n}
+                    </span>
+                  ) : (
+                    <Link
+                      href={urlDaLista({ ...aqui, pagina: n })}
+                      aria-label={`Página ${String(n)}`}
+                    >
+                      {n}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {lista.pagina < lista.paginas ? (
+              <Link href={urlDaLista({ ...aqui, pagina: lista.pagina + 1 })} rel="next">
+                Próxima
+              </Link>
+            ) : (
+              <span className={estilos.desligado}>Próxima</span>
+            )}
+          </div>
+        )}
+      </nav>
 
       <footer className={pagina.rodape}>
         <nav aria-label="Mais do Lumens" className={pagina.navegacao}>

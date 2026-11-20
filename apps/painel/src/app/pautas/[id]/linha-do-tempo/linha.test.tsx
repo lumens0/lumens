@@ -46,10 +46,12 @@ describe('tela da linha do tempo da pauta', () => {
     expect(html).toMatch(/09\/11\/2026,? 09:00/);
     // 02:30 UTC do dia 10 ainda é dia 9 em Maceió.
     expect(html).toMatch(/09\/11\/2026,? 23:30/);
-    expect(html).toContain('Origem: Bot do Lumens');
-    expect(html).toContain('Origem: Curadoria');
-    expect(html).toContain('Só a curadoria vê');
-    expect(html).toContain('Aparece no site');
+    // O dia vem curto e no fuso de Maceió; a data e a hora completas ficam no título.
+    expect(html).toContain('>09 nov</time>');
+    expect(html).toContain('>Bot</span>');
+    expect(html).toContain('>Curadoria</span>');
+    // Só o evento interno leva o aviso de que o site não o mostra.
+    expect(html.match(/Só a curadoria vê/g)).toHaveLength(1);
   });
 
   it('não oferece nenhuma ação: sem formulário, botão ou campo', () => {
@@ -61,7 +63,6 @@ describe('tela da linha do tempo da pauta', () => {
 
   it('a pasta da tela não tem ação de servidor nem rota', () => {
     expect(readdirSync(import.meta.dirname).sort()).toEqual([
-      'linha.module.css',
       'linha.test.tsx',
       'linha.tsx',
       'page.tsx',
@@ -101,7 +102,7 @@ describe('rótulo e detalhe do evento', () => {
     [
       'status_alterado',
       { de: 'em_curadoria', para: 'recusada' },
-      'De “Esperando decisão da curadoria” para “Recusada”.',
+      'De “Esperando decisão” para “Recusada”.',
     ],
     ['meta_batida', { meta: 50, apoios: 52 }, '52 apoios, para uma meta de 50.'],
     ['caminho_aberto', { caminho_id: 'c1', tipo: 'falabr' }, 'Caminho: Fala.BR.'],
@@ -155,7 +156,7 @@ describe('eventos iguais seguidos (SCRUM-355)', () => {
     const html = tela([saida(), saida(), saida()]);
 
     expect(html).toContain('3 responsáveis saíram');
-    expect(html.match(/<li /g)).toHaveLength(1);
+    expect(html.match(/<li>/g)).toHaveLength(1);
   });
 
   it('uma saída sozinha mantém o rótulo de sempre', () => {

@@ -36,19 +36,19 @@ describe('início do painel de curadoria', () => {
     );
 
     expect(html).toContain('Painel de curadoria');
-    // Um número por cartão (SCRUM-358): o número em destaque e a unidade ao lado.
-    expect(html).toContain('<strong>3</strong> esperando decisão');
+    // Um número por indicador (SCRUM-358): o número em destaque e a unidade logo abaixo.
+    expect(html).toMatch(/indicadorNumero[^>]*>3<\/b><span[^>]*>esperando decisão/);
     expect(html).toContain('1 pauta atrasada no prazo de 24 h');
-    expect(html).toContain('<strong>2</strong> relatos em pautas publicadas');
-    expect(html).toContain('<strong>4</strong> pautas');
-    expect(html).toContain('<strong>5</strong> conferências');
+    expect(html).toMatch(/indicadorNumero[^>]*>2<\/b><span[^>]*>em pautas publicadas/);
+    expect(html).toMatch(/indicadorNumero[^>]*>4<\/b><span[^>]*>pautas</);
+    expect(html).toMatch(/indicadorNumero[^>]*>5<\/b><span[^>]*>conferências</);
     expect(html).toContain('href="/pautas?status=em_curadoria"');
     expect(html).toContain('href="/pautas?status=cobrando&amp;pendencia=sem_resposta_oficial"');
     expect(html).toContain('href="/pautas?status=todas&amp;pendencia=conferencia_aberta"');
     expect(html).toContain('href="/relatos"');
     expect(html).toContain('Início');
     expect(html).toContain('href="/pautas">Pautas</a>');
-    expect(html).toContain('Relatos em pautas publicadas');
+    expect(html).toContain('>Relatos</a>');
     expect(html).not.toContain('Você entrou como');
     expect(html).not.toContain('Pautas novas');
     expect(html).not.toContain('Todas as pautas');
@@ -60,7 +60,7 @@ describe('início do painel de curadoria', () => {
     const html = renderToStaticMarkup(
       <Inicio resumo={{ ...resumo, pautasAtrasadas: 0, relatosAModerar: 1 }} visao={visao} />,
     );
-    expect(html).toContain('<strong>1</strong> relato em pautas publicadas');
+    expect(html).toMatch(/indicadorNumero[^>]*>1<\/b><span[^>]*>em pautas publicadas/);
     expect(html).toContain('Nenhuma atrasada no prazo de 24 h');
   });
 
@@ -68,13 +68,15 @@ describe('início do painel de curadoria', () => {
     const html = renderToStaticMarkup(<Inicio resumo={resumo} visao={visao} />);
     expect(html).toContain('2 vencem nas próximas 6 h');
     expect(html).toContain('Pautas por status');
-    expect(html).toContain('href="/pautas?status=juntando_apoios">Juntando apoios</a>');
+    // A linha inteira é o link da etapa; só entram as etapas que têm pauta (a recusada, com 0, não).
+    expect(html).toContain('href="/pautas?status=juntando_apoios"');
+    expect(html).toContain('<span>Juntando apoios</span>');
+    expect(html).not.toContain('<span>Recusada</span>');
     expect(html).toMatch(/<strong class="[^"]*barrasNumero[^"]*">7<\/strong>/);
-    expect(html).toContain('Semana de 14 jan');
-    expect(html).toMatch(/<strong class="[^"]*barrasNumero[^"]*">12<\/strong>/);
-    expect(html).toContain('Semana de 07 jan');
-    expect(html).toContain('<strong>8,0 h</strong> em média');
-    expect(html).toContain('5 decisões nos últimos 30 dias');
+    expect(html).toContain('<small>14 jan</small>');
+    expect(html).toContain('<b>12</b>');
+    expect(html).toContain('<small>07 jan</small>');
+    expect(html).toContain('Tempo médio até a decisão: <b>8,0 h</b>');
   });
 
   it('não repete o aviso de prazo próximo quando não há e explica a falta de decisões', () => {
@@ -109,7 +111,11 @@ describe('início: indicadores na mesma pilha (E7)', () => {
     expect(indicadores).toHaveLength(4);
     for (const item of indicadores) {
       expect(item).not.toContain('cartao');
-      const posicoes = [item.indexOf('<h2>'), item.indexOf('<strong>'), item.indexOf('</strong>')];
+      const posicoes = [
+        item.indexOf('indicadorTitulo'),
+        item.indexOf('indicadorNumero'),
+        item.indexOf('indicadorUnidade'),
+      ];
       expect(posicoes.every((p) => p >= 0)).toBe(true);
       expect([...posicoes].sort((a, b) => a - b)).toEqual(posicoes);
     }

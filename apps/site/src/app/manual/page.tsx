@@ -35,10 +35,10 @@ export default function Manual() {
   const canal = nomeDoCanal();
   return (
     <main className={estilos.pagina}>
-      <h1 className={estilos.titulo}>Manual do Lumens</h1>
+      <h1 className={estilos.titulo}>Manual</h1>
       <p className={estilos.resumo}>
-        Tudo que pode gerar dúvida no site e no bot do {canal}, em poucas palavras. Toque no assunto
-        para ir direto a ele.
+        Como relatar, apoiar e cuidar de uma pauta, passo a passo, no site e no bot do {canal}.
+        Toque no assunto para ir direto a ele.
       </p>
 
       <nav aria-label="Assuntos do manual">
@@ -53,10 +53,10 @@ export default function Manual() {
 
       <Secao chave="fluxos">
         <p>
-          Escolha o que você quer fazer e ande pelos cards: cada um diz se o passo é no bot, no site
-          ou automático. Toque num card para ver os detalhes.
+          Escolha o que você quer fazer e siga os passos: cada um diz se acontece no bot, no site ou
+          sozinho. Toque em “Saiba mais” para ver os detalhes.
         </p>
-        <Fluxos fluxos={FLUXOS} rotulo="Passo a passo do Lumens" />
+        <Fluxos fluxos={FLUXOS} rotulo="Passo a passo do Lumens" rotuloDoBot={canal} />
       </Secao>
 
       <Secao chave="pauta">

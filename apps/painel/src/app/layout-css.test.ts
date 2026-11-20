@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // O CSS não roda no vitest (sem navegador): estas asserções travam as regras de que o layout
-// da curadoria depende (SCRUM-358). A conferência em 375/1280 px segue no roteiro manual.
+// da curadoria depende (SCRUM-358), no desenho do protótipo. A conferência em 375/1280 px segue
+// no roteiro manual.
 const css = readFileSync(join(__dirname, 'painel.module.css'), 'utf8');
 
 /** Corpo da primeira regra cujo seletor é exatamente `seletor`. */
@@ -17,30 +18,39 @@ ${seletor} {`);
 
 describe('layout do painel (SCRUM-358)', () => {
   it('aprovar e recusar a pauta dividem a mesma grade', () => {
-    expect(regra('.decisoes')).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(regra('.decisoes')).toContain('grid-template-columns: max-content max-content 1fr');
     expect(regra('.aprovacao')).toContain('display: contents');
   });
 
   it('a largura dos botões de decisão não alcança o "Confirmar recusa"', () => {
     expect(css).not.toMatch(/\.decisoes button/);
-    expect(css).toContain('.aprovacao > button');
+    expect(css).toContain('.aprovacao > .botao');
   });
 
   it('aprovar e recusar relato ficam lado a lado numa grade só', () => {
-    expect(regra('.acoesDoRelato')).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(regra('.acoesDoRelato')).toContain('grid-template-columns: max-content max-content 1fr');
+    expect(regra('.emGrade')).toContain('display: contents');
   });
 
-  it('a data de Curadores não quebra nem estoura a coluna', () => {
-    expect(regra('.curadorDesde')).toContain('white-space: nowrap');
-    expect(css).toContain('minmax(9rem, max-content)');
+  it('o texto longo de Curadores não estoura a linha', () => {
+    expect(regra('.curadorMeta')).toContain('overflow-wrap: anywhere');
   });
 
-  it('o respiro entre blocos não dobra depois dos filtros', () => {
-    expect(css).toContain(':not(.filtros, .filtros + *)');
+  it('o conteúdo segue o ritmo único das páginas e a largura do protótipo', () => {
+    const conteudo = regra('.conteudo');
+    expect(conteudo).toContain('var(--pagina-topo)');
+    expect(conteudo).toContain('min(100% - 32px, 1080px)');
   });
 
-  it('o link do rótulo das barras segue o padrão dos títulos: tinta e sublinhado só no hover (SCRUM-368)', () => {
-    expect(css).toMatch(/\.cartao h2 a,\s+\.barrasRotulo a \{/);
-    expect(css).toMatch(/\.cartao h2 a:hover,\s+\.barrasRotulo a:hover \{/);
+  it('as abas do cabeçalho sublinham em âmbar a seção aberta', () => {
+    expect(css).toContain('.navegacao a[aria-current]::after');
+    expect(regra('.navegacao a[aria-current]::after')).toContain('background: var(--luz)');
+  });
+
+  it('o link das barras de status é tinta, sem sublinhado; só o rótulo sublinha no hover', () => {
+    const base = regra('.barras a');
+    expect(base).toContain('color: var(--tinta)');
+    expect(base).toContain('text-decoration: none');
+    expect(css).toContain('.barras a:hover .barrasRotulo span');
   });
 });

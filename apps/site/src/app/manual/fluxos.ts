@@ -1,7 +1,7 @@
 import type { FluxoEmCards } from '@lumens/marca/fluxo';
 
 /**
- * Os fluxos do manual público em cards: o que a pessoa faz no bot e no site, na ordem em que
+ * Os fluxos do manual público: o que a pessoa faz no bot e no site, na ordem em que
  * acontece. Os números (24 h, 3 pessoas, 30 dias, 7 dias, 10 %) são os do sistema: prazo da
  * curadoria em `PRAZO_DE_CURADORIA_MS`, donos em `LIMITE_DE_OWNERS`, Fala.BR em `protocolo-falabr`,
  * conferência em `DIAS_DE_CONFERENCIA` e `QUORUM_MINIMO`. Se um mudar, mude aqui também.

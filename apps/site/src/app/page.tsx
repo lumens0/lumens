@@ -137,16 +137,16 @@ export default async function Home({
   ];
 
   return (
-    <main className={estilos.pagina}>
+    <main className={[estilos.pagina, estilos.comRodape].join(' ')}>
       <section className={[estilos.hero, estilosDoInicio.ceu, 'noite'].join(' ')}>
         <div className={estilos.heroTexto}>
-          <p className={estilos.sobretitulo}>Campus A. C. Simões, Maceió</p>
-          <h1 className={estilos.titulo}>
+          <p className={estilos.heroSobre}>Campus A. C. Simões, Maceió</p>
+          <h1 className={estilos.heroTitulo}>
             O que os estudantes da UFAL estão <em className={estilos.destaque}>pedindo</em>
           </h1>
-          <p className={estilos.subtitulo}>
-            Cada pauta nasce de um relato no {nomeDoCanal()}, junta apoios de quem estuda aqui e é
-            cobrada até a universidade responder. Tudo fica público, sem login.
+          <p className={estilos.heroSub}>
+            As pautas nascem no {nomeDoCanal()}, juntam apoios e são cobradas até a universidade
+            responder.
           </p>
           <div className={estilos.heroAcoes}>
             {/* O "Relatar um problema" já está no cabeçalho, em todas as páginas; repetir aqui só

@@ -1,25 +1,26 @@
+/* Topo de todas as páginas, como no protótipo: marca, "Relatar um problema" e as abas (na linha de
+   baixo no celular; no meio da linha a partir de 900 px). Fica fixo no topo ao rolar. */
 .cabecalho {
   --tinta: #f5f3ff;
   --tinta-2: #c9cbe3;
-  --superficie-2: rgb(255 255 255 / 8%);
 
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgb(20 25 54 / 92%);
-  backdrop-filter: saturate(1.4) blur(12px);
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  background: var(--noite);
   color: var(--tinta);
 }
 
 .faixa {
-  max-width: 1120px;
+  max-width: calc(1080px + 2 * max(16px, env(safe-area-inset-left, 0px)));
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 0
+    max(16px, env(safe-area-inset-left, 0px));
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 32px;
-  min-height: 64px;
+  justify-content: space-between;
+  gap: 6px 12px;
 }
 
 .marca {
@@ -28,87 +29,89 @@
   gap: 10px;
   min-height: 44px;
   font:
-    700 21px var(--fonte-titulo),
+    700 20px var(--fonte-titulo),
     sans-serif;
-  letter-spacing: -0.02em;
   color: var(--tinta);
   text-decoration: none;
 }
 
-/*
- * O logo. O arquivo traz o brilho em volta do círculo, então a imagem é maior que o desenho e a
- * margem negativa devolve o espaço: o círculo fica com uns 24 px e o brilho vaza para os lados.
- */
+/* O logo do protótipo: círculo roxo com a luz âmbar no centro e o anel claro em volta. */
 .logo {
   display: block;
-  width: 44px;
-  height: 44px;
-  margin: -10px -6px -10px -10px;
-}
-
-.abas {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.aba {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 14.5px;
-  color: var(--tinta-2);
-  text-decoration: none;
-  white-space: nowrap;
-  transition:
-    color var(--rapido) var(--curva),
-    background-color var(--rapido) var(--curva);
-}
-
-.aba:hover {
-  color: var(--tinta);
-  background: var(--superficie-2);
-}
-
-.aba[aria-current='page'] {
-  color: var(--tinta);
-  background: var(--superficie-2);
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--luz) 0 20%, transparent 23%),
+    radial-gradient(circle, #5a3bc4 0 60%, #2a2170 100%);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 14%);
 }
 
 .acao {
   flex: 0 0 auto;
 }
 
-@media (max-width: 720px) {
-  .faixa {
-    flex-wrap: wrap;
-    gap: 0 12px;
-    padding: 8px 16px 4px;
-    justify-content: space-between;
-  }
-
-  .abas {
-    order: 3;
-    flex-basis: 100%;
-    margin: 4px -8px 0;
-  }
+.abas {
+  order: 3;
+  flex: 1 0 100%;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-inline: calc(max(16px, env(safe-area-inset-left, 0px)) * -1)
+    calc(max(16px, env(safe-area-inset-right, 0px)) * -1);
+  padding-inline: max(16px, env(safe-area-inset-left, 0px))
+    max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
 }
 
-/* Celular estreito: as cinco abas cabem em 375 px sem rolar de lado (antes o "Manual" ficava cortado). */
-@media (max-width: 480px) {
-  .abas {
-    gap: 0;
+.abas::-webkit-scrollbar {
+  display: none;
+}
+
+.aba {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 11px 12px;
+  border-radius: 10px 10px 0 0;
+  font-weight: 500;
+  color: var(--tinta-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.aba[aria-current='page'] {
+  color: #fff;
+  font-weight: 700;
+  background: rgb(255 255 255 / 7%);
+}
+
+.aba[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--luz);
+}
+
+@media (min-width: 900px) {
+  .faixa {
+    flex-wrap: nowrap;
   }
 
-  .aba {
-    padding: 0 9px;
-    font-size: 14px;
+  .abas {
+    order: 0;
+    flex: 1;
+    margin: 0 0 0 28px;
+    padding: 0;
+    border: 0;
+    justify-content: center;
   }
 }

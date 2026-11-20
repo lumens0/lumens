@@ -4,17 +4,18 @@
  * noite (azul profundo) e o conteúdo é papel claro. A luz é âmbar.
  */
 :root {
-  --fundo: #f3f5fa;
+  --fundo: #faf7f0;
   --superficie: #ffffff;
-  --superficie-2: #e6eaf4;
+  --superficie-2: #f1ece1;
   --tinta: #161a2e;
   --tinta-2: #44485e;
   --tinta-3: #5f6378;
-  --borda: rgb(20 25 54 / 10%);
-  --borda-forte: rgb(20 25 54 / 20%);
+  --borda: rgb(22 26 46 / 12%);
+  --borda-forte: rgb(22 26 46 / 22%);
 
   --noite: #141936;
   --noite-2: #1d2450;
+  --noite-3: #262f66;
 
   /* A luz: o âmbar do botão principal e do destaque, e a versão escura para texto e links. */
   --luz: #ffc23d;

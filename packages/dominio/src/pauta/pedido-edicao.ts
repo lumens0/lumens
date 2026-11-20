@@ -11,6 +11,7 @@
  */
 import {
   and,
+  blocos,
   eq,
   estudantes,
   isNull,
@@ -19,6 +20,7 @@ import {
   pedidosEdicao,
   sql,
   type Db,
+  type StatusPauta,
   type Tx,
 } from '@lumens/db';
 import { enfileirarDisparos } from '../avisos/fila';
@@ -139,6 +141,9 @@ export interface PedidoDeEdicao {
 
 export interface PedidoDeEdicaoNaFila extends PedidoDeEdicao {
   pautaTitulo: string;
+  /** Bloco e etapa da pauta, para o cabeçalho do grupo na fila. */
+  pautaBloco: string | null;
+  pautaStatus: StatusPauta;
 }
 
 const comAchados = <T extends { depois: string }>(linhas: T[]) =>
@@ -168,9 +173,15 @@ export async function pedidosPendentesDaPauta(db: Db, pautaId: string): Promise<
 export async function listarPedidosDeEdicaoPendentes(db: Db): Promise<PedidoDeEdicaoNaFila[]> {
   return comAchados(
     await db
-      .select({ ...colunas, pautaTitulo: pautas.titulo })
+      .select({
+        ...colunas,
+        pautaTitulo: pautas.titulo,
+        pautaBloco: blocos.nome,
+        pautaStatus: pautas.status,
+      })
       .from(pedidosEdicao)
       .innerJoin(pautas, eq(pautas.id, pedidosEdicao.pautaId))
+      .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
       .where(eq(pedidosEdicao.status, 'pendente'))
       .orderBy(pedidosEdicao.criadoEm, pedidosEdicao.id),
   );

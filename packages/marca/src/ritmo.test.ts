@@ -31,11 +31,12 @@ describe('ritmo das páginas', () => {
   });
 
   it('as faixas de noite sobem exatamente o topo da página, sem número solto', () => {
-    for (const arquivo of [
-      'apps/site/src/app/page.module.css',
-      'apps/site/src/componentes/pauta/pauta.module.css',
-    ]) {
+    for (const arquivo of ['apps/site/src/app/page.module.css']) {
       expect(ler(arquivo)).toContain('margin: calc(-1 * var(--pagina-topo))');
     }
+    // A pauta (como no protótipo) começa a faixa de noite no topo e afasta só o "Voltar".
+    expect(ler('apps/site/src/componentes/pauta/pauta.module.css')).toContain(
+      'margin: calc(var(--pagina-topo) - 12px)',
+    );
   });
 });

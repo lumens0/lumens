@@ -321,6 +321,12 @@ describe('buscarPautaDaCuradoria', () => {
     expect(filtradas.map((p) => p.id)).toEqual([nova.id]);
     expect(filtradas[0]).toMatchObject({ apoios: 0, meta: 300 });
   });
+
+  it('a busca por "curadoria" ainda acha as pautas esperando decisão', async () => {
+    const nova = await criarPauta(db, { status: 'em_curadoria', titulo: 'Pauta nova da fila' });
+    const achadas = await listarPautasDaCuradoria(db, new Date(), { q: 'curadoria' });
+    expect(achadas.map((p) => p.id)).toContain(nova.id);
+  });
 });
 
 describe('resumoDaCuradoria', () => {

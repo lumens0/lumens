@@ -1,10 +1,21 @@
 import type { ResultadoCurador } from '@lumens/dominio';
 import { UUID } from '../pautas/[id]/decisoes';
 
+export type PapelDeCurador = 'curador' | 'administrador';
+
+/** O papel vem de um campo do formulário: qualquer valor que não seja "administrador" é curador. */
+export const papelDoFormulario = (valor: string): PapelDeCurador =>
+  valor === 'administrador' ? 'administrador' : 'curador';
+
 export interface DependenciasDeGestao {
   /** Curador da sessão, conferido no banco (papel incluído). Sem ele nada é gravado. */
   curador: () => Promise<{ id: string; papel: 'curador' | 'administrador' } | undefined>;
-  adicionar: (autorId: string, email: string, nome: string) => Promise<ResultadoCurador>;
+  adicionar: (
+    autorId: string,
+    email: string,
+    nome: string,
+    papel: PapelDeCurador,
+  ) => Promise<ResultadoCurador>;
   desativar: (autorId: string, alvoId: string) => Promise<ResultadoCurador>;
   reativar: (autorId: string, alvoId: string) => Promise<ResultadoCurador>;
 }
@@ -32,12 +43,12 @@ export function criarGestao({ curador, adicionar, desativar, reativar }: Depende
   }
 
   return {
-    async adicionar(email: string, nome: string): Promise<string> {
+    async adicionar(email: string, nome: string, papel: string = 'curador'): Promise<string> {
       const quem = await curador();
       if (!quem) return '/login';
       if (quem.papel !== 'administrador') return '/';
 
-      const resultado = await adicionar(quem.id, email, nome);
+      const resultado = await adicionar(quem.id, email, nome, papelDoFormulario(papel));
       return resultado.feito
         ? '/curadores?feito=adicionado'
         : `/curadores?erro=${resultado.motivo}`;

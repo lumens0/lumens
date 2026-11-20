@@ -39,10 +39,11 @@ describe('etapasDoFio', () => {
     expect(fio[3]?.cor).toBe('#d0443b');
   });
 
-  it('entregue em parte usa a cor do seu status na 4.ª janela, acesa', () => {
+  it('todas as janelas usam a cor do status da pauta, e a atual leva o rótulo do status', () => {
     const fio = etapasDoFio('entregue_em_parte');
     expect(fio[3]?.estado).toBe('atual');
-    expect(fio[3]?.cor).toBe('#a98216');
+    expect(new Set(fio.map((j) => j.cor))).toEqual(new Set(['#a98216']));
+    expect(fio[3]?.rotulo).toBe('Entregue em parte');
   });
 });
 
@@ -51,9 +52,11 @@ describe('FioDeEtapas', () => {
     const html = renderToStaticMarkup(<FioDeEtapas status="cobrando" />);
     expect(html).toContain('<ol');
     expect(html).toContain('aria-label="Etapas da pauta"');
-    for (const nome of ['Apoios', 'Meta', 'Cobrança', 'Promessa', 'Conquista']) {
+    // A etapa atual leva o rótulo do status; as outras, o nome da etapa.
+    for (const nome of ['Apoios', 'Meta', 'Cobrando', 'Promessa', 'Conquista']) {
       expect(html).toContain(nome);
     }
+    expect(html).toContain('style="--cor:#c05b12;--f:0.5"');
     expect(html.match(/aria-current="step"/g)).toHaveLength(1);
     expect(html).toContain('etapa atual');
     expect(html).toContain('etapa que ainda não chegou');

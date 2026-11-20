@@ -1,48 +1,58 @@
-import { COR_DO_STATUS } from '@lumens/marca';
+import type { CSSProperties } from 'react';
 import type { PautaDaCuradoria } from '@lumens/dominio';
 import estilos from '../painel.module.css';
-import { textoDoPrazo } from '../prazo';
-import { STATUS } from './status';
+import { COR_NO_PAINEL, STATUS } from './status';
 
-/** Situação da pauta com a mesma cor de etapa do site; o rótulo vem sempre junto da cor. */
-export function SeloDeStatus({ status }: { status: PautaDaCuradoria['status'] }) {
+const HORA_MS = 3_600_000;
+
+/** Situação do prazo de 24 h da curadoria, em horas: sobram mais de 6, sobram até 6 ou já passou. */
+export function situacaoDoPrazo(restanteMs: number) {
+  if (restanteMs <= 0) return 'atrasada' as const;
+  return restanteMs > 6 * HORA_MS ? ('no_prazo' as const) : ('vence_em_breve' as const);
+}
+
+/** "vence em 5 h" ou "atrasada há 3 h" (horas cheias; menos de uma hora também aparece). */
+export function textoDoSelo(restanteMs: number): string {
+  if (restanteMs > 0) {
+    const horas = Math.ceil(restanteMs / HORA_MS);
+    return `vence em ${String(horas)} h`;
+  }
+  const horas = Math.floor(-restanteMs / HORA_MS);
+  return horas === 0 ? 'atrasada há menos de 1 h' : `atrasada há ${String(horas)} h`;
+}
+
+const CLASSE = {
+  no_prazo: '',
+  vence_em_breve: estilos.prazoHoje,
+  atrasada: estilos.prazoAtrasado,
+};
+
+/** O selo de prazo da lista e da pauta. A cor nunca é o único sinal: o texto diz o quanto falta. */
+export function SeloDePrazo({ restanteMs }: { prazo?: Date; restanteMs: number }) {
   return (
-    <span className={estilos.selo}>
+    <span className={[estilos.selo, CLASSE[situacaoDoPrazo(restanteMs)]].join(' ').trim()}>
+      {textoDoSelo(restanteMs)}
+    </span>
+  );
+}
+
+/** A etapa da pauta: a janela na cor da etapa e o nome em letras maiúsculas, com "Urgente" ao lado. */
+export function EtapaDaPauta({
+  status,
+  urgente = false,
+}: {
+  status: PautaDaCuradoria['status'];
+  urgente?: boolean;
+}) {
+  return (
+    <p className={estilos.etapa}>
       <i
-        className={estilos.janela}
-        style={{ background: COR_DO_STATUS[status] }}
+        className={[estilos.glifo, status === 'descumprida' ? estilos.glifoVazado : ''].join(' ')}
+        style={{ '--c': COR_NO_PAINEL[status] } as CSSProperties}
         aria-hidden="true"
       />
       {STATUS[status]}
-    </span>
+      {urgente && <em>Urgente</em>}
+    </p>
   );
-}
-
-const DIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Maceio' });
-
-/** Situação do prazo de 24 h da curadoria: no prazo, vence hoje (no dia de Maceió) ou atrasada. */
-export function situacaoDoPrazo(prazo: Date, restanteMs: number) {
-  if (restanteMs < 0) return 'atrasada' as const;
-  const agora = new Date(prazo.getTime() - restanteMs);
-  return DIA.format(prazo) === DIA.format(agora) ? ('vence_hoje' as const) : ('no_prazo' as const);
-}
-
-const PRAZO = {
-  no_prazo: { rotulo: 'No prazo', classe: estilos.prazoOk },
-  vence_hoje: { rotulo: 'Vence hoje', classe: estilos.prazoHoje },
-  atrasada: { rotulo: 'Atrasada', classe: estilos.prazoAtrasado },
-};
-
-export function SeloDePrazo({ prazo, restanteMs }: { prazo: Date; restanteMs: number }) {
-  const { rotulo, classe } = PRAZO[situacaoDoPrazo(prazo, restanteMs)];
-  const detalhe = textoDoPrazo(restanteMs);
-  return (
-    <span className={[estilos.selo, classe].join(' ')}>
-      {rotulo} · {restanteMs < 0 ? detalhe.replace('atrasada ', '') : detalhe}
-    </span>
-  );
-}
-
-export function SeloUrgente() {
-  return <span className={[estilos.selo, estilos.seloUrgente].join(' ')}>Urgente</span>;
 }

@@ -1,7 +1,8 @@
 import type { Evento, PautaDetalhe } from '@lumens/contratos';
 import { caminhoRespondido } from './Caminhos';
 import { formatarData } from './LinhaDoTempo';
-import { diasAte, formatarDia, prazoVencido, textoDiasAte, textoDoPrazo } from './prazos';
+import { formatarNumero } from '../BarraApoios';
+import { diaEMes, diasAte, formatarDia, prazoVencido, textoDiasAte, textoDoPrazo } from './prazos';
 import estilos from './pauta.module.css';
 
 // A resposta e a promessa chegam pela linha do tempo pública: o contrato não tem campos próprios
@@ -50,11 +51,6 @@ function ultimoFalabr(pauta: PautaDetalhe) {
   return pauta.caminhos.findLast((c) => c.tipo === 'falabr');
 }
 
-/** Prazo do Fala.BR aberto mais recentemente, como na `proxima_etapa` da view. */
-function prazoFalabr(pauta: PautaDetalhe): string | undefined {
-  return ultimoFalabr(pauta)?.prazo ?? undefined;
-}
-
 /** O Fala.BR mais recente consta como respondido: vale mesmo sem o evento de resposta. */
 function falabrRespondido(pauta: PautaDetalhe): boolean {
   const falabr = ultimoFalabr(pauta);
@@ -73,6 +69,16 @@ function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
     resposta !== undefined && (!abertoEm || Date.parse(resposta.criado_em) >= Date.parse(abertoEm))
   );
 }
+
+/** Título da próxima etapa por status, como no protótipo. */
+const TITULO_DA_ETAPA: Partial<Record<string, string>> = {
+  juntando_apoios: 'Bater a meta',
+  meta_batida: 'A curadoria escolhe o caminho',
+  cobrando: 'Resposta oficial',
+  prometido: 'Cumprimento da promessa',
+  entregue_em_parte: 'Nova conferência',
+  descumprida: 'Promessa vencida',
+};
 
 /** O que acontece agora com a pauta e quando. Pauta conquistada não tem próxima etapa. */
 export function ProximaEtapa({
@@ -94,23 +100,43 @@ export function ProximaEtapa({
       : undefined;
   const conferenciaVencida =
     conferenciaAte !== undefined && Date.parse(conferenciaAte) < agora.getTime();
+  const juntando = pauta.status === 'juntando_apoios';
+  const faltam = Math.max(0, pauta.meta - pauta.apoios);
+  const textoDaEtapa = juntando
+    ? `Faltam ${formatarNumero(faltam)}. Ao bater a meta, a pauta segue para a cobrança.`
+    : (pauta.proxima_etapa ?? 'A definir.');
+  const dias = prazo === undefined ? null : diasAte(prazo, agora);
+  const vencido = prazo !== undefined && prazoVencido(prazo, agora);
   return (
-    <section className={estilos.proxima} aria-labelledby="proxima-titulo">
-      <h2 id="proxima-titulo" className={estilos.proximaTitulo}>
+    <section
+      className={[estilos.secao, estilos.proxima].join(' ')}
+      aria-labelledby="proxima-titulo"
+    >
+      <p id="proxima-titulo" className={estilos.rotuloDaSecao}>
         Próxima etapa
-      </h2>
-      <p className={estilos.texto}>{pauta.proxima_etapa ?? 'A definir.'}</p>
-      {prazo && diasAte(prazo, agora) !== null && (
+      </p>
+      <h2 className={estilos.secaoTitulo}>{TITULO_DA_ETAPA[pauta.status] ?? 'A definir'}</h2>
+      {juntando && (
         <p className={estilos.dataGrande}>
-          <time dateTime={prazo}>{formatarDia(prazo)}</time>
-          <span className={prazoVencido(prazo, agora) ? estilos.vencidoTexto : estilos.diasAte}>
-            {textoDiasAte(diasAte(prazo, agora) ?? 0)}
-          </span>
+          <b>
+            {formatarNumero(pauta.apoios)} de {formatarNumero(pauta.meta)}
+          </b>{' '}
+          apoios
         </p>
       )}
+      {prazo && dias !== null && (
+        <p className={estilos.dataGrande}>
+          <b className={vencido ? estilos.ruim : undefined}>
+            <time dateTime={prazo}>{diaEMes(prazo)}</time>
+          </b>
+          {' · '}
+          <span>{textoDiasAte(dias)}</span>
+        </p>
+      )}
+      <p className={estilos.texto}>{textoDaEtapa}</p>
       {prazo && !pauta.proxima_etapa?.includes(formatarDia(prazo)) && (
-        <p className={prazoVencido(prazo, agora) ? estilos.vencido : estilos.vazio}>
-          {prazoVencido(prazo, agora)
+        <p className={vencido ? estilos.vencido : estilos.vazio}>
+          {vencido
             ? `Prazo de resposta do Fala.BR ${textoDoPrazo(prazo, agora, true)}`
             : `Prazo de resposta do Fala.BR: ${formatarDia(prazo)}`}
         </p>
@@ -153,7 +179,8 @@ export function RespostaOficial({
   const conquistada = pauta.status === 'conquistada';
   // Conquistada sem resposta registrada: nada de "aguardando"; a solução entregue aparece à parte.
   if (!recebida && !respondidoNoFalabr && conquistada) return null;
-  const prazo = prazoFalabr(pauta);
+  // Sem resposta, a seção some: a "Próxima etapa" já diz o que se espera e quando.
+  if (!recebida && !respondidoNoFalabr) return null;
   const entrega = texto(remarcacao, 'data_nova') ?? texto(promessa, 'data_entrega');
   // Promessa cumprida (pauta conquistada) não é promessa vencida.
   const entregaVencida = entrega !== undefined && !conquistada && prazoVencido(entrega, agora);
@@ -161,49 +188,36 @@ export function RespostaOficial({
   const fonte = texto(promessa, 'fonte') ?? texto(resposta, 'fonte');
   const falabr = ultimoFalabr(pauta);
   return (
-    <section
-      className={
-        recebida || respondidoNoFalabr ? [estilos.secao, estilos.resposta].join(' ') : estilos.secao
-      }
-      aria-labelledby="resposta-titulo"
-    >
+    <section className={estilos.secao} aria-labelledby="resposta-titulo">
       <h2 id="resposta-titulo" className={estilos.secaoTitulo}>
         Resposta oficial
       </h2>
-      {!recebida && !respondidoNoFalabr && (
-        <p className={estilos.texto}>
-          Aguardando resposta
-          {prazo
-            ? prazoVencido(prazo, agora)
-              ? `. Prazo ${textoDoPrazo(prazo, agora, true)}.`
-              : `. Prazo: ${formatarDia(prazo)}.`
-            : ', ainda sem prazo definido.'}
-        </p>
-      )}
-      {!recebida && respondidoNoFalabr && (
-        <p className={estilos.texto}>
-          O Fala.BR já foi respondido
-          {falabr?.protocolo ? ` (protocolo ${falabr.protocolo})` : ''}.
-        </p>
-      )}
-      {recebida && (
-        <p className={estilos.texto}>
-          Recebida em <time dateTime={recebida.criado_em}>{formatarData(recebida.criado_em)}</time>
-        </p>
-      )}
-      {resumo && <p className={estilos.texto}>{resumo}</p>}
-      {entrega && (
-        <p className={estilos.texto}>
-          <strong>Promessa{remarcacao ? ' remarcada' : ''}:</strong>{' '}
-          {entregaVencida ? (
-            <span className={estilos.vencidoTexto}>
-              entrega prometida {textoDoPrazo(entrega, agora, true)}
-            </span>
+      <blockquote className={estilos.resposta}>
+        {resumo ??
+          (recebida ? (
+            <>
+              Resposta recebida em{' '}
+              <time dateTime={recebida.criado_em}>{formatarData(recebida.criado_em)}</time>.
+            </>
           ) : (
-            `entrega até ${formatarDia(entrega)}`
-          )}
-        </p>
-      )}
+            <>
+              O Fala.BR já foi respondido
+              {falabr?.protocolo ? ` (protocolo ${falabr.protocolo})` : ''}.
+            </>
+          ))}
+        {entrega && (
+          <footer>
+            Promessa {remarcacao ? 'remarcada' : 'registrada'}:{' '}
+            {entregaVencida ? (
+              <span className={estilos.vencidoTexto}>
+                entrega prometida {textoDoPrazo(entrega, agora, true)}
+              </span>
+            ) : (
+              `entrega até ${formatarDia(entrega)}`
+            )}
+          </footer>
+        )}
+      </blockquote>
       {fonte && <Fonte fonte={fonte} />}
     </section>
   );

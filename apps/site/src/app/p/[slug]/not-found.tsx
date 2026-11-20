@@ -1,21 +1,21 @@
 import Link from 'next/link';
-import estilos from '../../../componentes/componentes.module.css';
-import pagina from '../../../componentes/pauta/pauta.module.css';
+import estilos from '../../paginas.module.css';
 
 /** Pauta que não existe ou não está no site: a mesma mensagem, sem revelar qual dos dois. */
 export default function PautaNaoEncontrada() {
   return (
-    <main className={pagina.pagina}>
-      <div role="status" className={estilos.estado}>
-        <h1 className={estilos.estadoTitulo} style={{ margin: '0 0 8px' }}>
-          Não encontramos essa pauta.
-        </h1>
-        <p>O endereço pode estar errado, ou a pauta ainda não está pública.</p>
-        <div className={estilos.acoes}>
-          <Link href="/pautas" className={estilos.botao}>
-            Ver todas as pautas
-          </Link>
-        </div>
+    <main className={[estilos.pagina, estilos.nao].join(' ')}>
+      <div role="status">
+        <p className={estilos.numeroVazado} aria-hidden="true">
+          404
+        </p>
+        <h1 className={estilos.titulo}>Essa página não está acesa.</h1>
+        <p className={estilos.intro}>
+          A pauta pode ter sido recusada ou o endereço pode estar errado.
+        </p>
+        <Link href="/pautas" className={estilos.botao}>
+          Voltar para as pautas
+        </Link>
       </div>
     </main>
   );

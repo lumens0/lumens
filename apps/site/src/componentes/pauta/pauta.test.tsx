@@ -9,7 +9,6 @@ import { fixture } from '../../dados/pauta-detalhe-teste';
 import { altDaFoto, urlFoto } from './foto';
 import { LinhaDoTempo, rotuloDoPapel } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
-import { PlacarDeApoios } from './CabecalhoPauta';
 import { STATUS } from '../StatusPill';
 
 const CAMINHO: Caminho = {
@@ -189,13 +188,14 @@ describe('página da pauta: seções', () => {
     expect(alt.endsWith('…')).toBe(true);
   });
 
-  it('linha do tempo preserva a ordem da API, com rótulo e data em Maceió', () => {
+  it('linha do tempo vai do mais recente ao mais antigo, com rótulo e data em Maceió', () => {
     const html = renderToStaticMarkup(<LinhaDoTempo eventos={fixture.linha_do_tempo} />);
-    expect(html.indexOf('Pauta aprovada')).toBeLessThan(html.indexOf('Meta de apoios batida'));
+    // O mais recente em cima, como no protótipo; a API manda do mais antigo para o mais novo.
+    expect(html.indexOf('Meta de apoios batida')).toBeLessThan(html.indexOf('Pauta aprovada'));
+    expect(html).toContain('Do mais recente para o mais antigo.');
     expect(html).toContain('dateTime="2026-02-08T12:00:00.000Z"');
-    // 12:00 UTC = 09:00 em Maceió (UTC-3).
-    expect(html).toContain('08/02/2026');
-    expect(html).toContain('09:00');
+    // Só o dia e o mês, no fuso de Maceió.
+    expect(html).toContain('>8 fev</time>');
   });
 
   it('entrada e saída de responsável aparecem pelo papel, sem "owner" (SCRUM-345)', () => {
@@ -296,11 +296,11 @@ describe('página da pauta: seções', () => {
       />,
     );
     expect(html).toContain('Fala.BR');
-    expect(html).toMatch(/<strong class="[^"]*">Em andamento<\/strong>/);
+    expect(html).toMatch(/<span class="[^"]*">Em andamento<\/span>/);
     expect(html).toContain('Protocolo 2026-123');
     expect(html).toContain('Prazo de resposta: 10/03/2026');
     expect(html).toContain('Proposta da comunidade');
-    expect(html).toMatch(/<strong class="[^"]*">Juntando voluntários<\/strong>/);
+    expect(html).toMatch(/<span class="[^"]*">Juntando voluntários<\/span>/);
     expect(html).toContain('4 de 10 voluntários');
     // Só a proposta aberta pede voluntário.
     expect(html.match(/\?text=ajudar%20faixa/g)).toHaveLength(1);
@@ -312,7 +312,7 @@ describe('página da pauta: seções', () => {
       renderToStaticMarkup(
         <Caminhos caminhos={[{ ...CAMINHO, status: 'aguardando_reuniao' }]} slug="x" />,
       ),
-    ).toMatch(/<strong class="[^"]*">aguardando reuniao<\/strong>/);
+    ).toMatch(/<span class="[^"]*">aguardando reuniao<\/span>/);
   });
 
   it('tem um "Voltar" que, sem histórico, leva para a lista de pautas', () => {
@@ -320,10 +320,10 @@ describe('página da pauta: seções', () => {
     expect(html).toMatch(/<a[^>]*href="\/pautas"[^>]*>.*Voltar<\/a>/);
   });
 
-  it('sem caminhos, explica que quem cuida da pauta ainda vai escolher', () => {
+  it('sem caminhos, explica que ele abre depois da meta e da escolha da curadoria', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, caminhos: [] }} />);
     expect(html).toContain('Caminhos</h2>');
-    expect(html).toContain('Quem cuida da pauta ainda vai escolher os caminhos');
+    expect(html).toContain('Ainda não há caminho aberto.');
   });
 
   it('próxima etapa mostra o texto da API e o prazo do Fala.BR', () => {
@@ -333,7 +333,8 @@ describe('página da pauta: seções', () => {
       caminhos: [{ ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' }],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={AGORA} />);
-    expect(html).toContain('Próxima etapa</h2>');
+    expect(html).toContain('Próxima etapa</p>');
+    expect(html).toContain('Resposta oficial</h2>');
     expect(html).toContain('Aguardando resposta');
     expect(html).toContain('Prazo de resposta do Fala.BR: 10/03/2026');
   });
@@ -370,9 +371,8 @@ describe('página da pauta: seções', () => {
     expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={AGORA} />)).not.toContain(
       '10/03/2026',
     );
-    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />)).toContain(
-      'Aguardando resposta, ainda sem prazo definido.',
-    );
+    // Sem resposta, a seção não aparece: a próxima etapa já diz o que se espera.
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />)).toBe('');
   });
 
   it('com resposta oficial depois do Fala.BR, a próxima etapa não mostra o prazo', () => {
@@ -388,17 +388,16 @@ describe('página da pauta: seções', () => {
     expect(html).not.toContain('Prazo de resposta do Fala.BR');
   });
 
-  it('sem resposta, mostra "aguardando resposta" com o prazo', () => {
+  it('sem resposta, a seção "Resposta oficial" não aparece e a próxima etapa mostra o prazo', () => {
     const pauta = {
       ...fixture,
       caminhos: [{ ...CAMINHO, tipo: 'falabr' as const, prazo: '2026-03-10' }],
     };
-    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />)).toContain(
-      'Aguardando resposta. Prazo: 10/03/2026.',
-    );
-    expect(renderToStaticMarkup(<RespostaOficial pauta={fixture} agora={AGORA} />)).toContain(
-      'Aguardando resposta, ainda sem prazo definido.',
-    );
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />)).toBe('');
+    expect(renderToStaticMarkup(<RespostaOficial pauta={fixture} agora={AGORA} />)).toBe('');
+    const proxima = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={AGORA} />);
+    expect(proxima).toContain('>10 mar</time>');
+    expect(proxima).toContain('Prazo de resposta do Fala.BR: 10/03/2026');
   });
 
   it('resposta com promessa mostra data, data prometida, resumo e fonte com link', () => {
@@ -419,11 +418,22 @@ describe('página da pauta: seções', () => {
     };
     const html = renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />);
     expect(html).not.toContain('Aguardando');
-    expect(html).toContain('Recebida em');
-    expect(html).toContain('01/03/2026');
-    expect(html).toContain('entrega até 30/05/2026');
+    expect(html).toContain('Promessa registrada: entrega até 30/05/2026');
+    expect(html).toContain('<blockquote');
     expect(html).toContain('A prefeitura troca as luminárias até maio.');
     expect(html).toContain('href="https://ufal.br/noticia"');
+  });
+
+  it('sem resumo, a resposta diz quando foi recebida', () => {
+    const pauta = {
+      ...fixture,
+      linha_do_tempo: [
+        { tipo: 'resposta_oficial_recebida', dados: {}, criado_em: '2026-03-01T15:00:00.000Z' },
+      ],
+    };
+    const html = renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={AGORA} />);
+    expect(html).toContain('Resposta recebida em');
+    expect(html).toContain('01/03/2026');
   });
 
   it('mostra prazo prorrogado e data prometida remarcada na página', () => {
@@ -583,28 +593,29 @@ describe('página da pauta: seções', () => {
 });
 
 describe('placar de apoios (SCRUM-349)', () => {
+  const topo = (pauta: PautaDetalhe) => renderToStaticMarkup(<CabecalhoPauta pauta={pauta} />);
+
+  it('o número grande e a meta ficam no topo, como no protótipo', () => {
+    const html = topo({ ...fixture, apoios: 84, meta: 80 });
+    expect(html).toMatch(/<p class="[^"]*numero[^"]*"><span>84<\/span><\/p>/);
+    expect(html).toContain('apoios · meta de 80');
+  });
+
   it.each(
     Object.keys(STATUS).filter(
       (s) => s !== 'em_curadoria' && s !== 'recusada',
     ) as PautaDetalhe['status'][],
-  )('a barra de %s tem a cor do status e fica preenchida', (status) => {
-    const html = renderToStaticMarkup(<PlacarDeApoios pauta={{ ...fixture, status }} />);
-    // A mesma cor que o card da lista passa à barra, no preenchimento.
-    // A cor vai pela variável `--cor`, e o degradê é o mesmo das barras do dashboard.
+  )('a faixa de %s leva a cor do status', (status) => {
+    const html = renderToStaticMarkup(<ConteudoPauta pauta={{ ...fixture, status }} />);
     expect(html).toContain(`--cor:${STATUS[status].ponto}`);
-    expect(html).toContain('width:100%');
   });
 
   it('proporcional aos apoios e cheia (sem passar do trilho) acima da meta', () => {
-    const meio = renderToStaticMarkup(
-      <PlacarDeApoios pauta={{ ...fixture, apoios: 40, meta: 80 }} />,
-    );
-    expect(meio).toContain('width:50%');
+    const meio = topo({ ...fixture, apoios: 40, meta: 80 });
+    expect(meio).toContain('--p:50%');
     expect(meio).toContain('aria-valuenow="50"');
-    const acima = renderToStaticMarkup(
-      <PlacarDeApoios pauta={{ ...fixture, apoios: 84, meta: 80 }} />,
-    );
-    expect(acima).toContain('width:100%');
+    const acima = topo({ ...fixture, apoios: 84, meta: 80 });
+    expect(acima).toContain('--p:100%');
     expect(acima).toContain('aria-valuenow="100"');
     expect(acima).toContain('aria-valuetext="84 de 80 apoios"');
   });
@@ -632,11 +643,12 @@ describe('linha do tempo: mudança de status (SCRUM-353)', () => {
       status('meta_batida', 'cobrando', '2026-03-02T12:00:00.000Z'),
       status('cobrando', 'prometido', '2026-03-03T12:00:00.000Z'),
     ]);
-    const linhas = [...html.matchAll(/<p class="[^"]*">(De [^<]*)<\/p>/g)].map((m) => m[1]);
+    const linhas = [...html.matchAll(/<strong>(De [^<]*)<\/strong>/g)].map((m) => m[1]);
+    // Do mais recente para o mais antigo.
     expect(linhas).toEqual([
-      'De Juntando apoios para Meta batida',
-      'De Meta batida para Cobrando',
       'De Cobrando para Prometido',
+      'De Meta batida para Cobrando',
+      'De Juntando apoios para Meta batida',
     ]);
   });
 
@@ -707,7 +719,7 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     ).toContain('Prazo de resposta: 20/03/2026');
   });
 
-  it('prazo vencido mostra o ano e "venceu em", na próxima etapa, no caminho e na resposta', () => {
+  it('prazo vencido mostra o ano e "venceu em", na próxima etapa e no caminho', () => {
     const pauta = { ...fixture, caminhos: [falabr()] };
     expect(renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={HOJE} />)).toContain(
       'Prazo de resposta do Fala.BR venceu em 20/03/2026',
@@ -715,9 +727,8 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     expect(
       renderToStaticMarkup(<Caminhos caminhos={pauta.caminhos} slug="x" agora={HOJE} />),
     ).toContain('Prazo de resposta venceu em 20/03/2026');
-    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={HOJE} />)).toContain(
-      'Aguardando resposta. Prazo venceu em 20/03/2026.',
-    );
+    // Sem resposta, a seção "Resposta oficial" não aparece.
+    expect(renderToStaticMarkup(<RespostaOficial pauta={pauta} agora={HOJE} />)).toBe('');
   });
 
   it('não repete o prazo na linha de apoio quando o texto da API já o traz; a data grande é o destaque', () => {
@@ -727,8 +738,9 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
       caminhos: [falabr()],
     };
     const html = renderToStaticMarkup(<ProximaEtapa pauta={pauta} agora={HOJE} />);
-    // A data grande (destaque) e o texto da API: duas vezes, e nunca uma terceira na linha de apoio.
-    expect(html.match(/20\/03\/2026/g)).toHaveLength(2);
+    // A data grande (destaque, "20 mar") e o texto da API; nunca a linha de apoio repetida.
+    expect(html).toContain('>20 mar</time>');
+    expect(html.match(/20\/03\/2026/g)).toHaveLength(1);
     expect(html).toContain('venceu há');
     expect(html).not.toContain('Prazo de resposta do Fala.BR');
   });
@@ -762,11 +774,13 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     expect(html).not.toContain('venceu');
   });
 
-  it('o texto do botão só aparece quando há botão de apoio', () => {
-    expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).toContain('O botão abre o');
+  it('o botão de apoiar diz "Apoiar pelo" e o canal, e só existe quando a pauta aceita apoio', () => {
+    vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
+    expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).toMatch(/Apoiar pelo \w+/);
     expect(
       renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, status: 'conquistada' }} />),
-    ).not.toContain('O botão abre o');
+    ).not.toContain('Apoiar pelo');
+    vi.unstubAllEnvs();
   });
 });
 
@@ -798,13 +812,12 @@ describe('visão de conquista (SCRUM-352)', () => {
 
   it('mostra o destaque da vitória, a solução entregue e a linha do tempo', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={completa} />);
-    expect(html).toContain('A comunidade conquistou esta pauta');
+    // Os três fatos da vitória ficam na faixa de noite, com a luz verde mais forte.
     expect(html).toContain('Conquistada em');
-    expect(html).toContain('21/04/2026');
+    expect(html).toContain('>21 abr</time>');
     expect(html).toContain('Da criação à entrega');
     expect(html).toContain('70 dias');
     expect(html).toContain('Solução entregue');
-    expect(html).toContain('Solução da comunidade');
     expect(html).toContain('Mutirão de pintura dos laboratórios');
     expect(html).toContain('Executada em');
     expect(html).toContain('20/04/2026');
@@ -826,9 +839,7 @@ describe('visão de conquista (SCRUM-352)', () => {
       );
       expect(html).toContain('Pintaram os laboratórios.');
       // O bloco "Solução entregue" mostra o texto da curadoria, não a descrição do caminho.
-      expect(html).toMatch(
-        /<h2[^>]*>Solução entregue<\/h2><p[^>]*>Pintaram os laboratórios\.<\/p>/,
-      );
+      expect(html).toMatch(/<figcaption>Pintaram os laboratórios\.<\/figcaption>/);
       expect(html).toContain(`src="/${FOTO}"`);
       expect(html).toContain(`alt="Foto do que foi feito: ${completa.titulo}"`);
     });
@@ -856,7 +867,7 @@ describe('visão de conquista (SCRUM-352)', () => {
       );
       expect(html).toContain('O que foi feito');
       expect(html).toContain('Trocaram as lâmpadas.');
-      expect(html).not.toContain('Solução da comunidade');
+      expect(html).not.toContain('Solução entregue');
       expect(html).toContain(`src="/${FOTO}"`);
     });
 
@@ -877,15 +888,15 @@ describe('visão de conquista (SCRUM-352)', () => {
 
   it('pauta em outro status continua como estava', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={fixture} />);
-    expect(html).not.toContain('conquistou esta pauta');
     expect(html).not.toContain('Solução entregue');
+    expect(html).not.toContain('Conquistada em');
     expect(html).toContain('Próxima etapa');
   });
 
   it('sem solução, sem relatos e sem evento de conquista: nada de bloco vazio nem "NaN dias"', () => {
     const vazia: PautaDetalhe = { ...completa, caminhos: [], relatos: [], linha_do_tempo: [] };
     const html = renderToStaticMarkup(<ConteudoPauta pauta={vazia} />);
-    expect(html).toContain('A comunidade conquistou esta pauta');
+    expect(html).toContain('Conquistada');
     expect(html).not.toContain('NaN');
     expect(html).not.toContain('undefined');
     expect(html).not.toContain('Solução entregue');

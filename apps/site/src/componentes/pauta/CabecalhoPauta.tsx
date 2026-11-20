@@ -1,75 +1,115 @@
 import type { PautaDetalhe } from '@lumens/contratos';
+import type { CSSProperties } from 'react';
 import { contextoDaPauta } from '../../dados/pautas-publicas';
-import { BarraApoios, formatarNumero } from '../BarraApoios';
-import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
-import comuns from '../componentes.module.css';
-import { STATUS, StatusPill } from '../StatusPill';
+import { diasEntre, textoDias } from '../../dados/dias';
+import { formatarNumero, percentual } from '../BarraApoios';
+import { mostraApoiar } from '../BotaoWhatsApp';
+import { STATUS } from '../StatusPill';
 import { origemDoSite } from '../../origem';
-import { nomeDoCanal } from '../../whatsapp';
+import { comandoApoiar, linkDoBot, nomeDoCanal } from '../../whatsapp';
 import { CompartilharCard } from './CompartilharCard';
 import estilos from './pauta.module.css';
 
-/** Título, status, bloco, categoria, responsáveis (só o curso) e os botões. */
-export function CabecalhoPauta({ pauta }: { pauta: PautaDetalhe }) {
+/** O botão "Apoiar" da faixa: abre o bot com o comando pronto. Sem bot configurado, não aparece. */
+export function BotaoDeApoio({
+  slug,
+  titulo,
+  curto = false,
+}: {
+  slug: string;
+  titulo: string;
+  /** Na barra fixa do celular o texto é só "Apoiar". */
+  curto?: boolean;
+}) {
+  const href = linkDoBot(comandoApoiar(slug));
+  if (!href) return null;
+  const texto = curto ? 'Apoiar' : `Apoiar pelo ${nomeDoCanal()}`;
   return (
-    <header className={estilos.cabecalho}>
-      <span className={comuns.contexto}>{contextoDaPauta(pauta.categoria, pauta.bloco_nome)}</span>
-      <h1 className={estilos.titulo}>{pauta.titulo}</h1>
-      <div className={estilos.linha}>
-        <StatusPill status={pauta.status} />
-        {pauta.urgente && <span className={comuns.seloUrgente}>Urgente</span>}
+    <a
+      href={href}
+      className={estilos.apoiar}
+      aria-label={`${texto}: ${titulo}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {texto}
+    </a>
+  );
+}
+
+/** "aberta há 41 dias" a partir da criação da pauta; sem data válida, a frase some. */
+function abertaHa(criadaEm: string, agora: Date): string | null {
+  const dias = diasEntre(criadaEm, agora.toISOString());
+  if (dias === null || dias < 0) return null;
+  return `aberta ${dias === 0 ? 'hoje' : `há ${textoDias(dias)}`}`;
+}
+
+/**
+ * O topo da pauta: etapa e título à esquerda; o número de apoios, a barra até a meta e as ações à
+ * direita (no celular, empilhados). A barra na cor do status, cheia quando passa da meta.
+ */
+export function CabecalhoPauta({
+  pauta,
+  agora = new Date(),
+}: {
+  pauta: PautaDetalhe;
+  agora?: Date;
+}) {
+  const status = STATUS[pauta.status];
+  const aberta = abertaHa(pauta.criada_em, agora);
+  return (
+    <div className={estilos.cabeca}>
+      <div>
+        <p className={estilos.etiqueta}>
+          <i
+            className={[estilos.glifo, pauta.status === 'descumprida' ? estilos.glifoVazado : '']
+              .join(' ')
+              .trim()}
+            aria-hidden="true"
+          />
+          {status.rotulo}
+          {pauta.urgente && <span className={estilos.urgente}>Urgente</span>}
+        </p>
+        <h1 className={estilos.titulo}>{pauta.titulo}</h1>
+        <p className={estilos.onde}>
+          {[contextoDaPauta(pauta.categoria, pauta.bloco_nome), aberta].filter(Boolean).join(' · ')}
+        </p>
         {pauta.cursos_responsaveis.length > 0 && (
-          <ul className={estilos.owners} aria-label="Responsáveis pela pauta">
+          <ul className={estilos.responsaveis} aria-label="Responsáveis pela pauta">
             {pauta.cursos_responsaveis.map((curso) => (
               <li key={curso}>Responsável · {curso}</li>
             ))}
           </ul>
         )}
       </div>
-      <p className={estilos.descricao}>{pauta.descricao}</p>
-      <div className={estilos.cta}>
-        {/* No celular o "Apoiar" é o da barra fixa, no fim da tela: este some para não repetir. */}
-        {mostraApoiar(pauta.status) && (
-          <span className={estilos.apoiarDoTopo}>
-            <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
-          </span>
-        )}
-        <CompartilharCard
-          slug={pauta.slug}
-          titulo={pauta.titulo}
-          apoios={formatarNumero(pauta.apoios)}
-          etapa={STATUS[pauta.status].rotulo}
-          link={new URL(`/p/${pauta.slug}`, origemDoSite()).href}
-        />
-        {mostraApoiar(pauta.status) && (
-          <p className={estilos.nota}>
-            O botão abre o {nomeDoCanal()} com a mensagem pronta. Apoiar, relatar e ajudar acontecem
-            só no bot.
-          </p>
-        )}
+      <div>
+        <p className={estilos.numero}>
+          <span>{formatarNumero(pauta.apoios)}</span>
+        </p>
+        <p className={estilos.rotuloDoNumero}>apoios · meta de {formatarNumero(pauta.meta)}</p>
+        <div
+          className={estilos.barra}
+          style={{ '--p': `${String(percentual(pauta.apoios, pauta.meta))}%` } as CSSProperties}
+          role="progressbar"
+          aria-label={`Apoios da pauta ${pauta.titulo}`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentual(pauta.apoios, pauta.meta)}
+          aria-valuetext={`${formatarNumero(pauta.apoios)} de ${formatarNumero(pauta.meta)} apoios`}
+        >
+          <i />
+        </div>
+        <div className={estilos.cta}>
+          {mostraApoiar(pauta.status) && <BotaoDeApoio slug={pauta.slug} titulo={pauta.titulo} />}
+          <CompartilharCard
+            slug={pauta.slug}
+            titulo={pauta.titulo}
+            apoios={formatarNumero(pauta.apoios)}
+            etapa={status.rotulo}
+            link={new URL(`/p/${pauta.slug}`, origemDoSite()).href}
+          />
+        </div>
       </div>
-    </header>
-  );
-}
-
-/**
- * O número de apoios em destaque, com a barra até a meta na cor do status, a mesma do card da
- * lista (SCRUM-349). Acima da meta a barra fica cheia, sem passar do trilho.
- */
-export function PlacarDeApoios({ pauta }: { pauta: PautaDetalhe }) {
-  return (
-    <div className={estilos.placar}>
-      <p className={estilos.numero}>
-        <span className={estilos.grande}>{formatarNumero(pauta.apoios)}</span>{' '}
-        <span className={estilos.de}>de {formatarNumero(pauta.meta)} apoios</span>
-      </p>
-      <BarraApoios
-        apoios={pauta.apoios}
-        meta={pauta.meta}
-        rotulo={`Apoios da pauta ${pauta.titulo}`}
-        cor={STATUS[pauta.status].ponto}
-        semLegenda
-      />
     </div>
   );
 }

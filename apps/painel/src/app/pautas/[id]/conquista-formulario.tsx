@@ -43,7 +43,9 @@ export function FormularioDaConquista({
   return (
     <form action={salvar} className={estilos.formulario} encType="multipart/form-data">
       <input type="hidden" name="pautaId" value={pautaId} />
-      <label htmlFor="o-que-foi-feito">O que foi feito</label>
+      <label htmlFor="o-que-foi-feito">
+        O que foi feito <small className={estilos.dicaInline}>até {MAXIMO} caracteres</small>
+      </label>
       <textarea
         id="o-que-foi-feito"
         name={CAMPO_TEXTO}
@@ -54,44 +56,45 @@ export function FormularioDaConquista({
         aria-describedby="o-que-foi-feito-dica o-que-foi-feito-contador"
         rows={3}
       />
-      <p id="o-que-foi-feito-dica" className={estilos.detalhes}>
-        Uma ou duas frases, sem nome de pessoa, e-mail nem telefone. Aparece no card e na página da
-        pauta.
-      </p>
       <p
         id="o-que-foi-feito-contador"
         className={passou ? estilos.contadorPassou : estilos.detalhes}
         aria-live="polite"
       >
-        {usados} de {MAXIMO} caracteres
-        {passou ? `: tire ${String(usados - MAXIMO)} para salvar.` : '.'}
+        {usados}/{MAXIMO}
+        {passou ? `: tire ${String(usados - MAXIMO)} para salvar.` : ''}
+      </p>
+      <p id="o-que-foi-feito-dica" className={estilos.vh}>
+        Uma ou duas frases, sem nome de pessoa, e-mail nem telefone. Aparece no card e na página da
+        pauta.
       </p>
 
-      <label htmlFor="foto-da-conquista">Foto (uma só)</label>
-      <input
-        id="foto-da-conquista"
-        type="file"
-        name={CAMPO_FOTO}
-        accept="image/jpeg,image/png,image/webp"
-        aria-describedby="foto-da-conquista-aviso"
-        onChange={(evento) => {
-          const arquivo = evento.target.files?.[0];
-          setPrevia(arquivo ? URL.createObjectURL(arquivo) : null);
-        }}
-      />
+      <label htmlFor="foto-da-conquista">Foto do que foi feito</label>
+      <div className={estilos.anexo}>
+        {(previa ?? fotoAtual) !== null && (
+          <img
+            src={previa ?? fotoAtual ?? ''}
+            alt={previa === null ? 'Foto da conquista que está salva' : 'Prévia da foto escolhida'}
+          />
+        )}
+        <input
+          id="foto-da-conquista"
+          type="file"
+          name={CAMPO_FOTO}
+          accept="image/jpeg,image/png,image/webp"
+          aria-describedby="foto-da-conquista-aviso"
+          onChange={(evento) => {
+            const arquivo = evento.target.files?.[0];
+            setPrevia(arquivo ? URL.createObjectURL(arquivo) : null);
+          }}
+        />
+      </div>
       <p id="foto-da-conquista-aviso" className={estilos.detalhes}>
-        A foto perde a localização antes de ser guardada. Confira se não aparece rosto ou placa.
+        A foto perde a localização antes de ser guardada. Confira se não aparece rosto de pessoa ou
+        placa de carro.
       </p>
-      {previa !== null && (
-        <div className={estilos.foto}>
-          <img src={previa} alt="Prévia da foto escolhida" />
-        </div>
-      )}
       {previa === null && fotoAtual !== null && (
         <>
-          <div className={estilos.foto}>
-            <img src={fotoAtual} alt="Foto da conquista que está salva" />
-          </div>
           <label className={estilos.marcar}>
             <input type="checkbox" name={CAMPO_TIRAR_FOTO} /> Tirar esta foto
           </label>
@@ -99,7 +102,7 @@ export function FormularioDaConquista({
         </>
       )}
 
-      <div className={estilos.acoesDaConquista}>
+      <div className={estilos.acoes}>
         <Enviar className={estilos.botao} desabilitado={passou}>
           Salvar
         </Enviar>

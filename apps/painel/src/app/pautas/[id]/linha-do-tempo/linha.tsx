@@ -6,9 +6,9 @@ import {
   type TipoEvento,
 } from '@lumens/dominio';
 import Link from 'next/link';
-import { dataHora } from '../../../prazo';
+import { dataHora, diaCurto } from '../../../prazo';
 import { STATUS } from '../../status';
-import estilos from './linha.module.css';
+import estilos from '../../../painel.module.css';
 
 // Tela da linha do tempo da pauta para a curadoria (5.5, SCRUM-181, RF-C05, RN11). Só leitura:
 // aqui não entra formulário, botão nem ação de servidor. O banco recusa UPDATE e DELETE em `evento`.
@@ -43,9 +43,9 @@ const ROTULOS: Record<TipoEvento, string> = {
 };
 
 const ORIGEM: Record<OrigemEvento, string> = {
-  bot: 'Bot do Lumens',
+  bot: 'Bot',
   curadoria: 'Curadoria',
-  agendador: 'Automático',
+  agendador: 'Sistema',
 };
 
 const CAMINHO: Record<string, string> = {
@@ -160,20 +160,14 @@ export function rotuloDoGrupo(
 function Evento({ evento, quantidade }: { evento: EventoDaLinha; quantidade: number }) {
   const detalhe = detalheDoEvento(evento.tipo, evento.dados);
   return (
-    <li className={estilos.evento}>
-      <time dateTime={evento.criadoEm.toISOString()} className={estilos.data}>
-        {dataHora(evento.criadoEm)}
-      </time>
-      <div>
-        <h2 className={estilos.rotulo}>{rotuloDoGrupo(evento.tipo, evento.dados, quantidade)}</h2>
-        {detalhe !== undefined && <p className={estilos.detalhe}>{detalhe}</p>}
-        <p className={estilos.marcas}>
-          <span className={estilos.marca}>Origem: {ORIGEM[evento.origem]}</span>
-          <span className={evento.publico ? estilos.marca : estilos.marcaInterna}>
-            {evento.publico ? 'Aparece no site' : 'Só a curadoria vê'}
-          </span>
-        </p>
-      </div>
+    <li>
+      <time dateTime={evento.criadoEm.toISOString()} title={dataHora(evento.criadoEm)}>
+        {diaCurto(evento.criadoEm)}
+      </time>{' '}
+      {rotuloDoGrupo(evento.tipo, evento.dados, quantidade)}
+      <span className={estilos.origem}>{ORIGEM[evento.origem]}</span>
+      {!evento.publico && <span className={estilos.origem}>Só a curadoria vê</span>}
+      {detalhe !== undefined && <span className={estilos.detalheDoEvento}>{detalhe}</span>}
     </li>
   );
 }
@@ -184,33 +178,30 @@ export function LinhaDoTempo({
   titulo,
   eventos,
   recolhivel = false,
-  aberta = false,
 }: {
   pautaId: string;
   titulo: string;
   eventos: EventoDaLinha[];
   recolhivel?: boolean;
-  /** Vem aberta quando se chega pelo endereço antigo da linha do tempo. */
+  /** Mantido por compatibilidade: a linha do tempo da tela da pauta já vem sempre aberta. */
   aberta?: boolean;
 }) {
+  const lista =
+    eventos.length === 0 ? (
+      <p className={estilos.detalhes}>Esta pauta ainda não tem nenhum evento registrado.</p>
+    ) : (
+      <ol className={estilos.linhaDoTempo}>
+        {agruparEventosIguais(eventos).map(({ evento, quantidade }) => (
+          <Evento key={evento.id} evento={evento} quantidade={quantidade} />
+        ))}
+      </ol>
+    );
   if (recolhivel) {
     return (
-      <details id="linha-do-tempo" className={estilos.detalhesRecolhiveis} open={aberta}>
-        <summary>Linha do tempo</summary>
-        <p className={estilos.apoio}>
-          Tudo o que aconteceu com a pauta, do mais antigo para o mais novo, inclusive o que não
-          aparece no site.
-        </p>
-        {eventos.length === 0 ? (
-          <p className={estilos.vazio}>Esta pauta ainda não tem nenhum evento registrado.</p>
-        ) : (
-          <ol className={estilos.lista}>
-            {agruparEventosIguais(eventos).map(({ evento, quantidade }) => (
-              <Evento key={evento.id} evento={evento} quantidade={quantidade} />
-            ))}
-          </ol>
-        )}
-      </details>
+      <section id="linha-do-tempo" aria-labelledby="titulo-linha-do-tempo">
+        <h2 id="titulo-linha-do-tempo">Linha do tempo</h2>
+        {lista}
+      </section>
     );
   }
   return (
@@ -218,22 +209,13 @@ export function LinhaDoTempo({
       <Link className={estilos.voltar} href={`/pautas/${pautaId}`}>
         ← Voltar para a pauta
       </Link>
-      <h1 className={estilos.titulo}>Linha do tempo</h1>
-      <p className={estilos.pauta}>{titulo}</p>
-      <p className={estilos.apoio}>
+      <h1>Linha do tempo</h1>
+      <p className={estilos.apoio}>{titulo}</p>
+      <p className={estilos.detalhes}>
         Tudo o que aconteceu com a pauta, do mais antigo para o mais novo, inclusive o que não
         aparece no site. O registro é permanente: nenhum evento pode ser editado ou apagado.
       </p>
-
-      {eventos.length === 0 ? (
-        <p className={estilos.vazio}>Esta pauta ainda não tem nenhum evento registrado.</p>
-      ) : (
-        <ol className={estilos.lista}>
-          {agruparEventosIguais(eventos).map(({ evento, quantidade }) => (
-            <Evento key={evento.id} evento={evento} quantidade={quantidade} />
-          ))}
-        </ol>
-      )}
+      {lista}
     </>
   );
 }

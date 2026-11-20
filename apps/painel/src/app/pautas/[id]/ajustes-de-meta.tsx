@@ -50,10 +50,35 @@ export function AjustesDeMeta({
           Meta ajustada.
         </p>
       )}
-      <div className={estilos.grade}>
-        <form action={corrigirBloco} className={estilos.cartao}>
-          <h3>Corrigir bloco</h3>
-          <input type="hidden" name="pautaId" value={pautaId} />
+      <form action={ajustarMeta} className={[estilos.formulario, estilos.linhaDeForm].join(' ')}>
+        <input type="hidden" name="pautaId" value={pautaId} />
+        <div>
+          <label htmlFor="meta-ajustada">Nova meta (30 a 300)</label>
+          <input
+            id="meta-ajustada"
+            name="meta"
+            type="number"
+            min={30}
+            max={300}
+            defaultValue={meta}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="motivo-meta">Motivo</label>
+          <input
+            id="motivo-meta"
+            name="motivo"
+            required
+            maxLength={200}
+            placeholder="Fica na linha do tempo"
+          />
+        </div>
+        <Enviar className={estilos.botaoSecundario}>Ajustar meta</Enviar>
+      </form>
+      <form action={corrigirBloco} className={[estilos.formulario, estilos.linhaDeForm].join(' ')}>
+        <input type="hidden" name="pautaId" value={pautaId} />
+        <div>
           <label htmlFor="bloco-corrigido">Bloco</label>
           <select id="bloco-corrigido" name="blocoId" defaultValue={blocoId ?? ''}>
             <option value="">Todo o campus</option>
@@ -63,20 +88,19 @@ export function AjustesDeMeta({
               </option>
             ))}
           </select>
+        </div>
+        <div>
           <label htmlFor="motivo-bloco">Motivo</label>
-          <textarea id="motivo-bloco" name="motivo" required maxLength={200} />
-          <Enviar className={estilos.botaoSecundario}>Salvar bloco e recalcular meta</Enviar>
-        </form>
-        <form action={ajustarMeta} className={estilos.cartao}>
-          <h3>Ajustar meta</h3>
-          <input type="hidden" name="pautaId" value={pautaId} />
-          <label htmlFor="meta-ajustada">Nova meta de apoios (atual: {meta})</label>
-          <input id="meta-ajustada" name="meta" type="number" min={30} max={300} required />
-          <label htmlFor="motivo-meta">Motivo</label>
-          <textarea id="motivo-meta" name="motivo" required maxLength={200} />
-          <Enviar className={estilos.botaoSecundario}>Salvar meta</Enviar>
-        </form>
-      </div>
+          <input
+            id="motivo-bloco"
+            name="motivo"
+            required
+            maxLength={200}
+            placeholder="A meta é recalculada"
+          />
+        </div>
+        <Enviar className={estilos.botaoSecundario}>Corrigir bloco</Enviar>
+      </form>
     </section>
   );
 }

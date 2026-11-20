@@ -51,9 +51,12 @@ export function FormularioDaPromessa({
   const aviso = erro === undefined ? undefined : ERRO[erro];
   return (
     <>
+      <Link className={estilos.voltar} href={`/pautas/${pauta.id}`}>
+        ← {pauta.titulo}
+      </Link>
       <h1>Registrar resposta e promessa</h1>
-      <p className={estilos.apoio}>
-        Pauta: <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
+      <p className={estilos.detalhes}>
+        Só pautas em cobrança, entregues em parte ou com promessa descumprida aceitam promessa.
       </p>
       {aviso !== undefined && (
         <p className={estilos.erro} role="alert">
@@ -63,26 +66,38 @@ export function FormularioDaPromessa({
       {!ACEITA_PROMESSA.includes(pauta.status) ? (
         <p className={estilos.aviso}>{ERRO.transicao_invalida}</p>
       ) : (
-        <div className={estilos.aoLado}>
-          <form action={registrar} className={estilos.formulario}>
+        <div className={estilos.grade}>
+          <form action={registrar} className={[estilos.principal, estilos.formulario].join(' ')}>
             <input type="hidden" name="pautaId" value={pauta.id} />
             <label htmlFor="resumo">O que foi respondido e prometido</label>
-            <textarea id="resumo" name="resumo" required maxLength={RESUMO_MAXIMO} />
-            <p className={estilos.detalhes}>
-              Esse texto aparece na página da pauta. Não cite nome de pessoa.
-            </p>
+            <textarea
+              id="resumo"
+              name="resumo"
+              rows={5}
+              required
+              maxLength={RESUMO_MAXIMO}
+              placeholder="Vai para a página pública: não cite nome de pessoa."
+            />
             <label htmlFor="fonte">Quem respondeu</label>
-            <input id="fonte" name="fonte" required maxLength={FONTE_MAXIMA} />
-            <p className={estilos.detalhes}>
-              Por exemplo: Pró-Reitoria de Gestão Institucional, pelo Fala.BR.
-            </p>
+            <input
+              id="fonte"
+              name="fonte"
+              required
+              maxLength={FONTE_MAXIMA}
+              placeholder="Ex.: Prefeitura do Campus"
+            />
             <label htmlFor="dataEntrega">Data prometida</label>
             <input id="dataEntrega" name="dataEntrega" type="date" required min={hoje} max={ate} />
             <p className={estilos.detalhes}>
               Nesse dia quem apoia a pauta recebe a pergunta &quot;Foi feito?&quot; e tem 7 dias
               para responder. Ao salvar, os apoiadores são avisados da resposta pelo bot.
             </p>
-            <Enviar className={estilos.botao}>Registrar promessa</Enviar>
+            <div className={estilos.acoes}>
+              <Enviar className={estilos.botao}>Registrar e avisar quem apoiou</Enviar>
+              <Link className={estilos.botaoSecundario} href={`/pautas/${pauta.id}`}>
+                Cancelar
+              </Link>
+            </div>
           </form>
           <Documentos documentos={documentos} />
         </div>
@@ -102,13 +117,17 @@ function Documentos({
 }) {
   const [maisNovo] = documentos;
   return (
-    <section className={estilos.documentos}>
-      <h2>Resposta encaminhada</h2>
+    <aside className={[estilos.lado, estilos.documentos].join(' ')} aria-label="Resposta oficial">
+      <h2>Resposta oficial</h2>
       {maisNovo === undefined ? (
-        <p className={estilos.detalhes}>
-          Nenhum PDF de resposta chegou pelo bot para esta pauta. Registre a partir do que a
-          ouvidoria respondeu.
-        </p>
+        <div className={estilos.semPdf}>
+          <i />
+          <span>resposta-oficial.pdf</span>
+          <small>
+            Nenhum PDF chegou pelo bot para esta pauta. Quem cuida da pauta manda a resposta por lá;
+            registre a partir do que a ouvidoria respondeu.
+          </small>
+        </div>
       ) : (
         <>
           <iframe
@@ -116,7 +135,8 @@ function Documentos({
             title={`PDF da resposta recebido em ${dataHora(maisNovo.recebidoEm)}`}
             className={estilos.pdf}
           />
-          <ul className={estilos.lista}>
+          <p className={estilos.detalhes}>Enviado por quem cuida da pauta, pelo bot.</p>
+          <ul className={estilos.responsaveis}>
             {documentos.map((documento) => (
               <li key={documento.id}>
                 <a href={caminhoDoArquivo(documento.arquivoChave)} target="_blank" rel="noreferrer">
@@ -127,6 +147,6 @@ function Documentos({
           </ul>
         </>
       )}
-    </section>
+    </aside>
   );
 }

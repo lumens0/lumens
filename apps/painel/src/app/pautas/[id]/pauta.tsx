@@ -10,9 +10,11 @@ import {
   versaoDoTexto,
 } from '@lumens/dominio';
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
+import { COR_NO_PAINEL } from '../status';
 import estilos from '../../painel.module.css';
 import { dataHora } from '../../prazo';
-import { SeloDePrazo, SeloDeStatus, SeloUrgente } from '../selos';
+import { EtapaDaPauta, SeloDePrazo } from '../selos';
 import { Foto } from '../../arquivos';
 import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../../fotos-do-relato';
 import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from '../../pedidos/pedidos';
@@ -25,6 +27,7 @@ import { AjustesDePrazo } from './ajustes-de-prazo';
 import { Enviar } from '../../enviar';
 import { caminhoDoArquivo } from '../../curadoria/arquivos/[...chave]/arquivo';
 import { FormularioDaConquista } from './conquista-formulario';
+import { MotivoDaRecusa } from './motivo-da-recusa';
 
 const ERRO: Record<string, string> = {
   pauta_inexistente: 'A pauta não foi encontrada.',
@@ -145,25 +148,56 @@ export function Pauta({
       relato.moderacao === 'pendente' &&
       relato.achados.some((achado) => achado.severidade === 'bloqueio'),
   );
+  const emCuradoria = pauta.status === 'em_curadoria';
+  const recusada = pauta.status === 'recusada';
+  const publicada = !emCuradoria && !recusada;
+  const cor = { '--c': COR_NO_PAINEL[pauta.status] } as CSSProperties;
+  const ondeEstaPauta = pauta.bloco ?? 'Campus inteiro';
+  const aceitaPromessa = ACEITA_PROMESSA.includes(pauta.status);
+  const origem = origemDoSite?.replace(/\/+$/, '');
   return (
     <>
-      <h1>{pauta.titulo}</h1>
-      <p className={estilos.selos}>
-        <SeloDeStatus status={pauta.status} />
-        {pauta.status === 'em_curadoria' && (
-          <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
-        )}
-        {pauta.urgente && <SeloUrgente />}
-      </p>
+      <Link className={estilos.voltar} href="/pautas">
+        ← Pautas
+      </Link>
+      <div className={estilos.cabecalhoDaPauta}>
+        <EtapaDaPauta status={pauta.status} urgente={pauta.urgente} />
+        <h1>{pauta.titulo}</h1>
+        <p className={estilos.detalhes}>
+          {publicada ? (
+            <>
+              {categoria} · {ondeEstaPauta}
+              {origem !== undefined && (
+                <>
+                  {' · '}
+                  <a href={`${origem}/p/${encodeURIComponent(pauta.slug)}`}>
+                    Ver como aparece no site
+                  </a>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {ondeEstaPauta} · criada em {dataHora(pauta.criadaEm)}
+              {emCuradoria && (
+                <>
+                  {' · '}
+                  <SeloDePrazo prazo={pauta.prazo} restanteMs={pauta.restanteMs} />
+                </>
+              )}
+            </>
+          )}
+        </p>
+      </div>
       {feito === 'aprovada' && (
         <p className={estilos.aviso} role="status">
-          Pauta aprovada. Ela já aparece no site e pode receber apoios; o relato de quem a criou
+          Pauta publicada. Ela já aparece no site e começa a juntar apoios; o relato de quem a criou
           também foi publicado.
         </p>
       )}
       {feito === 'relato_recusado' && (
         <p className={estilos.aviso} role="status">
-          Relato recusado. A pauta continua esperando a decisão e, aprovada, vai ao site sem ele.
+          Relato de origem recusado. A pauta segue em curadoria e, aprovada, vai ao site sem ele.
         </p>
       )}
       {feito !== undefined && FEITO_DE_FOTO[feito] !== undefined && (
@@ -178,7 +212,7 @@ export function Pauta({
       )}
       {feito === 'recusada' && (
         <p className={estilos.aviso} role="status">
-          Pauta recusada. Quem criou recebe o motivo pelo bot.
+          Pauta recusada. O motivo foi enviado a quem criou pelo bot.
         </p>
       )}
       {avisados !== undefined && (
@@ -188,44 +222,14 @@ export function Pauta({
           da resposta pelo bot.
         </p>
       )}
-      {categoriaSalva && <p role="status">Categoria atualizada.</p>}
+      {categoriaSalva && (
+        <p className={estilos.aviso} role="status">
+          Categoria atualizada.
+        </p>
+      )}
       {feito === 'ajuste_prazo' && (
         <p className={estilos.aviso} role="status">
           Ajuste de prazo registrado.
-        </p>
-      )}
-      {aviso !== undefined && (
-        <p className={estilos.erro} role="alert">
-          {aviso}
-        </p>
-      )}
-      <dl className={estilos.ficha}>
-        <dt>Categoria</dt>
-        <dd>{categoria}</dd>
-        <dt>Onde</dt>
-        <dd>{pauta.bloco ?? 'Campus inteiro'}</dd>
-        <dt>Criada em</dt>
-        <dd>{dataHora(pauta.criadaEm)}</dd>
-        {pauta.status === 'em_curadoria' && (
-          <>
-            <dt>Prazo da curadoria</dt>
-            <dd>{dataHora(pauta.prazo)}</dd>
-          </>
-        )}
-        <dt>Foto</dt>
-        <dd>{pauta.fotoChave === null ? 'Sem foto' : <Foto chave={pauta.fotoChave} />}</dd>
-        {pauta.motivoRecusa !== null && (
-          <>
-            <dt>Motivo da recusa</dt>
-            <dd>{pauta.motivoRecusa}</dd>
-          </>
-        )}
-      </dl>
-      <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
-      {pauta.status === 'em_curadoria' && textoFoiEditado(eventos) && (
-        <p className={estilos.aviso} role="status">
-          O responsável editou o texto antes da decisão. Esta é a versão atual: leia de novo antes
-          de aprovar.
         </p>
       )}
       {feito === 'urgencia' && (
@@ -233,319 +237,399 @@ export function Pauta({
           Urgência atualizada.
         </p>
       )}
-
-      <section aria-labelledby="numeros-pauta">
-        <h2 id="numeros-pauta">Apoios e meta</h2>
-        <p className={estilos.numeros}>
-          <strong>{pauta.apoios}</strong> de {pauta.meta} apoios
+      {aviso !== undefined && (
+        <p className={estilos.erro} role="alert">
+          {aviso}
         </p>
-        <progress
-          aria-label="Progresso até a meta de apoios"
-          max={pauta.meta}
-          value={Math.min(pauta.apoios, pauta.meta)}
-        />
-        {pauta.metaBatidaEm && (
-          <p className={estilos.detalhes}>Meta batida em {dataHora(pauta.metaBatidaEm)}</p>
-        )}
-      </section>
-
-      {['em_curadoria', 'juntando_apoios'].includes(pauta.status) && (
-        <AjustesDeMeta
-          pautaId={pauta.id}
-          meta={pauta.meta}
-          blocoId={pauta.blocoId}
-          blocos={blocos}
-          corrigirBloco={corrigirBloco}
-          ajustarMeta={ajustarMeta}
-          erro={erro}
-          feito={feito}
-        />
       )}
 
-      <section aria-labelledby="relatos-pauta">
-        <h2 id="relatos-pauta">Relatos</h2>
-        {pauta.relatos.length === 0 ? (
-          <p>Nenhum relato registrado.</p>
-        ) : (
-          <ul className={estilos.lista}>
-            {pauta.relatos.map((relato, indice) => (
-              <li
-                className={[estilos.cartao, estilos.relato].join(' ')}
-                key={`${String(indice)}-${relato.texto}`}
+      <div className={estilos.grade}>
+        <div className={estilos.principal}>
+          {!publicada && (
+            <section aria-labelledby="descricao-pauta">
+              <h2 id="descricao-pauta">Descrição</h2>
+              <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
+              {pauta.fotoChave !== null && <Foto chave={pauta.fotoChave} />}
+              {emCuradoria && textoFoiEditado(eventos) && (
+                <p className={estilos.info} role="status">
+                  O responsável editou o texto antes da decisão. Esta é a versão atual: leia de novo
+                  antes de aprovar.
+                </p>
+              )}
+            </section>
+          )}
+
+          {publicada && (
+            <section aria-labelledby="numeros-pauta">
+              <h2 id="numeros-pauta">Apoios e meta</h2>
+              <p className={estilos.grande}>
+                <b>{pauta.apoios}</b> de {pauta.meta} apoios
+              </p>
+              <div
+                className={estilos.progresso}
+                style={
+                  {
+                    ...cor,
+                    '--p': `${String(Math.min(100, (pauta.apoios / Math.max(1, pauta.meta)) * 100))}%`,
+                  } as CSSProperties
+                }
+                role="progressbar"
+                aria-label="Progresso até a meta de apoios"
+                aria-valuemin={0}
+                aria-valuemax={pauta.meta}
+                aria-valuenow={Math.min(pauta.apoios, pauta.meta)}
               >
-                <p className={estilos.textoDoRelato}>{relato.texto}</p>
-                {relato.achados.length > 0 && (
-                  <ul className={estilos.aviso}>
-                    {relato.achados.map((achado) => (
-                      <li key={`${String(achado.inicio)}-${achado.motivo}`}>
-                        {achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}:{' '}
-                        {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
+                <i />
+              </div>
+              {pauta.metaBatidaEm && (
+                <p className={estilos.detalhes}>Meta batida em {dataHora(pauta.metaBatidaEm)}</p>
+              )}
+            </section>
+          )}
+
+          {['em_curadoria', 'juntando_apoios'].includes(pauta.status) && (
+            <AjustesDeMeta
+              pautaId={pauta.id}
+              meta={pauta.meta}
+              blocoId={pauta.blocoId}
+              blocos={blocos}
+              corrigirBloco={corrigirBloco}
+              ajustarMeta={ajustarMeta}
+              erro={erro}
+              feito={feito}
+            />
+          )}
+
+          <section aria-labelledby="relatos-pauta">
+            <h2 id="relatos-pauta">{emCuradoria ? 'Relato de quem criou' : 'Relatos'}</h2>
+            {pauta.relatos.length === 0 ? (
+              <p className={estilos.detalhes}>
+                {publicada ? 'Nenhum relato registrado.' : 'Sem relato.'}
+              </p>
+            ) : (
+              pauta.relatos.map((relato, indice) => (
+                <article key={`${String(indice)}-${relato.texto}`}>
+                  <blockquote className={estilos.relato}>{relato.texto}</blockquote>
+                  <p className={estilos.detalhes}>
+                    Estudante de {relato.curso ?? 'curso não informado'}. O nome nunca aparece no
+                    site.
+                    {publicada &&
+                      ` ${MODERACAO[relato.moderacao]}${relato.data ? `, ${dataHora(relato.data)}` : ''}.`}
+                  </p>
+                  <FotosDoRelato
+                    fotos={relato.fotos}
+                    recusarFoto={recusarFoto}
+                    voltar={`/pautas/${pauta.id}`}
+                  />
+                  <h3>Achados</h3>
+                  {relato.achados.length === 0 ? (
+                    <p className={estilos.ok}>Nenhum achado automático.</p>
+                  ) : (
+                    <ul className={estilos.achados}>
+                      {relato.achados.map((achado) => (
+                        <li
+                          key={`${String(achado.inicio)}-${achado.motivo}`}
+                          className={
+                            achado.severidade === 'bloqueio' ? estilos.barrar : estilos.conferir
+                          }
+                        >
+                          <b>{achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}</b>{' '}
+                          {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+              ))
+            )}
+            {emCuradoria && relatoComDadoPessoal && (
+              <form action={recusarRelatoDeOrigem} role="alert">
+                <p className={estilos.detalhes}>
+                  O relato de quem criou a pauta tem e-mail ou telefone. Aprovar publicaria esse
+                  dado: recuse só o relato e depois aprove a pauta sem ele.
+                </p>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                <Enviar className={estilos.botaoSecundario}>Recusar só o relato</Enviar>
+              </form>
+            )}
+          </section>
+
+          {pedidosDeEdicao.length > 0 && (
+            <section aria-labelledby="pedidos-pauta">
+              <h2 id="pedidos-pauta">Pedidos de edição</h2>
+              <PedidosDeEdicao
+                pedidos={pedidosDeEdicao}
+                aprovar={aprovarPedido}
+                recusar={recusarPedido}
+                voltar={`/pautas/${pauta.id}`}
+              />
+            </section>
+          )}
+
+          {publicada && (
+            <section aria-labelledby="responsaveis-pauta">
+              <h2 id="responsaveis-pauta">Responsáveis</h2>
+              {pauta.responsaveis.length === 0 ? (
+                <p className={estilos.detalhes}>Nenhum responsável ativo.</p>
+              ) : (
+                <>
+                  <p className={estilos.apoio}>
+                    Até 3 pessoas cuidam de cada pauta. Os nomes não aparecem no site.
+                  </p>
+                  <ul className={estilos.responsaveis}>
+                    {pauta.responsaveis.map((responsavel, indice) => (
+                      <li key={indice}>
+                        Cuidador {indice + 1} · {responsavel.curso ?? 'Curso não informado'}
                       </li>
                     ))}
                   </ul>
-                )}
-                <ul className={estilos.meta}>
-                  <li>Curso: {relato.curso ?? 'Não informado'}</li>
-                  <li>Situação da moderação: {MODERACAO[relato.moderacao]}</li>
-                  <li>Data registrada: {relato.data ? dataHora(relato.data) : 'Não registrada'}</li>
-                </ul>
-                <FotosDoRelato
-                  fotos={relato.fotos}
-                  recusarFoto={recusarFoto}
-                  voltar={`/pautas/${pauta.id}`}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {pedidosDeEdicao.length > 0 && (
-        <section aria-labelledby="pedidos-pauta">
-          <h2 id="pedidos-pauta">Pedidos de edição</h2>
-          <PedidosDeEdicao
-            pedidos={pedidosDeEdicao}
-            aprovar={aprovarPedido}
-            recusar={recusarPedido}
-            voltar={`/pautas/${pauta.id}`}
-          />
-        </section>
-      )}
-
-      <section aria-labelledby="responsaveis-pauta">
-        <h2 id="responsaveis-pauta">Responsáveis</h2>
-        {pauta.responsaveis.length === 0 ? (
-          <p>Nenhum responsável ativo.</p>
-        ) : (
-          <ul>
-            {pauta.responsaveis.map((responsavel, indice) => (
-              <li key={indice}>{responsavel.curso ?? 'Curso não informado'}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section aria-labelledby="caminhos-pauta">
-        <h2 id="caminhos-pauta">Caminhos abertos</h2>
-        {pauta.caminhos.length === 0 ? (
-          <p>Nenhum caminho aberto.</p>
-        ) : (
-          <ul>
-            {pauta.caminhos.map((caminho, indice) => (
-              <li key={indice}>
-                {TIPO_CAMINHO[caminho.tipo]}
-                {caminho.protocolo ? ` · Protocolo ${caminho.protocolo}` : ''}
-                {caminho.prazo ? ` · Prazo ${caminho.prazo}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {pauta.promessa && (
-        <section aria-labelledby="promessa-pauta">
-          <h2 id="promessa-pauta">Promessa registrada</h2>
-          <p className={estilos.textoDoRelato}>{pauta.promessa.resumo}</p>
-          <dl className={estilos.ficha}>
-            <dt>Quem respondeu</dt>
-            <dd>{pauta.promessa.fonte}</dd>
-            <dt>Data prometida</dt>
-            <dd>{pauta.promessa.dataEntrega}</dd>
-            <dt>Conferência aberta até</dt>
-            <dd>{dataHora(pauta.promessa.conferenciaFechaEm)}</dd>
-            <dt>Votos</dt>
-            <dd>
-              {pauta.promessa.votos.sim} sim, {pauta.promessa.votos.em_parte} em parte,{' '}
-              {pauta.promessa.votos.nao} não
-            </dd>
-          </dl>
-        </section>
-      )}
-
-      {pauta.status === 'conquistada' && conquista !== undefined && (
-        <section aria-labelledby="conquista-pauta-titulo" id="conquista-pauta">
-          <h2 id="conquista-pauta-titulo">Card de conquista</h2>
-          <p className={estilos.detalhes}>
-            O que a curadoria escreve aqui aparece no card de conquista e na página pública da
-            pauta. Sem texto, o card usa a descrição do caminho executado.
-          </p>
-          {feito === 'conquista' && (
-            <p className={estilos.aviso} role="status">
-              Card de conquista salvo. O site pode levar alguns segundos para mostrar.
-            </p>
-          )}
-          <FormularioDaConquista
-            pautaId={pauta.id}
-            textoSalvo={conquista.texto ?? ''}
-            fotoAtual={conquista.fotoChave === null ? null : caminhoDoArquivo(conquista.fotoChave)}
-            urlDoCard={
-              origemDoSite === undefined
-                ? null
-                : `${origemDoSite.replace(/\/+$/, '')}/p/${encodeURIComponent(conquista.slug)}/card.png`
-            }
-            salvar={salvarConquista}
-          />
-        </section>
-      )}
-
-      <LinhaDoTempo
-        pautaId={pauta.id}
-        titulo={pauta.titulo}
-        eventos={eventos}
-        recolhivel
-        aberta={linhaAberta}
-      />
-
-      {prorrogarPrazo && corrigirProtocolo && remarcarPromessa && (
-        <AjustesDePrazo
-          pauta={pauta}
-          eventos={eventos}
-          erro={erro}
-          prorrogar={prorrogarPrazo}
-          corrigir={corrigirProtocolo}
-          remarcar={remarcarPromessa}
-        />
-      )}
-
-      {ACEITA_PROMESSA.includes(pauta.status) && (
-        <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>
-          Registrar resposta e promessa
-        </Link>
-      )}
-
-      {pauta.status === 'em_curadoria' && relatoComDadoPessoal && (
-        <form action={recusarRelatoDeOrigem} className={estilos.aviso} role="alert">
-          <p>
-            O relato de quem criou a pauta tem e-mail ou telefone. Aprovar publicaria esse dado:
-            recuse só o relato e depois aprove a pauta sem ele.
-          </p>
-          <input type="hidden" name="pautaId" value={pauta.id} />
-          <Enviar className={estilos.botaoPerigo}>Recusar só o relato</Enviar>
-        </form>
-      )}
-
-      {pauta.status === 'em_curadoria' && (
-        <section aria-labelledby="decisao-pauta" className={estilos.decisoes}>
-          <h2 id="decisao-pauta">Decisão</h2>
-          <p className={estilos.detalhes}>
-            Aprovar publica a pauta no site, junto com o relato de quem a criou, e ela passa a
-            juntar apoios. Confira antes o texto, a foto e os achados: nada de nome de pessoa,
-            ofensa ou dado pessoal.
-          </p>
-          <form action={aprovar} className={estilos.aprovacao}>
-            <input type="hidden" name="pautaId" value={pauta.id} />
-            {pauta.relatos
-              .filter((relato) => relato.moderacao === 'pendente')
-              .map((relato) => (
-                <span key={relato.id}>
-                  <input type="hidden" name={CAMPO_RELATO_VISTO} value={relato.id} />
-                  {relato.fotos
-                    .filter((foto) => foto.moderacao === 'pendente')
-                    .map((foto) => (
-                      <input
-                        key={foto.id}
-                        type="hidden"
-                        name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
-                        value={foto.id}
-                      />
-                    ))}
-                </span>
-              ))}
-            <input
-              type="hidden"
-              name="textoVisto"
-              value={versaoDoTexto(pauta.titulo, pauta.descricao)}
-            />
-            <label className={estilos.campo}>
-              Categoria{' '}
-              {inicial !== '' && <span className={estilos.dica}>(escolhida por quem relatou)</span>}
-              {/* Já vem marcada com a de quem relatou: só se troca se estiver errada. Sem categoria
-                  de quem relatou, continua obrigatória. */}
-              <select
-                id="categoria"
-                name="categoria"
-                required={inicial === ''}
-                defaultValue={inicial}
-                aria-describedby={inicial === '' ? undefined : 'dica-categoria'}
-              >
-                <option value="" disabled>
-                  Escolha uma categoria
-                </option>
-                {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
-                  <option key={valor} value={valor}>
-                    {rotulo}
-                  </option>
-                ))}
-              </select>
-              {inicial !== '' && (
-                <small id="dica-categoria" className={estilos.dica}>
-                  Troque só se estiver errada.
-                </small>
+                </>
               )}
-            </label>
-            <label className={estilos.marcar}>
-              <input type="checkbox" name="urgente" /> Marcar como urgente
-            </label>
-            <label className={[estilos.marcar, estilos.conferencia].join(' ')}>
-              <input type="checkbox" name={CAMPO_CONFERIDO} required /> Conferi o título, a
-              descrição, o relato e a foto: sem nome de pessoa, ofensa ou dado pessoal. Entendo que
-              aprovar publica tudo isso no site agora.
-            </label>
-            <Enviar className={estilos.botao}>Aprovar pauta</Enviar>
-          </form>
-          <details
-            className={estilos.recusa}
-            open={erro === 'motivo_obrigatorio' || erro === 'motivo_longo'}
-          >
-            <summary className={estilos.botaoSecundario}>Recusar pauta</summary>
-            <form action={recusar} className={estilos.formulario}>
-              <input type="hidden" name="pautaId" value={pauta.id} />
-              <label htmlFor="motivo">Motivo (vai pelo bot para quem criou a pauta)</label>
-              <textarea id="motivo" name="motivo" required maxLength={MOTIVO_RECUSA_MAXIMO} />
-              <Enviar className={estilos.botaoPerigo}>Confirmar recusa</Enviar>
-            </form>
-          </details>
-        </section>
-      )}
-      {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
-        <form action={atualizarUrgencia} className={estilos.formulario}>
-          <h2>Urgência</h2>
-          <input type="hidden" name="pautaId" value={pauta.id} />
-          <label>
-            <input type="checkbox" name="urgente" defaultChecked={pauta.urgente} /> Marcar como
-            urgente
-          </label>
-          <label htmlFor="motivo-urgencia">Motivo curto (opcional)</label>
-          <input
-            id="motivo-urgencia"
-            name="motivo"
-            maxLength={200}
-            defaultValue={pauta.urgenteMotivo ?? ''}
+            </section>
+          )}
+
+          {publicada && (
+            <section aria-labelledby="caminhos-pauta">
+              <h2 id="caminhos-pauta">Caminhos abertos</h2>
+              {pauta.caminhos.length === 0 ? (
+                <p className={estilos.detalhes}>Nenhum caminho aberto.</p>
+              ) : (
+                pauta.caminhos.map((caminho, indice) => (
+                  <p className={estilos.apoio} key={indice}>
+                    <b>{TIPO_CAMINHO[caminho.tipo]}</b>
+                    {caminho.protocolo ? ` · protocolo ${caminho.protocolo}` : ''}
+                    {caminho.prazo ? ` · prazo ${caminho.prazo}` : ''}
+                  </p>
+                ))
+              )}
+            </section>
+          )}
+
+          {(pauta.promessa || aceitaPromessa || pauta.status === 'prometido') && (
+            <section aria-labelledby="promessa-pauta">
+              <h2 id="promessa-pauta">Promessa registrada</h2>
+              {pauta.promessa ? (
+                <>
+                  <blockquote className={estilos.relato}>
+                    {pauta.promessa.resumo}
+                    <footer>
+                      {pauta.promessa.fonte} · prometido para {pauta.promessa.dataEntrega}
+                    </footer>
+                  </blockquote>
+                  <p className={estilos.detalhes}>
+                    Conferência aberta até {dataHora(pauta.promessa.conferenciaFechaEm)}. Votos:{' '}
+                    {pauta.promessa.votos.sim} sim, {pauta.promessa.votos.em_parte} em parte,{' '}
+                    {pauta.promessa.votos.nao} não.
+                  </p>
+                </>
+              ) : (
+                <p className={estilos.detalhes}>
+                  Nenhuma resposta registrada ainda. Quem cuida da pauta manda o PDF pelo bot.
+                </p>
+              )}
+              {aceitaPromessa && (
+                <Link className={estilos.acao} href={`/pautas/${pauta.id}/promessa`}>
+                  Registrar resposta e promessa
+                </Link>
+              )}
+            </section>
+          )}
+
+          {prorrogarPrazo && corrigirProtocolo && remarcarPromessa && (
+            <AjustesDePrazo
+              pauta={pauta}
+              eventos={eventos}
+              erro={erro}
+              prorrogar={prorrogarPrazo}
+              corrigir={corrigirProtocolo}
+              remarcar={remarcarPromessa}
+            />
+          )}
+
+          {pauta.status === 'conquistada' && conquista !== undefined && (
+            <section aria-labelledby="conquista-pauta-titulo" id="conquista-pauta">
+              <h2 id="conquista-pauta-titulo">Card de conquista</h2>
+              <p className={estilos.apoio}>
+                A conquista sai pelo voto de quem apoiou. Aqui a curadoria mostra o que foi feito: o
+                texto e a foto aparecem na página da pauta e no card de compartilhar. Nada de nome
+                de pessoa.
+              </p>
+              {feito === 'conquista' && (
+                <p className={estilos.aviso} role="status">
+                  Card de conquista salvo. O texto e a foto já aparecem na página da pauta e no card
+                  de compartilhar. O site pode levar alguns segundos para mostrar.
+                </p>
+              )}
+              <FormularioDaConquista
+                pautaId={pauta.id}
+                textoSalvo={conquista.texto ?? ''}
+                fotoAtual={
+                  conquista.fotoChave === null ? null : caminhoDoArquivo(conquista.fotoChave)
+                }
+                urlDoCard={
+                  origem === undefined
+                    ? null
+                    : `${origem}/p/${encodeURIComponent(conquista.slug)}/card.png`
+                }
+                salvar={salvarConquista}
+              />
+            </section>
+          )}
+
+          <LinhaDoTempo
+            pautaId={pauta.id}
+            titulo={pauta.titulo}
+            eventos={eventos}
+            recolhivel
+            aberta={linhaAberta}
           />
-          <p className={estilos.detalhes}>
-            O motivo fica só no painel. No site aparece apenas que a pauta é urgente.
-          </p>
-          <Enviar className={estilos.botaoSecundario}>Salvar urgência</Enviar>
-        </form>
-      )}
-      {pauta.status !== 'em_curadoria' && pauta.status !== 'recusada' && (
-        <form action={definirCategoria} className={estilos.formulario}>
-          <h2>Trocar categoria</h2>
-          <input type="hidden" name="pautaId" value={pauta.id} />
-          <label htmlFor="nova-categoria">Categoria</label>
-          <select id="nova-categoria" name="categoria" required defaultValue={pauta.categoria}>
-            <option value="" disabled>
-              Escolha uma categoria
-            </option>
-            {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </select>
-          <Enviar className={estilos.botaoSecundario}>Salvar categoria</Enviar>
-        </form>
-      )}
+        </div>
+
+        <aside className={estilos.lado} aria-label={publicada ? 'Ajustes' : 'Decisão'}>
+          {emCuradoria && (
+            <div className={estilos.decisoes}>
+              <h2 id="decisao-pauta">Decisão</h2>
+              <form action={aprovar} className={estilos.aprovacao}>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                {pauta.relatos
+                  .filter((relato) => relato.moderacao === 'pendente')
+                  .map((relato) => (
+                    <span key={relato.id}>
+                      <input type="hidden" name={CAMPO_RELATO_VISTO} value={relato.id} />
+                      {relato.fotos
+                        .filter((foto) => foto.moderacao === 'pendente')
+                        .map((foto) => (
+                          <input
+                            key={foto.id}
+                            type="hidden"
+                            name={`${PREFIXO_FOTO_VISTA}${relato.id}`}
+                            value={foto.id}
+                          />
+                        ))}
+                    </span>
+                  ))}
+                <input
+                  type="hidden"
+                  name="textoVisto"
+                  value={versaoDoTexto(pauta.titulo, pauta.descricao)}
+                />
+                <label className={estilos.campo} htmlFor="categoria">
+                  <span>
+                    Categoria{' '}
+                    {inicial !== '' && (
+                      <span className={estilos.dica}>escolhida por quem relatou</span>
+                    )}
+                  </span>
+                  {/* Já vem marcada com a de quem relatou: só se troca se estiver errada. Sem categoria
+                      de quem relatou, continua obrigatória. */}
+                  <select
+                    id="categoria"
+                    name="categoria"
+                    required={inicial === ''}
+                    defaultValue={inicial}
+                    aria-describedby={inicial === '' ? undefined : 'dica-categoria'}
+                  >
+                    <option value="" disabled>
+                      Escolha uma categoria
+                    </option>
+                    {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
+                      <option key={valor} value={valor}>
+                        {rotulo}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {inicial !== '' && (
+                  <p id="dica-categoria" className={estilos.dicaDaCategoria}>
+                    Troque só se estiver errada.
+                  </p>
+                )}
+                <label className={estilos.marcar}>
+                  <input type="checkbox" name="urgente" /> Marcar como urgente
+                </label>
+                <label className={[estilos.marcar, estilos.conferencia].join(' ')}>
+                  <input type="checkbox" name={CAMPO_CONFERIDO} required /> Conferi o texto, o
+                  relato e as fotos
+                </label>
+                {relatoComDadoPessoal && (
+                  <p className={[estilos.erro, estilos.largura].join(' ')}>
+                    Há dado pessoal no relato. Recuse só o relato ou recuse a pauta.
+                  </p>
+                )}
+                <Enviar className={estilos.botao} desabilitado={relatoComDadoPessoal}>
+                  Aprovar e publicar
+                </Enviar>
+              </form>
+              <details
+                className={estilos.recusa}
+                open={erro === 'motivo_obrigatorio' || erro === 'motivo_longo'}
+              >
+                <summary className={estilos.botaoSecundario}>Recusar…</summary>
+                <form action={recusar} className={estilos.formulario}>
+                  <input type="hidden" name="pautaId" value={pauta.id} />
+                  <MotivoDaRecusa maximo={MOTIVO_RECUSA_MAXIMO} />
+                  <Enviar className={estilos.botaoPerigo}>Confirmar recusa</Enviar>
+                </form>
+              </details>
+            </div>
+          )}
+          {recusada && (
+            <>
+              <h2>Decisão</h2>
+              <p className={estilos.detalhes}>Motivo enviado a quem criou:</p>
+              <blockquote className={estilos.relato}>
+                {pauta.motivoRecusa ?? 'Sem motivo registrado.'}
+              </blockquote>
+            </>
+          )}
+          {publicada && (
+            <>
+              <h2>Urgência</h2>
+              <form action={atualizarUrgencia} className={estilos.formulario}>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                <label className={estilos.marcar}>
+                  <input type="checkbox" name="urgente" defaultChecked={pauta.urgente} /> Pauta
+                  urgente
+                </label>
+                <label htmlFor="motivo-urgencia">Motivo curto (opcional)</label>
+                <input
+                  id="motivo-urgencia"
+                  name="motivo"
+                  maxLength={200}
+                  defaultValue={pauta.urgenteMotivo ?? ''}
+                />
+                <p className={estilos.detalhes}>
+                  O motivo fica só no painel. O site mostra apenas que a pauta é urgente.
+                </p>
+                <Enviar className={estilos.botaoSecundario}>Salvar urgência</Enviar>
+              </form>
+              <h2>Trocar categoria</h2>
+              <form action={definirCategoria} className={estilos.formulario}>
+                <input type="hidden" name="pautaId" value={pauta.id} />
+                <label htmlFor="nova-categoria" className={estilos.vh}>
+                  Categoria
+                </label>
+                <select
+                  id="nova-categoria"
+                  name="categoria"
+                  required
+                  defaultValue={pauta.categoria}
+                >
+                  <option value="" disabled>
+                    Escolha uma categoria
+                  </option>
+                  {Object.entries(CATEGORIAS).map(([valor, rotulo]) => (
+                    <option key={valor} value={valor}>
+                      {rotulo}
+                    </option>
+                  ))}
+                </select>
+                <Enviar className={estilos.botaoSecundario}>Salvar categoria</Enviar>
+              </form>
+            </>
+          )}
+        </aside>
+      </div>
     </>
   );
 }

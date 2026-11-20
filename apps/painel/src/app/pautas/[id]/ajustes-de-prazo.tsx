@@ -31,14 +31,18 @@ function diaEmMaceio(instante: number): string {
 function CamposDeAuditoria() {
   return (
     <>
-      <label>
-        Motivo
-        <textarea name="motivo" required maxLength={200} />
-      </label>
-      <label>
-        Fonte
-        <input name="fonte" required maxLength={120} />
-      </label>
+      <div>
+        <label>
+          Motivo
+          <input name="motivo" required maxLength={200} />
+        </label>
+      </div>
+      <div>
+        <label>
+          Fonte
+          <input name="fonte" required maxLength={120} />
+        </label>
+      </div>
     </>
   );
 }
@@ -71,6 +75,10 @@ export function AjustesDePrazo({
   return (
     <section aria-labelledby="ajustes-prazo">
       <h2 id="ajustes-prazo">Ajustes de prazo</h2>
+      <p className={estilos.detalhes}>
+        Prazo de resposta do Fala.BR: 30 dias, prorrogáveis uma vez por mais 30. Tudo fica na linha
+        do tempo.
+      </p>
       {erro && ERROS[erro] && (
         <p className={estilos.erro} role="alert">
           {ERROS[erro]}
@@ -84,11 +92,13 @@ export function AjustesDePrazo({
               (evento.tipo === 'protocolo_registrado' && evento.dados.prorrogado === true)),
         );
         return (
-          <div className={estilos.cartao} key={caminho.id}>
+          <div key={caminho.id}>
             <h3>Fala.BR · {caminho.protocolo}</h3>
-            <div className={estilos.dupla}>
-              <form action={prorrogar} className={estilos.pilha}>
-                <h4>Prorrogação do prazo</h4>
+            <div>
+              <form
+                action={prorrogar}
+                className={[estilos.formulario, estilos.linhaDeForm].join(' ')}
+              >
                 <input type="hidden" name="pautaId" value={pauta.id} />
                 <input type="hidden" name="caminhoId" value={caminho.id} />
                 <CamposDeAuditoria />
@@ -96,17 +106,23 @@ export function AjustesDePrazo({
                   className={estilos.botaoSecundario}
                   desabilitado={prorrogado || caminho.prazo === null}
                 >
-                  {prorrogado ? 'Prazo já prorrogado' : 'Registrar prorrogação'}
+                  {prorrogado ? 'Prazo já prorrogado' : 'Prorrogar prazo (+30 dias)'}
                 </Enviar>
               </form>
-              <form action={corrigir} className={estilos.pilha}>
-                <h4>Data do protocolo</h4>
+              <form
+                action={corrigir}
+                className={[estilos.formulario, estilos.linhaDeForm, estilos.linhaDeFormLarga].join(
+                  ' ',
+                )}
+              >
                 <input type="hidden" name="pautaId" value={pauta.id} />
                 <input type="hidden" name="caminhoId" value={caminho.id} />
-                <label>
-                  Data correta do protocolo
-                  <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
-                </label>
+                <div>
+                  <label>
+                    Data correta do protocolo
+                    <input type="date" name="data" required max={diaEmMaceio(Date.now())} />
+                  </label>
+                </div>
                 <CamposDeAuditoria />
                 <Enviar className={estilos.botaoSecundario}>Corrigir data do protocolo</Enviar>
               </form>
@@ -120,20 +136,24 @@ export function AjustesDePrazo({
         </p>
       )}
       {promessa && !conferenciaAberta && (
-        <form action={remarcar} className={[estilos.cartao, estilos.pilha].join(' ')}>
+        <form
+          action={remarcar}
+          className={[estilos.formulario, estilos.linhaDeForm, estilos.linhaDeFormLarga].join(' ')}
+        >
           <input type="hidden" name="pautaId" value={pauta.id} />
-          <h3>Promessa de {promessa.dataEntrega}</h3>
           <input type="hidden" name="promessaId" value={promessa.id} />
-          <label>
-            Nova data prometida
-            <input
-              type="date"
-              name="dataEntrega"
-              required
-              min={diaEmMaceio(Date.now() + MS_POR_DIA)}
-              max={dataDeEntregaMaxima()}
-            />
-          </label>
+          <div>
+            <label>
+              Nova data prometida (hoje: {promessa.dataEntrega})
+              <input
+                type="date"
+                name="dataEntrega"
+                required
+                min={diaEmMaceio(Date.now() + MS_POR_DIA)}
+                max={dataDeEntregaMaxima()}
+              />
+            </label>
+          </div>
           <CamposDeAuditoria />
           <Enviar className={estilos.botaoSecundario}>Remarcar data prometida</Enviar>
         </form>

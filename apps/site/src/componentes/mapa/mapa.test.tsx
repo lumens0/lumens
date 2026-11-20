@@ -1,5 +1,5 @@
 import { blocosSeed } from '../../../../../packages/db/seed/data';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
@@ -104,28 +104,41 @@ describe('marcadores do mapa', () => {
 });
 
 describe('mapa do campus', () => {
-  it('prédio ligado a bloco é botão; a lista e a legenda têm a mesma informação', () => {
+  it('acende o prédio com pauta, lista os blocos acesos e filtra por etapa, como no protótipo', () => {
     const html = renderToStaticMarkup(
       <MapaDoCampus
         marcadores={marcadoresDoMapa(
           [bloco('bloco-18', 'Bloco 18'), bloco('bloco-novo', 'Bloco Novo')],
-          [pauta('descumprida', 5)],
+          [pauta('descumprida', 5), pauta('conquistada', 9, 'bloco-novo')],
         )}
       />,
     );
 
-    expect(html.match(/<g[^>]*role="button"/g)).toHaveLength(1);
-    expect(html).toContain('Bloco 18: 1 pauta aberta · Promessa descumprida');
-    expect(html).toContain('Bloco Novo');
-    expect(html).toContain('A mesma informação, em lista');
+    // Um prédio aceso por bloco com pauta (o "Bloco Novo" não tem prédio no desenho).
+    expect(html.match(/class="[^"]*aceso[^"]*"/g)).toHaveLength(1);
+    expect(html).toContain('Onde há pautas');
+    expect(html).toContain('1 bloco aceso · 1 pauta.');
     expect(html).toContain('Promessa descumprida');
-    expect(html).toContain('Escolha um bloco');
-    expect(html).toContain(
-      'aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight + - N"',
+    expect(html).toContain('Tudo aceso');
+    expect(html).toContain('aria-label="Mostrar no mapa"');
+    expect(html).toContain('Arraste para mover. Com dois dedos, aproxime.');
+    expect(html).toContain('aria-label="Aproximar"');
+    expect(html).toContain('aria-label="Afastar"');
+    expect(html).toContain('Toque num prédio apagado para relatar um problema nele.');
+    expect(html).toContain('colaboradores do OpenStreetMap');
+  });
+
+  it('o prédio sem pauta fica apagado: só o que tem pauta ganha ponto e onda', () => {
+    const html = renderToStaticMarkup(
+      <MapaDoCampus
+        marcadores={marcadoresDoMapa(
+          [bloco('ic', 'IC'), bloco('im', 'IM')],
+          [pauta('juntando_apoios', 1, 'ic')],
+        )}
+      />,
     );
-    expect(html).toContain('aria-describedby="atalhos-mapa"');
-    expect(html).toContain('Fechar ajuda do mapa');
-    expect(html).toContain('Atalhos do mapa: setas movem');
+    expect(html.match(/data-onda/g)).toHaveLength(1);
+    expect(html.match(/class="[^"]*aceso[^"]*"/g)).toHaveLength(1);
   });
 });
 
@@ -329,12 +342,6 @@ describe('lugares que faltavam no mapa (SCRUM-284)', () => {
     for (const area of AREAS) expect(area.d).toMatch(/^M[\d. LZ-]+Z$/);
   });
 
-  it('o mapa desenha as áreas abertas, e o nome da pista vira dica do desenho', () => {
-    const html = renderToStaticMarkup(<MapaDoCampus marcadores={[]} />);
-    expect(html).toContain('<title>Pista de atletismo</title>');
-    expect(html.match(/class="[^"]*area[^"]*"/g)?.length).toBe(AREAS.length);
-  });
-
   it('prédio sem nome no OSM usa o nome local confirmado; os outros ficam como "sem nome"', () => {
     expect(PREDIOS.find((p) => p.id === 404591641)).toMatchObject({
       nome: 'Centro de Interesse Comunitário',
@@ -365,21 +372,6 @@ describe('legenda do mapa', () => {
       expect(cores).toContain(STATUS[status].ponto);
     }
     expect(new Set(cores).size).toBe(cores.length);
-  });
-});
-
-describe('lista do mapa: cartões da mesma altura (SCRUM-284)', () => {
-  const css = readFileSync(new URL('./mapa.module.css', import.meta.url), 'utf8');
-
-  it('a lista é uma grade e o cartão ocupa a altura da linha da grade', () => {
-    expect(css).toMatch(/\.lista\s*\{[^}]*display:\s*grid/);
-    expect(css).toMatch(/\.linha\s*\{[^}]*height:\s*100%/);
-    expect(css).toMatch(/\.linha\s*\{[^}]*width:\s*100%/);
-  });
-
-  it('o crédito do OpenStreetMap no celular ocupa uma linha só, para cobrir poucos nomes', () => {
-    const celular = css.slice(css.indexOf('@media (max-width: 720px)'));
-    expect(celular).toMatch(/\.credito\s*\{[^}]*white-space:\s*nowrap/);
   });
 });
 

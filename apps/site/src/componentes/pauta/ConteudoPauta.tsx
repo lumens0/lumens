@@ -1,12 +1,12 @@
 import type { PautaDetalhe } from '@lumens/contratos';
 import type { CSSProperties } from 'react';
 import { ProximaEtapa, RespostaOficial } from './Andamento';
-import { CabecalhoPauta, PlacarDeApoios } from './CabecalhoPauta';
-import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
+import { BotaoDeApoio, CabecalhoPauta } from './CabecalhoPauta';
+import { mostraApoiar } from '../BotaoWhatsApp';
 import { formatarNumero } from '../BarraApoios';
 import { STATUS } from '../StatusPill';
 import { Caminhos } from './Caminhos';
-import { DestaqueDaConquista, SolucaoEntregue } from './Conquista';
+import { FatosDaConquista, SolucaoEntregue } from './Conquista';
 import { FioDeEtapas } from './FioDeEtapas';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
@@ -34,46 +34,52 @@ export function ConteudoPauta({
     </p>
   );
   return (
-    <main className={estilos.pagina}>
+    <main>
       {/* A faixa de noite brilha na cor da etapa: 30% do raio, 55% na pauta conquistada. */}
       <div
         className={[estilos.faixa, conquistada ? estilos.faixaConquistada : '', 'noite'].join(' ')}
         style={{ '--cor': STATUS[pauta.status].ponto } as CSSProperties}
       >
-        <Voltar />
-        <CabecalhoPauta pauta={pauta} />
-        <FioDeEtapas status={pauta.status} />
+        <div className={estilos.caixa}>
+          <Voltar />
+          <CabecalhoPauta pauta={pauta} agora={agora} />
+          <FioDeEtapas status={pauta.status} />
+          {conquistada && <FatosDaConquista pauta={pauta} />}
+        </div>
       </div>
-      {conquistada ? (
-        <>
-          <DestaqueDaConquista pauta={pauta} />
-          <SolucaoEntregue pauta={pauta} />
-          <RespostaOficial pauta={pauta} agora={agora} />
-          <LinhaDoTempo eventos={pauta.linha_do_tempo} destacar />
-          <Relatos relatos={pauta.relatos} />
-          <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} conquistada agora={agora} />
-        </>
-      ) : (
-        <>
-          <div className={estilos.secao}>
-            <PlacarDeApoios pauta={pauta} />
-            {metaAjustada && <p className={estilos.vazio}>Meta ajustada pela curadoria</p>}
-            <ProximaEtapa pauta={pauta} agora={agora} />
-          </div>
-          <RespostaOficial pauta={pauta} agora={agora} />
-          <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} agora={agora} />
-          <Relatos relatos={pauta.relatos} />
-          <LinhaDoTempo eventos={pauta.linha_do_tempo} />
-        </>
-      )}
-      {rodape}
+      <div className={[estilos.caixa, estilos.corpo].join(' ')}>
+        <div className={estilos.coluna}>
+          <p className={estilos.descricao}>{pauta.descricao}</p>
+          {metaAjustada && <p className={estilos.subtitulo}>Meta ajustada pela curadoria</p>}
+          {conquistada ? (
+            <>
+              <RespostaOficial pauta={pauta} agora={agora} />
+              <SolucaoEntregue pauta={pauta} />
+              <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} conquistada agora={agora} />
+              <Relatos relatos={pauta.relatos} agora={agora} />
+              <LinhaDoTempo eventos={pauta.linha_do_tempo} />
+            </>
+          ) : (
+            <>
+              <ProximaEtapa pauta={pauta} agora={agora} />
+              <RespostaOficial pauta={pauta} agora={agora} />
+              <Caminhos caminhos={pauta.caminhos} slug={pauta.slug} agora={agora} />
+              <Relatos relatos={pauta.relatos} agora={agora} />
+              <LinhaDoTempo eventos={pauta.linha_do_tempo} />
+            </>
+          )}
+          {rodape}
+        </div>
+      </div>
       {/* Barra fixa do celular: o número e o botão ficam à mão enquanto se lê a pauta. */}
       {mostraApoiar(pauta.status) && (
         <div className={estilos.barraFixa}>
-          <span>
-            <strong>{formatarNumero(pauta.apoios)}</strong> de {formatarNumero(pauta.meta)} apoios
-          </span>
-          <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
+          <div className={estilos.caixa}>
+            <span>
+              <b>{formatarNumero(pauta.apoios)}</b> de {formatarNumero(pauta.meta)} apoios
+            </span>
+            <BotaoDeApoio slug={pauta.slug} titulo={pauta.titulo} curto />
+          </div>
         </div>
       )}
     </main>

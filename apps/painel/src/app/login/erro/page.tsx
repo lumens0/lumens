@@ -7,15 +7,17 @@ export default function Erro() {
       <section className={estilos.cartao} aria-labelledby="titulo-erro">
         <p className={estilos.marca}>
           <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
-          Lumens <span>Curadoria</span>
+          <span>
+            Lumens <span>Curadoria</span>
+          </span>
         </p>
-        <h1 id="titulo-erro">Este link não vale mais</h1>
+        <h1 id="titulo-erro">Não foi possível entrar</h1>
         <p className={estilos.descricao}>
-          O link de acesso vale uma vez só e por 15 minutos: ele pode ter vencido ou já ter sido
-          aberto. Peça um novo para entrar.
+          O link expirou, já foi usado ou o e-mail não está na lista da curadoria. Peça um link
+          novo.
         </p>
         <Link className={estilos.botao} href="/login">
-          Pedir um novo link
+          Pedir um link novo
         </Link>
       </section>
     </main>

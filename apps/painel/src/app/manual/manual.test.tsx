@@ -14,13 +14,13 @@ import { ManualDaCuradoria } from './manual';
 const texto = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
 describe('manual da curadoria', () => {
-  it('mostra as abas dos fluxos e o primeiro, com o primeiro passo aberto', () => {
+  it('mostra os chips dos fluxos e o primeiro fluxo, com as regras que valem sempre', () => {
     const html = renderToStaticMarkup(<ManualDaCuradoria administrador={false} />);
-    for (const fluxo of FLUXOS_DA_CURADORIA) expect(html).toContain(`>${fluxo.rotulo}</button>`);
-    expect(html).toContain('role="tablist"');
-    expect(html).toContain('aria-selected="true"');
+    for (const fluxo of FLUXOS_DA_CURADORIA) expect(html).toContain(`${fluxo.rotulo}</button>`);
+    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('Abra a fila');
-    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('<small>Painel</small>');
+    expect(html).toContain('Saiba mais');
     expect(html).toContain('Regras que valem sempre');
   });
 
@@ -41,9 +41,18 @@ describe('manual da curadoria', () => {
   });
 
   it('cita a caixa de conferência que a aprovação exige', () => {
-    expect(texto(renderToStaticMarkup(<ManualDaCuradoria administrador={false} />))).toContain(
-      'A caixa “Conferi…” é obrigatória',
+    expect(JSON.stringify(FLUXOS_DA_CURADORIA)).toContain('A caixa “Conferi…” é obrigatória');
+  });
+
+  it('as regras do protótipo estão na tela, com os números do sistema em destaque', () => {
+    const t = texto(renderToStaticMarkup(<ManualDaCuradoria administrador={false} />)).replace(
+      / ([.,:])/g,
+      '$1',
     );
+    expect(t).toContain('Decida pautas novas em até 24 horas.');
+    expect(t).toContain('A meta vai de 30 a 300 apoios.');
+    expect(t).toContain('Motivo de recusa: até 500 caracteres.');
+    expect(t).toContain('Conferência de 7 dias, com quórum de 10% de quem apoiou.');
   });
 });
 
@@ -51,7 +60,7 @@ describe('manual da curadoria: a categoria (E7)', () => {
   it('diz que a categoria vem marcada com a de quem relatou, e não que é obrigatória', () => {
     const tudo = JSON.stringify([...FLUXOS_DA_CURADORIA]);
     expect(tudo).toContain('Confira a categoria');
-    expect(tudo).toContain('já vem marcada com a de quem relatou');
+    expect(tudo).toContain('Ela vem de quem relatou');
     expect(tudo).not.toContain('Obrigatória para aprovar');
     expect(tudo).not.toContain('Escolha a categoria');
   });

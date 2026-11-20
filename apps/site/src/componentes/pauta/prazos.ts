@@ -41,3 +41,24 @@ export function textoDiasAte(dias: number): string {
   const unidade = n === 1 ? 'dia' : 'dias';
   return dias > 0 ? `em ${String(n)} ${unidade}` : `venceu há ${String(n)} ${unidade}`;
 }
+
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** "25 nov": o dia e o mês curtos de uma data civil `AAAA-MM-DD` ou de um instante em Maceió. */
+export function diaEMes(valor: string): string {
+  const civil = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor);
+  const instante = new Date(valor);
+  if (!civil && Number.isNaN(instante.getTime())) return valor;
+  const dia = civil ? valor : hojeEmMaceio(instante);
+  const [, , mes = '', d = ''] = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia) ?? [];
+  const nome = MESES[Number(mes) - 1];
+  return nome === undefined ? valor : `${String(Number(d))} ${nome}`;
+}
+
+/** "hoje", "ontem" ou "há N dias": quando um instante aconteceu, em dias de Maceió. */
+export function textoQuando(instante: string, agora: Date): string {
+  const dias = diasAte(hojeEmMaceio(new Date(instante)), agora);
+  if (dias === null || dias === 0) return 'hoje';
+  if (dias === -1) return 'ontem';
+  return dias < 0 ? `há ${String(-dias)} dias` : `em ${String(dias)} dias`;
+}

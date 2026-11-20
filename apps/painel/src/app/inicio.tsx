@@ -1,14 +1,13 @@
 import Link from 'next/link';
 import type { ResumoDaCuradoria, VisaoGeralDaCuradoria } from '@lumens/dominio';
 import estilos from './painel.module.css';
-import { STATUS } from './pautas/status';
+import { COR_NO_PAINEL, STATUS } from './pautas/status';
 
 const plural = (n: number, um: string, varios: string) => (n === 1 ? um : varios);
 
 /**
- * Um indicador do resumo, na mesma pilha alinhada à esquerda: o nome da fila (link, com altura de
- * duas linhas, para o número começar na mesma altura nos quatro), o número grande, a unidade e o
- * detalhe. Separados por filetes, sem cartões.
+ * Um indicador do resumo, na mesma pilha alinhada à esquerda: o nome da fila, o número grande, a
+ * unidade e o detalhe. O indicador inteiro é um link; separados por filetes, sem cartões.
  */
 function Indicador({
   href,
@@ -16,7 +15,6 @@ function Indicador({
   numero,
   unidade,
   detalhe,
-  extra,
   alerta = false,
 }: {
   href: string;
@@ -24,19 +22,16 @@ function Indicador({
   numero: number;
   unidade: string;
   detalhe?: string;
-  extra?: string | undefined;
   alerta?: boolean;
 }) {
   return (
-    <li className={[estilos.indicador, alerta ? estilos.indicadorAlerta : ''].join(' ')}>
-      <h2>
-        <Link href={href}>{titulo}</Link>
-      </h2>
-      <p className={estilos.numeros}>
-        <strong>{numero}</strong> {unidade}
-      </p>
-      {detalhe && <p className={estilos.detalhes}>{detalhe}</p>}
-      {extra && <p className={estilos.detalhes}>{extra}</p>}
+    <li className={[estilos.indicador, alerta ? estilos.indicadorAlerta : ''].join(' ').trim()}>
+      <Link href={href}>
+        <span className={estilos.indicadorTitulo}>{titulo}</span>
+        <b className={estilos.indicadorNumero}>{numero}</b>
+        <span className={estilos.indicadorUnidade}>{unidade}</span>
+        {detalhe && <span className={estilos.indicadorDetalhe}>{detalhe}</span>}
+      </Link>
     </li>
   );
 }
@@ -59,16 +54,43 @@ export function rotuloDaSemana(semana: string): string {
   return `${dia ?? ''} ${MES[Number(mes) - 1] ?? ''}`;
 }
 
-/** Quadro de linhas "rótulo, barra e número": o número está sempre escrito, a barra só ajuda. */
-function Barras({ itens }: { itens: { chave: string; rotulo: React.ReactNode; valor: number }[] }) {
+/** A ordem das barras de status: do começo ao fim da vida da pauta; só entram as que têm pauta. */
+const ORDEM_DAS_BARRAS = [
+  'em_curadoria',
+  'juntando_apoios',
+  'meta_batida',
+  'cobrando',
+  'prometido',
+  'entregue_em_parte',
+  'conquistada',
+  'descumprida',
+  'recusada',
+] as const;
+
+/** Linhas "rótulo, barra e número": o número está sempre escrito, a barra só ajuda. */
+function Barras({
+  itens,
+}: {
+  itens: { chave: string; href: string; cor: string; rotulo: string; valor: number }[];
+}) {
   const maior = Math.max(1, ...itens.map((i) => i.valor));
   return (
     <ul className={estilos.barras}>
       {itens.map((i) => (
         <li key={i.chave}>
-          <span className={estilos.barrasRotulo}>{i.rotulo}</span>
-          <progress value={i.valor} max={maior} aria-hidden="true" />
-          <strong className={estilos.barrasNumero}>{i.valor}</strong>
+          <Link href={i.href}>
+            <span className={estilos.barrasRotulo}>
+              <i style={{ background: i.cor }} aria-hidden="true" />
+              <span>{i.rotulo}</span>
+            </span>
+            <progress
+              value={i.valor}
+              max={maior}
+              style={{ '--c': i.cor } as React.CSSProperties}
+              aria-hidden="true"
+            />
+            <strong className={estilos.barrasNumero}>{i.valor}</strong>
+          </Link>
         </li>
       ))}
     </ul>
@@ -85,6 +107,10 @@ export function Inicio({
 }) {
   const atrasadas = resumo.pautasAtrasadas;
   const perto = visao.pautasPertoDeVencer;
+  const totais = new Map(visao.pautasPorStatus.map((s) => [s.status, s.total]));
+  const maiorSemana = Math.max(1, ...visao.apoiosPorSemana.map((s) => s.apoios));
+  const ultima = visao.apoiosPorSemana[visao.apoiosPorSemana.length - 1];
+  const primeira = visao.apoiosPorSemana[0];
   return (
     <>
       <h1>Painel de curadoria</h1>
@@ -97,12 +123,11 @@ export function Inicio({
           detalhe={
             atrasadas === 0
               ? 'Nenhuma atrasada no prazo de 24 h'
-              : `${String(atrasadas)} ${plural(atrasadas, 'pauta atrasada', 'pautas atrasadas')} no prazo de 24 h`
-          }
-          extra={
-            perto === 0
-              ? undefined
-              : `${String(perto)} ${plural(perto, 'vence', 'vencem')} nas próximas 6 h`
+              : `${String(atrasadas)} ${plural(atrasadas, 'pauta atrasada', 'pautas atrasadas')} no prazo de 24 h${
+                  perto === 0
+                    ? ''
+                    : ` · ${String(perto)} ${plural(perto, 'vence', 'vencem')} nas próximas 6 h`
+                }`
           }
           alerta={atrasadas > 0}
         />
@@ -110,11 +135,11 @@ export function Inicio({
           href="/relatos"
           titulo="Relatos a moderar"
           numero={resumo.relatosAModerar}
-          unidade={plural(resumo.relatosAModerar, 'relato', 'relatos') + ' em pautas publicadas'}
+          unidade="em pautas publicadas"
         />
         <Indicador
           href="/pautas?status=cobrando&pendencia=sem_resposta_oficial"
-          titulo="Pautas em cobrança sem resposta oficial"
+          titulo="Em cobrança sem resposta oficial"
           numero={resumo.pautasSemRespostaOficial}
           unidade={plural(resumo.pautasSemRespostaOficial, 'pauta', 'pautas')}
         />
@@ -123,49 +148,55 @@ export function Inicio({
           titulo="Conferências abertas"
           numero={resumo.conferenciasAbertas}
           unidade={plural(resumo.conferenciasAbertas, 'conferência', 'conferências')}
+          detalhe="Quem apoiou responde “Foi feito?” por 7 dias"
         />
       </ul>
 
-      <section className={estilos.cartao} aria-labelledby="visao-status">
-        <h2 id="visao-status">Pautas por status</h2>
-        <Barras
-          itens={visao.pautasPorStatus.map((s) => ({
-            chave: s.status,
-            valor: s.total,
-            rotulo: <Link href={`/pautas?status=${s.status}`}>{STATUS[s.status]}</Link>,
-          }))}
-        />
-      </section>
+      <div className={estilos.duas}>
+        <section aria-labelledby="visao-status">
+          <h2 id="visao-status">Pautas por status</h2>
+          <Barras
+            itens={ORDEM_DAS_BARRAS.filter((s) => (totais.get(s) ?? 0) > 0).map((s) => ({
+              chave: s,
+              href: `/pautas?status=${s}`,
+              cor: COR_NO_PAINEL[s],
+              rotulo: STATUS[s],
+              valor: totais.get(s) ?? 0,
+            }))}
+          />
+        </section>
 
-      <section className={estilos.cartao} aria-labelledby="visao-apoios">
-        <h2 id="visao-apoios">Apoios por semana</h2>
-        <Barras
-          itens={visao.apoiosPorSemana.map((s) => ({
-            chave: s.semana,
-            valor: s.apoios,
-            rotulo: `Semana de ${rotuloDaSemana(s.semana)}`,
-          }))}
-        />
-        <p className={estilos.detalhes}>Últimas 8 semanas, de segunda a domingo (UTC).</p>
-      </section>
-
-      <section className={estilos.cartao} aria-labelledby="visao-tempo">
-        <h2 id="visao-tempo">Tempo até a decisão</h2>
-        {visao.tempoMedioAteDecisaoMs === null ? (
-          <p className={estilos.detalhes}>Nenhuma decisão nos últimos 30 dias.</p>
-        ) : (
-          <>
-            <p className={estilos.numeros}>
-              <strong>{textoDoTempoMedio(visao.tempoMedioAteDecisaoMs)}</strong> em média
-            </p>
-            <p className={estilos.detalhes}>
-              {String(visao.decisoesNoPeriodo)}{' '}
-              {plural(visao.decisoesNoPeriodo, 'decisão', 'decisões')} nos últimos 30 dias, da
-              criação da pauta à aprovação ou recusa.
-            </p>
-          </>
-        )}
-      </section>
+        <section aria-labelledby="visao-apoios">
+          <h2 id="visao-apoios">Apoios por semana</h2>
+          <div
+            className={estilos.colunas}
+            role="img"
+            aria-label={`Apoios por semana, de ${String(primeira?.apoios ?? 0)} a ${String(ultima?.apoios ?? 0)}`}
+          >
+            {visao.apoiosPorSemana.map((s, i) => (
+              <div
+                key={s.semana}
+                style={
+                  { '--f': (s.apoios / maiorSemana).toFixed(3), '--i': i } as React.CSSProperties
+                }
+              >
+                <b>{s.apoios}</b>
+                <i />
+                <small>{rotuloDaSemana(s.semana)}</small>
+              </div>
+            ))}
+          </div>
+          <p className={estilos.detalhes}>
+            {visao.tempoMedioAteDecisaoMs === null ? (
+              'Nenhuma decisão nos últimos 30 dias.'
+            ) : (
+              <>
+                Tempo médio até a decisão: <b>{textoDoTempoMedio(visao.tempoMedioAteDecisaoMs)}</b>
+              </>
+            )}
+          </p>
+        </section>
+      </div>
     </>
   );
 }

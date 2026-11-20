@@ -17,6 +17,7 @@ import {
   relatos,
   sql,
   type Db,
+  type StatusPauta,
   type Tx,
 } from '@lumens/db';
 import { enfileirarAvisoDeFotoRecusada } from '../avisos/aviso-foto-recusada';
@@ -40,6 +41,8 @@ export interface RelatoPendente {
    * achados no texto. É ajuda para quem lê, não filtro: ofensa e o que está na foto só a pessoa vê.
    */
   achados: Achado[];
+  /** Curso de quem escreveu (nunca o nome); a curadoria lê junto com o relato. */
+  curso: string | null;
 }
 
 export interface PautaComRelatosPendentes {
@@ -47,6 +50,8 @@ export interface PautaComRelatosPendentes {
   titulo: string;
   /** `null` é pauta do campus inteiro. */
   bloco: string | null;
+  /** Etapa da pauta, para o cabeçalho do grupo na fila. */
+  status: StatusPauta;
   relatos: RelatoPendente[];
 }
 
@@ -88,11 +93,14 @@ export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPen
       pautaId: pautas.id,
       titulo: pautas.titulo,
       bloco: blocos.nome,
+      status: pautas.status,
       id: relatos.id,
       texto: relatos.texto,
+      curso: estudantes.curso,
     })
     .from(relatos)
     .innerJoin(pautas, eq(pautas.id, relatos.pautaId))
+    .leftJoin(estudantes, eq(estudantes.id, relatos.estudanteId))
     .leftJoin(blocos, eq(blocos.id, pautas.blocoId))
     .where(
       and(
@@ -108,10 +116,10 @@ export async function listarRelatosPendentes(db: Db): Promise<PautaComRelatosPen
     linhas.map((l) => l.id),
   );
   const fila: PautaComRelatosPendentes[] = [];
-  for (const { pautaId, titulo, bloco, ...relato } of linhas) {
+  for (const { pautaId, titulo, bloco, status, ...relato } of linhas) {
     let grupo = fila.at(-1);
     if (grupo?.id !== pautaId) {
-      grupo = { id: pautaId, titulo, bloco, relatos: [] };
+      grupo = { id: pautaId, titulo, bloco, status, relatos: [] };
       fila.push(grupo);
     }
     grupo.relatos.push({

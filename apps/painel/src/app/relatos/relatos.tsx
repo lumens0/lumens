@@ -1,5 +1,5 @@
 import type { PautaComRelatosPendentes } from '@lumens/dominio';
-import { CabecalhoDaPauta, seloDeQuantidade } from '../pautas/grupo';
+import { CabecalhoDaPauta } from '../pautas/grupo';
 import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../fotos-do-relato';
 import estilos from '../painel.module.css';
 import { Enviar } from '../enviar';
@@ -50,16 +50,6 @@ export function Relatos({
   return (
     <>
       <h1>Relatos em pautas publicadas</h1>
-      <p className={estilos.apoio}>
-        O relato de quem criou uma pauta é conferido junto com a pauta; esta lista mostra relatos
-        novos de pautas já públicas.
-      </p>
-      <p className={estilos.apoio}>
-        Antes de aprovar, barre o que identifica alguém: nome de pessoa, ofensa e dado pessoal.
-        Confira também as fotos (até três por relato): dá para recusar cada foto, com motivo, e
-        manter o texto. Aprovar o relato aprova as fotos que estão na tela; recusar o relato recusa
-        tudo.
-      </p>
       {aviso !== undefined && (
         <p className={estilos.aviso} role="status">
           {aviso}
@@ -70,24 +60,33 @@ export function Relatos({
           {falha}
         </p>
       )}
+      <p className={estilos.apoio}>
+        O relato de quem criou a pauta é conferido junto com a pauta. Aqui ficam os relatos novos de
+        pautas já públicas. Barre nome de pessoa, ofensa e dado pessoal, também nas fotos.
+      </p>
       {pautas.length === 0 ? (
-        <p className={estilos.aviso}>Nenhum relato esperando moderação.</p>
+        <p className={estilos.vazio}>Nenhum relato esperando moderação.</p>
       ) : (
         pautas.map((pauta) => (
-          <section key={pauta.id}>
+          <section key={pauta.id} className={estilos.grupoDaPauta}>
             <CabecalhoDaPauta
               pautaId={pauta.id}
               titulo={pauta.titulo}
+              status={pauta.status}
               onde={pauta.bloco ?? 'Campus inteiro'}
-              selo={seloDeQuantidade(pauta.relatos.length, 'relato', 'relatos')}
+              quantidade={pauta.relatos.length}
+              um="relato"
+              varios="relatos"
             />
-            <ul className={estilos.lista}>
-              {pauta.relatos.map((relato, i) => (
-                <li key={relato.id} className={[estilos.cartao, estilos.relato].join(' ')}>
+            {pauta.relatos.map((relato, i) => {
+              const bloqueado = relato.achados.some((a) => a.severidade === 'bloqueio');
+              return (
+                <article key={relato.id} className={estilos.quadro}>
                   <p className={estilos.rotuloDoItem}>
                     Relato {i + 1} de {pauta.relatos.length}
+                    {relato.curso ? ` · Estudante de ${relato.curso}` : ''}
                   </p>
-                  <p className={estilos.textoDoRelato}>{relato.texto}</p>
+                  <blockquote className={estilos.relato}>{relato.texto}</blockquote>
                   <FotosDoRelato
                     fotos={relato.fotos.map((f) => ({
                       ...f,
@@ -97,36 +96,50 @@ export function Relatos({
                     recusarFoto={recusarFoto}
                     voltar="/relatos"
                   />
-                  {relato.achados.length > 0 && (
-                    <ul className={estilos.aviso}>
+                  {relato.achados.length === 0 ? (
+                    <p className={estilos.ok}>Nenhum achado automático.</p>
+                  ) : (
+                    <ul className={estilos.achados}>
                       {relato.achados.map((achado) => (
-                        <li key={`${String(achado.inicio)}-${achado.motivo}`}>
-                          {achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}:{' '}
+                        <li
+                          key={`${String(achado.inicio)}-${achado.motivo}`}
+                          className={
+                            achado.severidade === 'bloqueio' ? estilos.barrar : estilos.conferir
+                          }
+                        >
+                          <b>{achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}</b>{' '}
                           {MOTIVO[achado.motivo]} ({achado.trecho})
                         </li>
                       ))}
                     </ul>
                   )}
                   <div className={estilos.acoesDoRelato}>
-                    <form action={aprovar}>
+                    <form action={aprovar} className={estilos.emGrade}>
                       <input type="hidden" name="relatoId" value={relato.id} />
                       {relato.fotos.map((foto) => (
                         <input key={foto.id} type="hidden" name="fotoVista" value={foto.id} />
                       ))}
-                      <label className={estilos.conferencia}>
+                      <label className={estilos.marcar}>
                         <input type="checkbox" name={CAMPO_CONFERIDO} required /> Conferi o texto e
-                        a foto: sem nome de pessoa, ofensa ou dado pessoal.
+                        as fotos
                       </label>
-                      <Enviar className={estilos.botao}>Aprovar relato</Enviar>
+                      <Enviar className={estilos.botao} desabilitado={bloqueado}>
+                        Aprovar
+                      </Enviar>
                     </form>
-                    <form action={recusar}>
+                    <form action={recusar} className={estilos.emGrade}>
                       <input type="hidden" name="relatoId" value={relato.id} />
-                      <Enviar className={estilos.botaoPerigo}>Recusar relato</Enviar>
+                      <Enviar className={estilos.botaoSecundario}>Recusar relato</Enviar>
                     </form>
+                    {bloqueado && (
+                      <p className={[estilos.erro, estilos.largura].join(' ')}>
+                        Dado pessoal: só dá para recusar.
+                      </p>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
+                </article>
+              );
+            })}
           </section>
         ))
       )}

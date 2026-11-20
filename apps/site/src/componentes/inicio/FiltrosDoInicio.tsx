@@ -46,8 +46,10 @@ export function EtapasFiltraveis({ linhas, atual }: { linhas: LinhaDeEtapa[]; at
               alternarFiltro('status', linha.status);
             }}
           >
-            <i className={estilos.janelaMini} aria-hidden="true" />
-            <span className={estilos.nomeDaLinha}>{STATUS[linha.status].rotulo}</span>
+            <span className={estilos.nomeDaLinha}>
+              <i className={estilos.janelaMini} aria-hidden="true" />
+              {STATUS[linha.status].rotulo}
+            </span>
             <span className={estilos.trilhoDaLinha} aria-hidden="true">
               <i style={{ width: `${String(linha.largura)}%` }} />
             </span>

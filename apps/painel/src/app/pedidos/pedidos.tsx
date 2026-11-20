@@ -1,7 +1,8 @@
 import { MOTIVO_DE_EDICAO_MAXIMO, type PedidoDeEdicao } from '@lumens/dominio';
 import Link from 'next/link';
 import { Enviar } from '../enviar';
-import { agruparPorPauta, CabecalhoDaPauta, seloDeQuantidade } from '../pautas/grupo';
+import { agruparPorPauta, CabecalhoDaPauta } from '../pautas/grupo';
+import type { STATUS } from '../pautas/status';
 import estilos from '../painel.module.css';
 
 /** Textos de retorno das decisões, para as telas que mostram pedidos. */
@@ -34,7 +35,7 @@ const CAMPO = { titulo: 'Título', descricao: 'Descrição' };
 export type PedidoNaTela = PedidoDeEdicao & { pautaTitulo?: string };
 
 /**
- * A fila de pedidos de todas as pautas, agrupada por pauta: um cabeçalho com o selo "N pedidos" e,
+ * A fila de pedidos de todas as pautas, agrupada por pauta: um cabeçalho com "N pedidos" e,
  * embaixo, cada pedido no seu quadro. Cada pedido segue como em `PedidosDeEdicao`.
  */
 export function PedidosPorPauta({
@@ -43,7 +44,11 @@ export function PedidosPorPauta({
   recusar,
   voltar,
 }: {
-  pedidos: (PedidoDeEdicao & { pautaTitulo: string })[];
+  pedidos: (PedidoDeEdicao & {
+    pautaTitulo: string;
+    pautaBloco?: string | null;
+    pautaStatus?: keyof typeof STATUS;
+  })[];
   aprovar: (formulario: FormData) => Promise<void>;
   recusar: (formulario: FormData) => Promise<void>;
   voltar: string;
@@ -51,14 +56,25 @@ export function PedidosPorPauta({
   return (
     <>
       {agruparPorPauta(pedidos).map((grupo) => (
-        <section key={grupo.pautaId} aria-label={`Pedidos da pauta ${grupo.titulo}`}>
+        <section
+          key={grupo.pautaId}
+          aria-label={`Pedidos da pauta ${grupo.titulo}`}
+          className={estilos.grupoDaPauta}
+        >
           <CabecalhoDaPauta
             pautaId={grupo.pautaId}
             titulo={grupo.titulo}
-            selo={seloDeQuantidade(grupo.itens.length, 'pedido', 'pedidos')}
+            status={grupo.status}
+            onde={grupo.bloco === undefined ? undefined : (grupo.bloco ?? 'Campus inteiro')}
+            quantidade={grupo.itens.length}
+            um="pedido"
+            varios="pedidos"
           />
           <PedidosDeEdicao
-            pedidos={grupo.itens.map(({ pautaTitulo: _titulo, ...pedido }) => pedido)}
+            pedidos={grupo.itens.map(
+              ({ pautaTitulo: _titulo, pautaBloco: _bloco, pautaStatus: _status, ...pedido }) =>
+                pedido,
+            )}
             aprovar={aprovar}
             recusar={recusar}
             voltar={voltar}
@@ -86,75 +102,75 @@ export function PedidosDeEdicao({
   voltar: string;
 }) {
   return (
-    <ul className={estilos.lista}>
-      {pedidos.map((pedido) => (
-        <li key={pedido.id} className={[estilos.cartao, estilos.relato].join(' ')}>
-          <h3>
-            {CAMPO[pedido.campo]}
-            {pedido.pautaTitulo !== undefined && (
-              <>
-                {' '}
-                da pauta <Link href={`/pautas/${pedido.pautaId}`}>{pedido.pautaTitulo}</Link>
-              </>
+    <ul className={estilos.quadros}>
+      {pedidos.map((pedido) => {
+        const bloqueado = pedido.achados.some((a) => a.severidade === 'bloqueio');
+        return (
+          <li key={pedido.id} className={estilos.quadro}>
+            <p className={estilos.detalhes}>
+              {CAMPO[pedido.campo]}
+              {pedido.pautaTitulo !== undefined && (
+                <>
+                  {' da pauta '}
+                  <Link href={`/pautas/${pedido.pautaId}`}>{pedido.pautaTitulo}</Link>
+                </>
+              )}
+              {' · pedido de quem criou a pauta'}
+            </p>
+            <dl className={estilos.antesDepois}>
+              <div>
+                <dt>Publicado</dt>
+                <dd>{pedido.antes}</dd>
+              </div>
+              <div>
+                <dt>Pedido</dt>
+                <dd>{pedido.depois}</dd>
+              </div>
+            </dl>
+            {pedido.achados.length > 0 && (
+              <ul className={estilos.achados}>
+                {pedido.achados.map((achado) => (
+                  <li
+                    key={`${String(achado.inicio)}-${achado.motivo}`}
+                    className={achado.severidade === 'bloqueio' ? estilos.barrar : estilos.conferir}
+                  >
+                    <b>{achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}</b>{' '}
+                    {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
+                  </li>
+                ))}
+              </ul>
             )}
-          </h3>
-          <dl className={estilos.antesDepois}>
-            <div>
-              <dt>Antes (publicado)</dt>
-              <dd className={estilos.textoDoRelato}>{pedido.antes}</dd>
+            <div className={estilos.acoesDoRelato}>
+              <form action={aprovar} className={estilos.emGrade}>
+                <input type="hidden" name="pedidoId" value={pedido.id} />
+                <input type="hidden" name="depoisVisto" value={pedido.depois} />
+                <input type="hidden" name="voltar" value={voltar} />
+                {/* Dado pessoal no texto novo trava a aprovação: só dá para recusar (e o domínio confere). */}
+                <Enviar className={estilos.botao} desabilitado={bloqueado}>
+                  Aprovar
+                </Enviar>
+              </form>
+              <details className={estilos.recusa}>
+                <summary className={estilos.botaoSecundario}>Recusar…</summary>
+                <form action={recusar} className={estilos.formulario}>
+                  <input type="hidden" name="pedidoId" value={pedido.id} />
+                  <input type="hidden" name="voltar" value={voltar} />
+                  <label htmlFor={`motivo-pedido-${pedido.id}`}>
+                    Motivo, enviado pelo bot (uma linha)
+                  </label>
+                  <input
+                    id={`motivo-pedido-${pedido.id}`}
+                    name="motivo"
+                    required
+                    maxLength={MOTIVO_DE_EDICAO_MAXIMO}
+                  />
+                  <Enviar className={estilos.botaoPerigo}>Confirmar recusa</Enviar>
+                </form>
+              </details>
             </div>
-            <div>
-              <dt>Depois (pedido)</dt>
-              <dd className={estilos.textoDoRelato}>{pedido.depois}</dd>
-            </div>
-          </dl>
-          {pedido.achados.length > 0 && (
-            <ul className={estilos.aviso}>
-              {pedido.achados.map((achado) => (
-                <li key={`${String(achado.inicio)}-${achado.motivo}`}>
-                  {achado.severidade === 'bloqueio' ? 'Barrar' : 'Conferir'}:{' '}
-                  {MOTIVO_ACHADO[achado.motivo]} ({achado.trecho})
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className={estilos.detalhes}>
-            Confira: nada de nome de pessoa, ofensa ou dado pessoal. Aprovar publica o texto novo na
-            hora.
-          </p>
-          <div className={estilos.acoesDoRelato}>
-            <form action={aprovar}>
-              <input type="hidden" name="pedidoId" value={pedido.id} />
-              <input type="hidden" name="depoisVisto" value={pedido.depois} />
-              <input type="hidden" name="voltar" value={voltar} />
-              {/* Dado pessoal no texto novo trava a aprovação: só dá para recusar (e o domínio confere). */}
-              <Enviar
-                className={estilos.botao}
-                desabilitado={pedido.achados.some((a) => a.severidade === 'bloqueio')}
-              >
-                Aprovar mudança
-              </Enviar>
-            </form>
-          </div>
-          <details className={estilos.recusa}>
-            <summary className={estilos.botaoSecundario}>Recusar mudança</summary>
-            <form action={recusar} className={estilos.formulario}>
-              <input type="hidden" name="pedidoId" value={pedido.id} />
-              <input type="hidden" name="voltar" value={voltar} />
-              <label htmlFor={`motivo-pedido-${pedido.id}`}>
-                Motivo (vai pelo bot para quem pediu)
-              </label>
-              <textarea
-                id={`motivo-pedido-${pedido.id}`}
-                name="motivo"
-                required
-                maxLength={MOTIVO_DE_EDICAO_MAXIMO}
-              />
-              <Enviar className={estilos.botaoPerigo}>Confirmar recusa</Enviar>
-            </form>
-          </details>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }

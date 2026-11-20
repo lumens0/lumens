@@ -27,6 +27,8 @@ vi.mock('@lumens/dominio', () => ({
     ]),
 }));
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: () => undefined, replace: () => undefined }),
+  usePathname: () => '/curadores',
   redirect: (destino: string) => {
     throw new Error(`redirect:${destino}`);
   },
