@@ -114,10 +114,12 @@ describe('mapa do campus', () => {
       />,
     );
 
-    // Um prédio aceso por bloco com pauta (o "Bloco Novo" não tem prédio no desenho).
+    // Um prédio aceso por bloco com pauta no desenho; o "Bloco Novo" não tem prédio, mas continua na
+    // lista (as pautas dele não somem do mapa).
     expect(html.match(/class="[^"]*aceso[^"]*"/g)).toHaveLength(1);
     expect(html).toContain('Onde há pautas');
-    expect(html).toContain('1 bloco aceso · 1 pauta.');
+    expect(html).toContain('2 blocos acesos · 2 pautas.');
+    expect(html).toContain('Bloco Novo');
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Tudo aceso');
     expect(html).toContain('aria-label="Mostrar no mapa"');

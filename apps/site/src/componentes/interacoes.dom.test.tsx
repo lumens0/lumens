@@ -450,6 +450,32 @@ describe('FiltrosDaLista (no navegador)', () => {
     expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
   });
 
+  it('uma busca digitada e ainda não enviada não volta quando a URL muda de fora (digitar → remover o filtro)', () => {
+    vi.useFakeTimers();
+    const { rerender } = desenhar({ q: 'sala' });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'biblioteca' } });
+    // Antes dos 250 ms, a pessoa remove o filtro de busca pelo "×": a URL chega com q vazio.
+    rerender(
+      <FiltrosDaLista
+        q=""
+        ordem="atencao"
+        status={[]}
+        bloco={[]}
+        etapas={etapas}
+        totalDaBusca={3}
+        blocos={blocos}
+        totalDeBlocos={2}
+        sugestoes={null}
+        ativos={null}
+      />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
+  });
+
   it('trocar a ordem pede o endereço com a nova ordem', async () => {
     const usuario = userEvent.setup();
     desenhar();

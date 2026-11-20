@@ -3,6 +3,7 @@ import type { Pauta, StatusPauta } from '../../dados/tipos';
 import {
   arrastar,
   ativas,
+  blocoDoToque,
   clamp,
   deslocar,
   enquadrarLocal,
@@ -14,6 +15,7 @@ import {
   locaisDe,
   melhor,
   passoDoTeclado,
+  porPredio,
   porPrioridade,
   prioDoLocal,
   quadroDaCamera,
@@ -47,6 +49,12 @@ const marcador = (slug: string, predio: number | undefined, pautas: Pauta[]): Ma
   pautas,
 });
 
+/** Um lugar que tem prédio no desenho (os testes de câmera só usam esses). */
+const noMapa = (l: Local | undefined) => {
+  if (!l?.centro) throw new Error('lugar sem centro');
+  return { ...l, centro: l.centro };
+};
+
 const MEDIDA: Medida = { vw: 1000, vh: 500 };
 const CAMERA: Camera = { cx: 1000, cy: 800, w: 1000 };
 
@@ -73,42 +81,79 @@ describe('prioridade das pautas', () => {
 
 describe('locaisDe', () => {
   const ic = predioComBlocos('ic');
+  const compartilhado = PREDIOS.find((p) => p.blocos.length > 1);
 
-  it('um lugar por prédio, com o centro e a base da caixa do prédio', () => {
+  it('um lugar por bloco, com o centro e a base da caixa do prédio', () => {
     const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]);
     const [x = 0, y = 0, w = 0, h = 0] = ic.caixa;
     expect(local?.chave).toBe('ic');
+    expect(local?.predio?.id).toBe(ic.id);
     expect(local?.centro).toEqual({ x: x + w / 2, y: y + h / 2, s: Math.max(w, h) });
     expect(local?.base).toEqual({ x: x + w / 2, y: y + h });
   });
 
-  it('bloco sem prédio, ou com prédio desconhecido, fica de fora do mapa', () => {
-    expect(locaisDe([marcador('x', undefined, [pauta('cobrando')])])).toEqual([]);
-    expect(locaisDe([marcador('y', 987654321, [pauta('cobrando')])])).toEqual([]);
+  it('bloco sem prédio, ou com prédio desconhecido, continua na lista, só não tem lugar no desenho', () => {
+    const locais = locaisDe([
+      marcador('x', undefined, [pauta('cobrando')]),
+      marcador('y', 987654321, [pauta('cobrando')]),
+    ]);
+    expect(locais.map((l) => l.chave)).toEqual(['x', 'y']);
+    for (const l of locais) {
+      expect(l.predio).toBeUndefined();
+      expect(l.centro).toBeUndefined();
+      expect(l.base).toBeUndefined();
+      expect(l.pautas).toHaveLength(1);
+    }
   });
 
-  it('dois blocos no mesmo prédio viram um lugar só, com as pautas dos dois', () => {
-    const compartilhado = PREDIOS.find((p) => p.blocos.length > 1);
+  it('blocos que moram no mesmo prédio são lugares separados, na mesma posição', () => {
     if (!compartilhado) throw new Error('nenhum prédio com dois blocos');
     const [a = '', b = ''] = compartilhado.blocos;
     const locais = locaisDe([
       marcador(a, compartilhado.id, [pauta('cobrando')]),
       marcador(b, compartilhado.id, [pauta('prometido'), pauta('conquistada')]),
     ]);
-    expect(locais).toHaveLength(1);
-    expect(locais[0]?.chave).toBe(a);
-    expect(locais[0]?.pautas).toHaveLength(3);
+    expect(locais.map((l) => [l.chave, l.nome, l.slug])).toEqual([
+      [a, `Bloco ${a}`, a],
+      [b, `Bloco ${b}`, b],
+    ]);
+    expect(locais.map((l) => l.pautas.length)).toEqual([1, 2]);
+    expect(locais[0]?.centro).toEqual(locais[1]?.centro);
   });
 
   it('não altera as pautas do marcador original', () => {
     const pautas = [pauta('cobrando')];
-    const compartilhado = PREDIOS.find((p) => p.blocos.length > 1);
-    if (!compartilhado) throw new Error('nenhum prédio com dois blocos');
-    locaisDe([
-      marcador('a', compartilhado.id, pautas),
-      marcador('b', compartilhado.id, [pauta('prometido')]),
-    ]);
+    const [local] = locaisDe([marcador('ic', ic.id, pautas)]);
+    local?.pautas.push(pauta('prometido'));
     expect(pautas).toHaveLength(1);
+  });
+});
+
+describe('porPredio e blocoDoToque', () => {
+  const compartilhado = PREDIOS.find((p) => p.blocos.length > 1);
+  const [a = '', b = ''] = compartilhado?.blocos ?? [];
+  const locais = locaisDe([
+    marcador(a, compartilhado?.id, [pauta('juntando_apoios')]),
+    marcador(b, compartilhado?.id, [pauta('cobrando')]),
+    marcador('sem-predio', undefined, [pauta('cobrando')]),
+  ]);
+
+  it('agrupa os lugares pelo prédio e deixa de fora os que não têm prédio', () => {
+    const grupos = porPredio(locais);
+    expect(grupos.size).toBe(1);
+    expect(grupos.get(compartilhado?.id ?? 0)?.map((l) => l.chave)).toEqual([a, b]);
+  });
+
+  it('tocar no prédio escolhe o primeiro bloco com pauta na etapa filtrada', () => {
+    const doPredio = porPredio(locais).get(compartilhado?.id ?? 0) ?? [];
+    expect(blocoDoToque(doPredio, null)?.chave).toBe(a);
+    expect(blocoDoToque(doPredio, 'cobrando')?.chave).toBe(b);
+  });
+
+  it('sem pauta na etapa, escolhe o primeiro bloco; prédio sem lugar não tem bloco', () => {
+    const doPredio = porPredio(locais).get(compartilhado?.id ?? 0) ?? [];
+    expect(blocoDoToque(doPredio, 'conquistada')?.chave).toBe(a);
+    expect(blocoDoToque([], null)).toBeUndefined();
   });
 });
 
@@ -193,15 +238,15 @@ describe('enquadrar lugares', () => {
     expect(cam).not.toBeNull();
     expect(cam?.w).toBeGreaterThanOrEqual(200);
     expect(cam?.w).toBeLessThanOrEqual(LARGURA_MAXIMA);
-    const xs = locais.map((l) => l.centro.x);
+    const xs = locais.map((l) => noMapa(l).centro.x);
     expect(cam?.cx).toBeCloseTo((Math.min(...xs) + Math.max(...xs)) / 2);
   });
 
   it('com filtro, olha só os lugares da etapa', () => {
-    const [ic0] = locais;
+    const ic0 = noMapa(locais[0]);
     const cam = enquadrarLugares(locais, 'cobrando', MEDIDA, false);
-    expect(cam?.cx).toBeCloseTo(ic0?.centro.x ?? 0);
-    expect(cam?.cy).toBeCloseTo(ic0?.centro.y ?? 0);
+    expect(cam?.cx).toBeCloseTo(ic0.centro.x);
+    expect(cam?.cy).toBeCloseTo(ic0.centro.y);
   });
 
   it('filtro sem nenhum lugar cai de volta em todos', () => {
@@ -224,7 +269,7 @@ describe('enquadrar lugares', () => {
 
 describe('enquadrar um lugar', () => {
   const ic = predioComBlocos('ic');
-  const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]) as [Local];
+  const local = noMapa(locaisDe([marcador('ic', ic.id, [pauta('cobrando')])])[0]);
 
   it('centra no prédio e aproxima, nunca abaixo de 230 metros de largura', () => {
     const cam = enquadrarLocal(local, MEDIDA, false, 800);

@@ -4,13 +4,20 @@ import { rotuloDaCategoria } from '@lumens/contratos';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Pauta, StatusPauta } from '../../dados/tipos';
-import { comandoApoiar, comandoNovaPautaNoBloco, linkDoBot, nomeDoCanal } from '../../whatsapp';
+import {
+  COMANDO_NOVA_PAUTA,
+  comandoApoiar,
+  comandoNovaPautaNoBloco,
+  linkDoBot,
+  nomeDoCanal,
+} from '../../whatsapp';
 import { formatarNumero } from '../BarraApoios';
 import { aceitaApoio } from '../../dados/pautas-publicas';
 import { STATUS } from '../StatusPill';
 import {
   arrastar,
   ativas,
+  blocoDoToque,
   clamp,
   enquadrarLocal,
   enquadrarLugares,
@@ -21,6 +28,7 @@ import {
   locaisDe,
   melhor,
   passoDoTeclado,
+  porPredio,
   porPrioridade,
   prioDoLocal,
   quadroDaCamera,
@@ -29,7 +37,7 @@ import {
   type Camera,
 } from './camera';
 import { CAMINHOS, CONTORNO, PREDIOS } from './predios';
-import type { MarcadorDoBloco } from './urgencia';
+import { SLUG_DO_CAMPUS, type MarcadorDoBloco } from './urgencia';
 import estilos from './campus.module.css';
 
 /** Ordem das etapas nos chips do mapa, como no protótipo. */
@@ -75,9 +83,14 @@ function Apoiar({ pauta }: { pauta: Pauta }) {
   );
 }
 
-/** "Criar pauta neste bloco": abre o bot com `nova pauta <slug>`; a conversa já começa no bloco. */
+/**
+ * "Criar pauta neste bloco": abre o bot com `nova pauta <slug>`; a conversa já começa no bloco.
+ * Pauta de todo o campus não tem bloco: o bot pergunta onde é.
+ */
 function CriarPauta({ bloco, slug }: { bloco: string; slug: string }) {
-  const href = linkDoBot(comandoNovaPautaNoBloco(slug));
+  const href = linkDoBot(
+    slug === SLUG_DO_CAMPUS ? COMANDO_NOVA_PAUTA : comandoNovaPautaNoBloco(slug),
+  );
   if (!href) return null;
   return (
     <a
@@ -119,7 +132,7 @@ export function MapaDoCampus({
 }) {
   const locais = useMemo(() => locaisDe(marcadores), [marcadores]);
   const porChave = useMemo(() => new Map(locais.map((l) => [l.chave, l])), [locais]);
-  const porPredioId = useMemo(() => new Map(locais.map((l) => [l.predio.id, l])), [locais]);
+  const porPredioId = useMemo(() => porPredio(locais), [locais]);
   const [filtro, setFiltro] = useState<StatusPauta | null>(null);
   const [selChave, setSel] = useState<string | null>(null);
   const [gaveta, setGaveta] = useState<'' | 'meio' | 'aberta'>('');
@@ -205,7 +218,13 @@ export function MapaDoCampus({
       if (!l) return;
       setSel(chave);
       setGaveta('meio');
-      voar(enquadrarLocal(l, medida.current, celular(), window.innerHeight), 800);
+      // Bloco sem prédio no desenho (todo o campus, bloco ainda sem prédio): só abre a gaveta.
+      if (l.centro) {
+        voar(
+          enquadrarLocal({ ...l, centro: l.centro }, medida.current, celular(), window.innerHeight),
+          800,
+        );
+      }
     },
     [voar],
   );
@@ -380,6 +399,9 @@ export function MapaDoCampus({
     .filter((l) => ativas(l, filtro).length > 0)
     .sort((a, b) => prioDoLocal(a, filtro) - prioDoLocal(b, filtro));
   const totalDePautas = lista.reduce((n, l) => n + ativas(l, filtro).length, 0);
+  // Os outros blocos (sem pauta, ou sem pauta na etapa filtrada) continuam ao alcance do teclado
+  // e do leitor de tela, e é por eles que se cria a primeira pauta de um bloco.
+  const outros = locais.filter((l) => ativas(l, filtro).length === 0 && l.chave !== SLUG_DO_CAMPUS);
 
   const alternarGaveta = () => {
     if (gaveta === 'aberta') setGaveta(sel ? 'meio' : '');
@@ -409,10 +431,11 @@ export function MapaDoCampus({
             <path key={d} d={d} className={estilos.via} />
           ))}
           {PREDIOS.map((p) => {
-            const l = porPredioId.get(p.id);
-            const ps = l ? ativas(l, filtro) : [];
+            const locs = porPredioId.get(p.id) ?? [];
+            const ps = locs.flatMap((l) => ativas(l, filtro));
             const acesa = ps.length > 0;
             const topo = acesa ? melhor(ps) : undefined;
+            const alvo = blocoDoToque(locs, filtro);
             return (
               <path
                 key={p.id}
@@ -420,52 +443,54 @@ export function MapaDoCampus({
                 className={[
                   estilos.predio,
                   acesa ? estilos.aceso : '',
-                  l && l.chave === selChave ? estilos.escolhido : '',
+                  locs.some((l) => l.chave === selChave) ? estilos.escolhido : '',
                 ]
                   .join(' ')
                   .trim()}
-                data-k={l?.chave}
+                data-k={alvo?.chave}
                 style={topo ? ({ '--c': cor(topo.status) } as CSSProperties) : undefined}
               />
             );
           })}
-          {locais.map((l) => {
-            const acesa = ativas(l, filtro).length > 0;
+          {[...porPredioId.values()].map((locs) => {
+            const [primeiro] = locs;
+            if (!primeiro?.predio || !primeiro.base) return null;
+            const acesa = locs.some((l) => ativas(l, filtro).length > 0);
             return (
               <text
-                key={`n${l.chave}`}
+                key={`n${String(primeiro.predio.id)}`}
                 className={[estilos.rotulo, acesa ? estilos.rotuloAceso : ''].join(' ').trim()}
-                x={l.base.x}
-                y={l.base.y}
+                x={primeiro.base.x}
+                y={primeiro.base.y}
                 data-nome
-                data-y={l.base.y}
+                data-y={primeiro.base.y}
               >
-                {l.predio.sigla || l.nome}
+                {primeiro.predio.sigla || primeiro.nome}
               </text>
             );
           })}
-          {locais.map((l) => {
-            const ps = ativas(l, filtro);
-            if (ps.length === 0) return null;
-            const topo = melhor(ps);
-            if (!topo) return null;
+          {[...porPredioId.values()].map((locs) => {
+            const centro = locs[0]?.centro;
+            const topo = melhor(locs.flatMap((l) => ativas(l, filtro)));
+            const alvo = blocoDoToque(locs, filtro);
+            if (!centro || !topo || !alvo) return null;
             const estiloDaCor = { '--c': cor(topo.status) } as CSSProperties;
             return (
-              <g key={`p${l.chave}`}>
+              <g key={`p${alvo.chave}`}>
                 <circle
-                  cx={l.centro.x}
-                  cy={l.centro.y}
+                  cx={centro.x}
+                  cy={centro.y}
                   className={estilos.onda}
                   style={estiloDaCor}
                   data-onda
                 />
-                <circle cx={l.centro.x} cy={l.centro.y} className={estilos.ponto} data-ponto />
+                <circle cx={centro.x} cy={centro.y} className={estilos.ponto} data-ponto />
                 <circle
-                  cx={l.centro.x}
-                  cy={l.centro.y}
+                  cx={centro.x}
+                  cy={centro.y}
                   className={estilos.toque}
                   data-toque
-                  data-k={l.chave}
+                  data-k={alvo.chave}
                 />
               </g>
             );
@@ -657,6 +682,33 @@ export function MapaDoCampus({
                 );
               })}
               {lista.length === 0 && <p className={estilos.sub}>Nenhum bloco com essa etapa.</p>}
+              {outros.length > 0 && (
+                <details className={estilos.outros}>
+                  <summary>
+                    {filtro ? 'Blocos sem pauta nessa etapa' : 'Blocos sem pauta'} ({outros.length})
+                  </summary>
+                  {outros.map((l) => (
+                    <button
+                      key={l.chave}
+                      type="button"
+                      className={estilos.item}
+                      style={{ '--c': '#74788c' } as CSSProperties}
+                      onClick={() => {
+                        escolher(l.chave);
+                      }}
+                    >
+                      <i
+                        className={[estilos.glifo, estilos.glifoVazado].join(' ')}
+                        aria-hidden="true"
+                      />
+                      <strong>{l.nome}</strong>
+                      <small>
+                        {filtro ? 'Nenhuma pauta com essa etapa' : 'Nenhuma pauta ainda'}
+                      </small>
+                    </button>
+                  ))}
+                </details>
+              )}
               <p className={estilos.dicaDoPainel}>
                 Toque num prédio apagado para relatar um problema nele.
               </p>

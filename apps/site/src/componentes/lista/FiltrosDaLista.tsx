@@ -80,6 +80,9 @@ export function FiltrosDaLista({
     if (q !== enviado.current) {
       enviado.current = q;
       setTexto(q);
+      // Uma busca digitada e ainda não enviada vale menos que a mudança de fora: sem isto, o
+      // temporizador reaplicaria o termo que a navegação acabou de remover.
+      if (espera.current) clearTimeout(espera.current);
     }
   }, [q]);
   useEffect(

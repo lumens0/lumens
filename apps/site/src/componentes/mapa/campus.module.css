@@ -613,3 +613,15 @@
     animation: none;
   }
 }
+
+.outros {
+  margin-top: 6px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.outros summary {
+  padding: 13px 0;
+  color: #b9bddf;
+  font-size: 14px;
+  cursor: pointer;
+}

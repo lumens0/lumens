@@ -39,42 +39,57 @@ export const porPrioridade = (a: Pauta, b: Pauta) => prio(a) - prio(b) || b.apoi
 
 export const melhor = (ps: readonly Pauta[]): Pauta | undefined => [...ps].sort(porPrioridade)[0];
 
-/** Um lugar do mapa: um prédio e as pautas dos blocos que moram nele. */
+/**
+ * Um bloco do campus e as pautas dele. `predio`, `centro` e `base` só existem quando o bloco tem
+ * prédio no desenho: o resto (as pautas de todo o campus, um bloco ainda sem prédio) fica só na
+ * lista. Blocos que moram no mesmo prédio são lugares separados, com a mesma posição.
+ */
 export interface Local {
   chave: string;
-  predio: Predio;
   nome: string;
   slug: string;
   pautas: Pauta[];
-  centro: { x: number; y: number; s: number };
+  predio?: Predio;
+  centro?: { x: number; y: number; s: number };
   /** Onde o nome fica: o meio da borda de baixo do prédio. */
-  base: { x: number; y: number };
+  base?: { x: number; y: number };
 }
 
-/** Um lugar por prédio; blocos sem prédio ficam só na lista. */
+/** Um lugar por bloco, na ordem em que os marcadores vêm. */
 export function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
-  const porPredio = new Map<number, Local>();
-  for (const m of marcadores) {
-    if (m.predio === undefined) continue;
-    const existente = porPredio.get(m.predio);
-    if (existente) {
-      existente.pautas.push(...m.pautas);
-      continue;
-    }
-    const predio = PREDIOS.find((p) => p.id === m.predio);
-    if (!predio) continue;
+  return marcadores.map((m) => {
+    const predio = m.predio === undefined ? undefined : PREDIOS.find((p) => p.id === m.predio);
+    const local: Local = { chave: m.slug, nome: m.nome, slug: m.slug, pautas: [...m.pautas] };
+    if (!predio) return local;
     const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
-    porPredio.set(m.predio, {
-      chave: m.slug,
+    return {
+      ...local,
       predio,
-      nome: m.nome,
-      slug: m.slug,
-      pautas: [...m.pautas],
       centro: { x: x + w / 2, y: y + h / 2, s: Math.max(w, h) },
       base: { x: x + w / 2, y: y + h },
-    });
+    };
+  });
+}
+
+/** Os lugares de cada prédio (um prédio pode ter mais de um bloco), pelo id do prédio. */
+export function porPredio(locais: readonly Local[]): Map<number, Local[]> {
+  const mapa = new Map<number, Local[]>();
+  for (const l of locais) {
+    if (!l.predio) continue;
+    mapa.set(l.predio.id, [...(mapa.get(l.predio.id) ?? []), l]);
   }
-  return [...porPredio.values()];
+  return mapa;
+}
+
+/**
+ * Qual bloco escolher ao tocar no prédio: o primeiro com pauta na etapa filtrada; se nenhum tem,
+ * o primeiro. Sem lugar no prédio, `undefined`.
+ */
+export function blocoDoToque(
+  daquelePredio: readonly Local[],
+  filtro: StatusPauta | null,
+): Local | undefined {
+  return daquelePredio.find((l) => ativas(l, filtro).length > 0) ?? daquelePredio[0];
 }
 
 /** As pautas do lugar na etapa filtrada (sem filtro, todas). */
@@ -127,11 +142,13 @@ export function enquadrarLugares(
   medida: Medida,
   celular: boolean,
 ): Camera | null {
-  let alvo = locais.filter((l) => ativas(l, filtro).length > 0);
-  if (alvo.length === 0) alvo = [...locais];
+  const noMapa = locais.filter((l) => l.centro !== undefined);
+  let alvo = noMapa.filter((l) => ativas(l, filtro).length > 0);
+  if (alvo.length === 0) alvo = noMapa;
   if (alvo.length === 0) return null;
-  const xs = alvo.map((l) => l.centro.x);
-  const ys = alvo.map((l) => l.centro.y);
+  const centros = alvo.flatMap((l) => (l.centro ? [l.centro] : []));
+  const xs = centros.map((c) => c.x);
+  const ys = centros.map((c) => c.y);
   const x0 = Math.min(...xs);
   const x1 = Math.max(...xs);
   const y0 = Math.min(...ys);
@@ -150,7 +167,7 @@ export function enquadrarLugares(
 
 /** Aproxima o prédio escolhido; no celular, deixa-o acima da gaveta. */
 export function enquadrarLocal(
-  l: Local,
+  l: Local & { centro: NonNullable<Local['centro']> },
   medida: Medida,
   celular: boolean,
   alturaDaTela: number,

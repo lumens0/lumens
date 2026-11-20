@@ -332,3 +332,113 @@ describe('câmera do MapaDoCampus (no navegador)', () => {
     expect(palco().className).toContain('perto');
   });
 });
+
+describe('blocos sem prédio e blocos que dividem um prédio (no navegador)', () => {
+  const chipDe = (nome: RegExp) =>
+    within(screen.getByRole('group', { name: 'Mostrar no mapa' })).getByRole('button', {
+      name: nome,
+    });
+  const compartilhado = PREDIOS.find((p) => p.blocos.length > 1);
+  const [a = '', b = ''] = compartilhado?.blocos ?? [];
+  const doPredio = () => [
+    marcador(a, `Bloco ${a}`, [pauta('juntando_apoios', { titulo: 'Pauta do A' })]),
+    marcador(b, `Bloco ${b}`, [pauta('cobrando', { titulo: 'Pauta do B' })]),
+  ];
+  const campus = (): MarcadorDoBloco => ({
+    slug: '_campus',
+    nome: 'Todo o campus',
+    predio: undefined,
+    abertas: 1,
+    cor: '#fff',
+    urgente: false,
+    linha: '',
+    pautas: [pauta('cobrando', { titulo: 'Pauta de todo o campus', bloco_slug: null })],
+  });
+
+  it('a pauta de todo o campus continua na lista, abre na gaveta e cria pauta sem bloco', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={[...marcadores(), campus()]} />);
+    expect(screen.getByText(/3 blocos acesos · 4 pautas/)).toBeTruthy();
+    await usuario.click(screen.getByRole('button', { name: /Todo o campus/ }));
+    expect(screen.getByRole('heading', { name: 'Todo o campus' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Pauta de todo o campus' })).toBeTruthy();
+    const criar = screen.getByRole('link', { name: /Criar pauta neste bloco/ });
+    expect(decodeURIComponent(criar.getAttribute('href') ?? '')).toMatch(/nova pauta$/);
+  });
+
+  it('escolher um bloco sem prédio não mexe na câmera', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={[...marcadores(), campus()]} />);
+    const antes = caixaDoSvg();
+    await usuario.click(screen.getByRole('button', { name: /Todo o campus/ }));
+    expect(caixaDoSvg()).toEqual(antes);
+  });
+
+  it('dois blocos no mesmo prédio aparecem separados na lista, cada um com as suas pautas', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={doPredio()} />);
+    expect(screen.getByRole('button', { name: new RegExp(`Bloco ${b}`) })).toBeTruthy();
+    await usuario.click(screen.getByRole('button', { name: new RegExp(`Bloco ${a}`) }));
+    expect(screen.getByRole('heading', { name: `Bloco ${a}` })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Pauta do A' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Pauta do B' })).toBeNull();
+    await usuario.click(screen.getByRole('button', { name: /Todos os blocos/ }));
+    await usuario.click(screen.getByRole('button', { name: new RegExp(`Bloco ${b}`) }));
+    expect(screen.getByRole('heading', { name: `Bloco ${b}` })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Pauta do B' })).toBeTruthy();
+  });
+
+  it('"Criar pauta neste bloco" usa o bloco que está aberto, não o primeiro do prédio', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={doPredio()} />);
+    await usuario.click(screen.getByRole('button', { name: new RegExp(`Bloco ${b}`) }));
+    const criar = screen.getByRole('link', { name: /Criar pauta neste bloco/ });
+    expect(decodeURIComponent(criar.getAttribute('href') ?? '')).toContain(`nova pauta ${b}`);
+    expect(criar.getAttribute('aria-label')).toContain(`Bloco ${b}`);
+  });
+
+  it('?bloco= abre qualquer um dos blocos do prédio, e não só o primeiro', () => {
+    render(<MapaDoCampus marcadores={doPredio()} blocoInicial={b} />);
+    expect(screen.getByRole('heading', { name: `Bloco ${b}` })).toBeTruthy();
+  });
+
+  it('tocar no prédio escolhe o primeiro bloco com pauta na etapa filtrada', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={doPredio()} />);
+    await usuario.click(chipDe(/Cobrando/));
+    const alvo = palco().querySelector('path[data-k]:not([data-k=""])');
+    expect(alvo?.getAttribute('data-k')).toBe(b);
+  });
+
+  it('os blocos sem pauta ficam numa lista acessível, e dá para escolhê-los e criar a primeira pauta', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={marcadores()} />);
+    const resumo = screen.getByText(/Blocos sem pauta \(1\)/);
+    expect(resumo.closest('details')).not.toBeNull();
+    await usuario.click(resumo);
+    await usuario.click(screen.getByRole('button', { name: /ICHCA/ }));
+    expect(screen.getByRole('heading', { name: 'ICHCA' })).toBeTruthy();
+    expect(screen.getByText('Nenhuma pauta neste bloco ainda.')).toBeTruthy();
+    const criar = screen.getByRole('link', { name: /Criar pauta neste bloco/ });
+    expect(decodeURIComponent(criar.getAttribute('href') ?? '')).toContain('nova pauta ichca');
+  });
+
+  it('com um filtro de etapa, a lista de baixo mostra os blocos sem pauta nessa etapa', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={marcadores()} />);
+    await usuario.click(chipDe(/Cobrando/));
+    expect(screen.getByText(/Blocos sem pauta nessa etapa \(2\)/)).toBeTruthy();
+  });
+
+  it('os blocos sem pauta se alcançam só com o teclado', async () => {
+    const usuario = userEvent.setup();
+    render(<MapaDoCampus marcadores={marcadores()} />);
+    const resumo = screen.getByText(/Blocos sem pauta \(1\)/);
+    resumo.closest('summary')?.focus();
+    await usuario.keyboard('{Enter}');
+    await usuario.tab();
+    expect(document.activeElement?.textContent).toContain('ICHCA');
+    await usuario.keyboard('{Enter}');
+    expect(screen.getByRole('heading', { name: 'ICHCA' })).toBeTruthy();
+  });
+});
