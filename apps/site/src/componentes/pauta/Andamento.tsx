@@ -70,6 +70,20 @@ function respondidoDepoisDoFalabr(pauta: PautaDetalhe): boolean {
   );
 }
 
+/** A promessa vigente: a última registrada, a remarcação posterior a ela e a data de entrega. */
+function promessaVigente(pauta: PautaDetalhe) {
+  const indice = pauta.linha_do_tempo.findLastIndex((e) => e.tipo === 'promessa_registrada');
+  const promessa = indice >= 0 ? pauta.linha_do_tempo[indice] : undefined;
+  // Só conta a remarcação da promessa vigente (posterior ao último `promessa_registrada`).
+  const remarcacao =
+    indice >= 0 ? ultimo(pauta.linha_do_tempo.slice(indice + 1), 'promessa_remarcada') : undefined;
+  const entrega = texto(remarcacao, 'data_nova') ?? texto(promessa, 'data_entrega');
+  return { promessa, remarcacao, entrega };
+}
+
+/** Etapas em que a data que importa é a da promessa, não o prazo de resposta do Fala.BR. */
+const COM_PROMESSA = new Set(['prometido', 'entregue_em_parte', 'descumprida']);
+
 /** Título da próxima etapa por status, como no protótipo. */
 const TITULO_DA_ETAPA: Partial<Record<string, string>> = {
   juntando_apoios: 'Bater a meta',
@@ -91,7 +105,10 @@ export function ProximaEtapa({
 }) {
   if (pauta.status === 'conquistada') return null;
   const falabr = respondidoDepoisDoFalabr(pauta) ? undefined : ultimoFalabr(pauta);
-  const prazo = falabr?.prazo ?? undefined;
+  const prazoDoFalabr = falabr?.prazo ?? undefined;
+  const entrega = COM_PROMESSA.has(pauta.status) ? promessaVigente(pauta).entrega : undefined;
+  // Prometido, entregue em parte ou descumprida: a data grande é a da promessa, como no protótipo.
+  const prazo = entrega ?? prazoDoFalabr;
   const aberta = ultimo(pauta.linha_do_tempo, 'conferencia_aberta');
   const apurada = ultimo(pauta.linha_do_tempo, 'conferencia_apurada');
   const conferenciaAte =
@@ -134,14 +151,16 @@ export function ProximaEtapa({
         </p>
       )}
       <p className={estilos.texto}>{textoDaEtapa}</p>
-      {prazo && !pauta.proxima_etapa?.includes(formatarDia(prazo)) && (
-        <p className={vencido ? estilos.vencido : estilos.vazio}>
-          {vencido
-            ? `Prazo de resposta do Fala.BR ${textoDoPrazo(prazo, agora, true)}`
-            : `Prazo de resposta do Fala.BR: ${formatarDia(prazo)}`}
+      {prazoDoFalabr && !pauta.proxima_etapa?.includes(formatarDia(prazoDoFalabr)) && (
+        <p className={prazoVencido(prazoDoFalabr, agora) ? estilos.vencido : estilos.vazio}>
+          {prazoVencido(prazoDoFalabr, agora)
+            ? `Prazo de resposta do Fala.BR ${textoDoPrazo(prazoDoFalabr, agora, true)}`
+            : `Prazo de resposta do Fala.BR: ${formatarDia(prazoDoFalabr)}`}
         </p>
       )}
-      {prazo && falabr?.prorrogado && <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>}
+      {prazoDoFalabr && falabr?.prorrogado && (
+        <p className={estilos.vazio}>Prazo do Fala.BR prorrogado.</p>
+      )}
       {conferenciaAte && (
         <p className={conferenciaVencida ? estilos.vencido : estilos.vazio}>
           {conferenciaVencida ? 'Conferência encerrada em ' : 'Conferência aberta até '}
@@ -163,15 +182,7 @@ export function RespostaOficial({
   agora?: Date;
 }) {
   const resposta = ultimo(pauta.linha_do_tempo, 'resposta_oficial_recebida');
-  const indicePromessa = pauta.linha_do_tempo.findLastIndex(
-    (e) => e.tipo === 'promessa_registrada',
-  );
-  const promessa = indicePromessa >= 0 ? pauta.linha_do_tempo[indicePromessa] : undefined;
-  // Só conta a remarcação da promessa vigente (posterior ao último `promessa_registrada`).
-  const remarcacao =
-    indicePromessa >= 0
-      ? ultimo(pauta.linha_do_tempo.slice(indicePromessa + 1), 'promessa_remarcada')
-      : undefined;
+  const { promessa, remarcacao, entrega } = promessaVigente(pauta);
   // Promessa registrada sem evento de resposta ainda conta como resposta recebida.
   const recebida = resposta ?? promessa;
   // O Fala.BR respondido nunca convive com "aguardando resposta", mesmo sem o evento (SCRUM-354).
@@ -181,7 +192,6 @@ export function RespostaOficial({
   if (!recebida && !respondidoNoFalabr && conquistada) return null;
   // Sem resposta, a seção some: a "Próxima etapa" já diz o que se espera e quando.
   if (!recebida && !respondidoNoFalabr) return null;
-  const entrega = texto(remarcacao, 'data_nova') ?? texto(promessa, 'data_entrega');
   // Promessa cumprida (pauta conquistada) não é promessa vencida.
   const entregaVencida = entrega !== undefined && !conquistada && prazoVencido(entrega, agora);
   const resumo = texto(promessa, 'resumo') ?? texto(resposta, 'resumo');

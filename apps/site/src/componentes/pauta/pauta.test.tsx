@@ -774,6 +774,32 @@ describe('prazos vencidos e seções coerentes (SCRUM-354)', () => {
     expect(html).not.toContain('venceu');
   });
 
+  it('prometido e descumprida destacam a data da promessa na próxima etapa, como no protótipo', () => {
+    const linha_do_tempo = [
+      {
+        tipo: 'promessa_registrada',
+        dados: { data_entrega: '2026-11-30' },
+        criado_em: '2026-11-09T15:00:00.000Z',
+      },
+    ];
+    const prometido = { ...fixture, status: 'prometido' as const, linha_do_tempo };
+    const html = renderToStaticMarkup(<ProximaEtapa pauta={prometido} agora={HOJE} />);
+    expect(html).toContain('>30 nov</time>');
+    expect(html).toContain('em 12 dias');
+    const descumprida = {
+      ...prometido,
+      status: 'descumprida' as const,
+      caminhos: [falabr()],
+    };
+    const vencida = renderToStaticMarkup(
+      <ProximaEtapa pauta={descumprida} agora={new Date('2026-12-05T15:00:00.000Z')} />,
+    );
+    expect(vencida).toContain('>30 nov</time>');
+    expect(vencida).toContain('venceu há 5 dias');
+    // O prazo de resposta do Fala.BR continua na linha de apoio, sem roubar o destaque.
+    expect(vencida).toContain('Prazo de resposta do Fala.BR');
+  });
+
   it('o botão de apoiar diz "Apoiar pelo" e o canal, e só existe quando a pauta aceita apoio', () => {
     vi.stubEnv('NEXT_PUBLIC_WHATSAPP_BOT', '5582999999999');
     expect(renderToStaticMarkup(<CabecalhoPauta pauta={fixture} />)).toMatch(/Apoiar pelo \w+/);
