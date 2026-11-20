@@ -6,18 +6,16 @@ import estilos from './pauta.module.css';
 
 /** O que o navegador do momento oferece, lido só quando a pessoa toca (nunca no servidor). */
 function recursosAgora(): RecursosDoNavegador {
+  // Fora de um endereço seguro (http), `navigator.clipboard` não existe, embora o tipo diga que sim.
+  const area = (navigator as { clipboard?: Clipboard }).clipboard;
   return {
     ...(typeof navigator.share === 'function' && { share: navigator.share.bind(navigator) }),
     ...(typeof navigator.canShare === 'function' && {
       canShare: navigator.canShare.bind(navigator),
     }),
     clipboard: {
-      ...(navigator.clipboard?.write && {
-        write: navigator.clipboard.write.bind(navigator.clipboard),
-      }),
-      ...(navigator.clipboard?.writeText && {
-        writeText: navigator.clipboard.writeText.bind(navigator.clipboard),
-      }),
+      ...(typeof area?.write === 'function' && { write: area.write.bind(area) }),
+      ...(typeof area?.writeText === 'function' && { writeText: area.writeText.bind(area) }),
     },
     ...(typeof ClipboardItem !== 'undefined' && {
       itemDeImagem: (blob: Blob) => new ClipboardItem({ 'image/png': blob }),

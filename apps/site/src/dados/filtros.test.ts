@@ -64,7 +64,9 @@ describe('filtrarPautas', () => {
     { status: 'cobrando', bloco_slug: 'b' },
     { status: 'conquistada', bloco_slug: 'c' },
   ] as const;
-  const bloco = (slug: string) => ({ ...blocos[0]!, slug });
+  const modelo = blocos[0];
+  if (!modelo) throw new Error('o exemplo de blocos está vazio');
+  const bloco = (slug: string) => ({ ...modelo, slug });
 
   it('sem filtro, devolve tudo', () => {
     expect(filtrarPautas(pautas, { status: [], blocos: [] })).toHaveLength(4);
