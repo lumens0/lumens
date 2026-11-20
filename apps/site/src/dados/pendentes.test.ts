@@ -79,3 +79,15 @@ describe('aplicarBlocos (a folha de blocos)', () => {
     expect(escolhaVigente(vazio, 1000 + 3000).status).toEqual([]);
   });
 });
+
+describe('folha aberta logo depois de escolher um bloco', () => {
+  it('o rascunho da folha (escolhaVigente) inclui o bloco recém-escolhido, e aplicar o mantém', () => {
+    const naPagina = { status: [], bloco: ['ic'] };
+    proximaEscolha(naPagina, 'bloco', 'ctec', 1000);
+    // A folha abre antes de a página refletir: o rascunho vem da escolha vigente, com os dois.
+    const rascunho = [...escolhaVigente(naPagina, 1100).bloco];
+    expect(rascunho).toEqual(['ic', 'ctec']);
+    // Aplicar sem mexer nos chips mantém os dois blocos.
+    expect(aplicarBlocos(naPagina, rascunho, 1200).bloco).toEqual(['ic', 'ctec']);
+  });
+});
