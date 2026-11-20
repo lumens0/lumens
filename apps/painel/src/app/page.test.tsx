@@ -100,3 +100,23 @@ describe('início do painel de curadoria', () => {
     expect(rotuloDaSemana('2030-01-07')).toBe('07 jan');
   });
 });
+
+describe('início: indicadores na mesma pilha (E7)', () => {
+  const html = renderToStaticMarkup(<Inicio resumo={resumo} visao={visao} />);
+  const indicadores = html.match(/<li class="[^"]*indicador[^"]*">.*?<\/li>/g) ?? [];
+
+  it('são quatro, sem cartão, e cada um é título, número, unidade e detalhe, nessa ordem', () => {
+    expect(indicadores).toHaveLength(4);
+    for (const item of indicadores) {
+      expect(item).not.toContain('cartao');
+      const posicoes = [item.indexOf('<h2>'), item.indexOf('<strong>'), item.indexOf('</strong>')];
+      expect(posicoes.every((p) => p >= 0)).toBe(true);
+      expect([...posicoes].sort((a, b) => a - b)).toEqual(posicoes);
+    }
+  });
+
+  it('o indicador com atraso vem marcado, e os outros não', () => {
+    expect(indicadores.filter((i) => i.includes('indicadorAlerta'))).toHaveLength(1);
+    expect(indicadores[0]).toContain('indicadorAlerta');
+  });
+});

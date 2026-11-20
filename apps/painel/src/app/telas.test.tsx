@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
+import { pendenciasDaUrl, situacoesDaUrl, urlDaLista } from './pautas/filtros';
 import { ListaDePautas } from './pautas/lista';
 import { situacaoDoPrazo } from './pautas/selos';
 import { textoDoPrazo } from './prazo';
@@ -188,7 +189,9 @@ describe('tela da pauta', () => {
     );
     // Recusa sem motivo nem sai do navegador; o servidor confere de novo.
     expect(html).toMatch(/<textarea[^>]*name="motivo"[^>]*required/);
-    expect(html).toMatch(/<select[^>]*name="categoria"[^>]*required/);
+    // A categoria vem marcada com a de quem relatou, e por isso não é obrigatória na decisão.
+    expect(html).toMatch(/<select[^>]*name="categoria"/);
+    expect(html).not.toMatch(/<select[^>]*name="categoria"[^>]*required/);
     expect(html).toContain('Infraestrutura');
     expect(html).toContain('Segurança');
     expect(html).toContain('Permanência');
@@ -384,7 +387,7 @@ describe('tela da pauta', () => {
 
   it('lista de pautas mostra selo textual nas urgentes', () => {
     const html = renderToStaticMarkup(
-      <ListaDePautas pautas={[pauta({ urgente: true })]} status="todas" q="" />,
+      <ListaDePautas pautas={[pauta({ urgente: true })]} situacoes={[]} pendencias={[]} q="" />,
     );
     expect(html).toContain('>Urgente</span>');
   });
@@ -724,7 +727,8 @@ describe('lista de todas as pautas', () => {
           pauta({ id: 'b', status: 'cobrando' }),
           pauta({ id: 'c', status: 'conquistada' }),
         ]}
-        status="em_curadoria"
+        situacoes={['em_curadoria']}
+        pendencias={[]}
         q="bebedouro"
       />,
     );
@@ -732,12 +736,85 @@ describe('lista de todas as pautas', () => {
     expect(html).toContain('Em cobrança');
     expect(html).toContain('Conquistada');
     expect(html).toContain('href="/pautas/5f1c2d3e-4a5b-4c6d-8e7f-0123456789ab"');
-    expect(html).toContain('name="status"');
     expect(html).toContain('name="q"');
     expect(html).toContain('value="bebedouro"');
     expect(html).toContain('de 300 apoios');
     expect(html).toContain('Atrasada · há 1 h');
-    expect(html).toContain('selected');
+  });
+
+  it('tem um campo de busca só, com rótulo, e a situação escolhida vai escondida na busca', () => {
+    const html = renderToStaticMarkup(
+      <ListaDePautas
+        pautas={[pauta()]}
+        situacoes={['cobrando', 'prometido']}
+        pendencias={['conferencia_aberta']}
+        q=""
+      />,
+    );
+    expect(html.match(/type="search"/g)).toHaveLength(1);
+    expect(html).toContain('Buscar por título, bloco ou etapa');
+    expect(html).toContain('name="status" value="cobrando,prometido"');
+    expect(html).toContain('name="pendencia" value="conferencia_aberta"');
+    expect(html).not.toContain('<select');
+  });
+
+  it('chips: as situações, um traço e as pendências, com os números; os escolhidos ficam marcados', () => {
+    const html = renderToStaticMarkup(
+      <ListaDePautas
+        pautas={[pauta()]}
+        situacoes={['em_curadoria']}
+        pendencias={['sem_resposta_oficial']}
+        q=""
+        contagens={{
+          total: 12,
+          porStatus: { em_curadoria: 3, cobrando: 2 },
+          porPendencia: { sem_resposta_oficial: 4, conferencia_aberta: 1 },
+        }}
+      />,
+    );
+    expect(html).toMatch(/>Todas<b>12<\/b>/);
+    expect(html).toMatch(/>Esperando decisão da curadoria<b>3<\/b>/);
+    expect(html).toMatch(/>Sem resposta oficial<b>4<\/b>/);
+    expect(html).toMatch(/>Conferência aberta<b>1<\/b>/);
+    expect(html).toContain('chipSeparador');
+    // Marcados: a situação e a pendência escolhidas (aria-current), e só elas.
+    expect(html.match(/aria-current="true"/g)).toHaveLength(2);
+  });
+
+  it('cada chip leva à URL com aquele filtro ligado ou desligado, mantendo os outros', () => {
+    const html = renderToStaticMarkup(
+      <ListaDePautas pautas={[pauta()]} situacoes={['em_curadoria']} pendencias={[]} q="goteira" />,
+    );
+    // Ligar "Em cobrança" junto de "esperando decisão": duas situações, e a busca fica.
+    expect(html).toContain('href="/pautas?status=em_curadoria,cobrando&amp;q=goteira"');
+    // Desligar a única situação: sem situação, é "todas".
+    expect(html).toContain('href="/pautas?status=todas&amp;q=goteira"');
+  });
+});
+
+describe('filtros da lista de pautas', () => {
+  it('sem parâmetro a lista abre em "esperando decisão"; "todas" e valores inválidos limpam', () => {
+    expect(situacoesDaUrl(undefined)).toEqual(['em_curadoria']);
+    expect(situacoesDaUrl('todas')).toEqual([]);
+    expect(situacoesDaUrl('cobrando,prometido')).toEqual(['cobrando', 'prometido']);
+    expect(situacoesDaUrl('cobrando,xyz')).toEqual(['cobrando']);
+    expect(situacoesDaUrl('')).toEqual([]);
+  });
+
+  it('lê as pendências pedidas, na ordem dos chips, ignorando as desconhecidas', () => {
+    expect(pendenciasDaUrl('conferencia_aberta,sem_resposta_oficial,x')).toEqual([
+      'sem_resposta_oficial',
+      'conferencia_aberta',
+    ]);
+    expect(pendenciasDaUrl(undefined)).toEqual([]);
+  });
+
+  it('a URL tira o que é padrão e escreve "todas" quando não há situação', () => {
+    expect(urlDaLista({ situacoes: ['em_curadoria'], pendencias: [], q: '' })).toBe('/pautas');
+    expect(urlDaLista({ situacoes: [], pendencias: [], q: '' })).toBe('/pautas?status=todas');
+    expect(
+      urlDaLista({ situacoes: ['cobrando'], pendencias: ['sem_resposta_oficial'], q: 'a b' }),
+    ).toBe('/pautas?status=cobrando&pendencia=sem_resposta_oficial&q=a%20b');
   });
 });
 
@@ -844,5 +921,79 @@ describe('relatos novos', () => {
     expect(html).not.toContain('script');
     expect(html).not.toContain('<b>');
     expect(html).not.toContain('role="alert"');
+  });
+});
+
+describe('decisão: categoria de quem relatou e aviso de texto editado (E7)', () => {
+  const eventoEditado = {
+    id: 'e1',
+    tipo: 'pauta_editada',
+    dados: { campo: 'descricao', antes: 'a', depois: 'b' },
+    origem: 'estudante' as const,
+    publico: false,
+    criadoEm: new Date('2026-11-09T13:00:00.000Z'),
+  };
+  const render = (campos = {}, eventos: unknown[] = []) =>
+    renderToStaticMarkup(
+      <Pauta pauta={pauta(campos)} eventos={eventos as never} aprovar={acao} recusar={acao} />,
+    );
+
+  it('a categoria já vem marcada com a de quem relatou, rotulada, com a dica, e sem required', () => {
+    const html = render({ categoria: 'seguranca' });
+    expect(html).toMatch(/<option value="seguranca" selected="">/);
+    expect(html).toContain('(escolhida por quem relatou)');
+    expect(html).toContain('Troque só se estiver errada.');
+    expect(html).toContain('aria-describedby="dica-categoria"');
+    expect(html).not.toMatch(/<select[^>]*name="categoria"[^>]*required/);
+  });
+
+  it('aprovar sem tocar na categoria publica com a de quem relatou (o valor já está no formulário)', () => {
+    const html = render({ categoria: 'permanencia' });
+    const selecionadas = html.match(/<option value="[a-z_]+" selected="">/g);
+    expect(selecionadas).toEqual(['<option value="permanencia" selected="">']);
+  });
+
+  it('sem categoria de quem relatou (a_classificar), continua obrigatória e sem dica', () => {
+    const html = render({ categoria: 'a_classificar' });
+    expect(html).toMatch(/<select[^>]*name="categoria"[^>]*required/);
+    expect(html).not.toContain('(escolhida por quem relatou)');
+    expect(html).not.toContain('Troque só se estiver errada.');
+    // Só o item "Escolha uma categoria" vem marcado, e ele é desabilitado: nenhuma categoria real.
+    expect(html).toContain(
+      '<option value="" disabled="" selected="">Escolha uma categoria</option>',
+    );
+    expect(html).not.toMatch(/<option value="[a-z_]+" selected="">/);
+  });
+
+  it('categoria fora da lista também não vem marcada', () => {
+    const html = render({ categoria: 'inventada' });
+    expect(html).toMatch(/<select[^>]*name="categoria"[^>]*required/);
+  });
+
+  it('com pauta_editada na linha do tempo, avisa para reler o texto antes de aprovar', () => {
+    const html = render({}, [eventoEditado]);
+    expect(html).toContain('O responsável editou o texto antes da decisão.');
+    expect(html).toContain('leia de novo antes de aprovar');
+  });
+
+  it('sem edição, não há aviso; e depois de decidida, também não', () => {
+    expect(render()).not.toContain('O responsável editou o texto antes da decisão.');
+    expect(render({ status: 'juntando_apoios' }, [eventoEditado])).not.toContain(
+      'O responsável editou o texto antes da decisão.',
+    );
+  });
+});
+
+describe('lista de pautas: aviso de truncamento (E7)', () => {
+  it('sem truncamento, não há aviso; e com 200 pautas há', () => {
+    const sem = renderToStaticMarkup(
+      <ListaDePautas pautas={[pauta()]} situacoes={[]} pendencias={[]} q="" />,
+    );
+    expect(sem).not.toContain('mais antigas');
+    const cheia = Array.from({ length: 200 }, (_, i) => pauta({ id: `p${String(i)}` }));
+    const padrao = renderToStaticMarkup(
+      <ListaDePautas pautas={cheia} situacoes={[]} pendencias={[]} q="" />,
+    );
+    expect(padrao).toContain('mais antigas');
   });
 });

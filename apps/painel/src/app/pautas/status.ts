@@ -1,13 +1,4 @@
-import type { DetalhePautaDaCuradoria } from '@lumens/dominio';
+import { ROTULOS_DE_STATUS } from '@lumens/dominio';
 
-export const STATUS: Record<DetalhePautaDaCuradoria['status'], string> = {
-  em_curadoria: 'Esperando decisão da curadoria',
-  recusada: 'Recusada',
-  juntando_apoios: 'Juntando apoios',
-  meta_batida: 'Meta batida',
-  cobrando: 'Em cobrança',
-  prometido: 'Prometido',
-  entregue_em_parte: 'Entregue em parte',
-  descumprida: 'Promessa descumprida',
-  conquistada: 'Conquistada',
-};
+/** O rótulo vem do domínio: é o mesmo texto que a busca `q` da lista procura. */
+export const STATUS = ROTULOS_DE_STATUS;

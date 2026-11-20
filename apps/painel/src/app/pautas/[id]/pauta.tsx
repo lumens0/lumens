@@ -18,6 +18,7 @@ import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../../fotos-do-relat
 import { ERRO_DE_PEDIDO, FEITO_DE_PEDIDO, PedidosDeEdicao } from '../../pedidos/pedidos';
 import { ACEITA_PROMESSA } from './promessa/formulario';
 import { CAMPO_CONFERIDO, CAMPO_RELATO_VISTO, PREFIXO_FOTO_VISTA } from './decisoes';
+import { categoriaDeQuemRelatou, textoFoiEditado } from './editada';
 import { LinhaDoTempo } from './linha-do-tempo/linha';
 import { AjustesDeMeta } from './ajustes-de-meta';
 import { AjustesDePrazo } from './ajustes-de-prazo';
@@ -138,6 +139,7 @@ export function Pauta({
     pauta.categoria === 'a_classificar'
       ? 'A classificar'
       : ((CATEGORIAS as Record<string, string | undefined>)[pauta.categoria] ?? pauta.categoria);
+  const inicial = categoriaDeQuemRelatou(pauta.categoria);
   const relatoComDadoPessoal = pauta.relatos.some(
     (relato) =>
       relato.moderacao === 'pendente' &&
@@ -220,6 +222,12 @@ export function Pauta({
         )}
       </dl>
       <p className={estilos.descricaoDaPauta}>{pauta.descricao}</p>
+      {pauta.status === 'em_curadoria' && textoFoiEditado(eventos) && (
+        <p className={estilos.aviso} role="status">
+          O responsável editou o texto antes da decisão. Esta é a versão atual: leia de novo antes
+          de aprovar.
+        </p>
+      )}
       {feito === 'urgencia' && (
         <p className={estilos.aviso} role="status">
           Urgência atualizada.
@@ -449,8 +457,17 @@ export function Pauta({
               value={versaoDoTexto(pauta.titulo, pauta.descricao)}
             />
             <label className={estilos.campo}>
-              Categoria
-              <select id="categoria" name="categoria" required defaultValue="">
+              Categoria{' '}
+              {inicial !== '' && <span className={estilos.dica}>(escolhida por quem relatou)</span>}
+              {/* Já vem marcada com a de quem relatou: só se troca se estiver errada. Sem categoria
+                  de quem relatou, continua obrigatória. */}
+              <select
+                id="categoria"
+                name="categoria"
+                required={inicial === ''}
+                defaultValue={inicial}
+                aria-describedby={inicial === '' ? undefined : 'dica-categoria'}
+              >
                 <option value="" disabled>
                   Escolha uma categoria
                 </option>
@@ -460,6 +477,11 @@ export function Pauta({
                   </option>
                 ))}
               </select>
+              {inicial !== '' && (
+                <small id="dica-categoria" className={estilos.dica}>
+                  Troque só se estiver errada.
+                </small>
+              )}
             </label>
             <label className={estilos.marcar}>
               <input type="checkbox" name="urgente" /> Marcar como urgente

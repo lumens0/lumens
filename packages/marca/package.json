@@ -11,7 +11,8 @@
     "./fluxo.css": "./src/fluxo.css"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "react": "^19.3.1"
