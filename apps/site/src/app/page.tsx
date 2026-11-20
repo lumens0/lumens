@@ -68,15 +68,14 @@ export default async function Home({
   const daEtapa = filtrarPautas(campus, { status, blocos: [] });
   const recorte = filtrarPautas(campus, { status, blocos: escolhidos });
 
-  const nomesEscolhidos = new Set(escolhidos.map((b) => b.nome));
+  // A média de dias até a entrega usa só as conquistas do recorte (blocos e etapas escolhidos): o
+  // número de conquistas e a média falam do mesmo universo.
+  const slugsDoRecorte = new Set(recorte.map((p) => p.slug));
   const numeros = numerosDoInicio({
     pautas: recorte,
     campus,
     semanas,
-    conquistas:
-      escolhidos.length === 0
-        ? conquistas
-        : conquistas.filter((c) => c.bloco_nome !== null && nomesEscolhidos.has(c.bloco_nome)),
+    conquistas: conquistas.filter((c) => slugsDoRecorte.has(c.pauta_slug)),
     recortePorBloco: escolhidos.length > 0,
   });
   const onde =
