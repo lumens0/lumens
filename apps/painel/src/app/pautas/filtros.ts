@@ -1,4 +1,4 @@
-import type { PautaDaCuradoria, PendenciaDaCuradoria } from '@lumens/dominio';
+import type { PendenciaDaCuradoria } from '@lumens/dominio';
 import { STATUS } from './status';
 
 /** As pendências que a lista sabe filtrar, na ordem em que os chips aparecem. */
@@ -25,48 +25,6 @@ export function situacoesDaUrl(param: string | undefined): Situacao[] {
 export function pendenciasDaUrl(param: string | undefined): PendenciaDaCuradoria[] {
   const pedidas = new Set(itensDaUrl(param));
   return PENDENCIAS.filter((p) => pedidas.has(p.valor)).map((p) => p.valor);
-}
-
-/** Sem acento, em minúsculas, sem espaço nas pontas: a busca não depende de como se digita. */
-export function normalizar(texto: string): string {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-}
-
-/**
- * Uma busca só: cada palavra tem de aparecer no título, no bloco ou na situação da pauta; a palavra
- * "urgente" acha as pautas urgentes. Sem acento e sem diferenciar maiúsculas.
- */
-export function buscarNaLista(
-  pautas: readonly PautaDaCuradoria[],
-  texto: string,
-): PautaDaCuradoria[] {
-  const palavras = normalizar(texto).split(/\s+/).filter(Boolean);
-  if (palavras.length === 0) return [...pautas];
-  return pautas.filter((pauta) => {
-    const campos = [pauta.titulo, pauta.bloco ?? 'campus inteiro', STATUS[pauta.status]].map(
-      normalizar,
-    );
-    return palavras.every((palavra) =>
-      palavra === 'urgente' ? pauta.urgente : campos.some((campo) => campo.includes(palavra)),
-    );
-  });
-}
-
-/** "Ou" dentro das situações: a pauta fica se está em alguma delas (sem escolha, ficam todas). */
-export function filtrarPorSituacoes(
-  pautas: readonly PautaDaCuradoria[],
-  situacoes: readonly string[],
-): PautaDaCuradoria[] {
-  return situacoes.length === 0 ? [...pautas] : pautas.filter((p) => situacoes.includes(p.status));
-}
-
-/** Junta listas de pautas sem repetir (a mesma pauta pode estar em duas pendências). */
-export function uniaoDePautas(
-  listas: readonly (readonly PautaDaCuradoria[])[],
-): PautaDaCuradoria[] {
-  const vistas = new Map<string, PautaDaCuradoria>();
-  for (const pauta of listas.flat()) if (!vistas.has(pauta.id)) vistas.set(pauta.id, pauta);
-  return [...vistas.values()];
 }
 
 export interface ParametrosDaListaDoPainel {

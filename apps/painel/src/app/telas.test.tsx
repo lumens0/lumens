@@ -1,6 +1,5 @@
 import type {
   DetalhePautaDaCuradoria,
-  PautaDaCuradoria,
   PautaComRelatosPendentes,
   PedidoDeEdicao,
 } from '@lumens/dominio';
@@ -8,14 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { Pauta } from './pautas/[id]/pauta';
 import { FormularioDaPromessa } from './pautas/[id]/promessa/formulario';
-import {
-  buscarNaLista,
-  filtrarPorSituacoes,
-  pendenciasDaUrl,
-  situacoesDaUrl,
-  uniaoDePautas,
-  urlDaLista,
-} from './pautas/filtros';
+import { pendenciasDaUrl, situacoesDaUrl, urlDaLista } from './pautas/filtros';
 import { ListaDePautas } from './pautas/lista';
 import { situacaoDoPrazo } from './pautas/selos';
 import { textoDoPrazo } from './prazo';
@@ -740,16 +732,6 @@ describe('lista de todas as pautas', () => {
 });
 
 describe('filtros da lista de pautas', () => {
-  const linha = (campos: Partial<PautaDaCuradoria>): PautaDaCuradoria =>
-    ({
-      id: 'x',
-      titulo: 'Goteira no corredor',
-      bloco: 'Bloco 12',
-      status: 'cobrando',
-      urgente: false,
-      ...campos,
-    }) as PautaDaCuradoria;
-
   it('sem parâmetro a lista abre em "esperando decisão"; "todas" e valores inválidos limpam', () => {
     expect(situacoesDaUrl(undefined)).toEqual(['em_curadoria']);
     expect(situacoesDaUrl('todas')).toEqual([]);
@@ -764,38 +746,6 @@ describe('filtros da lista de pautas', () => {
       'conferencia_aberta',
     ]);
     expect(pendenciasDaUrl(undefined)).toEqual([]);
-  });
-
-  it('a busca única acha por título, bloco, situação e "urgente", sem acento', () => {
-    const lista = [
-      linha({ id: '1', titulo: 'Iluminação do estacionamento', urgente: true }),
-      linha({ id: '2', bloco: null, status: 'prometido' }),
-    ];
-    const ids = (q: string) => buscarNaLista(lista, q).map((p) => p.id);
-    expect(ids('ILUMINACAO')).toEqual(['1']);
-    expect(ids('bloco 12')).toEqual(['1']);
-    expect(ids('campus')).toEqual(['2']);
-    expect(ids('prometido')).toEqual(['2']);
-    expect(ids('urgente')).toEqual(['1']);
-    expect(ids('')).toEqual(['1', '2']);
-  });
-
-  it('"ou" dentro das situações e união sem repetir entre pendências', () => {
-    const primeira = linha({ id: '1', status: 'cobrando' });
-    const segunda = linha({ id: '2', status: 'prometido' });
-    const terceira = linha({ id: '3', status: 'conquistada' });
-    const lista = [primeira, segunda, terceira];
-    expect(filtrarPorSituacoes(lista, ['cobrando', 'prometido']).map((p) => p.id)).toEqual([
-      '1',
-      '2',
-    ]);
-    expect(filtrarPorSituacoes(lista, [])).toHaveLength(3);
-    expect(
-      uniaoDePautas([
-        [primeira, segunda],
-        [segunda, terceira],
-      ]).map((p) => p.id),
-    ).toEqual(['1', '2', '3']);
   });
 
   it('a URL tira o que é padrão e escreve "todas" quando não há situação', () => {
@@ -974,17 +924,9 @@ describe('decisão: categoria de quem relatou e aviso de texto editado (E7)', ()
 });
 
 describe('lista de pautas: aviso de truncamento (E7)', () => {
-  it('o aviso aparece quando a consulta bateu no limite, mesmo com a lista já filtrada e vazia', () => {
-    const html = renderToStaticMarkup(
-      <ListaDePautas pautas={[]} situacoes={[]} pendencias={[]} q="algo" truncada />,
-    );
-    expect(html).toContain('mais antigas');
-    expect(html).toContain('Nenhuma pauta encontrada.');
-  });
-
-  it('sem truncamento, não há aviso; e sem a indicação, vale o tamanho da própria lista', () => {
+  it('sem truncamento, não há aviso; e com 200 pautas há', () => {
     const sem = renderToStaticMarkup(
-      <ListaDePautas pautas={[pauta()]} situacoes={[]} pendencias={[]} q="" truncada={false} />,
+      <ListaDePautas pautas={[pauta()]} situacoes={[]} pendencias={[]} q="" />,
     );
     expect(sem).not.toContain('mais antigas');
     const cheia = Array.from({ length: 200 }, (_, i) => pauta({ id: `p${String(i)}` }));

@@ -144,8 +144,10 @@ export {
   recusarRelatoDeOrigem,
   resumoDaCuradoria,
   LIMITE_DA_LISTA,
+  ROTULOS_DE_STATUS,
 } from './pauta/curadoria';
 export type {
+  FiltroDaCuradoria,
   PendenciaDaCuradoria,
   PautaDaCuradoria,
   PautaNaFila,

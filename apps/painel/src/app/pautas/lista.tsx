@@ -25,15 +25,12 @@ export function ListaDePautas({
   pendencias,
   q,
   contagens,
-  truncada = pautas.length >= LIMITE_DA_LISTA,
 }: {
   pautas: PautaDaCuradoria[];
   situacoes: readonly string[];
   pendencias: readonly PendenciaDaCuradoria[];
   q: string;
   contagens?: ContagensDaLista;
-  /** A consulta bateu no limite de pautas: o que não coube não foi pesquisado. */
-  truncada?: boolean;
 }) {
   const aqui = { situacoes, pendencias, q };
   const filtrando = situacoes.length > 0 || pendencias.length > 0 || q.trim() !== '';
@@ -45,7 +42,7 @@ export function ListaDePautas({
       <p className={estilos.apoio}>
         Abra uma pauta para conferir os relatos e acompanhar a resposta oficial.
       </p>
-      {truncada && (
+      {pautas.length >= LIMITE_DA_LISTA && (
         <p className={estilos.aviso} role="status">
           Mostrando as {LIMITE_DA_LISTA} mais antigas. Use os filtros ou a busca para achar as
           outras.
