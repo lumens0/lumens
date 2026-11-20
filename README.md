@@ -19,8 +19,9 @@ Projeto da disciplina Projeto e Desenvolvimento de Sistemas (PDS) · IC · UFAL.
 
 ## Estrutura
 
-As dependências apontam para dentro: os apps usam `@lumens/dominio`, que usa `@lumens/db`. Nenhum
-pacote importa um app, e só o domínio grava nas tabelas de negócio.
+As dependências apontam para dentro: os apps usam `@lumens/dominio`, que usa `@lumens/db`; o site e
+o painel também usam `@lumens/marca`. Nenhum pacote importa um app, e só o domínio grava nas
+tabelas de negócio.
 
 ```
 lumens/
@@ -41,7 +42,8 @@ lumens/
 │   ├── dominio/                regras de negócio, por contexto           (parte 1)
 │   │   └── src/                  pauta/ caminhos/ conferencia/ avisos/ estudante/ compartilhado/
 │   ├── db/                     esquema Drizzle, migrações, views, seed   (parte 1)
-│   └── contratos/              tipos zod da API de leitura pública       (parte 1)
+│   ├── contratos/              tipos zod da API de leitura pública       (parte 1)
+│   └── marca/                  identidade visual (cores, raio, status) do site e do painel
 ├── docs/                       documentação (índice em docs/README.md)
 ├── scripts/                    backup, restauração e deploy da VM (+ unidades systemd)
 ├── docker/init/                SQL que cria o banco de teste no Postgres local
@@ -173,6 +175,7 @@ pnpm db:up
 | `pnpm db:reset` | Apaga o volume, sobe do zero e reprovisiona o login               |
 | `pnpm db:seed`  | Insere ou completa os dados fictícios de desenvolvimento          |
 | `pnpm db:fresh` | Apaga o volume, migra o banco e aplica o seed em um único comando |
+| `pnpm db:blocos-ufal` | Cadastra o catálogo de blocos da UFAL (não duplica o que já existe) |
 
 Conferir que o banco respondeu:
 
