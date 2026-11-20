@@ -1,127 +1,261 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CardPauta } from '../../componentes/CardPauta';
-import { FiltroBloco } from '../../componentes/FiltroBloco';
-import { FiltroStatus } from '../../componentes/FiltroStatus';
+import componentes from '../../componentes/componentes.module.css';
+import { LinhaDePauta } from '../../componentes/lista/LinhaDePauta';
+import { FiltrosDaLista } from '../../componentes/lista/FiltrosDaLista';
+import estilos from '../../componentes/lista/lista.module.css';
 import { ListaVazia } from '../../componentes/ListaVazia';
-import { Numero } from '../../componentes/Numero';
 import { STATUS } from '../../componentes/StatusPill';
 import { buscarBlocos, buscarPautas } from '../../dados/api';
 import { blocosDaUrl, filtrarPautas, statusDaUrl, type ParamDaUrl } from '../../dados/filtros';
-import { pautasPublicas, resumoDosTotais, totais } from '../../dados/pautas-publicas';
-import { STATUS_PUBLICOS } from '@lumens/contratos';
+import { blocosDaFolha } from '../../dados/folha';
+import {
+  buscarNasPautas,
+  janelaDePaginas,
+  ordemDaUrl,
+  ordenarPautas,
+  paginaDaUrl,
+  paginar,
+  sugestoesDeBloco,
+  urlDaLista,
+} from '../../dados/lista';
+import { pautasPublicas } from '../../dados/pautas-publicas';
+import { siglasDosBlocos } from '../../dados/siglas';
 import { metadadosDaMarca } from '../../metadados';
-import estilos from '../page.module.css';
+import pagina from '../page.module.css';
+import { STATUS_PUBLICOS } from '@lumens/contratos';
+import { formatarNumero } from '../../componentes/BarraApoios';
 
 export const metadata: Metadata = metadadosDaMarca({
   caminho: '/pautas',
   title: 'Pautas · Lumens',
 });
 
+const primeiro = (param: ParamDaUrl) => (Array.isArray(param) ? param[0] : param) ?? '';
+
 /**
- * A lista de pautas, com os filtros de bloco e etapa na URL. O Início (`/`) tem o painel de números;
- * aqui fica o que se lê e se filtra. A busca e a paginação chegam na etapa E4.
+ * A aba Pautas: uma busca só (título, bloco, etapa e "urgente"), ordenação, filtros múltiplos de
+ * etapa e bloco, e 8 pautas por página. Tudo na URL (`?q=&ordem=&status=&bloco=&pagina=`) e
+ * calculado no servidor sobre a lista inteira que a API de leitura já entrega.
  */
 export default async function Pautas({
   searchParams,
 }: {
-  searchParams: Promise<{ bloco?: ParamDaUrl; status?: ParamDaUrl }>;
+  searchParams: Promise<{
+    q?: ParamDaUrl;
+    ordem?: ParamDaUrl;
+    status?: ParamDaUrl;
+    bloco?: ParamDaUrl;
+    pagina?: ParamDaUrl;
+  }>;
 }) {
-  // Erro da API sobe e cai no `error.tsx`. Os totais saem da lista, e não do GET /resumo, porque
-  // acompanham o filtro de bloco e o /resumo é sempre do campus inteiro.
-  // O `searchParams` vem antes da primeira busca: lê-lo torna a página dinâmica, então o
-  // `next build` não tenta pré-renderizar a página chamando a API (que pode nem estar no ar).
-  const { bloco: blocoParam, status: statusParam } = await searchParams;
-  const blocos = await buscarBlocos();
-  // Filtros múltiplos: "ou" dentro do grupo, "e" entre grupos. Os seletores abaixo ainda são de um
-  // valor só (a lista nova chega na E4); com mais de um escolhido, eles mostram "Todos".
-  const escolhidos = blocosDaUrl(blocos, blocoParam);
-  const etapas = statusDaUrl(statusParam);
-  const bloco = escolhidos.length === 1 ? escolhidos[0] : undefined;
-  const status = etapas.length === 1 ? etapas[0] : undefined;
-  // Uma busca só, sem o filtro de status: a API ordena e o `pautasPublicas` repete a regra como
-  // segunda barreira. O status filtra a lista aqui; as contagens do filtro usam as pautas do bloco
-  // inteiras, para não mostrar "Sem pautas" em bloco que só não tem aquele status.
-  const todas = filtrarPautas(pautasPublicas(await buscarPautas(bloco?.slug)), {
-    status: [],
-    blocos: escolhidos,
-  });
-  const lista = filtrarPautas(todas, { status: etapas, blocos: [] });
-  const contagens = Object.fromEntries(
-    STATUS_PUBLICOS.map((etapa) => [etapa, todas.filter((pauta) => pauta.status === etapa).length]),
-  );
-  const contagem = totais(lista);
-  const { abertas, apoios, conquistas } = contagem;
-  const onde =
-    escolhidos.length === 0
-      ? 'Todo o campus'
-      : escolhidos.length === 1
-        ? (escolhidos[0]?.nome ?? '')
-        : `${String(escolhidos.length)} blocos`;
-  return (
-    <main className={estilos.pagina}>
-      <h1 className={estilos.tituloDaLista}>Pautas</h1>
+  // Erro da API sobe e cai no `error.tsx`. O `searchParams` vem antes da primeira busca: lê-lo torna
+  // a página dinâmica, então o `next build` não tenta pré-renderizá-la chamando a API.
+  const params = await searchParams;
+  const [blocos, daApi] = await Promise.all([buscarBlocos(), buscarPautas()]);
+  const siglas = siglasDosBlocos(blocos);
+  const q = primeiro(params.q).trim();
+  const ordem = ordemDaUrl(params.ordem);
+  const status = statusDaUrl(params.status);
+  const escolhidos = blocosDaUrl(blocos, params.bloco);
+  const slugs = escolhidos.map((b) => b.slug);
 
-      {/* Os totais acompanham o filtro: o título é o nome do bloco escolhido. A região viva é só o
-          resumo escondido: os números visíveis sobem com animação e anunciariam cada quadro. */}
-      <section className={estilos.totais} aria-labelledby="totais-titulo">
-        <p role="status" className={estilos.somenteLeitor}>
-          {resumoDosTotais(onde, contagem)}
-        </p>
-        <div className={estilos.totaisTopo}>
-          <h2 id="totais-titulo" className={estilos.totaisTitulo}>
-            {onde}
-          </h2>
-          <div className={estilos.filtros}>
-            <FiltroBloco blocos={blocos} atual={bloco?.slug} status={status} />
-            <FiltroStatus atual={status} bloco={bloco?.slug} contagens={contagens} />
-          </div>
-        </div>
-        <dl>
-          <div>
-            <dt>Pautas abertas</dt>
-            <dd>
-              <Numero valor={abertas} />
-            </dd>
-          </div>
-          <div>
-            <dt>Apoios</dt>
-            <dd>
-              <Numero valor={apoios} />
-            </dd>
-          </div>
-          <div>
-            <dt>Conquistas</dt>
-            <dd>
-              <Numero valor={conquistas} />
-            </dd>
-          </div>
-        </dl>
-      </section>
-      {lista.length === 0 ? (
-        <ListaVazia bloco={bloco} status={status} />
-      ) : (
-        <ul className={[estilos.lista, estilos.grade].join(' ')}>
-          {lista.map((pauta) => (
-            <li key={pauta.slug} className="revelar">
-              <CardPauta pauta={pauta} />
+  const campus = pautasPublicas(daApi);
+  // Os blocos e a busca recortam as contagens das etapas; a etapa filtra só a lista.
+  const doRecorte = buscarNasPautas(
+    filtrarPautas(campus, { status: [], blocos: escolhidos }),
+    q,
+    siglas,
+    (s) => STATUS[s].rotulo,
+  );
+  const etapas = Object.fromEntries(
+    STATUS_PUBLICOS.map((e) => [e, doRecorte.filter((p) => p.status === e).length]),
+  ) as Record<(typeof STATUS_PUBLICOS)[number], number>;
+  const filtradas = ordenarPautas(filtrarPautas(doRecorte, { status, blocos: [] }), ordem);
+  const lista = paginar(filtradas, paginaDaUrl(params.pagina));
+
+  const todosOsBlocos = blocosDaFolha(blocos, siglas, campus, status);
+  const sugestoes = sugestoesDeBloco(todosOsBlocos, q, slugs);
+  const aqui = { q, ordem, status, bloco: slugs };
+  const etiquetas = [
+    ...status.map((e) => ({
+      texto: STATUS[e].rotulo,
+      rotulo: `Tirar o filtro de etapa ${STATUS[e].rotulo}`,
+      href: urlDaLista({ ...aqui, status: status.filter((s) => s !== e) }),
+    })),
+    ...escolhidos.map((b) => ({
+      texto: b.nome,
+      rotulo: `Tirar o filtro de bloco ${b.nome}`,
+      href: urlDaLista({ ...aqui, bloco: slugs.filter((s) => s !== b.slug) }),
+    })),
+  ];
+  const filtrando = etiquetas.length > 0 || q !== '';
+  const botoes = janelaDePaginas(lista.pagina, lista.paginas);
+
+  return (
+    <main className={pagina.pagina}>
+      <header className={estilos.cabecalho}>
+        <h1>
+          Pautas<span className={estilos.total}>{formatarNumero(campus.length)}</span>
+        </h1>
+        <Link href="/" className={estilos.verPainel}>
+          Ver o painel de números
+        </Link>
+      </header>
+
+      <form role="search" action="/pautas" method="get" className={estilos.busca}>
+        <label>
+          <span className={estilos.somenteLeitor}>Buscar pauta ou bloco</span>
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar pauta ou bloco"
+            autoComplete="off"
+          />
+        </label>
+        {status.length > 0 && <input type="hidden" name="status" value={status.join(',')} />}
+        {slugs.length > 0 && <input type="hidden" name="bloco" value={slugs.join(',')} />}
+        {ordem !== 'atencao' && <input type="hidden" name="ordem" value={ordem} />}
+        <button type="submit">Buscar</button>
+      </form>
+      {sugestoes.length > 0 && (
+        <ul className={estilos.sugestoes} aria-label="Sugestões de bloco">
+          {sugestoes.map((b) => (
+            <li key={b.slug}>
+              <Link href={urlDaLista({ ordem, status, bloco: [...slugs, b.slug] })}>
+                Filtrar pelo bloco: {b.nome}
+              </Link>
             </li>
           ))}
         </ul>
       )}
-      <aside className={estilos.legenda} aria-label="Etapas públicas das pautas">
-        <h2>Etapas das pautas</h2>
-        <ul>
-          {STATUS_PUBLICOS.map((etapa) => (
-            <li key={etapa}>
-              <i style={{ background: STATUS[etapa].ponto }} aria-hidden="true" />
-              {STATUS[etapa].rotulo}
+
+      <FiltrosDaLista
+        q={q}
+        ordem={ordem}
+        status={status}
+        bloco={slugs}
+        etapas={etapas}
+        totalDaBusca={doRecorte.length}
+        folha={{
+          blocos: todosOsBlocos,
+          catalogo: blocos,
+          siglas,
+          pautas: campus.map((p) => ({
+            slug: p.slug,
+            titulo: p.titulo,
+            status: p.status,
+            apoios: p.apoios,
+            urgente: p.urgente,
+            bloco_slug: p.bloco_slug,
+          })),
+        }}
+      />
+
+      {etiquetas.length > 0 && (
+        <ul className={estilos.etiquetas} aria-label="Filtros ativos">
+          {etiquetas.map((etiqueta) => (
+            <li key={etiqueta.href}>
+              <Link
+                href={etiqueta.href}
+                className={estilos.etiqueta}
+                aria-label={etiqueta.rotulo}
+                scroll={false}
+              >
+                {etiqueta.texto}
+                <span aria-hidden="true">×</span>
+              </Link>
             </li>
           ))}
+          {etiquetas.length >= 2 && (
+            <li>
+              <Link href={urlDaLista({ ordem })} className={estilos.limpar}>
+                Limpar tudo
+              </Link>
+            </li>
+          )}
         </ul>
-      </aside>
-      <footer className={estilos.rodape}>
-        <nav aria-label="Mais do Lumens" className={estilos.navegacao}>
+      )}
+
+      <p role="status" className={estilos.resultado}>
+        {lista.total === 0
+          ? 'Nenhuma pauta encontrada.'
+          : `Mostrando ${String(lista.de)} a ${String(lista.ate)} de ${formatarNumero(lista.total)} ${lista.total === 1 ? 'pauta' : 'pautas'}`}
+      </p>
+
+      {lista.total === 0 ? (
+        <div className={estilos.vazio}>
+          {campus.length === 0 ? (
+            <ListaVazia bloco={undefined} />
+          ) : (
+            <div role="status" className={componentes.estado}>
+              <p className={componentes.estadoTitulo}>Nenhuma pauta nessa combinação.</p>
+              {filtrando && (
+                <div className={componentes.acoes}>
+                  <Link href="/pautas" className={componentes.botaoSecundario}>
+                    Limpar filtros
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <ul className={estilos.lista}>
+          {lista.itens.map((pauta) => (
+            <LinhaDePauta key={pauta.slug} pauta={pauta} />
+          ))}
+        </ul>
+      )}
+
+      {lista.paginas > 1 && (
+        <nav aria-label="Páginas da lista" className={estilos.paginacao}>
+          <ul>
+            <li>
+              {lista.pagina > 1 ? (
+                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina - 1 })} rel="prev">
+                  Anterior
+                </Link>
+              ) : null}
+            </li>
+            {botoes.map((n, i) => (
+              <li key={`${String(n)}-${String(i)}`}>
+                {n === '…' ? (
+                  <span className={estilos.reticencias} aria-hidden="true">
+                    …
+                  </span>
+                ) : n === lista.pagina ? (
+                  <span
+                    className={estilos.atual}
+                    aria-current="page"
+                    aria-label={`Página ${String(n)}`}
+                  >
+                    {n}
+                  </span>
+                ) : (
+                  <Link
+                    href={urlDaLista({ ...aqui, pagina: n })}
+                    aria-label={`Página ${String(n)}`}
+                  >
+                    {n}
+                  </Link>
+                )}
+              </li>
+            ))}
+            <li>
+              {lista.pagina < lista.paginas ? (
+                <Link href={urlDaLista({ ...aqui, pagina: lista.pagina + 1 })} rel="next">
+                  Próxima
+                </Link>
+              ) : null}
+            </li>
+          </ul>
+        </nav>
+      )}
+
+      <footer className={pagina.rodape}>
+        <nav aria-label="Mais do Lumens" className={pagina.navegacao}>
           <Link href="/manual">Manual</Link>
           <Link href="/privacidade">Política de privacidade</Link>
           {/* Arquivo, não página: o <a> comum baixa o CSV em vez de navegar. */}

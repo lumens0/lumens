@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { absorver, chaveDe, limparPendente, proximaEscolha, registrarEscolha } from './pendentes';
+import {
+  absorver,
+  absorverOrdem,
+  aplicarBlocos,
+  chaveDe,
+  escolhaVigente,
+  limparGrupo,
+  limparPendente,
+  ordemVigente,
+  proximaEscolha,
+  registrarEscolha,
+  registrarOrdem,
+} from './pendentes';
 
 const vazio = { status: [], bloco: [] };
 
@@ -43,5 +55,83 @@ describe('escolha pendente compartilhada', () => {
     absorver(vazio);
     const proxima = proximaEscolha(vazio, 'status', 'prometido', 1100);
     expect(proxima.status).toEqual(['cobrando', 'prometido']);
+  });
+});
+
+describe('aplicarBlocos (a folha de blocos)', () => {
+  it('mantém a etapa pendente: etapa e logo a folha, antes de a página refletir, preservam as duas', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    // `atual` ainda é "vazio": a página não refletiu a etapa.
+    const r = aplicarBlocos(vazio, ['ic', 'ctec'], 1200);
+    expect(r).toEqual({ status: ['cobrando'], bloco: ['ic', 'ctec'] });
+  });
+
+  it('sem pendente, parte do que a página mostra', () => {
+    const r = aplicarBlocos({ status: ['prometido'], bloco: [] }, ['ic'], 5000);
+    expect(r).toEqual({ status: ['prometido'], bloco: ['ic'] });
+  });
+
+  it('depois da folha, um clique numa etapa preserva os blocos', () => {
+    aplicarBlocos(vazio, ['ic'], 1000);
+    const r = proximaEscolha(vazio, 'status', 'cobrando', 1100);
+    expect(r).toEqual({ status: ['cobrando'], bloco: ['ic'] });
+  });
+
+  it('escolhaVigente devolve a pendente enquanto vale e a da página depois', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    expect(escolhaVigente(vazio, 1500).status).toEqual(['cobrando']);
+    expect(escolhaVigente(vazio, 1000 + 3000).status).toEqual([]);
+  });
+});
+
+describe('limparGrupo ("Todas" nas etapas)', () => {
+  it('zera só o grupo pedido e parte da escolha pendente (inclusive os blocos da folha)', () => {
+    registrarEscolha({ status: ['cobrando'], bloco: ['ic'] }, 1000);
+    const r = limparGrupo({ status: [], bloco: [] }, 'status', 1200);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
+  });
+
+  it('sem pendente, parte do que a página mostra', () => {
+    const r = limparGrupo({ status: ['cobrando'], bloco: ['ic'] }, 'status', 5000);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
+  });
+});
+
+describe('folha aberta logo depois de escolher um bloco', () => {
+  it('o rascunho da folha (escolhaVigente) inclui o bloco recém-escolhido, e aplicar o mantém', () => {
+    const naPagina = { status: [], bloco: ['ic'] };
+    proximaEscolha(naPagina, 'bloco', 'ctec', 1000);
+    // A folha abre antes de a página refletir: o rascunho vem da escolha vigente, com os dois.
+    const rascunho = [...escolhaVigente(naPagina, 1100).bloco];
+    expect(rascunho).toEqual(['ic', 'ctec']);
+    // Aplicar sem mexer nos chips mantém os dois blocos.
+    expect(aplicarBlocos(naPagina, rascunho, 1200).bloco).toEqual(['ic', 'ctec']);
+  });
+});
+
+describe('ordenação pendente', () => {
+  it('ordenar e logo filtrar: a ordem recém-escolhida vale na navegação seguinte', () => {
+    registrarOrdem('apoios', 1000);
+    // As props ainda mostram a ordem padrão.
+    expect(ordemVigente('atencao', 1100)).toBe('apoios');
+  });
+
+  it('vence depois de 3 s, e é absorvida quando a página já mostra a ordem', () => {
+    registrarOrdem('apoios', 1000);
+    expect(ordemVigente('atencao', 1000 + 3000)).toBe('atencao');
+    absorverOrdem('apoios');
+    expect(ordemVigente('atencao', 1100)).toBe('atencao');
+  });
+
+  it('absorver outra ordem não apaga a pendente', () => {
+    registrarOrdem('recentes', 1000);
+    absorverOrdem('atencao');
+    expect(ordemVigente('atencao', 1100)).toBe('recentes');
+  });
+
+  it('limparPendente zera também a ordenação', () => {
+    registrarOrdem('apoios', 1000);
+    limparPendente();
+    expect(ordemVigente('atencao', 1100)).toBe('atencao');
   });
 });

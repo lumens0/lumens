@@ -389,6 +389,42 @@ export const curadores = pgTable('curador', {
   criadoEm: instante('criado_em').notNull().defaultNow(),
 });
 
+/**
+ * "O que foi feito" de uma pauta conquistada (SCRUM-394): o texto curto e a foto que a curadoria
+ * escreve para o card de conquista e para a página da pauta. No máximo uma linha por pauta; tabela
+ * própria (e não colunas em `pauta`) porque só existe para pauta conquistada e carrega autor e
+ * instante. A foto é guardada sem metadados (EXIF) no bucket das fotos. Só a curadoria escreve.
+ */
+export const conquistasDaCuradoria = pgTable(
+  'conquista_curadoria',
+  {
+    pautaId: uuid('pauta_id')
+      .primaryKey()
+      .references(() => pautas.id, { onDelete: 'restrict' }),
+    oQueFoiFeito: text('o_que_foi_feito'),
+    fotoChave: text('foto_chave'),
+    atualizadoPor: uuid('atualizado_por')
+      .notNull()
+      .references(() => curadores.id, { onDelete: 'restrict' }),
+    atualizadoEm: instante('atualizado_em').notNull().defaultNow(),
+  },
+  (t) => [
+    // O mesmo teto do domínio (`O_QUE_FOI_FEITO_MAXIMO`); char_length conta caracteres.
+    check(
+      'conquista_curadoria_texto_de_1_a_160',
+      sql`${t.oQueFoiFeito} IS NULL OR char_length(btrim(${t.oQueFoiFeito})) BETWEEN 1 AND 160`,
+    ),
+    check(
+      'conquista_curadoria_chave_da_foto',
+      sql`${t.fotoChave} IS NULL OR ${t.fotoChave} ~ '^fotos/[0-9]{4}/[0-9]{2}/[A-Za-z0-9_-]+[.][a-z0-9]{1,5}$'`,
+    ),
+    check(
+      'conquista_curadoria_com_texto_ou_foto',
+      sql`${t.oQueFoiFeito} IS NOT NULL OR ${t.fotoChave} IS NOT NULL`,
+    ),
+  ],
+);
+
 /** Quem adicionou, desativou ou reativou quem, e quando. Só inserção; sem e-mail em claro. */
 export const curadorAuditoria = pgTable('curador_auditoria', {
   id: uuid('id').defaultRandom().primaryKey(),

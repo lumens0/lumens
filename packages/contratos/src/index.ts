@@ -191,10 +191,22 @@ export const evento = z.object({
 });
 export type Evento = z.infer<typeof evento>;
 
+/**
+ * "O que foi feito" que a curadoria escreve para a pauta conquistada (SCRUM-394): texto de até 160
+ * caracteres e UMA foto sem metadados. Os dois vêm nulos fora de `conquistada` e enquanto a curadoria
+ * não escreve. `foto` é a chave do arquivo, no mesmo formato de `relato.fotos`: o site a serve por
+ * `/fotos/...`, que só abre a foto da conquista com a pauta conquistada.
+ */
+export const oQueFoiFeito = {
+  o_que_foi_feito: z.string().nullable(),
+  foto: z.string().nullable(),
+};
+
 export const pautaDetalhe = pauta.extend({
   relatos: z.array(relato),
   caminhos: z.array(caminho),
   linha_do_tempo: z.array(evento),
+  ...oQueFoiFeito,
 });
 export type PautaDetalhe = z.infer<typeof pautaDetalhe>;
 
@@ -208,6 +220,7 @@ export const conquista = z.object({
   proposta_executada: z.boolean(),
   /** Criação da pauta: o site conta os dias até a entrega. */
   criada_em: instante,
+  ...oQueFoiFeito,
 });
 export const conquistas = z.object({ itens: z.array(conquista) });
 export type Conquista = z.infer<typeof conquista>;

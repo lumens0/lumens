@@ -3,6 +3,7 @@ import {
   COMANDO_NOVA_PAUTA,
   comandoAjudar,
   comandoApoiar,
+  comandoNovaPautaNoBloco,
   canalDoBot,
   exigirBotDoCanal,
   exigirNumeroDoBot,
@@ -65,6 +66,13 @@ describe('payloadTelegram', () => {
     expect(payloadTelegram(comandoApoiar('iluminação'))).toBeNull();
     expect(payloadTelegram(comandoAjudar('a.b'))).toBeNull();
     expect(payloadTelegram(comandoApoiar(''))).toBeNull();
+  });
+
+  it('nova pauta com bloco vira nova_<slug>; bloco que não cabe vira só nova (SCRUM-396)', () => {
+    expect(payloadTelegram(comandoNovaPautaNoBloco('bloco-18'))).toBe('nova_bloco-18');
+    expect(payloadTelegram(comandoNovaPautaNoBloco('ic'))).toBe('nova_ic');
+    expect(payloadTelegram(comandoNovaPautaNoBloco('a'.repeat(70)))).toBe('nova');
+    expect(payloadTelegram(comandoNovaPautaNoBloco('saúde'))).toBe('nova');
   });
 
   it('recusa comando que o bot não decodifica', () => {

@@ -16,6 +16,11 @@ export function comandoAjudar(slug: string): string {
 
 export const COMANDO_NOVA_PAUTA = 'nova pauta';
 
+/** Nova pauta já no bloco escolhido no mapa (SCRUM-396). O identificador é o slug do bloco. */
+export function comandoNovaPautaNoBloco(slugDoBloco: string): string {
+  return `${COMANDO_NOVA_PAUTA} ${slugDoBloco}`;
+}
+
 export const CANAIS_DO_BOT = ['whatsapp', 'telegram'] as const;
 export type CanalDoBot = (typeof CANAIS_DO_BOT)[number];
 
@@ -85,6 +90,11 @@ const PAYLOAD_VALIDO = /^[A-Za-z0-9_-]{1,64}$/;
  */
 export function payloadTelegram(comando: string): string | null {
   if (comando === COMANDO_NOVA_PAUTA) return 'nova';
+  if (comando.startsWith(`${COMANDO_NOVA_PAUTA} `)) {
+    // Bloco que não cabe no `start`: abre a nova pauta sem bloco, em vez de um link rejeitado.
+    const payload = `nova_${comando.slice(COMANDO_NOVA_PAUTA.length + 1)}`;
+    return PAYLOAD_VALIDO.test(payload) ? payload : 'nova';
+  }
   if (!/^(apoiar|ajudar) \S+$/.test(comando)) return null;
   const payload = comando.replace(' ', '_');
   if (PAYLOAD_VALIDO.test(payload)) return payload;

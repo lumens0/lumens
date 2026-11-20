@@ -70,6 +70,67 @@ describe('textoDoPrazo', () => {
   });
 });
 
+describe('card de conquista na tela da pauta (SCRUM-394)', () => {
+  const salva = {
+    slug: 'bebedouro-do-bloco-12',
+    texto: 'Trocaram o bebedouro do térreo.',
+    fotoChave: 'fotos/2026/11/a1b2c3d4-0000-4000-8000-000000000001.jpg',
+    atualizadoEm: new Date('2026-11-19T12:00:00.000Z'),
+  };
+  const renderizar = (campos: Partial<DetalhePautaDaCuradoria>, erro?: string) =>
+    renderToStaticMarkup(
+      <Pauta
+        pauta={pauta(campos)}
+        aprovar={acao}
+        recusar={acao}
+        conquista={salva}
+        origemDoSite="https://lumens.example/"
+        erro={erro}
+      />,
+    );
+
+  it('aparece só em pauta conquistada, com texto, contador, foto salva, aviso e os dois botões', () => {
+    const html = renderizar({ status: 'conquistada' });
+    expect(html).toContain('Card de conquista');
+    expect(html).toContain('O que foi feito');
+    expect(html).toContain('Trocaram o bebedouro do térreo.');
+    expect(html).toContain('31 de 160 caracteres');
+    expect(html).toContain(`/curadoria/arquivos/${salva.fotoChave}`);
+    expect(html).toContain('type="file"');
+    expect(html).toContain(
+      'A foto perde a localização antes de ser guardada. Confira se não aparece rosto ou placa.',
+    );
+    expect(html).toContain('Salvar</button>');
+    expect(html).toContain('href="https://lumens.example/p/bebedouro-do-bloco-12/card.png"');
+    expect(html).toContain('Ver o card de conquista');
+  });
+
+  it('não aparece nas outras situações', () => {
+    for (const status of ['em_curadoria', 'juntando_apoios', 'cobrando'] as const) {
+      expect(renderizar({ status })).not.toContain('Card de conquista');
+    }
+  });
+
+  it('sem origem do site configurada, o botão de ver o card some, mas o resto fica', () => {
+    const html = renderToStaticMarkup(
+      <Pauta
+        pauta={pauta({ status: 'conquistada' })}
+        aprovar={acao}
+        recusar={acao}
+        conquista={{ ...salva, texto: null, fotoChave: null }}
+      />,
+    );
+    expect(html).toContain('Card de conquista');
+    expect(html).not.toContain('Ver o card de conquista');
+    expect(html).toContain('0 de 160 caracteres');
+  });
+
+  it('mostra a mensagem do erro devolvido pela ação', () => {
+    const html = renderizar({ status: 'conquistada' }, 'texto_com_dado_pessoal');
+    expect(html).toContain('O texto do card tem e-mail ou telefone.');
+  });
+});
+
 describe('tela da pauta', () => {
   it('oferece os dois ajustes só durante a curadoria ou a coleta de apoios', () => {
     const emCuradoria = renderToStaticMarkup(

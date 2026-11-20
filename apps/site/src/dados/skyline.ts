@@ -1,5 +1,4 @@
 import type { StatusPublico } from '@lumens/contratos';
-import { PREDIOS, siglaDe } from '../componentes/mapa/predios';
 import { estaAberta } from './pautas-publicas';
 import type { Bloco, Pauta } from './tipos';
 
@@ -44,12 +43,6 @@ export interface PredioDoSkyline {
   pautas: number;
 }
 
-/** Sigla do bloco: a do prédio no mapa, quando há, ou a derivada do nome. */
-export function siglaDoBloco(bloco: Pick<Bloco, 'slug' | 'nome'>): string {
-  const predio = PREDIOS.find((p) => p.sigla !== '' && p.blocos.includes(bloco.slug));
-  return abreviar(predio?.sigla ?? siglaDe(bloco.nome));
-}
-
 /** Cabe embaixo de um prédio: "Bloco 18" vira "B18", "Novo CTEC" vira "CTEC", o resto, iniciais. */
 export function abreviar(nome: string): string {
   const bloco = /^Bloco (\S+)$/.exec(nome);
@@ -91,8 +84,11 @@ export function montarSkyline({
   pautas,
   escolhidos,
   status,
+  siglas = {},
   maximo = PREDIOS_NO_SKYLINE,
 }: {
+  /** Sigla de cada bloco pelo slug (`siglasDosBlocos`, só no servidor); sem ela, abrevia o nome. */
+  siglas?: Readonly<Record<string, string>>;
   blocos: readonly Bloco[];
   pautas: readonly Pauta[];
   escolhidos: readonly string[];
@@ -139,7 +135,7 @@ export function montarSkyline({
     return {
       slug: bloco.slug,
       nome: bloco.nome,
-      sigla: siglaDoBloco(bloco),
+      sigla: siglas[bloco.slug] ?? abreviar(bloco.nome),
       colunas,
       linhas,
       janelas: todas.slice(0, capacidade),

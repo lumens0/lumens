@@ -22,3 +22,22 @@ export function prazoVencido(dia: string, agora: Date): boolean {
 export function textoDoPrazo(dia: string, agora: Date, vencido = prazoVencido(dia, agora)) {
   return vencido ? `venceu em ${formatarDia(dia)}` : formatarDia(dia);
 }
+
+/**
+ * Dias de calendário (em Maceió) de hoje até `dia`: positivo no futuro, zero hoje, negativo se
+ * venceu. `null` para qualquer coisa que não seja uma data civil `AAAA-MM-DD`.
+ */
+export function diasAte(dia: string, agora: Date): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null;
+  const alvo = Date.parse(`${dia}T00:00:00Z`);
+  if (Number.isNaN(alvo)) return null;
+  return Math.round((alvo - Date.parse(`${hojeEmMaceio(agora)}T00:00:00Z`)) / 86_400_000);
+}
+
+/** "hoje", "em 3 dias" ou, vencido, "venceu há 2 dias". */
+export function textoDiasAte(dias: number): string {
+  if (dias === 0) return 'hoje';
+  const n = Math.abs(dias);
+  const unidade = n === 1 ? 'dia' : 'dias';
+  return dias > 0 ? `em ${String(n)} ${unidade}` : `venceu há ${String(n)} ${unidade}`;
+}

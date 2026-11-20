@@ -385,6 +385,9 @@ describe('views públicas com o seed', () => {
           apoios: 300,
           proposta_executada: false,
           criada_em: '2026-02-10T12:00:00.000Z',
+          o_que_foi_feito:
+            'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
+          foto_chave: null,
         },
       ]);
     });

@@ -1114,6 +1114,21 @@ div.cartao > h3 {
   margin: 0;
 }
 
+/* Card de conquista (SCRUM-394): contador do texto e botões lado a lado, empilhados no celular. */
+.contadorPassou {
+  margin: 0;
+  color: #7a1414;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.acoesDaConquista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  align-items: center;
+}
+
 /* Dica curta ao lado de um campo: o que está marcado e por quê. */
 .dica {
   display: block;

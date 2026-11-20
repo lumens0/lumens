@@ -1,8 +1,13 @@
 import type { PautaDetalhe } from '@lumens/contratos';
+import type { CSSProperties } from 'react';
 import { ProximaEtapa, RespostaOficial } from './Andamento';
 import { CabecalhoPauta, PlacarDeApoios } from './CabecalhoPauta';
+import { BotaoApoiar, mostraApoiar } from '../BotaoWhatsApp';
+import { formatarNumero } from '../BarraApoios';
+import { STATUS } from '../StatusPill';
 import { Caminhos } from './Caminhos';
 import { DestaqueDaConquista, SolucaoEntregue } from './Conquista';
+import { FioDeEtapas } from './FioDeEtapas';
 import { LinhaDoTempo } from './LinhaDoTempo';
 import { Relatos } from './Relatos';
 import { Voltar } from './Voltar';
@@ -30,9 +35,14 @@ export function ConteudoPauta({
   );
   return (
     <main className={estilos.pagina}>
-      <div className={[estilos.faixa, 'noite'].join(' ')}>
+      {/* A faixa de noite brilha na cor da etapa: 30% do raio, 55% na pauta conquistada. */}
+      <div
+        className={[estilos.faixa, conquistada ? estilos.faixaConquistada : '', 'noite'].join(' ')}
+        style={{ '--cor': STATUS[pauta.status].ponto } as CSSProperties}
+      >
         <Voltar />
         <CabecalhoPauta pauta={pauta} />
+        <FioDeEtapas status={pauta.status} />
       </div>
       {conquistada ? (
         <>
@@ -57,6 +67,15 @@ export function ConteudoPauta({
         </>
       )}
       {rodape}
+      {/* Barra fixa do celular: o número e o botão ficam à mão enquanto se lê a pauta. */}
+      {mostraApoiar(pauta.status) && (
+        <div className={estilos.barraFixa}>
+          <span>
+            <strong>{formatarNumero(pauta.apoios)}</strong> de {formatarNumero(pauta.meta)} apoios
+          </span>
+          <BotaoApoiar slug={pauta.slug} titulo={pauta.titulo} />
+        </div>
+      )}
     </main>
   );
 }

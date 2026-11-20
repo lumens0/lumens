@@ -68,6 +68,8 @@ export interface DadosPorTipo {
    * dele que a curadoria aprovou depois da publicação.
    */
   pauta_editada: { campo: 'titulo' | 'descricao'; antes: string; depois: string };
+  /** A curadoria salvou o "o que foi feito" da conquista; só diz o que a pauta tem agora, sem o texto. */
+  conquista_atualizada: { texto: boolean; foto: boolean };
 }
 
 export type TipoEvento = keyof DadosPorTipo;
@@ -100,6 +102,8 @@ const PUBLICO: { [T in TipoEvento]: boolean | ((dados: DadosPorTipo[T]) => boole
   categoria_alterada: true,
   // Só a curadoria vê: o texto antigo não é para o público (e, em curadoria, a pauta nem está no site).
   pauta_editada: false,
+  // Só a curadoria: o texto e a foto aparecem na própria conquista, e o feed público não ganha ruído.
+  conquista_atualizada: false,
 };
 
 export const TIPOS_EVENTO = Object.keys(PUBLICO) as TipoEvento[];

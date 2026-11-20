@@ -617,6 +617,21 @@ export const eventosSeed = configuracoesPauta.flatMap((pauta) => {
   return eventos;
 }) satisfies NovoEvento[];
 
+/**
+ * "O que foi feito" da pauta conquistada do seed (SCRUM-394): só o texto, porque o seed não tem
+ * storage de fotos. É o que o site e o e2e usam para conferir o texto no card, na página e em /conquistas.
+ */
+export const conquistasCuradoriaSeed = [
+  {
+    pautaId: uuid(4, 9),
+    oQueFoiFeito:
+      'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
+    fotoChave: null,
+    atualizadoPor: uuid(3, 1),
+    atualizadoEm: new Date('2026-03-20T12:00:00.000Z'),
+  },
+];
+
 export const dadosSeed = {
   blocos: blocosSeed,
   estudantes: estudantesSeed,
@@ -630,5 +645,6 @@ export const dadosSeed = {
   voluntarios: voluntariosSeed,
   promessas: promessasSeed,
   respostasConferencia: respostasConferenciaSeed,
+  conquistasCuradoria: conquistasCuradoriaSeed,
   eventos: eventosSeed,
 } as const;
