@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { StatusPublico } from '@lumens/contratos';
 import { alternar, urlDeFiltros } from '../../dados/filtros';
-import { aplicarBlocos } from '../../dados/pendentes';
+import { aplicarBlocos, escolhaVigente } from '../../dados/pendentes';
 import {
   buscarNaFolha,
   resumoDaFolha,
@@ -85,7 +85,9 @@ export function FolhaDeBlocos({
   };
 
   const abrir = () => {
-    setEscolha(atual.bloco);
+    // O rascunho parte da escolha vigente (a pendente, se ainda vale), e não do que a página mostra:
+    // quem acabou de escolher um bloco e abre a folha antes de a página refletir não o vê desmarcado.
+    setEscolha([...escolhaVigente(atual).bloco]);
     setBusca('');
     // O diálogo modal prende o foco, mas não trava a rolagem da página atrás dele.
     document.body.style.overflow = 'hidden';
