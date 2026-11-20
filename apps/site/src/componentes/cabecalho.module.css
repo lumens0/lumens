@@ -1,21 +1,21 @@
 .cabecalho {
-  --tinta: #f5f3ff;
-  --tinta-2: #c9cbe3;
-  --superficie-2: rgb(255 255 255 / 8%);
+  --tinta: #f2f0ea;
+  --tinta-2: #b9bbd0;
+  --superficie-2: rgb(242 240 234 / 7%);
 
   position: sticky;
   top: 0;
-  z-index: 10;
-  background: rgb(20 25 54 / 92%);
-  backdrop-filter: saturate(1.4) blur(12px);
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
+  z-index: 20;
+  background: rgb(9 12 32 / 94%);
+  border-bottom: 1px solid rgb(242 240 234 / 7%);
   color: var(--tinta);
 }
 
 .faixa {
-  max-width: 1120px;
+  position: relative;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 28px;
   display: flex;
   align-items: center;
   gap: 32px;
@@ -25,25 +25,18 @@
 .marca {
   display: flex;
   align-items: center;
-  gap: 10px;
   min-height: 44px;
   font:
-    700 21px var(--fonte-titulo),
+    560 22px var(--fonte-titulo),
     sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--tinta);
   text-decoration: none;
 }
 
-/*
- * O logo. O arquivo traz o brilho em volta do círculo, então a imagem é maior que o desenho e a
- * margem negativa devolve o espaço: o círculo fica com uns 24 px e o brilho vaza para os lados.
- */
-.logo {
-  display: block;
-  width: 44px;
-  height: 44px;
-  margin: -10px -6px -10px -10px;
+/* O botão de menu só existe no celular. */
+.menu {
+  display: none;
 }
 
 .abas {
@@ -87,28 +80,85 @@
 }
 
 @media (max-width: 720px) {
-  .faixa {
-    flex-wrap: wrap;
-    gap: 0 12px;
-    padding: 8px 16px 4px;
-    justify-content: space-between;
+  .cabecalho {
+    background: #090c20;
   }
 
-  .abas {
+  .faixa {
+    gap: 8px;
+    padding: 0 12px 0 20px;
+    min-height: 60px;
+  }
+
+  .marca {
+    margin-right: auto;
+  }
+
+  .menu {
+    display: grid;
+    place-items: center;
     order: 3;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid rgb(242 240 234 / 12%);
+    background: transparent;
+    color: var(--tinta);
+    cursor: pointer;
+  }
+
+  .menu svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .faixa {
+    flex-wrap: wrap;
+  }
+
+  /* Sem JavaScript (`data-aberto` ausente) as abas ficam numa linha embaixo da marca. */
+  .abas:not([data-aberto]) {
+    order: 4;
     flex-basis: 100%;
-    margin: 4px -8px 0;
+    margin: 0 -8px 4px;
+  }
+
+  .abas[data-aberto='false'] {
+    display: none;
+  }
+
+  .abas[data-aberto='true'] {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 12px;
+    right: 12px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    border-radius: 16px;
+    background: #0d1130;
+    border: 1px solid rgb(242 240 234 / 12%);
+    box-shadow: 0 20px 40px -20px rgb(0 0 0 / 80%);
+  }
+
+  .abas[data-aberto='true'] .aba {
+    min-height: 48px;
+    padding: 0 14px;
+    font-size: 16px;
+  }
+
+  .acao {
+    order: 2;
   }
 }
 
-/* Celular estreito: as cinco abas cabem em 375 px sem rolar de lado (antes o "Manual" ficava cortado). */
-@media (max-width: 480px) {
-  .abas {
+/* Celular estreito: o "Relatar" vira só o ícone (o nome continua no aria-label). */
+@media (max-width: 400px) {
+  .acao a {
     gap: 0;
-  }
-
-  .aba {
-    padding: 0 9px;
-    font-size: 14px;
+    width: 44px;
+    padding: 0;
+    font-size: 0;
   }
 }

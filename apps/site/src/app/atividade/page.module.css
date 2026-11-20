@@ -1,0 +1,220 @@
+/* Atividade (SCRUM-374): feed por dia sobre o campus à noite; o prédio do evento atual acende. */
+
+.feed {
+  width: min(700px, calc(100% - var(--margem) - 48px));
+  margin: 0 0 0 var(--margem);
+  padding: 0 0 112px;
+}
+
+.dia {
+  scroll-margin-top: 84px;
+}
+
+.dia h2 {
+  position: sticky;
+  top: var(--topo);
+  z-index: 1;
+  margin: 0;
+  padding: 18px 0 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font:
+    470 26px/1.1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.04em;
+  background: var(--noite);
+}
+
+.dia h2 small {
+  font:
+    400 14px var(--fonte-corpo),
+    system-ui,
+    sans-serif;
+  letter-spacing: 0;
+  color: var(--tinta-3);
+}
+
+.dia ol {
+  margin: 0 0 36px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.evento {
+  position: relative;
+  display: grid;
+  grid-template-columns: 112px 44px minmax(0, 1fr) 20px;
+  grid-template-areas: 'hora icone texto seta';
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px 14px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  transition:
+    background-color 250ms,
+    border-color 250ms;
+}
+
+.evento:hover {
+  background: rgb(16 21 59 / 55%);
+  border-color: var(--borda);
+}
+
+.evento:global(.atual) {
+  background: var(--superficie-2);
+  border-color: rgb(242 240 234 / 16%);
+}
+
+.quando {
+  grid-area: hora;
+  font-size: 13px;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.icone {
+  grid-area: icone;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c, #5f6496) 24%, transparent);
+  color: var(--tinta);
+}
+
+.icone svg {
+  width: 20px;
+  height: 20px;
+}
+
+.texto {
+  grid-area: texto;
+  min-width: 0;
+}
+
+.rotulo {
+  display: block;
+  font-weight: 520;
+  font-size: 16px;
+  color: var(--tinta);
+}
+
+.eventoPauta {
+  display: block;
+  margin-top: 2px;
+  color: var(--tinta-2);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.eventoPauta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.eventoPauta:hover {
+  color: var(--tinta);
+  text-decoration: underline;
+}
+
+.ondeLinha {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.seta {
+  grid-area: seta;
+  width: 18px;
+  height: 18px;
+  color: var(--tinta-3);
+  opacity: 0;
+  transition: opacity 250ms;
+}
+
+.evento:global(.atual) .seta,
+.evento:hover .seta {
+  opacity: 1;
+}
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 24px;
+  border-top: 1px solid var(--borda);
+}
+
+@media (max-width: 720px) {
+  .feed {
+    width: auto;
+    margin: 0 12px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .dia {
+    scroll-margin-top: calc(var(--topo) + var(--janela) + 8px);
+  }
+
+  .dia h2 {
+    top: calc(var(--topo) + var(--janela));
+    padding: 14px 8px 10px;
+    font-size: 22px;
+  }
+
+  .dia ol {
+    margin-bottom: 24px;
+    gap: 4px;
+  }
+
+  .evento {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-areas:
+      'icone hora'
+      'icone texto';
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: start;
+    padding: 12px;
+  }
+
+  .icone {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+  }
+
+  .quando {
+    font-size: 12px;
+  }
+
+  .rotulo {
+    font-size: 15px;
+  }
+
+  .eventoPauta {
+    font-size: 14px;
+  }
+
+  .seta {
+    display: none;
+  }
+
+  .paginacao {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .paginacao a {
+    width: 100%;
+  }
+}

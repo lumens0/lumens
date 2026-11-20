@@ -10,22 +10,17 @@ const TOTAIS_DO_BLOCO = { cards: 2 };
 // Número fictício do build do CI (NEXT_PUBLIC_WHATSAPP_BOT).
 const NUMERO_DO_BOT = '5500000000000';
 
-// Os quatro números do Início, no campus todo (seed: 4 abertas, 978 apoios, 4 em cobrança, 1 conquista).
-const NUMEROS_DO_INICIO = ['4', '978', '4', '1'];
+// Os três números do Início, no campus todo (seed: 4 abertas, 978 apoios, 1 conquista).
+const NUMEROS_DO_INICIO = ['4', '978', '1'];
 
-test('o Início mostra os quatro números do campus', async ({ page }) => {
+test('o Início mostra os números do campus', async ({ page }) => {
   await page.goto('/');
-  const numeros = page.getByRole('region', { name: 'O campus em números' });
-  await expect(numeros.locator('dt')).toHaveText([
-    'Pautas abertas',
-    'Apoios',
-    'Em cobrança',
-    'Conquistas',
-  ]);
+  const numeros = page.getByRole('region', { name: 'Todo o campus' });
+  await expect(numeros.locator('dt')).toHaveText(['Pautas abertas', 'Apoios', 'Conquistas']);
   // Cada número aparece duas vezes no <dd>: o animado, escondido do leitor de tela, e o valor final
   // em texto oculto, que é o que o leitor lê (SCRUM-306). Os dois têm de chegar ao total.
-  await expect(numeros.locator('dd > span > [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
-  await expect(numeros.locator('dd > span > :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
+  await expect(numeros.locator('dd > [aria-hidden="true"]')).toHaveText(NUMEROS_DO_INICIO);
+  await expect(numeros.locator('dd > :not([aria-hidden])')).toHaveText(NUMEROS_DO_INICIO);
 });
 
 test('a lista de pautas carrega, com uma busca só', async ({ page }) => {
@@ -182,43 +177,31 @@ test.describe('cache das páginas públicas', () => {
   }
 });
 
-// Etapas e blocos do Início são filtros de seleção múltipla, guardados na URL.
-test('o Início filtra por etapas e blocos na URL e leva os filtros para /pautas', async ({
-  page,
-}) => {
-  await page.goto('/');
-  const etapas = page.getByRole('region', { name: 'Em que etapa estão' });
-  const blocos = page.getByRole('region', { name: 'Blocos mais ativos' });
-  await etapas.getByRole('button', { name: /^Cobrando/ }).click();
-  await expect(page).toHaveURL(/status=cobrando/);
-  await blocos.getByRole('button').first().click();
-  await expect(page).toHaveURL(/status=cobrando&bloco=/);
-  await expect(etapas.getByRole('button', { name: /^Cobrando/ })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await page.getByRole('link', { name: /pautas? filtradas?$/ }).click();
-  await expect(page).toHaveURL(/\/pautas\?status=cobrando&bloco=/);
-});
-
-test('uma janela do skyline mostra a pauta na legenda, com o caminho até ela', async ({ page }) => {
-  await page.goto('/');
-  await page
-    .getByRole('button', { name: new RegExp(`^${PAUTA.titulo}, `) })
-    .first()
-    .click();
-  await expect(page.getByRole('link', { name: 'Abrir pauta' })).toHaveAttribute(
-    'href',
-    `/p/${PAUTA.slug}`,
-  );
+// Etapas e blocos do Início são guardados na URL e levam os filtros até /pautas.
+test('o Início filtra por bloco e etapa na URL e abre a lista em diálogo', async ({ page }) => {
+  await page.goto(`/?bloco=${BLOCO.slug}`);
+  await expect(page.getByRole('region', { name: BLOCO.nome })).toBeVisible();
+  await page.getByRole('button', { name: 'Ver em lista' }).click();
+  const lista = page.getByRole('dialog', { name: 'Pautas em lista' });
+  await expect(lista.getByRole('link', { name: PAUTA.titulo, exact: true })).toBeVisible();
+  await lista.getByRole('link', { name: PAUTA.titulo, exact: true }).click();
+  await expect(page).toHaveURL(`/p/${PAUTA.slug}`);
 });
 
 test('as abas Início e Pautas levam cada uma à sua página', async ({ page }) => {
   await page.goto('/');
+  // No celular, depois da hidratação as abas recolhem atrás do botão "Menu" (`data-aberto="false"`).
+  await expect(page.locator('#secoes-do-site')).toHaveAttribute('data-aberto', /.+/);
+  const menu = page.getByRole('button', { name: 'Menu' });
+  const abrirMenu = async () => {
+    if (await menu.isVisible()) await menu.click();
+  };
+  await abrirMenu();
   const abas = page.getByRole('navigation', { name: 'Seções do site' });
   await expect(abas.getByRole('link', { name: 'Início' })).toHaveAttribute('aria-current', 'page');
   await abas.getByRole('link', { name: 'Pautas' }).click();
   await expect(page).toHaveURL('/pautas');
+  await abrirMenu();
   await expect(abas.getByRole('link', { name: 'Pautas' })).toHaveAttribute('aria-current', 'page');
 });
 

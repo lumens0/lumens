@@ -8,9 +8,8 @@ export function Cabecalho() {
   return (
     <header className={estilos.cabecalho}>
       <div className={estilos.faixa}>
+        {/* A marca é o nome, sem a bola com brilho (SCRUM-374); o arquivo continua no card da pauta. */}
         <Link href="/" className={estilos.marca}>
-          {/* `alt` vazio: o nome vem escrito ao lado. Arquivo estático, sem o otimizador de imagem. */}
-          <img src="/lumens-marca.svg" alt="" width={44} height={44} className={estilos.logo} />
           Lumens
         </Link>
         <Abas />

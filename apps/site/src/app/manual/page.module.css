@@ -1,80 +1,675 @@
-.pagina {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: var(--pagina-topo) var(--espaco) calc(var(--pagina-fim) + env(safe-area-inset-bottom));
+/* Manual (SCRUM-374): índice fixo à esquerda, passos ligados à conversa de exemplo e cards escuros. */
+
+.raiz {
+  --margem: 368px;
+  padding-top: var(--pagina-topo);
 }
 
-.titulo {
-  margin: 0;
+.texto {
+  width: min(760px, calc(100% - var(--margem) - 48px));
+  margin-left: var(--margem);
+  padding-bottom: calc(var(--pagina-fim) + 92px + env(safe-area-inset-bottom));
+}
+
+.secao {
+  scroll-margin-top: 92px;
+  margin-bottom: 84px;
+}
+
+.secaoTitulo {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 0 16px;
   font:
-    800 1.75em var(--fonte-titulo),
+    480 34px/1.1 var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.045em;
+  color: var(--tinta);
 }
 
-.resumo {
-  margin: 4px 0 var(--espaco);
+.secaoTitulo::before {
+  content: attr(data-numero);
+  font:
+    500 15px var(--fonte-corpo),
+    system-ui,
+    sans-serif;
+  letter-spacing: 0;
+  color: var(--luz);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.secao p {
+  margin: 0 0 14px;
+  font-size: 16.5px;
+  line-height: 1.6;
   color: var(--tinta-2);
 }
 
-/* O sumário: links grandes o bastante para o toque (44 px) e em lista, que o leitor de tela conta. */
-.sumario {
-  margin: 0 0 var(--espaco);
+.secao p:last-child {
+  margin-bottom: 0;
+}
+
+.secao strong {
+  color: var(--tinta);
+  font-weight: 560;
+}
+
+.secao code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(242 240 234 / 8%);
+  color: var(--tinta);
+  font-size: 0.9em;
+}
+
+.nota {
+  color: var(--tinta-3);
+  font-size: 15px;
+}
+
+/* --- Passo a passo interativo ------------------------------------------------------------------- */
+
+.fluxosBloco {
+  margin-top: 20px;
+}
+
+.abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+
+.aba {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--tinta-2);
+  font:
+    500 14px var(--fonte-corpo),
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+  transition:
+    background-color 160ms,
+    color 160ms,
+    border-color 160ms;
+}
+
+.aba svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.aba:hover {
+  color: var(--tinta);
+  border-color: var(--borda-forte);
+}
+
+.aba[aria-selected='true'] {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--noite);
+}
+
+.chamada {
+  margin: 0 0 20px;
+  color: var(--tinta-2);
+}
+
+.fluxo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 36px;
+  align-items: start;
+}
+
+.passos {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.sumario a {
+.passo {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 220px;
+  padding-bottom: 24px;
+}
+
+.passo[data-estado='depois'] .marco span {
+  opacity: 0.55;
+}
+
+.passo[data-estado='depois'] .passoTitulo {
+  color: var(--tinta-2);
+}
+
+.passo[data-estado='depois'] .passoResumo {
+  color: var(--tinta-3);
+}
+
+.marco {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.marco span {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  color: var(--tinta-2);
+  transition:
+    background-color 280ms,
+    color 280ms,
+    border-color 280ms;
+}
+
+.marco svg {
+  width: 22px;
+  height: 22px;
+}
+
+.marco::after {
+  content: '';
+  flex: 1;
+  width: 2px;
+  margin-top: 8px;
+  background: rgb(242 240 234 / 10%);
+}
+
+.passo:last-child .marco::after {
+  display: none;
+}
+
+.passo[data-estado='atual'] .marco span {
+  background: var(--luz);
+  border-color: var(--luz);
+  color: #12152e;
+}
+
+.passo[data-estado='feito'] .marco span {
+  color: var(--luz);
+  border-color: rgb(255 194 61 / 40%);
+}
+
+.passoBotao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ondePasso {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.passoTitulo {
+  font:
+    500 22px/1.15 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.03em;
+  color: var(--tinta);
+}
+
+.passoResumo {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--tinta-2);
+}
+
+.detalhe {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--tinta-3);
+}
+
+.conversa {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 108px;
+  height: 430px;
+  border-radius: 26px;
+  border: 1px solid rgb(242 240 234 / 16%);
+  background: #0d1130;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.conversaTopo {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--borda);
 }
 
-.secao {
-  margin-bottom: var(--espaco);
-  padding: 12px var(--espaco);
+.conversaAvatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--luz);
+  color: #12152e;
+  flex: none;
+}
+
+.conversaAvatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.conversaTopo b {
+  display: block;
+  font-weight: 560;
+  font-size: 15px;
+  color: var(--tinta);
+}
+
+.conversaTopo small {
+  color: var(--tinta-3);
+  font-size: 12px;
+}
+
+.passoAtual {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.bolhas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.baloes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bolha {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 86%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--tinta);
+  animation: chegar 360ms var(--curva) both;
+}
+
+.bolhaBot {
+  align-self: flex-start;
+  background: #1b2257;
+  border-bottom-left-radius: 6px;
+}
+
+.bolhaVoce {
+  align-self: flex-end;
+  background: #233b2e;
+  border-bottom-right-radius: 6px;
+}
+
+.quem {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tinta-2);
+}
+
+.bolhaVoce .quem {
+  color: #9ed9b0;
+}
+
+.aviso {
+  margin-top: auto;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  animation: chegar 360ms var(--curva) both;
+}
+
+.aviso svg {
+  width: 24px;
+  height: 24px;
+  color: var(--luz);
+}
+
+.aviso b {
+  display: block;
+  margin: 10px 0 4px;
+  font-weight: 560;
+  color: var(--tinta);
+}
+
+.aviso small {
+  display: block;
+  color: var(--tinta-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+@keyframes chegar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* --- Listas, cards de caminhos e regra ---------------------------------------------------------- */
+
+.lista {
+  margin: 10px 0 16px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.lista li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 14px 16px 14px 12px;
+  border-radius: 14px;
   background: var(--superficie);
   border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  /* O cabeçalho fixo (que quebra em duas linhas no celular) não pode cobrir o título da seção. */
-  scroll-margin-top: 140px;
-}
-
-.secaoTitulo {
-  margin: 0 0 8px;
-  font:
-    700 1.1875em var(--fonte-titulo),
-    sans-serif;
-}
-
-.secao p {
-  margin: 0 0 8px;
-}
-
-.secao p:last-child,
-.secao ul:last-child {
-  margin-bottom: 0;
-}
-
-.secao ul,
-.passos {
-  margin: 0 0 8px;
-  padding-left: 1.25em;
-}
-
-.passos {
-  padding-left: 1.5em;
-}
-
-.secao li {
-  margin-bottom: 6px;
-}
-
-.secao li:last-child {
-  margin-bottom: 0;
-}
-
-.nota {
   color: var(--tinta-2);
-  font-size: 0.9375em;
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.listaIcone {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgb(242 240 234 / 6%);
+  color: var(--tinta);
+}
+
+.listaIcone svg {
+  width: 18px;
+  height: 18px;
+}
+
+.caminhos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.caminhos li {
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+}
+
+.caminhos svg {
+  width: 24px;
+  height: 24px;
+  color: var(--luz);
+}
+
+.caminhos b {
+  display: block;
+  margin: 12px 0 6px;
+  font-weight: 560;
+  font-size: 17px;
+  color: var(--tinta);
+}
+
+.caminhos p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.regra {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgb(255 194 61 / 40%);
+  background: rgb(255 194 61 / 7%);
+}
+
+.regra svg {
+  width: 22px;
+  height: 22px;
+  color: var(--luz);
+  margin-top: 2px;
+}
+
+.regra p {
+  margin: 0;
+  color: var(--tinta);
+  font-size: 15.5px;
+}
+
+.passosNumerados {
+  margin: 12px 0 16px;
+  padding: 0;
+  list-style: none;
+  counter-reset: passo;
+  display: grid;
+  gap: 10px;
+}
+
+.passosNumerados li {
+  counter-increment: passo;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  color: var(--tinta-2);
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
+.passosNumerados li::before {
+  content: counter(passo);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--luz-fundo);
+  color: var(--luz);
+  font-weight: 600;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1120px) {
+  .raiz {
+    --margem: 300px;
+  }
+
+  .fluxo {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 920px) {
+  .raiz {
+    --margem: 88px;
+  }
+}
+
+@media (max-width: 720px) {
+  .raiz {
+    --margem: 20px;
+  }
+
+  .texto {
+    width: auto;
+    margin: 0 20px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .secao {
+    scroll-margin-top: calc(var(--topo) + 12px);
+    margin-bottom: 60px;
+  }
+
+  .secaoTitulo {
+    font-size: 25px;
+    gap: 10px;
+  }
+
+  .secao p {
+    font-size: 16px;
+  }
+
+  .abas {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 16px -20px 12px;
+    padding: 0 20px 4px;
+    scrollbar-width: none;
+  }
+
+  .abas::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fluxo {
+    display: block;
+    margin-top: 16px;
+  }
+
+  /* No celular, a conversa fica presa no alto e os passos rolam por baixo dela. */
+  .conversa {
+    position: sticky;
+    top: calc(var(--topo) + 8px);
+    z-index: 2;
+    height: auto;
+    min-height: 176px;
+    max-height: 34svh;
+    margin-bottom: 18px;
+    border-radius: 22px;
+    box-shadow: 0 18px 30px -10px rgb(9 12 32 / 95%);
+  }
+
+  .conversaTopo {
+    padding: 10px 14px;
+  }
+
+  .conversaAvatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .conversaAvatar svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .bolhas {
+    padding: 12px;
+  }
+
+  .bolha {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .aviso {
+    padding: 14px;
+  }
+
+  .passo {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 160px;
+  }
+
+  .marco span {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .marco svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .passoTitulo {
+    font-size: 20px;
+  }
+
+  .passoResumo {
+    font-size: 15px;
+  }
+
+  .caminhos {
+    grid-template-columns: 1fr;
+  }
+
+  .caminhos li {
+    padding: 16px;
+  }
+
+  .lista li {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+    font-size: 15px;
+  }
+
+  .listaIcone {
+    width: 36px;
+    height: 36px;
+  }
 }

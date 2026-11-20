@@ -1,0 +1,411 @@
+/* Conquistas (SCRUM-374): memorial em linha do tempo sobre o campus à noite. */
+
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 56px;
+  margin: 40px 0 0;
+}
+
+.resumo div {
+  display: grid;
+  grid-template-columns: 18px auto;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.resumo svg {
+  width: 18px;
+  height: 18px;
+  color: var(--tinta-3);
+}
+
+.resumo dd {
+  order: -1;
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  font:
+    330 52px/1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumo svg {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.resumo dt {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--tinta-3);
+}
+
+.linha {
+  position: relative;
+  margin: 0;
+  padding: 24px 0 96px;
+  list-style: none;
+}
+
+.linha::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--margem) + 16px);
+  top: 0;
+  bottom: 96px;
+  width: 2px;
+  background: linear-gradient(
+    rgb(54 134 79 / 0%),
+    rgb(54 134 79 / 60%) 8%,
+    rgb(54 134 79 / 60%) 92%,
+    rgb(54 134 79 / 0%)
+  );
+}
+
+.ano {
+  position: relative;
+  height: 156px;
+  margin-left: var(--margem);
+  scroll-margin-top: 96px;
+}
+
+.ano span {
+  position: absolute;
+  left: 56px;
+  top: 16px;
+  font:
+    200 132px/1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.06em;
+  color: #676ca0;
+  font-variant-numeric: tabular-nums;
+}
+
+.conquista {
+  position: relative;
+  margin: 0 0 64px calc(var(--margem) + 56px);
+  width: min(620px, calc(100% - var(--margem) - 96px));
+}
+
+.no {
+  position: absolute;
+  left: -56px;
+  top: 22px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--noite);
+  border: 2px solid rgb(54 134 79 / 60%);
+  color: #7fd19a;
+  transition:
+    background-color 300ms,
+    border-color 300ms,
+    color 300ms;
+}
+
+.no svg {
+  width: 16px;
+  height: 16px;
+}
+
+.conquista:global(.atual) .no {
+  background: var(--status-conquistada);
+  border-color: var(--status-conquistada);
+  color: #fff;
+}
+
+.card {
+  position: relative;
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  transition:
+    border-color 300ms,
+    background-color 300ms;
+}
+
+.conquista:global(.atual) .card {
+  background: var(--superficie-2);
+  border-color: rgb(127 209 154 / 35%);
+}
+
+.topo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borda);
+  font-size: 13px;
+  color: var(--tinta-2);
+}
+
+.tag svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.titulo {
+  margin: 18px 0 10px;
+  font:
+    480 32px/1.1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.04em;
+  text-wrap: pretty;
+}
+
+.titulo a {
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.titulo a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.titulo a:hover {
+  text-decoration: underline;
+}
+
+.feito {
+  margin: 14px 0 0;
+  color: var(--tinta-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.feitoRotulo {
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+/* Foto da conquista (SCRUM-394): cabe no card do memorial sem esticar a altura. */
+.fotoDoFeito {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  margin-top: 14px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 36px;
+  margin: 22px 0 18px;
+}
+
+.numeros div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.numeros dt {
+  font-size: 13px;
+  color: var(--tinta-3);
+}
+
+.numeros dd {
+  order: -1;
+  margin: 0;
+  font:
+    340 36px/1.05 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.045em;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.numeros .dataItem dd {
+  font:
+    500 20px/1.2 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.02em;
+  margin-top: auto;
+}
+
+.duracao {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(242 240 234 / 8%);
+  overflow: hidden;
+}
+
+.duracao span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--status-conquistada);
+}
+
+.datas {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.andamento {
+  margin: 0 64px 128px var(--margem);
+  padding: 36px 40px;
+  max-width: 860px;
+  border-radius: 24px;
+  border: 1px solid var(--borda);
+  background: rgb(16 21 59 / 76%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  scroll-margin-top: 96px;
+}
+
+.andamento h2 {
+  margin: 0 0 8px;
+  font:
+    470 30px/1.1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.andamento p {
+  margin: 0;
+  color: var(--tinta-2);
+}
+
+@media (max-width: 720px) {
+  .resumo {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .resumo div {
+    grid-template-columns: 15px minmax(0, 1fr);
+    column-gap: 6px;
+  }
+
+  .resumo svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .resumo dd {
+    font-size: 26px;
+  }
+
+  .resumo dt {
+    font-size: 12px;
+  }
+
+  .linha {
+    padding: 8px 0 36px;
+  }
+
+  .linha::before {
+    left: 36px;
+    bottom: 36px;
+  }
+
+  .ano {
+    height: 90px;
+    margin-left: 0;
+    scroll-margin-top: calc(var(--topo) + var(--janela) + 12px);
+  }
+
+  .ano span {
+    left: 64px;
+    top: 10px;
+    font-size: 72px;
+  }
+
+  .conquista {
+    width: auto;
+    margin: 0 16px 28px 64px;
+  }
+
+  .no {
+    left: -45px;
+    top: 18px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .titulo {
+    margin: 14px 0 8px;
+    font-size: 22px;
+    line-height: 1.15;
+    letter-spacing: -0.035em;
+  }
+
+  .numeros {
+    gap: 14px 24px;
+    margin: 16px 0 14px;
+  }
+
+  .numeros dd {
+    font-size: 28px;
+  }
+
+  .numeros .dataItem dd {
+    font-size: 17px;
+  }
+
+  .andamento {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    margin: 0 16px calc(96px + env(safe-area-inset-bottom));
+    padding: 22px;
+    border-radius: 20px;
+    scroll-margin-top: calc(var(--topo) + var(--janela) + 12px);
+  }
+
+  .andamento h2 {
+    font-size: 24px;
+  }
+
+  .andamento a {
+    width: 100%;
+  }
+}

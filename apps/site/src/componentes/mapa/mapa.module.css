@@ -6,27 +6,38 @@
 }
 
 .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
+  padding-right: 36px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--luz-tinta);
+  color: var(--tinta-3);
+}
+
+.eyebrow svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: var(--luz);
 }
 
 /* Fora do campus: o fundo do mapa. Dentro: o terreno, um pouco mais claro. */
 .chao {
-  fill: #0f1330;
+  fill: #090c20;
 }
 
 .terreno {
-  fill: #182052;
-  stroke: rgb(255 255 255 / 10%);
+  fill: #10153a;
+  stroke: rgb(242 240 234 / 8%);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
 /* Áreas abertas (SCRUM-284): cada uso com a sua cor, sem competir com os prédios acesos. */
 .area {
-  stroke: rgb(255 255 255 / 14%);
+  stroke: rgb(255 255 255 / 12%);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -48,14 +59,14 @@
 }
 
 .estacionamento {
-  fill: #20296a;
+  fill: #182052;
   stroke-dasharray: 4 3;
 }
 
 .via,
 .caminho {
   fill: none;
-  stroke: #26306b;
+  stroke: #1a2254;
   stroke-width: 6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -63,10 +74,10 @@
 
 .predio,
 .escolhido {
-  fill: #2b3577;
+  fill: #262b55;
   /* Prédio com pátio (a Reitoria) vem como contorno externo e interno: o pátio fica vazio. */
   fill-rule: evenodd;
-  stroke: rgb(255 255 255 / 12%);
+  stroke: rgb(255 255 255 / 10%);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   transition: opacity var(--rapido) var(--curva);
@@ -81,20 +92,16 @@
 .predio[role='button'],
 .escolhido[role='button'] {
   filter: drop-shadow(0 0 6px currentcolor);
-}
-
-.predio[role='button'],
-.escolhido[role='button'] {
   cursor: pointer;
   animation: acender 700ms var(--curva) both;
   animation-delay: 250ms;
 }
 
 .predio[role='button']:hover {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
-/* Bloco sem pauta: só a cor apagada, sem brilho nem entrada. O brilho cinza borrava o contorno. */
+/* Bloco sem pauta: só a cor apagada, sem brilho nem entrada. */
 .predio.semPautas,
 .escolhido.semPautas {
   filter: none;
@@ -122,12 +129,8 @@
   stroke-width: calc(var(--k) * 2.5px);
 }
 
-/* O clique de mouse não desenha o anel do navegador; o teclado ganha o contorno abaixo. */
 .predio:focus,
-.escolhido:focus {
-  outline: none;
-}
-
+.escolhido:focus,
 .predio:focus-visible,
 .escolhido:focus-visible {
   outline: none;
@@ -139,16 +142,13 @@
   stroke-width: calc(var(--k) * 3px);
 }
 
-/* Contorno escuro só por trás das letras (paint-order), para ler em cima do brilho dos prédios. */
 .sigla {
-  stroke: #0f1330;
+  stroke: #090c20;
   stroke-width: 0.22em;
   stroke-linejoin: round;
   paint-order: stroke;
-  fill: #dfe1f5;
-  /* 15 px na tela em qualquer zoom: --k são os metros do desenho por pixel. */
+  fill: #e7e8f5;
   font-size: calc(var(--k) * 15px);
-  /* O mapa gira, o nome não: fica sempre em pé, girando em torno do pé do prédio. */
   transform: rotate(calc(var(--giro) * -1rad));
   font-family: var(--fonte-corpo), system-ui, sans-serif;
   font-weight: 500;
@@ -156,15 +156,13 @@
   pointer-events: none;
 }
 
-/* Prédios com pauta acendem um a um, como janelas ao entardecer. */
 @keyframes acender {
   from {
-    fill: #2b3577;
+    fill: #262b55;
     filter: drop-shadow(0 0 0 transparent);
   }
 }
 
-/* Depois de acesa, a luz respira devagar: a pauta está viva. */
 @keyframes respirar {
   to {
     filter: drop-shadow(0 0 3px currentcolor);
@@ -175,11 +173,11 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: #0f1330;
+  background: #090c20;
 }
 
 .apagado {
-  fill: #2b3577;
+  fill: #262b55;
 }
 
 .aceso {
@@ -190,22 +188,25 @@
 }
 
 .rotuloResumo {
-  fill: #f5f3ff;
+  fill: #f2f0ea;
   font-family: var(--fonte-corpo), system-ui, sans-serif;
   font-size: 26px;
   font-weight: 500;
   text-anchor: middle;
   paint-order: stroke;
-  stroke: #0f1330;
+  stroke: #090c20;
   stroke-width: 6px;
   animation: surgir 600ms var(--curva) both;
 }
 
 .tituloPainel {
   margin: 0;
+  padding-right: 36px;
   font:
-    700 22px/1.2 var(--fonte-titulo),
+    480 28px/1.08 var(--fonte-titulo),
+    system-ui,
     sans-serif;
+  letter-spacing: -0.04em;
 }
 
 .detalhe {
@@ -214,9 +215,20 @@
   color: var(--tinta-3);
 }
 
+.detalhe strong {
+  font:
+    450 20px/1 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.03em;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
 .vazio {
   margin: 0;
-  color: var(--tinta-3);
+  color: var(--tinta-2);
+  font-size: 14.5px;
 }
 
 .pautas {
@@ -225,39 +237,99 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .pauta {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 0;
-  border-top: 1px solid var(--borda);
-  animation: surgir 320ms var(--curva) both;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  transition: border-color var(--rapido) var(--curva);
+}
+
+.pauta:hover {
+  border-color: var(--borda-forte);
 }
 
 .pauta a {
-  font-weight: 500;
+  font:
+    500 16.5px/1.25 var(--fonte-titulo),
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.02em;
   color: var(--tinta);
   text-decoration: none;
+}
+
+.pauta a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
 }
 
 .pauta a:hover {
   text-decoration: underline;
 }
 
+.barraPauta {
+  height: 5px;
+  border-radius: 3px;
+  background: rgb(242 240 234 / 10%);
+  overflow: hidden;
+}
+
+.barraPauta span {
+  display: block;
+  height: 100%;
+  background: var(--c, var(--luz));
+  border-radius: 3px;
+}
+
+.verBloco {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--borda-forte);
+  background: rgb(9 12 32 / 60%);
+  color: var(--tinta);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.verBloco:hover {
+  border-color: rgb(242 240 234 / 36%);
+}
+
+.verBloco svg {
+  width: 16px;
+  height: 16px;
+}
+
 .ponto {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 3px;
   flex: 0 0 auto;
 }
 
 .tituloLista {
-  margin: 48px 0 12px;
+  margin: 48px 0 16px;
   font:
-    700 24px var(--fonte-titulo),
+    480 28px/1.1 var(--fonte-titulo),
+    system-ui,
     sans-serif;
+  letter-spacing: -0.04em;
 }
 
 .lista {
@@ -266,37 +338,40 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 /* O cartão ocupa a altura da linha da grade: nome de uma ou de duas linhas, todos do mesmo tamanho. */
 .linha {
   width: 100%;
   height: 100%;
-  min-height: 56px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border: 1px solid var(--borda);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--superficie);
   color: var(--tinta);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--rapido) var(--curva);
+  transition:
+    border-color var(--rapido) var(--curva),
+    background-color var(--rapido) var(--curva);
 }
 
 .linha:hover,
 .linha[aria-pressed='true'] {
-  border-color: var(--tinta-3);
+  background: var(--superficie-2);
+  border-color: var(--borda-forte);
 }
 
 .linha b {
   display: block;
-  font-weight: 500;
-  font-size: 14.5px;
+  font-weight: 520;
+  font-size: 15px;
 }
 
 .linha span span {
@@ -311,15 +386,14 @@
 }
 
 .tela {
-  /* Valores de antes do JavaScript ligar a câmera, que passa a atualizar a cada movimento. */
   --k: 1.5;
   --giro: 0;
 
   position: relative;
-  height: calc(100svh - 64px);
+  height: calc(100svh - 65px);
   min-height: 520px;
   overflow: hidden;
-  background: #0f1330;
+  background: #090c20;
 }
 
 .desenho {
@@ -350,53 +424,124 @@
   filter: none;
 }
 
-/* Cartões do HUD: vidro escuro sobre o mapa. */
+/* Cartões do HUD sobre o mapa: o mesmo azul-noite do resto do site. */
 .hudTitulo,
 .legenda,
 .painel,
 .verCampus,
 .zoom {
-  background: rgb(20 25 54 / 82%);
-  backdrop-filter: blur(14px) saturate(1.3);
-  border: 1px solid rgb(255 255 255 / 12%);
-  box-shadow: 0 18px 40px -20px rgb(0 0 0 / 70%);
+  background: rgb(13 17 48 / 92%);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--borda);
+  box-shadow: 0 18px 40px -20px rgb(0 0 0 / 75%);
+}
+
+.acoesTopo {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.curto {
+  display: none;
+}
+
+.verCampus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--rapido) var(--curva),
+    border-color var(--rapido) var(--curva);
+}
+
+.botaoLegenda {
+  display: none;
+}
+
+.verCampus svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .hudTitulo {
   position: absolute;
   top: 16px;
   left: 16px;
-  max-width: 340px;
-  padding: 16px 18px;
+  z-index: 5;
+  width: 332px;
+  padding: 18px 20px;
   border-radius: 16px;
 }
 
 .hudNome {
-  margin: 0 0 4px;
+  margin: 0 0 12px;
+  padding-right: 32px;
   font:
-    700 26px/1.1 var(--fonte-titulo),
+    480 24px/1.05 var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
 }
 
-.hudDica {
+.hudLista {
   margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
   font-size: 13.5px;
+  color: var(--tinta-2);
+}
+
+.hudLista li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.hudLista svg {
+  width: 16px;
+  height: 16px;
   color: var(--tinta-3);
+  margin-top: 2px;
 }
 
 .fecharAjuda {
   position: absolute;
   top: 6px;
-  right: 8px;
+  right: 6px;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: var(--tinta);
-  font-size: 22px;
+  color: var(--tinta-3);
   cursor: pointer;
+}
+
+.fecharAjuda:hover {
+  color: var(--tinta);
+  background: rgb(242 240 234 / 8%);
 }
 
 .somenteLeitor {
@@ -406,7 +551,7 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -415,14 +560,15 @@
   position: absolute;
   left: 16px;
   bottom: 16px;
+  z-index: 5;
   list-style: none;
   margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  max-width: min(560px, calc(100% - 140px));
+  gap: 8px 16px;
+  max-width: min(500px, calc(100% - 140px));
   font-size: 13px;
   color: var(--tinta-2);
 }
@@ -437,51 +583,43 @@
   position: absolute;
   right: 16px;
   bottom: 16px;
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  z-index: 5;
+  transition: right 360ms var(--curva);
 }
 
-.verCampus {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: var(--raio-controle);
-  color: var(--tinta);
-  font: inherit;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
+.controles[data-painel] {
+  right: 416px;
 }
 
 .zoom {
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--raio-controle);
-  overflow: hidden;
+  display: grid;
+  padding: 5px;
+  gap: 2px;
+  border-radius: 14px;
 }
 
 .zoom button {
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   border: 0;
-  background: none;
+  border-radius: 10px;
+  background: transparent;
   color: var(--tinta);
-  font:
-    500 20px/1 var(--fonte-corpo),
-    system-ui,
-    sans-serif;
   cursor: pointer;
   transition: background-color var(--rapido) var(--curva);
+}
+
+.zoom button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .bussola {
   display: block;
   width: 22px;
   height: 22px;
-  margin: 0 auto;
   transform: rotate(calc(var(--giro) * 1rad));
 }
 
@@ -493,22 +631,24 @@
   fill: var(--tinta-3);
 }
 
-.zoom button + button {
-  border-top: 1px solid rgb(255 255 255 / 12%);
-}
-
 .zoom button:hover,
 .verCampus:hover {
-  background: rgb(255 255 255 / 10%);
+  background: rgb(242 240 234 / 10%);
 }
 
 .credito {
   position: absolute;
   right: 16px;
-  bottom: 224px;
+  bottom: 266px;
+  z-index: 4;
   margin: 0;
   font-size: 11px;
   color: var(--tinta-3);
+  transition: right 360ms var(--curva);
+}
+
+.credito[data-painel] {
+  right: 416px;
 }
 
 .credito a {
@@ -520,104 +660,171 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 360px;
-  max-height: calc(100% - 140px);
+  bottom: 16px;
+  z-index: 6;
+  width: 384px;
   overflow-y: auto;
-  padding: 20px;
+  overscroll-behavior: contain;
+  padding: 22px;
   border-radius: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   transform: translateX(calc(100% + 32px));
   opacity: 0;
+  pointer-events: none;
   transition:
-    transform 420ms var(--curva),
-    opacity 300ms var(--curva);
+    transform 360ms var(--curva),
+    opacity 260ms var(--curva);
 }
 
 .painel[data-aberto='true'] {
   transform: none;
   opacity: 1;
+  pointer-events: auto;
+}
+
+.alca {
+  display: none;
 }
 
 .fechar {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   border: 0;
   border-radius: 10px;
   background: none;
-  color: var(--tinta-2);
-  font-size: 22px;
-  line-height: 1;
+  color: var(--tinta-3);
   cursor: pointer;
 }
 
 .fechar:hover {
-  background: rgb(255 255 255 / 10%);
+  background: rgb(242 240 234 / 10%);
   color: var(--tinta);
 }
 
 .abaixo {
-  /* O cabeçalho é fixo: o atalho "Ver em lista" para com o título à vista. */
   scroll-margin-top: 72px;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 8px 24px 64px;
+  padding: 8px 24px 72px;
 }
 
-/* No celular o painel sobe de baixo, como uma folha, e a legenda vai para o topo. */
+/* Celular: barra de ações no alto, legenda retrátil, folha de baixo com alça e sem botões de giro. */
 @media (max-width: 720px) {
-  /* Sobra uma faixa da lista embaixo: dá para ver que tem mais e rolar a página por ela. */
   .tela {
-    height: calc(100svh - 64px);
+    height: calc(100svh - 61px);
     min-height: 460px;
   }
 
-  .controles {
-    left: 16px;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+  .acoesTopo {
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    transform: none;
+    gap: 8px;
   }
 
   .verCampus {
-    min-height: 44px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 13.5px;
+    gap: 6px;
   }
 
-  .zoom button {
-    width: 44px;
-    height: 44px;
+  .botaoLegenda {
+    display: inline-flex;
   }
 
-  .abaixo {
-    scroll-margin-top: 112px;
+  .longo {
+    display: none;
+  }
+
+  .curto {
+    display: inline;
   }
 
   .hudTitulo {
-    right: 16px;
-    max-width: none;
-    padding: 12px 14px;
+    left: 12px;
+    right: 12px;
+    top: 64px;
+    width: auto;
+    padding: 12px 48px 12px 14px;
+    border-radius: 14px;
   }
 
+  /* Mantém o h1 acessível para leitores de tela mesmo compacto no celular. */
   .hudNome {
-    font-size: 21px;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .hudLista {
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .hudLista .dicaPc {
+    display: none;
   }
 
   .legenda {
     display: none;
+    left: 12px;
+    right: 12px;
+    top: 64px;
+    bottom: auto;
+    max-width: none;
+    padding: 14px;
+    gap: 10px 14px;
+    z-index: 6;
+  }
+
+  .legenda[data-aberta] {
+    display: flex;
+  }
+
+  .controles {
+    right: 12px;
+    bottom: 16px;
+  }
+
+  .controles[data-painel] {
+    top: 64px;
+    right: 12px;
+    bottom: auto;
+  }
+
+  /* Girar fica com os dois dedos; os botões de giro saem para o conjunto caber sem cobrir a ajuda. */
+  .girar {
+    display: none !important;
   }
 
   .credito {
-    bottom: 270px;
-    right: 16px;
-    /* Uma linha só e mais baixa: cobre bem menos nomes de prédio atrás dela. */
+    bottom: 170px;
+    right: 12px;
     font-size: 10px;
     white-space: nowrap;
-    background: rgb(15 19 48 / 55%);
+    background: rgb(9 12 32 / 65%);
     padding: 2px 6px;
     border-radius: 6px;
+  }
+
+  .credito[data-painel] {
+    top: 214px;
+    right: 12px;
+    bottom: auto;
   }
 
   .painel {
@@ -626,12 +833,55 @@
     right: 0;
     bottom: 0;
     width: auto;
-    max-height: 62%;
-    border-radius: 20px 20px 0 0;
+    height: auto;
+    max-height: 54svh;
+    padding: 8px 20px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 22px 22px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    overflow-y: auto;
     transform: translateY(100%);
+    transition:
+      transform 320ms var(--curva),
+      max-height 320ms var(--curva),
+      opacity 220ms var(--curva);
+  }
+
+  .painel[data-aberto='true'] {
+    transform: none;
+  }
+
+  .painel[data-aberto='true'][data-expandido] {
+    max-height: 78svh;
+  }
+
+  .alca {
+    display: grid;
+    place-items: center;
+    align-self: stretch;
+    height: 28px;
+    margin: 0 -20px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    flex: none;
+  }
+
+  .alca::before {
+    content: '';
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgb(242 240 234 / 30%);
+  }
+
+  .tituloPainel {
+    font-size: 22px;
   }
 
   .abaixo {
-    padding: 8px 16px 48px;
+    scroll-margin-top: 72px;
+    padding: 8px 16px 56px;
   }
 }

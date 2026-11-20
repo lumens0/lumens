@@ -287,9 +287,9 @@
   letter-spacing: -0.02em;
 }
 
-/* O número leva a cor do cartão; o âmbar puro não lê sobre branco, então usa o tom escuro dele. */
+/* O número leva a cor do cartão no tom legível sobre o fundo noturno. */
 .totais dl div:nth-child(1) dd {
-  color: #2b5fae; /* o azul do status, um tom mais fundo: 5,4:1 sobre o cartão */
+  color: #7eb0f5;
 }
 
 .totais dl div:nth-child(2) dd {
@@ -297,7 +297,7 @@
 }
 
 .totais dl div:nth-child(3) dd {
-  color: #2a7040; /* o verde do status, um tom mais fundo: 5,2:1 sobre o cartão */
+  color: #7fd19a;
 }
 
 .dashboard {
@@ -460,44 +460,44 @@
  */
 .evento[data-tom='azul'] {
   --tom: var(--status-apoios);
-  --tom-tinta: color-mix(in srgb, var(--status-apoios) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-apoios) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-apoios) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-apoios) 18%, var(--superficie));
 }
 
 .evento[data-tom='roxo'] {
   --tom: var(--status-meta);
-  --tom-tinta: color-mix(in srgb, var(--status-meta) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-meta) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-meta) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-meta) 18%, var(--superficie));
 }
 
 .evento[data-tom='turquesa'] {
   --tom: var(--status-prometido);
-  --tom-tinta: color-mix(in srgb, var(--status-prometido) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-prometido) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-prometido) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-prometido) 18%, var(--superficie));
 }
 
 .evento[data-tom='amarelo'] {
   --tom: var(--status-parcial);
-  --tom-tinta: color-mix(in srgb, var(--status-parcial) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-parcial) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-parcial) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-parcial) 18%, var(--superficie));
 }
 
 .evento[data-tom='ambar'] {
   --tom: var(--status-cobrando);
-  --tom-tinta: color-mix(in srgb, var(--status-cobrando) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-cobrando) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-cobrando) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-cobrando) 18%, var(--superficie));
 }
 
 .evento[data-tom='vermelho'] {
   --tom: var(--status-descumprida);
-  --tom-tinta: color-mix(in srgb, var(--status-descumprida) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-descumprida) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-descumprida) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-descumprida) 18%, var(--superficie));
 }
 
 .evento[data-tom='verde'] {
   --tom: var(--status-conquistada);
-  --tom-tinta: color-mix(in srgb, var(--status-conquistada) 65%, var(--tinta));
-  --tom-fundo: color-mix(in srgb, var(--status-conquistada) 12%, white);
+  --tom-tinta: color-mix(in srgb, var(--status-conquistada) 45%, var(--tinta));
+  --tom-fundo: color-mix(in srgb, var(--status-conquistada) 18%, var(--superficie));
 }
 
 .icone {

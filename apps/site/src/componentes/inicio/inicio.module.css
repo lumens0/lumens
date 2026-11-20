@@ -525,7 +525,8 @@
   max-height: 88svh;
   margin: 0;
   padding: 0;
-  border: 0;
+  border: 1px solid var(--borda-forte);
+  border-bottom: 0;
   border-radius: 24px 24px 0 0;
   background: var(--superficie);
   color: var(--tinta);
@@ -546,7 +547,7 @@
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 16px 16px 0;
   overflow-y: auto;
 }
 
@@ -585,7 +586,9 @@
   gap: 6px;
   min-height: 96px;
   padding: 12px 12px 0;
+  border: 1px solid var(--borda);
   border-radius: var(--raio-controle);
+  background: var(--noite);
   overflow: hidden;
 }
 
@@ -598,7 +601,7 @@
   border: 1px solid var(--borda);
   border-bottom: 0;
   border-radius: 4px 4px 0 0;
-  background: var(--noite-2);
+  background: var(--superficie-2);
   transition: opacity 240ms var(--curva);
 }
 
@@ -680,7 +683,8 @@
 .folhaRodape {
   position: sticky;
   bottom: 0;
-  padding-top: 8px;
+  padding: 12px 0 calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--borda);
   background: var(--superficie);
 }
 
@@ -708,6 +712,7 @@
     width: min(560px, calc(100vw - 48px));
     max-height: min(720px, 90svh);
     transform: translate(-50%, -50%);
+    border: 1px solid var(--borda-forte);
     border-radius: 24px;
   }
 }

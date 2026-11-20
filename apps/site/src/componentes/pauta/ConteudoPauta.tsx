@@ -35,9 +35,9 @@ export function ConteudoPauta({
   );
   return (
     <main className={estilos.pagina}>
-      {/* A faixa de noite brilha na cor da etapa: 30% do raio, 55% na pauta conquistada. */}
+      {/* A faixa no topo brilha na cor da etapa: 30% do raio, 55% na pauta conquistada. */}
       <div
-        className={[estilos.faixa, conquistada ? estilos.faixaConquistada : '', 'noite'].join(' ')}
+        className={[estilos.faixa, conquistada ? estilos.faixaConquistada : ''].join(' ')}
         style={{ '--cor': STATUS[pauta.status].ponto } as CSSProperties}
       >
         <Voltar />

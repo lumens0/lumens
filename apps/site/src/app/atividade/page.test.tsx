@@ -1,10 +1,10 @@
 import type { Atividade, AtividadeItem } from '@lumens/contratos';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buscarAtividade } from '../../dados/api';
+import { buscarAtividade, buscarPautas } from '../../dados/api';
 import PaginaAtividade from './page';
 
-vi.mock('../../dados/api', () => ({ buscarAtividade: vi.fn() }));
+vi.mock('../../dados/api', () => ({ buscarAtividade: vi.fn(), buscarPautas: vi.fn() }));
 
 // O evento de conquista do seed (packages/db/seed/data.ts), como o GET /atividade o devolve.
 const CONQUISTA: AtividadeItem = {
@@ -15,7 +15,10 @@ const CONQUISTA: AtividadeItem = {
   pauta_titulo: 'Laboratórios de informática abertos no contraturno',
 };
 
-const responder = (resposta: Atividade) => vi.mocked(buscarAtividade).mockResolvedValue(resposta);
+const responder = (resposta: Atividade) => {
+  vi.mocked(buscarAtividade).mockResolvedValue(resposta);
+  vi.mocked(buscarPautas).mockResolvedValue([]);
+};
 const render = async (pagina?: string | string[]) =>
   renderToStaticMarkup(
     await PaginaAtividade({
@@ -137,6 +140,7 @@ describe('/atividade', () => {
   });
 
   it('erro da API sobe para o error.tsx', async () => {
+    vi.mocked(buscarPautas).mockResolvedValue([]);
     vi.mocked(buscarAtividade).mockRejectedValue(new Error('API de leitura respondeu 500'));
     await expect(render()).rejects.toThrow('500');
   });

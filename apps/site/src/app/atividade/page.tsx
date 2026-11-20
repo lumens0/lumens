@@ -1,14 +1,20 @@
 import { agruparEventosIguais, rotuloDeResponsaveis, type AtividadeItem } from '@lumens/contratos';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import componentes from '../../componentes/componentes.module.css';
+import type { CSSProperties } from 'react';
+import { Hud, type ItemDoHud } from '../../componentes/Hud';
+import { Icone, ICONE_DA_ETAPA, type NomeDoIcone } from '../../componentes/Icone';
+import { CampusInterno } from '../../componentes/internas/CampusInterno';
+import { FundoInterno } from '../../componentes/internas/FundoInterno';
+import internas from '../../componentes/internas/internas.module.css';
+import { predioDoBloco } from '../../componentes/internas/predioPorNome';
 import { formatarData, rotuloDoPapel, rotuloEvento } from '../../componentes/pauta/LinhaDoTempo';
 import { STATUS } from '../../componentes/StatusPill';
-import type { StatusPauta } from '../../dados/tipos';
-import { buscarAtividade } from '../../dados/api';
+import { buscarAtividade, buscarPautas } from '../../dados/api';
+import type { Pauta, StatusPauta } from '../../dados/tipos';
 import { metadadosDaMarca } from '../../metadados';
 import { nomeDoCanal } from '../../whatsapp';
-import estilos from '../page.module.css';
+import estilos from './page.module.css';
 
 export const metadata: Metadata = metadadosDaMarca({
   caminho: '/atividade',
@@ -27,12 +33,17 @@ function paginaDaUrl(valor: string | string[] | undefined): number {
   return pagina >= 1 && pagina <= PAGINA_MAXIMA ? pagina : 1;
 }
 
-/**
- * Tom de cada tipo de evento, nas cores de status do site: azul para o que entra na pauta,
- * roxo para a meta, âmbar para a cobrança e verde para o que foi entregue. Tipo fora da lista
- * fica neutro.
- */
 type Tom = 'azul' | 'roxo' | 'turquesa' | 'ambar' | 'amarelo' | 'vermelho' | 'verde';
+
+const COR_DO_TOM: Record<Tom, string> = {
+  azul: '#356fc2',
+  roxo: '#8959bd',
+  turquesa: '#168b86',
+  ambar: '#c05b12',
+  amarelo: '#a98216',
+  vermelho: '#d0443b',
+  verde: '#36864f',
+};
 
 const TOM: Record<string, Tom> = {
   pauta_aprovada: 'azul',
@@ -52,7 +63,6 @@ const TOM: Record<string, Tom> = {
   conferencia_apurada: 'verde',
 };
 
-/** Mudança de status ganha o tom do status novo, o mesmo dos cards e do mapa. */
 const TOM_DO_STATUS: Partial<Record<StatusPauta, Tom>> = {
   juntando_apoios: 'azul',
   meta_batida: 'roxo',
@@ -63,6 +73,28 @@ const TOM_DO_STATUS: Partial<Record<StatusPauta, Tom>> = {
   conquistada: 'verde',
 };
 
+const ICONE_DO_TIPO: Record<string, NomeDoIcone> = {
+  pauta_aprovada: 'vistoSelo',
+  relato_aprovado: 'relato',
+  caminho_aberto: 'rota',
+  proposta_publicada: 'pessoas',
+  owner_entrou: 'pessoas',
+  owner_removido: 'pessoas',
+  meta_batida: 'alvo',
+  meta_ajustada: 'alvo',
+  bloco_corrigido: 'local',
+  pauta_urgente: 'flag',
+  protocolo_registrado: 'documento',
+  protocolo_corrigido: 'documento',
+  prazo_prorrogado: 'calendario',
+  promessa_registrada: 'acordo',
+  promessa_remarcada: 'calendario',
+  conferencia_aberta: 'vistoSelo',
+  conferencia_apurada: 'trofeu',
+  resposta_oficial_recebida: 'predioPublico',
+  proposta_executada: 'trofeu',
+};
+
 /** O status para o qual a pauta foi, num evento `status_alterado` com `dados.para` conhecido. */
 function statusNovo(item: AtividadeItem): StatusPauta | undefined {
   if (item.tipo !== 'status_alterado') return undefined;
@@ -70,7 +102,6 @@ function statusNovo(item: AtividadeItem): StatusPauta | undefined {
   return typeof para === 'string' && para in STATUS ? (para as StatusPauta) : undefined;
 }
 
-/** "Status alterado para Conquistada" em vez de só "Status alterado"; os outros tipos, o rótulo. */
 function textoDoEvento(item: AtividadeItem, quantidade = 1): string {
   const grupo = rotuloDeResponsaveis(item.tipo, item.dados, quantidade);
   if (grupo !== undefined) return grupo;
@@ -114,8 +145,33 @@ function tomDoEvento(item: AtividadeItem): Tom | undefined {
   return novo ? TOM_DO_STATUS[novo] : TOM[item.tipo];
 }
 
+function iconeDoEvento(item: AtividadeItem): NomeDoIcone {
+  const novo = statusNovo(item);
+  if (novo && novo in ICONE_DA_ETAPA) {
+    return ICONE_DA_ETAPA[novo as keyof typeof ICONE_DA_ETAPA];
+  }
+  return ICONE_DO_TIPO[item.tipo] ?? 'atividade';
+}
+
 const linkDaPagina = (pagina: number) =>
   pagina === 1 ? '/atividade' : `/atividade?pagina=${String(pagina)}`;
+
+const formatoChaveDia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Maceio' });
+const formatoDiaMes = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  day: 'numeric',
+  month: 'long',
+});
+const formatoDiaSemana = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  weekday: 'long',
+});
+const formatoAno = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Maceio',
+  year: 'numeric',
+});
+
+const capitalizar = (s: string) => (s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export default async function PaginaAtividade({
   searchParams,
@@ -123,76 +179,168 @@ export default async function PaginaAtividade({
   searchParams: Promise<{ pagina?: string | string[] }>;
 }) {
   const pagina = paginaDaUrl((await searchParams).pagina);
-  // Erro da API sobe e cai no `error.tsx`. A API já manda do mais novo para o mais antigo e só
-  // eventos públicos de pautas públicas (v_atividade).
-  const { itens, proximo } = await buscarAtividade(pagina);
+  // Erro da API sobe e cai no `error.tsx`. As pautas são opcionais: servem só para acender o
+  // prédio certo no campus atrás da lista sem mudar o contrato do GET /atividade.
+  const [{ itens, proximo }, pautas] = await Promise.all([
+    buscarAtividade(pagina),
+    buscarPautas().catch((): Pauta[] => []),
+  ]);
+
+  const pautaPorSlug = new Map(pautas.map((p) => [p.slug, p]));
+  const agrupados = agruparEventosIguais(
+    itens,
+    (item) => item.criado_em,
+    (item) => item.pauta_slug,
+  );
+
+  // Agrupa os eventos por dia no calendário de Maceió, mantendo a ordem da API (mais novo primeiro).
+  const dias: {
+    chave: string;
+    numero: string;
+    titulo: string;
+    sub: string;
+    eventos: typeof agrupados;
+  }[] = [];
+  for (const entrada of agrupados) {
+    const data = new Date(entrada.evento.criado_em);
+    const chave = formatoChaveDia.format(data);
+    const ultimo = dias.at(-1);
+    if (ultimo && ultimo.chave === chave) {
+      ultimo.eventos.push(entrada);
+    } else {
+      dias.push({
+        chave,
+        numero: chave.slice(-2),
+        titulo: formatoDiaMes.format(data),
+        sub: `${capitalizar(formatoDiaSemana.format(data))} · ${formatoAno.format(data)}`,
+        eventos: [entrada],
+      });
+    }
+  }
+
+  const hud: ItemDoHud[] = [
+    { id: 'topo', rotulo: 'Acontecendo no campus', icone: 'atividade' },
+    ...dias.slice(0, 6).map((d) => ({
+      id: `dia-${d.chave}`,
+      rotulo: d.titulo,
+      numero: d.numero,
+    })),
+  ];
+
   return (
-    <main className={estilos.pagina}>
-      <div className={[estilos.faixa, 'noite'].join(' ')}>
-        <p className={estilos.sobretitulo}>Atividade · o que mudou nas pautas</p>
-        <h1 className={estilos.titulo}>Acontecendo no campus</h1>
-        <p className={estilos.subtitulo}>
-          Cada linha vem de uma ação no {nomeDoCanal()} ou de uma resposta oficial. A mais recente
-          fica em cima.
-        </p>
-      </div>
-      {itens.length === 0 ? (
-        <div role="status" className={componentes.estado}>
-          <p className={componentes.estadoTitulo}>
-            {pagina === 1 ? 'Ainda não tem atividade.' : 'Esta página não tem atividade.'}
+    <FundoInterno mapa={<CampusInterno />} comJanela comRotulo>
+      {dias.length > 0 && <Hud itens={hud} rotulo="Dias da atividade" />}
+      <main className={internas.conteudo}>
+        <div className={internas.cabeca} id="topo">
+          <p className={internas.sobre}>
+            <Icone nome="atividade" />
+            Atividade · o que mudou nas pautas
           </p>
-          {pagina > 1 && (
-            <div className={componentes.acoes}>
-              <Link href={linkDaPagina(1)} className={componentes.botaoSecundario}>
-                Ver a atividade mais recente
-              </Link>
-            </div>
-          )}
+          <h1>
+            Acontecendo <em>no campus</em>
+          </h1>
+          <p className={internas.sub}>
+            Cada linha vem de uma ação no {nomeDoCanal()} ou de uma resposta oficial. A mais recente
+            fica em cima, e o mapa mostra onde ela aconteceu.
+          </p>
         </div>
-      ) : (
-        <ol className={estilos.registro}>
-          {/* Eventos iguais seguidos da mesma pauta viram uma linha (SCRUM-355); só vizinhos da página. */}
-          {agruparEventosIguais(
-            itens,
-            (item) => item.criado_em,
-            (item) => item.pauta_slug,
-          ).map(({ evento: item, quantidade }, i) => (
-            <li
-              key={`${String(pagina)}-${String(i)}`}
-              className={estilos.evento}
-              data-tom={tomDoEvento(item)}
-            >
-              <span className={estilos.icone} aria-hidden="true" />
-              <div>
-                <Link href={`/p/${item.pauta_slug}`} className={estilos.eventoPauta}>
-                  {item.pauta_titulo}
+
+        {itens.length === 0 ? (
+          <div role="status" className={internas.estadoVazio}>
+            <p className={internas.estadoTitulo}>
+              {pagina === 1 ? 'Ainda não tem atividade.' : 'Esta página não tem atividade.'}
+            </p>
+            {pagina > 1 && (
+              <div className={internas.estadoAcoes}>
+                <Link href={linkDaPagina(1)} className={internas.botao}>
+                  Ver a atividade mais recente
                 </Link>
-                <p className={estilos.eventoTexto}>{textoDoEvento(item, quantidade)}</p>
               </div>
-              <time dateTime={item.criado_em} className={estilos.quando}>
-                {formatarData(item.criado_em)}
-              </time>
-            </li>
-          ))}
-        </ol>
-      )}
-      {/* Página além do fim já oferece a volta no estado vazio; aqui não repete. */}
-      {((pagina > 1 && itens.length > 0) || proximo !== null) && (
-        <nav aria-label="Páginas da atividade" className={estilos.paginacao}>
-          {pagina > 1 ? (
-            <Link href={linkDaPagina(pagina - 1)} rel="prev">
-              ← Mais recentes
-            </Link>
-          ) : (
-            <span />
-          )}
-          {proximo !== null && (
-            <Link href={linkDaPagina(pagina + 1)} rel="next">
-              Mais antigas →
-            </Link>
-          )}
-        </nav>
-      )}
-    </main>
+            )}
+          </div>
+        ) : (
+          <div className={estilos.feed}>
+            {dias.map((dia) => (
+              <section
+                key={dia.chave}
+                className={estilos.dia}
+                id={`dia-${dia.chave}`}
+                aria-labelledby={`t-${dia.chave}`}
+              >
+                <h2 id={`t-${dia.chave}`}>
+                  {dia.titulo}
+                  <small>{dia.sub}</small>
+                </h2>
+                <ol>
+                  {dia.eventos.map(({ evento: item, quantidade }, i) => {
+                    const tom = tomDoEvento(item);
+                    const cor = tom ? COR_DO_TOM[tom] : '#5f6496';
+                    const pauta = pautaPorSlug.get(item.pauta_slug);
+                    const predio = predioDoBloco(
+                      pauta?.bloco_slug,
+                      pauta?.bloco_nome ?? item.pauta_titulo,
+                    );
+                    const onde = pauta?.bloco_nome ?? predio?.sigla ?? null;
+                    const rotulo = textoDoEvento(item, quantidade);
+                    return (
+                      <li
+                        key={`${String(pagina)}-${dia.chave}-${String(i)}`}
+                        className={estilos.evento}
+                        data-tom={tom}
+                        data-foco=""
+                        data-predio={predio?.id}
+                        data-cor={cor}
+                        data-rotulo={predio ? `${predio.sigla || onde || ''} · ${rotulo}` : ''}
+                        style={{ '--c': cor } as CSSProperties}
+                      >
+                        <time dateTime={item.criado_em} className={estilos.quando}>
+                          {formatarData(item.criado_em)}
+                        </time>
+                        <span className={estilos.icone} aria-hidden="true">
+                          <Icone nome={iconeDoEvento(item)} />
+                        </span>
+                        <div className={estilos.texto}>
+                          <b className={estilos.rotulo}>{rotulo}</b>
+                          <Link className={estilos.eventoPauta} href={`/p/${item.pauta_slug}`}>
+                            {item.pauta_titulo}
+                          </Link>
+                          {onde && (
+                            <p className={[internas.onde, estilos.ondeLinha].join(' ')}>
+                              <span>
+                                <Icone nome="local" />
+                                {onde}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                        <Icone nome="proxima" className={estilos.seta} />
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            ))}
+
+            {/* Página além do fim já oferece a volta no estado vazio; aqui não repete. */}
+            {((pagina > 1 && itens.length > 0) || proximo !== null) && (
+              <nav aria-label="Páginas da atividade" className={estilos.paginacao}>
+                {pagina > 1 ? (
+                  <Link className={internas.botao} rel="prev" href={linkDaPagina(pagina - 1)}>
+                    ← Mais recentes
+                  </Link>
+                ) : (
+                  <span />
+                )}
+                {proximo !== null && (
+                  <Link className={internas.botao} rel="next" href={linkDaPagina(pagina + 1)}>
+                    Mais antigas →
+                  </Link>
+                )}
+              </nav>
+            )}
+          </div>
+        )}
+      </main>
+    </FundoInterno>
   );
 }

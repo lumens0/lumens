@@ -1,39 +1,56 @@
 .pagina {
-  max-width: 640px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: var(--pagina-topo) var(--espaco) calc(var(--pagina-fim) + env(safe-area-inset-bottom));
+  padding: calc(var(--pagina-topo) + 24px) 24px
+    calc(var(--pagina-fim) + 32px + env(safe-area-inset-bottom));
+}
+
+.rotulo {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--luz);
 }
 
 .titulo {
   margin: 0;
   font:
-    800 1.75em var(--fonte-titulo),
+    480 clamp(32px, 5vw, 48px) / 1.05 var(--fonte-titulo),
+    system-ui,
     sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
 }
 
 .resumo {
-  margin: 4px 0 var(--espaco);
+  margin: 16px 0 36px;
+  font-size: 17px;
+  line-height: 1.55;
   color: var(--tinta-2);
 }
 
 .secao {
-  margin-bottom: var(--espaco);
-  padding: 12px var(--espaco);
+  margin-bottom: 16px;
+  padding: 24px;
   background: var(--superficie);
   border: 1px solid var(--borda);
-  border-radius: var(--raio);
+  border-radius: 18px;
 }
 
 .secaoTitulo {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font:
-    700 1.1875em var(--fonte-titulo),
+    500 21px/1.2 var(--fonte-titulo),
+    system-ui,
     sans-serif;
+  letter-spacing: -0.025em;
+  color: var(--tinta);
 }
 
 .secao p {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
+  color: var(--tinta-2);
+  line-height: 1.6;
 }
 
 .secao p:last-child,
@@ -41,32 +58,54 @@
   margin-bottom: 0;
 }
 
+.secao strong {
+  color: var(--tinta);
+  font-weight: 560;
+}
+
+.secao code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(242 240 234 / 8%);
+  color: var(--tinta);
+  font-size: 0.9em;
+}
+
 .secao ul {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding-left: 1.25em;
+  color: var(--tinta-2);
 }
 
 .secao li {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  line-height: 1.55;
 }
 
 .secao li:last-child {
   margin-bottom: 0;
 }
 
-.rotulo {
-  margin: 0 0 4px;
-  font:
-    600 0.8125em var(--fonte-rotulo),
-    monospace;
-  color: var(--tinta-2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 .voltar {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  margin-top: var(--espaco);
+  margin-top: 16px;
+  color: var(--luz);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.voltar:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .pagina {
+    padding: 32px 16px 64px;
+  }
+
+  .secao {
+    padding: 18px;
+  }
 }
