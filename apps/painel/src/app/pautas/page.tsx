@@ -1,4 +1,9 @@
-import { listarPautasDaCuradoria, resumoDaCuradoria, visaoGeralDaCuradoria } from '@lumens/dominio';
+import {
+  LIMITE_DA_LISTA,
+  listarPautasDaCuradoria,
+  resumoDaCuradoria,
+  visaoGeralDaCuradoria,
+} from '@lumens/dominio';
 import { redirect } from 'next/navigation';
 import { curadorDaSessao, servidor } from '../../auth';
 import { sair } from '../acoes';
@@ -46,6 +51,9 @@ export default async function PaginaDasPautas({
     visaoGeralDaCuradoria(db, agora),
   ]);
   const pautas = buscarNaLista(filtrarPorSituacoes(uniaoDePautas(lotes), situacoes), q);
+  // O corte de 200 acontece antes da busca em memória: se algum lote bateu no limite, a busca e os
+  // filtros só enxergaram essas pautas, e o aviso continua valendo mesmo com a lista menor.
+  const truncada = lotes.some((lote) => lote.length >= LIMITE_DA_LISTA);
   const porStatus = Object.fromEntries(visao.pautasPorStatus.map((s) => [s.status, s.total])) as {
     [S in keyof typeof STATUS]?: number;
   };
@@ -65,6 +73,7 @@ export default async function PaginaDasPautas({
         pendencias={pendencias}
         q={q}
         contagens={contagens}
+        truncada={truncada}
       />
     </Moldura>
   );

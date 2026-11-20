@@ -972,3 +972,25 @@ describe('decisão: categoria de quem relatou e aviso de texto editado (E7)', ()
     );
   });
 });
+
+describe('lista de pautas: aviso de truncamento (E7)', () => {
+  it('o aviso aparece quando a consulta bateu no limite, mesmo com a lista já filtrada e vazia', () => {
+    const html = renderToStaticMarkup(
+      <ListaDePautas pautas={[]} situacoes={[]} pendencias={[]} q="algo" truncada />,
+    );
+    expect(html).toContain('mais antigas');
+    expect(html).toContain('Nenhuma pauta encontrada.');
+  });
+
+  it('sem truncamento, não há aviso; e sem a indicação, vale o tamanho da própria lista', () => {
+    const sem = renderToStaticMarkup(
+      <ListaDePautas pautas={[pauta()]} situacoes={[]} pendencias={[]} q="" truncada={false} />,
+    );
+    expect(sem).not.toContain('mais antigas');
+    const cheia = Array.from({ length: 200 }, (_, i) => pauta({ id: `p${String(i)}` }));
+    const padrao = renderToStaticMarkup(
+      <ListaDePautas pautas={cheia} situacoes={[]} pendencias={[]} q="" />,
+    );
+    expect(padrao).toContain('mais antigas');
+  });
+});
