@@ -126,7 +126,7 @@ export default async function Home({
       )}
       <p className={estilos.verPautas}>
         <Link href="/pautas" className={componentes.botaoSecundario}>
-          {todas.length === 1 ? 'Ver a pauta' : `Ver as ${todas.length} pautas`}
+          {todas.length === 1 ? 'Ver a pauta' : `Ver as ${String(todas.length)} pautas`}
         </Link>
       </p>
       <footer className={estilos.rodape}>
