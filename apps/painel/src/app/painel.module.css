@@ -242,25 +242,80 @@
   list-style: none;
 }
 
-/* Início: o que espera a curadoria, um número por cartão (o número é o que se lê primeiro). */
+/* Início: o que espera a curadoria. Quatro indicadores na mesma pilha: duas colunas no celular e
+   quatro a partir de 900 px, separados por filetes (o número é o que se lê primeiro). */
 .resumo {
   display: grid;
-  gap: var(--esp-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: var(--esp-5) 0 0;
   padding: 0;
   list-style: none;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 900px) {
   .resumo {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .indicador {
+  position: relative;
   display: grid;
   align-content: start;
   gap: var(--esp-1);
+  padding: var(--esp-4) var(--esp-3) var(--esp-4) 0;
+  border-top: 1px solid var(--borda);
+}
+
+.indicador:nth-child(even) {
+  padding-left: var(--esp-4);
+  border-left: 1px solid var(--borda);
+}
+
+@media (min-width: 900px) {
+  .indicador {
+    padding-left: var(--esp-4);
+    border-left: 1px solid var(--borda);
+  }
+
+  .indicador:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* O título ocupa duas linhas, para o número começar na mesma altura nos quatro. */
+.indicador h2 {
+  min-height: 2.5em;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.indicador h2 a {
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.indicador h2 a:hover {
+  text-decoration: underline;
+}
+
+/* O indicador inteiro é clicável: o link se estica por cima dele. */
+.indicador h2 a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.indicador h2 a:focus-visible {
+  outline: none;
+}
+
+.indicador h2 a:focus-visible::after {
+  outline: 2px solid var(--luz-forte);
+  outline-offset: -2px;
+  border-radius: var(--raio-controle);
 }
 
 .indicador .numeros strong {
@@ -1057,4 +1112,176 @@ div.cartao > h3 {
   width: 1.5rem;
   height: 1.5rem;
   margin: 0;
+}
+
+/* Dica curta ao lado de um campo: o que está marcado e por quê. */
+.dica {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--tinta-3);
+}
+
+/* ---- Relatos e Pedidos: um bloco por pauta, separado do seguinte por uma faixa grossa ---- */
+
+.grupoDaPauta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  margin-top: var(--esp-6);
+  padding-top: var(--esp-3);
+  border-top: 3px solid var(--tinta);
+}
+
+.grupoTexto {
+  min-width: 0;
+}
+
+.grupoTexto h2 {
+  margin: 0;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.grupoRotulo {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.grupoOnde {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--tinta-2);
+}
+
+.grupoSelo {
+  flex: none;
+  padding: 2px var(--esp-3);
+  border-radius: 999px;
+  background: var(--luz-fundo);
+  color: var(--luz-tinta);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* "RELATO 1 DE 2": o rótulo pequeno de cada quadro. */
+.rotuloDoItem {
+  margin: 0 0 var(--esp-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+/* Pedidos: o texto publicado e o pedido lado a lado no desktop (o pedido em fundo âmbar suave). */
+.antesDepois {
+  display: grid;
+  gap: var(--esp-3);
+  margin: 0;
+}
+
+.antesDepois > div {
+  padding: var(--esp-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-controle);
+  background: var(--superficie);
+}
+
+.antesDepois > div:last-child {
+  background: var(--luz-fundo);
+}
+
+.antesDepois dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-3);
+}
+
+.antesDepois dd {
+  margin: var(--esp-1) 0 0;
+}
+
+@media (min-width: 700px) {
+  .antesDepois {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- Lista de pautas: busca única e uma linha rolável de chips de seleção múltipla ---- */
+
+.totalDaLista {
+  margin-left: var(--esp-2);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+.buscaDaLista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--esp-2);
+  align-items: end;
+}
+
+.buscaDaLista label {
+  grid-column: 1 / -1;
+  font-weight: 600;
+}
+
+.buscaDaLista input[type='search'] {
+  min-height: 44px;
+}
+
+.chipsDaLista {
+  display: flex;
+  gap: var(--esp-2);
+  margin: var(--esp-3) calc(-1 * var(--esp-4)) 0;
+  padding: 0 var(--esp-4) var(--esp-1);
+  overflow-x: auto;
+  list-style: none;
+}
+
+.chipsDaLista li {
+  flex: none;
+}
+
+.chipDaLista {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  min-height: 44px;
+  padding: 0 var(--esp-3);
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.chipDaLista b {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.chipDaLista[aria-current='true'] {
+  border-color: var(--tinta);
+  background: var(--tinta);
+  color: var(--fundo);
+}
+
+/* O traço que separa as situações das pendências. */
+.chipSeparador {
+  align-self: center;
+  width: 1px;
+  height: 24px;
+  background: var(--borda-forte);
 }

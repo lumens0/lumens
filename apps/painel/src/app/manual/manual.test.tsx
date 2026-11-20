@@ -46,3 +46,13 @@ describe('manual da curadoria', () => {
     );
   });
 });
+
+describe('manual da curadoria: a categoria (E7)', () => {
+  it('diz que a categoria vem marcada com a de quem relatou, e não que é obrigatória', () => {
+    const tudo = JSON.stringify([...FLUXOS_DA_CURADORIA]);
+    expect(tudo).toContain('Confira a categoria');
+    expect(tudo).toContain('já vem marcada com a de quem relatou');
+    expect(tudo).not.toContain('Obrigatória para aprovar');
+    expect(tudo).not.toContain('Escolha a categoria');
+  });
+});

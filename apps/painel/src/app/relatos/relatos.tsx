@@ -1,5 +1,5 @@
 import type { PautaComRelatosPendentes } from '@lumens/dominio';
-import Link from 'next/link';
+import { CabecalhoDaPauta, seloDeQuantidade } from '../pautas/grupo';
 import { ERRO_DE_FOTO, FEITO_DE_FOTO, FotosDoRelato } from '../fotos-do-relato';
 import estilos from '../painel.module.css';
 import { Enviar } from '../enviar';
@@ -75,15 +75,18 @@ export function Relatos({
       ) : (
         pautas.map((pauta) => (
           <section key={pauta.id}>
-            <h2>
-              <Link href={`/pautas/${pauta.id}`}>{pauta.titulo}</Link>
-            </h2>
-            <p className={[estilos.detalhes, estilos.blocoDaSecao].join(' ')}>
-              {pauta.bloco ?? 'Campus inteiro'}
-            </p>
+            <CabecalhoDaPauta
+              pautaId={pauta.id}
+              titulo={pauta.titulo}
+              onde={pauta.bloco ?? 'Campus inteiro'}
+              selo={seloDeQuantidade(pauta.relatos.length, 'relato', 'relatos')}
+            />
             <ul className={estilos.lista}>
-              {pauta.relatos.map((relato) => (
+              {pauta.relatos.map((relato, i) => (
                 <li key={relato.id} className={[estilos.cartao, estilos.relato].join(' ')}>
+                  <p className={estilos.rotuloDoItem}>
+                    Relato {i + 1} de {pauta.relatos.length}
+                  </p>
                   <p className={estilos.textoDoRelato}>{relato.texto}</p>
                   <FotosDoRelato
                     fotos={relato.fotos.map((f) => ({
