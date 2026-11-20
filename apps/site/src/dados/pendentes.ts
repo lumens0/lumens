@@ -1,4 +1,9 @@
-import { escolhaSeguinte, type EscolhaPendente, type Escolhas } from './filtros';
+import {
+  escolhaSeguinte,
+  VALIDADE_DA_ESCOLHA_PENDENTE_MS,
+  type EscolhaPendente,
+  type Escolhas,
+} from './filtros';
 
 /**
  * A última escolha de etapa e de bloco enviada ao servidor que a página ainda não refletiu, no
@@ -38,4 +43,19 @@ export function registrarEscolha(escolhas: Escolhas, agora: number = Date.now())
 /** Só para os testes. */
 export function limparPendente(): void {
   pendente = null;
+}
+
+/** Zera um grupo (por exemplo, "Todas" nas etapas), partindo da escolha pendente se ela ainda vale. */
+export function limparGrupo(
+  atual: Escolhas,
+  grupo: keyof Escolhas,
+  agora: number = Date.now(),
+): Escolhas {
+  const base =
+    pendente !== null && agora - pendente.em < VALIDADE_DA_ESCOLHA_PENDENTE_MS
+      ? pendente.escolhas
+      : atual;
+  const proxima: Escolhas = { ...base, [grupo]: [] };
+  pendente = { escolhas: proxima, em: agora };
+  return proxima;
 }

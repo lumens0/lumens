@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { absorver, chaveDe, limparPendente, proximaEscolha, registrarEscolha } from './pendentes';
+import {
+  absorver,
+  chaveDe,
+  limparGrupo,
+  limparPendente,
+  proximaEscolha,
+  registrarEscolha,
+} from './pendentes';
 
 const vazio = { status: [], bloco: [] };
 
@@ -43,5 +50,18 @@ describe('escolha pendente compartilhada', () => {
     absorver(vazio);
     const proxima = proximaEscolha(vazio, 'status', 'prometido', 1100);
     expect(proxima.status).toEqual(['cobrando', 'prometido']);
+  });
+});
+
+describe('limparGrupo ("Todas" nas etapas)', () => {
+  it('zera só o grupo pedido e parte da escolha pendente (inclusive os blocos da folha)', () => {
+    registrarEscolha({ status: ['cobrando'], bloco: ['ic'] }, 1000);
+    const r = limparGrupo({ status: [], bloco: [] }, 'status', 1200);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
+  });
+
+  it('sem pendente, parte do que a página mostra', () => {
+    const r = limparGrupo({ status: ['cobrando'], bloco: ['ic'] }, 'status', 5000);
+    expect(r).toEqual({ status: [], bloco: ['ic'] });
   });
 });
