@@ -1,0 +1,47 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { absorver, chaveDe, limparPendente, proximaEscolha, registrarEscolha } from './pendentes';
+
+const vazio = { status: [], bloco: [] };
+
+afterEach(() => {
+  limparPendente();
+});
+
+describe('escolha pendente compartilhada', () => {
+  it('dois cliques seguidos não perdem o primeiro, nem entre etapa e bloco', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    const segunda = proximaEscolha(vazio, 'bloco', 'ic', 1100);
+    expect(segunda).toEqual({ status: ['cobrando'], bloco: ['ic'] });
+  });
+
+  it('a folha de blocos registra a escolha, e o clique seguinte numa etapa a mantém', () => {
+    registrarEscolha({ status: [], bloco: ['ic', 'ctec'] }, 1000);
+    const proxima = proximaEscolha(vazio, 'status', 'cobrando', 1200);
+    expect(proxima).toEqual({ status: ['cobrando'], bloco: ['ic', 'ctec'] });
+  });
+
+  it('a chave não depende da ordem dos itens', () => {
+    expect(chaveDe({ status: ['prometido', 'cobrando'], bloco: ['b', 'a'] })).toBe(
+      chaveDe({ status: ['cobrando', 'prometido'], bloco: ['a', 'b'] }),
+    );
+  });
+
+  it('quando o servidor devolve as mesmas etapas em outra ordem, a pendente é absorvida', () => {
+    // Prometido e depois Cobrando: a pendente fica ['prometido', 'cobrando'], a URL volta no
+    // caminho canônico (['cobrando', 'prometido']).
+    proximaEscolha(vazio, 'status', 'prometido', 1000);
+    proximaEscolha(vazio, 'status', 'cobrando', 1050);
+    absorver({ status: ['cobrando', 'prometido'], bloco: [] });
+    // A pessoa tira Prometido pela etiqueta (a página agora mostra só Cobrando) e escolhe um bloco:
+    // não pode ressuscitar Prometido.
+    const proxima = proximaEscolha({ status: ['cobrando'], bloco: [] }, 'bloco', 'ic', 1500);
+    expect(proxima).toEqual({ status: ['cobrando'], bloco: ['ic'] });
+  });
+
+  it('absorver uma escolha diferente da pendente não a apaga', () => {
+    proximaEscolha(vazio, 'status', 'cobrando', 1000);
+    absorver(vazio);
+    const proxima = proximaEscolha(vazio, 'status', 'prometido', 1100);
+    expect(proxima.status).toEqual(['cobrando', 'prometido']);
+  });
+});

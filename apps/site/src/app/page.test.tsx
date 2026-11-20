@@ -150,3 +150,29 @@ describe('início', () => {
     await expect(render()).rejects.toThrow('500');
   });
 });
+
+describe('início: a média de entrega usa só as conquistas do recorte', () => {
+  it('com só "Cobrando", conquistas e média não vêm de pautas que o filtro excluiu', async () => {
+    const conquistada = PAUTAS_TESTE.find((p) => p.status === 'conquistada');
+    expect(conquistada).toBeDefined();
+    vi.mocked(buscarBlocos).mockResolvedValue(exemplo.blocos);
+    vi.mocked(buscarPautas).mockResolvedValue(PAUTAS_TESTE as never);
+    vi.mocked(buscarApoiosPorSemana).mockResolvedValue([]);
+    vi.mocked(buscarConquistas).mockResolvedValue([
+      {
+        pauta_slug: conquistada?.slug ?? '',
+        titulo: 'x',
+        bloco_nome: conquistada?.bloco_nome ?? null,
+        conquistada_em: '2026-10-21T12:00:00Z',
+        apoios: 1,
+        proposta_executada: true,
+        criada_em: '2026-10-01T12:00:00Z',
+      },
+    ]);
+    const todas = await render();
+    expect(todas).toContain('20 dias em média até a entrega');
+    const soCobrando = await render({ status: 'cobrando' });
+    expect(soCobrando).not.toContain('em média até a entrega');
+    expect(soCobrando).toContain('Ainda nenhuma');
+  });
+});
