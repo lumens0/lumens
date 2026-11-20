@@ -462,7 +462,7 @@ export function MapaDoCampus({ marcadores }: { marcadores: MarcadorDoBloco[] }) 
                       <p className={estilos.vazio}>
                         Nenhuma pauta neste bloco ainda. Viu algo que precisa mudar aqui?
                       </p>
-                      <BotaoCriarPauta bloco={bloco.nome} />
+                      <BotaoCriarPauta bloco={bloco.nome} slug={bloco.slug} />
                     </>
                   ) : (
                     <ul className={estilos.pautas}>
