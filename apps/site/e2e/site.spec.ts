@@ -65,7 +65,10 @@ test('a ordenação muda a URL e a ordem da lista', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Ordenar por' }).selectOption('apoios');
   await expect(page).toHaveURL(/ordem=apoios/);
   const apoios = await page.locator('article [class*=apoios]').allTextContents();
-  const numeros = apoios.map((t) => Number(t.replace(/D/g, '')));
+  const numeros = apoios.map((t) => Number(t.replace(/\D/g, '')));
+  // Sem número legível, `Number('')` seria 0 e a ordem "passaria" sem provar nada.
+  expect(numeros.length).toBeGreaterThan(1);
+  expect(numeros.every((n) => Number.isFinite(n) && n > 0)).toBe(true);
   expect(numeros).toEqual([...numeros].sort((a, b) => b - a));
 });
 

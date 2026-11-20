@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { abreviar, legendaDoSkyline, montarSkyline, tamanhoDoPredio } from './skyline';
+import {
+  abreviar,
+  janelaVigente,
+  legendaDoSkyline,
+  montarSkyline,
+  tamanhoDoPredio,
+} from './skyline';
 import type { Bloco, Pauta, StatusPauta } from './tipos';
 
 const bloco = (slug: string, base = 1000): Bloco => ({
@@ -141,5 +147,53 @@ describe('legendaDoSkyline', () => {
     expect(legendaDoSkyline([{ nome: 'Bloco C', pautas: 0 }])).toBe(
       'Bloco C ainda não tem pauta e aparece apagado.',
     );
+  });
+});
+
+describe('ranking do skyline concorda com "pauta aberta" dos totais', () => {
+  it('entregue em parte não é aberta: bloco só com entregas parciais não passa à frente de quem tem pauta aberta', () => {
+    const parciais = Array.from({ length: 4 }, () => pauta('a', 'entregue_em_parte'));
+    const abertas = [pauta('b', 'cobrando'), pauta('b', 'prometido')];
+    const predios = montarSkyline({
+      blocos: [bloco('a'), bloco('b')],
+      pautas: [...parciais, ...abertas],
+      escolhidos: [],
+      status: [],
+      maximo: 1,
+    });
+    expect(predios.map((p) => p.slug)).toEqual(['b']);
+  });
+});
+
+describe('janelaVigente', () => {
+  const [predio] = montarSkyline({
+    blocos: [bloco('a')],
+    pautas: [pauta('a', 'cobrando', { slug: 'p-x' })],
+    escolhidos: [],
+    status: [],
+  });
+  if (!predio) throw new Error('sem prédio');
+  const janela = predio.janelas[0];
+  if (!janela) throw new Error('sem janela');
+  const aberta = { predio, janela };
+
+  it('mantém a janela enquanto o prédio e a pauta continuam no skyline', () => {
+    expect(janelaVigente(aberta, [predio])).toBe(aberta);
+    expect(janelaVigente(null, [predio])).toBeNull();
+  });
+
+  it('limpa a janela quando o prédio sai do skyline (outro bloco o substituiu)', () => {
+    const outro = montarSkyline({
+      blocos: [bloco('z')],
+      pautas: [pauta('z', 'cobrando')],
+      escolhidos: [],
+      status: [],
+    });
+    expect(janelaVigente(aberta, outro)).toBeNull();
+  });
+
+  it('limpa a janela quando a pauta dela saiu do prédio (por exemplo, por outro filtro de etapa)', () => {
+    const semAPauta = { ...predio, janelas: [] };
+    expect(janelaVigente(aberta, [semAPauta])).toBeNull();
   });
 });
