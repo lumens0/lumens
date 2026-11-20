@@ -17,6 +17,8 @@ export const fixture: PautaDetalhe = {
   aprovada_em: '2026-02-07T12:00:00.000Z',
   meta_batida_em: '2026-02-08T12:00:00.000Z',
   proxima_etapa: null,
+  o_que_foi_feito: null,
+  foto: null,
   relatos: [
     {
       texto: 'A saída das aulas noturnas fica muito escura.',

@@ -218,6 +218,13 @@
       "when": 1795063000000,
       "tag": "0030_bases_reais_dos_blocos",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795131137498,
+      "tag": "0031_conquista_curadoria",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,7 @@ import {
 import { sql, type Db } from '@lumens/db';
 
 type SQL = ReturnType<typeof sql>;
+type OQueFoiFeito = Pick<Conquista, 'o_que_foi_feito' | 'foto'>;
 
 /**
  * Consultas da API de leitura pública (SCRUM-88). Só leem as views da T14: a conexão de leitura
@@ -134,7 +135,7 @@ export async function listarPautas(db: Db, query: PautasQuery) {
 
 /** Nulo quando a pauta não existe ou não é pública: as views não distinguem os dois casos. */
 export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | null> {
-  const [pautas, relatos, caminhos, linhaDoTempo] = await Promise.all([
+  const [pautas, relatos, caminhos, linhaDoTempo, feito] = await Promise.all([
     linhas<Pauta>(db, sql`SELECT ${COLUNAS_PAUTA} FROM v_pauta_publica WHERE slug = ${slug}`),
     linhas<Relato>(
       db,
@@ -159,17 +160,30 @@ export async function buscarPauta(db: Db, slug: string): Promise<PautaDetalhe | 
           -- urgente na mesma transação) desempatam pelo tipo, sempre na mesma ordem.
           ORDER BY v_linha_do_tempo.criado_em, tipo`,
     ),
+    // Só existe linha para pauta conquistada (a view `v_conquista` não tem as outras).
+    linhas<OQueFoiFeito>(
+      db,
+      sql`SELECT o_que_foi_feito, foto_chave AS foto FROM v_conquista WHERE pauta_slug = ${slug}`,
+    ),
   ]);
   const [pauta] = pautas;
   if (!pauta) return null;
-  return { ...pauta, relatos, caminhos, linha_do_tempo: linhaDoTempo };
+  return {
+    ...pauta,
+    relatos,
+    caminhos,
+    linha_do_tempo: linhaDoTempo,
+    o_que_foi_feito: feito[0]?.o_que_foi_feito ?? null,
+    foto: feito[0]?.foto ?? null,
+  };
 }
 
 export async function listarConquistas(db: Db): Promise<Conquista[]> {
   return linhas<Conquista>(
     db,
     sql`SELECT pauta_slug, titulo, bloco_nome, ${iso('conquistada_em')},
-               apoios::int AS apoios, proposta_executada, ${iso('criada_em')}
+               apoios::int AS apoios, proposta_executada, ${iso('criada_em')},
+               o_que_foi_feito, foto_chave AS foto
         FROM v_conquista ORDER BY v_conquista.conquistada_em DESC NULLS LAST, pauta_slug`,
   );
 }
@@ -191,7 +205,10 @@ export async function listarAtividade(db: Db, query: PaginacaoQuery) {
   return paginar(itens, query);
 }
 
-/** Se a chave é foto aprovada de um relato aprovado de pauta pública (`v_foto_publica`). */
+/**
+ * Se a chave é pública (`v_foto_publica`): foto aprovada de relato aprovado de pauta pública, ou a
+ * foto que a curadoria pôs na conquista (SCRUM-394), enquanto a pauta está conquistada.
+ */
 export async function fotoEhPublica(db: Db, chave: string): Promise<boolean> {
   const achadas = await linhas<{ ok: number }>(
     db,

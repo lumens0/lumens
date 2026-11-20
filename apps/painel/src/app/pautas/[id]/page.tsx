@@ -1,5 +1,6 @@
 import {
   detalharPautaDaCuradoria,
+  lerConquistaDaCuradoria,
   listarBlocos,
   listarLinhaDoTempo,
   pedidosPendentesDaPauta,
@@ -19,6 +20,7 @@ import {
   recusar,
   recusarRelatoDeOrigem,
 } from './acoes';
+import { salvarConquista } from './conquista-acoes';
 import { UUID } from './decisoes';
 import { Pauta } from './pauta';
 import { corrigirProtocolo, prorrogarPrazo, remarcarPromessa } from './ajustes-de-prazo-acoes';
@@ -62,6 +64,13 @@ export default async function PaginaDaPauta({
         recusarRelatoDeOrigem={recusarRelatoDeOrigem}
         linhaAberta={linha === 'aberta'}
         recusarFoto={recusarFoto}
+        conquista={
+          pauta.status === 'conquistada'
+            ? await lerConquistaDaCuradoria(servidor().db, id)
+            : undefined
+        }
+        salvarConquista={salvarConquista}
+        origemDoSite={process.env.LUMENS_SITE_URL || undefined}
         pedidosDeEdicao={await pedidosPendentesDaPauta(servidor().db, id)}
         aprovarPedido={aprovarPedido}
         recusarPedido={recusarPedido}

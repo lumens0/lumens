@@ -183,7 +183,7 @@ describe('migração inicial em Postgres real', () => {
     expect(raiz.scripts['db:migrate']).toBe('pnpm --filter @lumens/db db:migrate');
   });
 
-  it('instala as 23 tabelas e reaplica o comando sem duplicar objetos', async () => {
+  it('instala as 24 tabelas e reaplica o comando sem duplicar objetos', async () => {
     const tabelas = await pool.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
@@ -192,6 +192,7 @@ describe('migração inicial em Postgres real', () => {
       'bloco',
       'caminho',
       'codigo_verificacao',
+      'conquista_curadoria',
       'conversa',
       'curador',
       'curador_auditoria',
@@ -586,7 +587,7 @@ describe('migração inicial em Postgres real', () => {
       `SELECT confdeltype FROM pg_constraint WHERE contype = 'f'
        AND connamespace = 'public'::regnamespace`,
     );
-    expect(rows).toHaveLength(31);
+    expect(rows).toHaveLength(33);
     expect(rows.every((r) => r.confdeltype === 'r')).toBe(true);
   });
 
@@ -618,7 +619,7 @@ describe('migração inicial em Postgres real', () => {
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
        AND column_name IN ('criado_em', 'criada_em', 'desde', 'aberto_em', 'recebida_em', 'atualizado_em')`,
     );
-    expect(criacoes).toHaveLength(13);
+    expect(criacoes).toHaveLength(14);
     expect(criacoes.every((r) => r.column_default === 'now()')).toBe(true);
   });
 
