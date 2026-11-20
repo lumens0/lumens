@@ -412,6 +412,27 @@ describe('blocos sem prédio e blocos que dividem um prédio (no navegador)', ()
     expect(alvo?.getAttribute('data-k')).toBe(b);
   });
 
+  it('a conquista que ainda carrega a marca de urgência não pinta o prédio de "só conquistas"', async () => {
+    const usuario = userEvent.setup();
+    render(
+      <MapaDoCampus
+        marcadores={[
+          marcador('ic', 'Instituto de Computação', [
+            pauta('conquistada', { titulo: 'Já entregue', urgente: true }),
+            pauta('descumprida', { titulo: 'Ainda cobrada' }),
+          ]),
+        ]}
+      />,
+    );
+    expect(screen.getByText(/Promessa descumprida/)).toBeTruthy();
+    expect(screen.queryByText(/Só conquistas/)).toBeNull();
+    await usuario.click(screen.getByRole('button', { name: /Instituto de Computação/ }));
+    const links = screen
+      .getAllByRole('link')
+      .filter((a) => a.getAttribute('href')?.startsWith('/p/'));
+    expect(links.map((a) => a.textContent)).toEqual(['Ainda cobrada', 'Já entregue']);
+  });
+
   it('os blocos sem pauta ficam numa lista acessível, e dá para escolhê-los e criar a primeira pauta', async () => {
     const usuario = userEvent.setup();
     render(<MapaDoCampus marcadores={marcadores()} />);

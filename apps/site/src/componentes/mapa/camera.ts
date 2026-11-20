@@ -34,12 +34,16 @@ const PRIO: Partial<Record<StatusPauta, number>> = {
 
 export const prio = (p: Pauta) => PRIO[p.status] ?? 9;
 
+/** Conquistada não é pauta aberta: a marca de urgência que sobrou nela não conta. */
+const urgenteAberta = (p: Pauta) => p.urgente && p.status !== 'conquistada';
+
 /**
- * Da mais para a menos urgente: a que a curadoria marcou como urgente vem antes de qualquer etapa
- * (como no `maisUrgente` dos marcadores); depois, a etapa; no empate, a de mais apoios.
+ * Da mais para a menos urgente: a pauta aberta que a curadoria marcou como urgente vem antes de
+ * qualquer etapa (como no `maisUrgente` dos marcadores); depois, a etapa (a conquistada por
+ * último, mesmo que ainda carregue a marca de urgência); no empate, a de mais apoios.
  */
 export const porPrioridade = (a: Pauta, b: Pauta) =>
-  Number(b.urgente) - Number(a.urgente) || prio(a) - prio(b) || b.apoios - a.apoios;
+  Number(urgenteAberta(b)) - Number(urgenteAberta(a)) || prio(a) - prio(b) || b.apoios - a.apoios;
 
 export const melhor = (ps: readonly Pauta[]): Pauta | undefined => [...ps].sort(porPrioridade)[0];
 
@@ -104,7 +108,7 @@ export const ativas = (l: Local, filtro: StatusPauta | null) =>
 export const prioDoLocal = (l: Local, filtro: StatusPauta | null) => {
   const topo = melhor(ativas(l, filtro));
   if (!topo) return 9;
-  return topo.urgente ? -1 : prio(topo);
+  return urgenteAberta(topo) ? -1 : prio(topo);
 };
 
 /** O `viewBox` do desenho e quantos metros vale um pixel (`k`). */

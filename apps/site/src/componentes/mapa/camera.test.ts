@@ -82,6 +82,15 @@ describe('prioridade das pautas', () => {
     expect([descumprida, urgente].sort(porPrioridade)[0]).toBe(urgente);
   });
 
+  it('uma conquista que ainda carrega a marca de urgência não passa à frente de pauta aberta', () => {
+    const conquista = { ...pauta('conquistada', 900), urgente: true };
+    const descumprida = pauta('descumprida', 1);
+    expect(melhor([conquista, descumprida])).toBe(descumprida);
+    expect([conquista, descumprida].sort(porPrioridade)[0]).toBe(descumprida);
+    // Sem pauta aberta, a conquista é a única e segue sendo a melhor.
+    expect(melhor([conquista])).toBe(conquista);
+  });
+
   it('no empate de etapa, a de mais apoios vem primeiro', () => {
     const a = pauta('prometido', 5);
     const b = pauta('prometido', 50);
@@ -187,6 +196,16 @@ describe('pautas ativas e prioridade do lugar', () => {
     expect(prioDoLocal(local, null)).toBe(1);
     expect(prioDoLocal(local, 'conquistada')).toBe(6);
     expect(prioDoLocal(local, 'descumprida')).toBe(9);
+  });
+
+  it('um lugar com conquista urgente e pauta aberta é medido pela pauta aberta', () => {
+    const [misto] = locaisDe([
+      marcador('ic', predioComBlocos('ic').id, [
+        { ...pauta('conquistada'), urgente: true },
+        pauta('descumprida'),
+      ]),
+    ]);
+    expect(misto ? prioDoLocal(misto, null) : -2).toBe(0);
   });
 
   it('um lugar com pauta urgente passa à frente de qualquer etapa', () => {
