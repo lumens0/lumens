@@ -7,13 +7,17 @@ import { statusDaUrl } from '../../dados/filtros';
 import {
   absorver,
   chaveDe,
+  absorverOrdem,
   escolhaVigente,
   limparGrupo,
+  ordemVigente,
   proximaEscolha,
+  registrarOrdem,
 } from '../../dados/pendentes';
 import type { BlocoDaFolha } from '../../dados/folha';
 import {
   ORDENS,
+  ordemDaUrl,
   ROTULO_DA_ORDEM,
   urlDaLista,
   type Ordem,
@@ -54,9 +58,10 @@ export function FiltrosDaLista({
   };
 }) {
   const router = useRouter();
-  const chave = chaveDe({ status, bloco });
+  const chave = `${chaveDe({ status, bloco })}|${ordem}`;
   useEffect(() => {
     absorver({ status, bloco });
+    absorverOrdem(ordem);
     // `status` e `bloco` mudam de identidade a cada render do servidor; a chave diz se mudou o conteúdo.
   }, [chave]);
   const ir = (mudanca: Partial<ParametrosDaLista>) => {
@@ -66,7 +71,7 @@ export function FiltrosDaLista({
     router.replace(
       urlDaLista({
         q,
-        ordem,
+        ordem: ordemDaUrl(ordemVigente(ordem)),
         status: statusDaUrl(vigente.status.join(',')),
         bloco: [...vigente.bloco],
         ...mudanca,
@@ -121,7 +126,12 @@ export function FiltrosDaLista({
           pautas={folha.pautas}
           atual={{ status, bloco }}
           montarUrl={(escolhidos, etapas) =>
-            urlDaLista({ q, ordem, status: statusDaUrl(etapas.join(',')), bloco: escolhidos })
+            urlDaLista({
+              q,
+              ordem: ordemDaUrl(ordemVigente(ordem)),
+              status: statusDaUrl(etapas.join(',')),
+              bloco: escolhidos,
+            })
           }
         />
         <label className={estilos.ordem}>
@@ -129,7 +139,9 @@ export function FiltrosDaLista({
           <select
             value={ordem}
             onChange={(e) => {
-              ir({ ordem: ORDENS.find((o) => o === e.target.value) ?? 'atencao' });
+              const nova = ORDENS.find((o) => o === e.target.value) ?? 'atencao';
+              registrarOrdem(nova);
+              ir({ ordem: nova });
             }}
           >
             {ORDENS.map((o) => (

@@ -378,3 +378,16 @@ export type { DocumentoDaPauta, ResultadoDocumento } from './caminhos/documento-
 export { APELIDOS, MAX_CANDIDATOS, buscarCurso, chave as chaveDoCurso } from './cursos';
 export type { BuscaDeCurso } from './cursos';
 export { cifrar, decifrar } from './compartilhado/cifra';
+
+export {
+  O_QUE_FOI_FEITO_MAXIMO,
+  conferirOQueFoiFeito,
+  lerConquistaDaCuradoria,
+  salvarConquistaDaCuradoria,
+} from './pauta/conquista';
+export type {
+  ConquistaDaCuradoria,
+  MotivoDaConquista,
+  NovaConquista,
+  ResultadoDaConquista,
+} from './pauta/conquista';

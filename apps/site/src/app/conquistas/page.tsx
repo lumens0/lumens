@@ -5,6 +5,7 @@ import { connection } from 'next/server';
 import { formatarNumero } from '../../componentes/BarraApoios';
 import componentes from '../../componentes/componentes.module.css';
 import { formatarDia } from '../../componentes/pauta/LinhaDoTempo';
+import { urlFoto } from '../../componentes/pauta/foto';
 import { buscarConquistas } from '../../dados/api';
 import { anoEmMaceio, diasEntre, textoDias } from '../../dados/dias';
 import { metadadosDaMarca } from '../../metadados';
@@ -29,6 +30,7 @@ function anoDaConquista({ conquistada_em, criada_em }: Conquista): string {
 function ItemConquista({ conquista }: { conquista: Conquista }) {
   const id = `conquista-${conquista.pauta_slug}`;
   const dias = diasAteEntrega(conquista);
+  const foto = conquista.foto === null ? null : urlFoto(conquista.foto);
   return (
     <article className={[componentes.card, estilos.memorial].join(' ')} aria-labelledby={id}>
       <span className={estilos.ano} aria-hidden="true">
@@ -42,6 +44,20 @@ function ItemConquista({ conquista }: { conquista: Conquista }) {
         <h2 id={id} className={componentes.titulo}>
           <Link href={`/p/${conquista.pauta_slug}`}>{conquista.titulo}</Link>
         </h2>
+        {conquista.o_que_foi_feito && (
+          <p className={estilos.feito}>
+            <span className={estilos.feitoRotulo}>O que foi feito:</span>{' '}
+            {conquista.o_que_foi_feito}
+          </p>
+        )}
+        {foto && (
+          <img
+            className={estilos.fotoDoFeito}
+            src={foto}
+            alt={`Foto do que foi feito: ${conquista.titulo}`}
+            loading="lazy"
+          />
+        )}
         <dl className={estilos.fatos}>
           {conquista.conquistada_em && (
             <div>

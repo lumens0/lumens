@@ -450,6 +450,9 @@ describe('API de leitura pública com o seed', () => {
             criado_em: '2026-02-09T12:00:00.000Z',
           },
         ],
+        // Pauta que não é conquistada nunca leva texto nem foto de conquista.
+        o_que_foi_feito: null,
+        foto: null,
       });
       conferirContrato(pautaDetalhe, body);
     });
@@ -506,6 +509,9 @@ describe('API de leitura pública com o seed', () => {
             apoios: 300,
             proposta_executada: false,
             criada_em: '2026-02-10T12:00:00.000Z',
+            o_que_foi_feito:
+              'Os laboratórios das Engenharias passaram a abrir das 18h às 22h, de segunda a sexta.',
+            foto: null,
           },
         ],
       });
@@ -792,14 +798,21 @@ describe('API de leitura pública: serialização e rotas', () => {
       proxima_etapa: 'Faltam 9 apoios',
     };
     const relato = { texto: 'Relato', fotos: [], curso: null, moderado_em: null };
-    // Uma lista por consulta de /pautas/:slug: pauta, relatos, caminhos, linha do tempo.
-    const db = bancoFalso([{ ...pauta, ...vazamento }], [{ ...relato, ...vazamento }], [], []);
+    // Uma lista por consulta de /pautas/:slug: pauta, relatos, caminhos, linha do tempo, o que foi feito.
+    const db = bancoFalso([{ ...pauta, ...vazamento }], [{ ...relato, ...vazamento }], [], [], []);
     const app = await montarApp(db);
     try {
       const res = await app.inject({ method: 'GET', url: '/pautas/pauta' });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ ...pauta, relatos: [relato], caminhos: [], linha_do_tempo: [] });
+      expect(res.json()).toEqual({
+        ...pauta,
+        relatos: [relato],
+        caminhos: [],
+        linha_do_tempo: [],
+        o_que_foi_feito: null,
+        foto: null,
+      });
     } finally {
       await app.close();
     }
@@ -925,5 +938,86 @@ describe('GET /fotos: só a foto de relato aprovado (SCRUM-263)', () => {
       await app.close();
       await semLeitor.close();
     }
+  });
+});
+
+describe('SCRUM-394: o que foi feito na conquista, pelo banco do site', () => {
+  const CHAVE = 'fotos/2026/11/conquista.jpg';
+  const CONQUISTADA = 'laboratorios-abertos-nas-engenharias';
+  const ABERTA = 'iluminacao-no-bloco-de-artes';
+  const bytes = Buffer.from('imagem');
+  let app: FastifyInstance;
+  let lidas: string[];
+
+  beforeAll(async () => {
+    const db = await bancoDoSite(async (dono) => {
+      // A foto de uma pauta que NÃO é conquistada também está gravada: não pode sair em lugar nenhum.
+      await dono.execute(sql`INSERT INTO conquista_curadoria (pauta_id, o_que_foi_feito, foto_chave, atualizado_por)
+        SELECT p.id, 'Trocaram as lâmpadas do corredor.', ${CHAVE}, (SELECT id FROM curador LIMIT 1)
+        FROM pauta p WHERE p.slug = ${CONQUISTADA}
+        ON CONFLICT (pauta_id) DO UPDATE SET o_que_foi_feito = excluded.o_que_foi_feito, foto_chave = excluded.foto_chave`);
+      await dono.execute(sql`INSERT INTO conquista_curadoria (pauta_id, o_que_foi_feito, foto_chave, atualizado_por)
+        SELECT p.id, 'Texto de pauta aberta.', 'fotos/2026/11/aberta.jpg', (SELECT id FROM curador LIMIT 1)
+        FROM pauta p WHERE p.slug = ${ABERTA}`);
+    });
+    lidas = [];
+    app = await buildApp({
+      config: { verifyToken: 'verify', appSecret: 'segredo' },
+      db,
+      queue: new FakeQueue(),
+      logger: pino({ level: 'silent' }),
+      chaves: { cifra: Buffer.alloc(32, 1), hmac: Buffer.alloc(32, 2) },
+      leitura: {
+        db,
+        origensCors: [],
+        lerFoto: (chave) => {
+          lidas.push(chave);
+          return Promise.resolve({ bytes, contentType: 'image/jpeg' });
+        },
+      },
+    });
+  }, 60_000);
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('a conquista sai com o texto e a foto, e só com eles (sem autor nem instante)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/conquistas' });
+    const body = res.json<{ itens: Record<string, unknown>[] }>();
+    expect(body.itens).toHaveLength(1);
+    expect(body.itens[0]).toMatchObject({
+      pauta_slug: CONQUISTADA,
+      o_que_foi_feito: 'Trocaram as lâmpadas do corredor.',
+      foto: CHAVE,
+    });
+    conferirContrato(conquistas, body);
+    expect(res.body).not.toMatch(/atualizado|curador/);
+  });
+
+  it('o detalhe da pauta conquistada traz o texto e a foto; o da aberta, nada', async () => {
+    const conquistada = (await app.inject({ method: 'GET', url: `/pautas/${CONQUISTADA}` })).json<
+      Record<string, unknown>
+    >();
+    expect(conquistada).toMatchObject({
+      o_que_foi_feito: 'Trocaram as lâmpadas do corredor.',
+      foto: CHAVE,
+    });
+    conferirContrato(pautaDetalhe, conquistada);
+
+    const aberta = (await app.inject({ method: 'GET', url: `/pautas/${ABERTA}` })).json<
+      Record<string, unknown>
+    >();
+    expect(aberta).toMatchObject({ o_que_foi_feito: null, foto: null });
+  });
+
+  it('a rota de foto serve a foto da conquista, mas não a de pauta que não é conquistada', async () => {
+    const ok = await app.inject({ method: 'GET', url: `/${CHAVE}` });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.headers['content-type']).toBe('image/jpeg');
+    expect(lidas).toEqual([CHAVE]);
+
+    const fechada = await app.inject({ method: 'GET', url: '/fotos/2026/11/aberta.jpg' });
+    expect(fechada.statusCode).toBe(404);
+    expect(lidas).toEqual([CHAVE]);
   });
 });

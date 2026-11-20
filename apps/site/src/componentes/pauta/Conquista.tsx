@@ -1,8 +1,9 @@
 import type { PautaDetalhe } from '@lumens/contratos';
-import { conquistadaEm, solucaoEntregue } from '../../dados/conquista';
+import { conquistadaEm, oQueFoiFeito, solucaoEntregue } from '../../dados/conquista';
 import { diasEntre, textoDias } from '../../dados/dias';
 import { formatarNumero } from '../BarraApoios';
 import { PlacarDeApoios } from './CabecalhoPauta';
+import { urlFoto } from './foto';
 import { formatarDia } from './LinhaDoTempo';
 import estilos from './pauta.module.css';
 
@@ -50,20 +51,29 @@ export function DestaqueDaConquista({ pauta }: { pauta: PautaDetalhe }) {
   );
 }
 
-/** O que foi feito: a descrição do caminho executado e a data. Sem solução, não há bloco. */
+/**
+ * O que foi feito: o texto e a foto que a curadoria escreveu (SCRUM-394), com a descrição do
+ * caminho executado como texto de reserva, e a data. Sem solução, texto nem foto, não há bloco.
+ */
 export function SolucaoEntregue({ pauta }: { pauta: PautaDetalhe }) {
   const caminho = solucaoEntregue(pauta);
-  if (!caminho) return null;
+  const feito = oQueFoiFeito(pauta);
+  const foto = feito.foto === null ? null : urlFoto(feito.foto);
+  if (!caminho && !feito.texto && !foto) return null;
+  const texto = feito.texto ?? (caminho ? 'A proposta da comunidade foi executada.' : null);
   return (
     <section className={estilos.secao} aria-labelledby="solucao-titulo">
-      <span className={estilos.seloSolucao}>Solução da comunidade</span>
+      {caminho && <span className={estilos.seloSolucao}>Solução da comunidade</span>}
       <h2 id="solucao-titulo" className={estilos.secaoTitulo}>
-        Solução entregue
+        {caminho ? 'Solução entregue' : 'O que foi feito'}
       </h2>
-      <p className={estilos.texto}>
-        {caminho.descricao ?? 'A proposta da comunidade foi executada.'}
-      </p>
-      {caminho.executada_em && (
+      {texto && <p className={estilos.texto}>{texto}</p>}
+      {foto && (
+        <figure className={estilos.fotoDoFeito}>
+          <img src={foto} alt={`Foto do que foi feito: ${pauta.titulo}`} loading="lazy" />
+        </figure>
+      )}
+      {caminho?.executada_em && (
         <p className={estilos.vazio}>
           Executada em{' '}
           <time dateTime={caminho.executada_em}>{formatarDia(caminho.executada_em)}</time>

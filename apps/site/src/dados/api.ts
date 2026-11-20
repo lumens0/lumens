@@ -5,7 +5,6 @@ import type {
   Bloco,
   Blocos,
   Conquista,
-  Conquistas,
   Pauta,
   PautaDetalhe,
   Pautas,
@@ -99,13 +98,27 @@ type RelatoDaResposta = Omit<PautaDetalhe['relatos'][number], 'fotos'> & {
   fotos?: string[] | undefined;
   foto_chave?: string | null | undefined;
 };
-type RespostaDaPauta = Omit<PautaDetalhe, 'relatos'> & { relatos: RelatoDaResposta[] };
+/** O que foi feito (SCRUM-394) também chega por último: o back-end antigo não manda. */
+type OQueFoiFeitoDaResposta = {
+  o_que_foi_feito?: string | null | undefined;
+  foto?: string | null | undefined;
+};
+type RespostaDaPauta = Omit<PautaDetalhe, 'relatos' | 'o_que_foi_feito' | 'foto'> & {
+  relatos: RelatoDaResposta[];
+} & OQueFoiFeitoDaResposta;
+
+/** `o_que_foi_feito` e `foto` sempre presentes, nulos quando a API ainda não manda. */
+const comOQueFoiFeito = (resposta: OQueFoiFeitoDaResposta) => ({
+  o_que_foi_feito: resposta.o_que_foi_feito ?? null,
+  foto: resposta.foto ?? null,
+});
 
 export function normalizarFotos(pauta: RespostaDaPauta): PautaDetalhe {
   // Resposta sem a lista (não deveria acontecer): passa adiante, como antes.
   if (!Array.isArray(pauta.relatos)) return pauta as unknown as PautaDetalhe;
   return {
     ...pauta,
+    ...comOQueFoiFeito(pauta),
     relatos: pauta.relatos.map(({ foto_chave, fotos, ...relato }) => ({
       ...relato,
       fotos: Array.isArray(fotos) ? fotos : foto_chave ? [foto_chave] : [],
@@ -174,7 +187,10 @@ export async function buscarPautas(bloco?: string, status?: string): Promise<Pau
 }
 
 export async function buscarConquistas(): Promise<Conquista[]> {
-  return (await buscarJson<Conquistas>('/conquistas', 'as conquistas')).itens;
+  const { itens } = await buscarJson<{
+    itens: (Omit<Conquista, 'o_que_foi_feito' | 'foto'> & OQueFoiFeitoDaResposta)[];
+  }>('/conquistas', 'as conquistas');
+  return itens.map((conquista) => ({ ...conquista, ...comOQueFoiFeito(conquista) }));
 }
 
 /** Eventos por página de `/atividade`: o padrão da API. */

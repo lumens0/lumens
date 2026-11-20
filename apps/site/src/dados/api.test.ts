@@ -240,7 +240,10 @@ describe('buscarConquistas e buscarAtividade', () => {
   it('conquistas devolve os itens', async () => {
     const fetch = responder(200, { itens: [{ pauta_slug: 'a' }] });
     vi.stubGlobal('fetch', fetch);
-    expect(await buscarConquistas()).toEqual([{ pauta_slug: 'a' }]);
+    // O back-end antigo não manda o que foi feito: o site vê `null`, nunca `undefined`.
+    expect(await buscarConquistas()).toEqual([
+      { pauta_slug: 'a', o_que_foi_feito: null, foto: null },
+    ]);
     expect(fetch).toHaveBeenCalledWith('http://api.teste/conquistas', {
       next: { revalidate: 10 },
       signal: SINAL,

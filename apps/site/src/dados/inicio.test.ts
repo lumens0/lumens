@@ -13,6 +13,8 @@ const conquista = (criada: string, entregue: string | null) => ({
   apoios: 1,
   proposta_executada: true,
   criada_em: criada,
+  o_que_foi_feito: null,
+  foto: null,
 });
 
 const semanas = [

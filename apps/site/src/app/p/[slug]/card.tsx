@@ -5,8 +5,8 @@ import { renderSVG } from 'uqr';
 import type { PautaDetalhe } from '@lumens/contratos';
 import { formatarNumero, percentual } from '../../../componentes/BarraApoios';
 import { STATUS } from '../../../componentes/StatusPill';
-import { buscarPauta } from '../../../dados/api';
-import { conquistadaEm, solucaoEntregue } from '../../../dados/conquista';
+import { buscarFoto, buscarPauta } from '../../../dados/api';
+import { conquistadaEm, oQueFoiFeito } from '../../../dados/conquista';
 import { diasEntre, textoDias } from '../../../dados/dias';
 import { aceitaApoio, FORA_DO_SITE } from '../../../dados/pautas-publicas';
 import { origemDoSite } from '../../../origem';
@@ -91,7 +91,13 @@ export async function respostaDoCard(_request: Request, slug: string, formato: F
   const card =
     formato === 'story'
       ? pauta.status === 'conquistada'
-        ? cardConquista(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
+        ? cardConquista(
+            pauta,
+            endereco,
+            marca,
+            qrDoLink(`${origin}/p/${pauta.slug}`),
+            await fotoDaConquista(pauta.foto),
+          )
         : cardStory(pauta, endereco, marca, qrDoLink(`${origin}/p/${pauta.slug}`))
       : cardOg(pauta, marca);
   return new ImageResponse(card, {
@@ -99,6 +105,29 @@ export async function respostaDoCard(_request: Request, slug: string, formato: F
     fonts: fontes,
     headers: { 'Cache-Control': CACHE_CONTROL },
   });
+}
+
+const CHAVE_DA_FOTO = /^fotos\/(\d{4})\/(\d{2})\/([A-Za-z0-9_-]+\.[a-z0-9]{1,5})$/;
+const TIPOS_DA_FOTO = new Set(['image/jpeg', 'image/png']);
+
+/**
+ * A foto que a curadoria pôs na conquista, como `data:` URI: o satori só abre PNG e JPEG, e não
+ * busca imagem por conta própria. Pede pelo mesmo caminho público da página (`buscarFoto`), que só
+ * entrega a foto com a pauta conquistada. Qualquer falha (chave estranha, 404, tipo que o satori
+ * não abre, API fora) devolve `null`: o card sai com a fachada acesa, nunca sem imagem.
+ */
+export async function fotoDaConquista(chave: string | null): Promise<string | null> {
+  const partes = chave === null ? null : CHAVE_DA_FOTO.exec(chave);
+  if (!partes) return null;
+  const [, ano = '', mes = '', arquivo = ''] = partes;
+  try {
+    const foto = await buscarFoto(ano, mes, arquivo);
+    const tipo = foto?.tipo.split(';')[0]?.trim() ?? '';
+    if (!foto || !TIPOS_DA_FOTO.has(tipo)) return null;
+    return `data:${tipo};base64,${Buffer.from(foto.bytes).toString('base64')}`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -123,17 +152,26 @@ const CORES_DO_CONFETE = [LUZ, VERDE, '#ffffff'] as const;
 
 /** Quantas linhas de texto do "que foi feito" cabem no card, por caracteres (≈ 3 linhas). */
 const LIMITE_DO_FEITO = 150;
+/** Altura da foto da conquista no card: o que sobra entre o título e o rodapé, com 3 linhas de texto. */
+const ALTURA_DA_FOTO = 330;
 
 /**
  * Card de conquista (pauta `conquistada`), só no formato `story`: do verde ao azul-noite, com
  * confete e brilho dourado, o selo "CONQUISTA", "Conquistamos!", os dias da criação à entrega e os
- * apoios, e o que foi feito (o texto da solução executada, quando há). No lugar da foto, a fachada
- * com todas as janelas acesas. O rodapé é o do card de andamento. FASE 1: sem foto nova.
+ * apoios, e o que foi feito: o texto e a foto da curadoria (SCRUM-394), com a descrição do caminho
+ * executado como texto de reserva. Sem foto, a fachada com todas as janelas acesas. O rodapé é o do
+ * card de andamento.
  */
-function cardConquista(pauta: PautaDetalhe, endereco: string, marca: string, qr: string) {
+function cardConquista(
+  pauta: PautaDetalhe,
+  endereco: string,
+  marca: string,
+  qr: string,
+  foto: string | null,
+) {
   const titulo = tituloDoCard(pauta.titulo);
   const dias = diasEntre(pauta.criada_em, conquistadaEm(pauta));
-  const feito = solucaoEntregue(pauta)?.descricao?.trim();
+  const feito = oQueFoiFeito(pauta).texto;
   const resumo = [
     dias === null ? undefined : `${textoDias(dias)} da criação à entrega`,
     `${formatarNumero(pauta.apoios)} apoios`,
@@ -171,7 +209,9 @@ function cardConquista(pauta: PautaDetalhe, endereco: string, marca: string, qr:
         />
       ))}
       <Logo tamanho={56} marca={marca} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: 120 }}>
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: 28, marginTop: foto ? 64 : 120 }}
+      >
         <div
           style={{
             display: 'flex',
@@ -211,14 +251,30 @@ function cardConquista(pauta: PautaDetalhe, endereco: string, marca: string, qr:
             </span>
           </div>
         ) : null}
-        {/* Sem foto da curadoria (FASE 2): a fachada toda acesa é a comemoração. */}
-        <Fachada
-          pauta={{ ...pauta, apoios: pauta.meta }}
-          colunas={10}
-          linhas={3}
-          janela={72}
-          vao={18}
-        />
+        {foto ? (
+          // Moldura dourada em volta da foto da curadoria. O recorte é central (cover).
+          <div
+            style={{
+              display: 'flex',
+              height: ALTURA_DA_FOTO,
+              border: `8px solid ${LUZ}`,
+              borderRadius: 32,
+              overflow: 'hidden',
+              boxShadow: '0 0 60px rgba(255, 194, 61, 0.35)',
+            }}
+          >
+            <img src={foto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        ) : (
+          // Sem foto da curadoria: a fachada toda acesa é a comemoração.
+          <Fachada
+            pauta={{ ...pauta, apoios: pauta.meta }}
+            colunas={10}
+            linhas={3}
+            janela={72}
+            vao={18}
+          />
+        )}
       </div>
       <Rodape pauta={pauta} endereco={endereco} qr={qr} />
     </div>
