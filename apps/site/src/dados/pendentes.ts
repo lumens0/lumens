@@ -45,17 +45,34 @@ export function limparPendente(): void {
   pendente = null;
 }
 
+/** O que vale agora: a escolha pendente (se ainda vale) ou, sem ela, a que a página mostra. */
+export function escolhaVigente(atual: Escolhas, agora: number = Date.now()): Escolhas {
+  return pendente !== null && agora - pendente.em < VALIDADE_DA_ESCOLHA_PENDENTE_MS
+    ? pendente.escolhas
+    : atual;
+}
+
+/**
+ * Troca os blocos de uma vez (a folha), mantendo as etapas da escolha pendente: quem alterna uma
+ * etapa e logo aplica os blocos antes de a página refletir não perde a etapa.
+ */
+export function aplicarBlocos(
+  atual: Escolhas,
+  blocos: readonly string[],
+  agora: number = Date.now(),
+): Escolhas {
+  const proxima: Escolhas = { ...escolhaVigente(atual, agora), bloco: [...blocos] };
+  pendente = { escolhas: proxima, em: agora };
+  return proxima;
+}
+
 /** Zera um grupo (por exemplo, "Todas" nas etapas), partindo da escolha pendente se ela ainda vale. */
 export function limparGrupo(
   atual: Escolhas,
   grupo: keyof Escolhas,
   agora: number = Date.now(),
 ): Escolhas {
-  const base =
-    pendente !== null && agora - pendente.em < VALIDADE_DA_ESCOLHA_PENDENTE_MS
-      ? pendente.escolhas
-      : atual;
-  const proxima: Escolhas = { ...base, [grupo]: [] };
+  const proxima: Escolhas = { ...escolhaVigente(atual, agora), [grupo]: [] };
   pendente = { escolhas: proxima, em: agora };
   return proxima;
 }
