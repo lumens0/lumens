@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import estilos from '../painel.module.css';
-import { urlDaLista } from './url-da-lista';
+import { mesmaBusca, urlDaLista } from './url-da-lista';
 
 /**
  * A busca da lista: filtra enquanto se digita (a URL muda depois de uma pausa curta e o servidor
@@ -27,13 +27,13 @@ export function BuscaDaLista({
   useEffect(() => {
     // Busca que chegou de fora (por exemplo, "Limpar filtros"): o campo acompanha. A que a própria
     // pessoa digitou e já enviou não o reescreve no meio da digitação.
-    if (q.trim() !== ultimo.current.trim()) {
+    if (!mesmaBusca(q, ultimo.current)) {
       ultimo.current = q;
       setTexto(q);
     }
   }, [q]);
   useEffect(() => {
-    if (texto.trim() === ultimo.current.trim()) return;
+    if (mesmaBusca(texto, ultimo.current)) return;
     const espera = setTimeout(() => {
       ultimo.current = texto;
       roteador.replace(urlDaLista({ ...filtros.current, q: texto }), { scroll: false });

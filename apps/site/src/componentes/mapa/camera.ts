@@ -1,0 +1,191 @@
+// A câmera do mapa e a lista de lugares, sem React nem DOM: o componente só aplica estes números.
+import type { Pauta, StatusPauta } from '../../dados/tipos';
+import { PREDIOS, type Predio } from './predios';
+import type { MarcadorDoBloco } from './urgencia';
+
+/** Onde a câmera olha (`cx`, `cy`, em metros do desenho) e quantos metros cabem na largura. */
+export type Camera = { cx: number; cy: number; w: number };
+
+/** O tamanho do palco em pixels. */
+export type Medida = { vw: number; vh: number };
+
+/** Limites de aproximação, em metros de largura visível. */
+export const LARGURA_MINIMA = 140;
+export const LARGURA_MAXIMA = 2300;
+
+/** Abaixo desta largura visível, os nomes de todos os prédios aparecem ("perto"). */
+export const LARGURA_DO_PERTO = 620;
+
+/** Celular: abaixo desta largura de tela a lista vira gaveta e a câmera sobe para abrir espaço. */
+export const LARGURA_DO_CELULAR = 900;
+
+export const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+/** Quem aparece primeiro numa disputa de cor: o que mais pede atenção. */
+const PRIO: Partial<Record<StatusPauta, number>> = {
+  descumprida: 0,
+  cobrando: 1,
+  prometido: 2,
+  meta_batida: 3,
+  entregue_em_parte: 4,
+  juntando_apoios: 5,
+  conquistada: 6,
+};
+
+export const prio = (p: Pauta) => PRIO[p.status] ?? 9;
+
+/** Da mais para a menos urgente; no empate, a de mais apoios. */
+export const porPrioridade = (a: Pauta, b: Pauta) => prio(a) - prio(b) || b.apoios - a.apoios;
+
+export const melhor = (ps: readonly Pauta[]): Pauta | undefined => [...ps].sort(porPrioridade)[0];
+
+/** Um lugar do mapa: um prédio e as pautas dos blocos que moram nele. */
+export interface Local {
+  chave: string;
+  predio: Predio;
+  nome: string;
+  slug: string;
+  pautas: Pauta[];
+  centro: { x: number; y: number; s: number };
+  /** Onde o nome fica: o meio da borda de baixo do prédio. */
+  base: { x: number; y: number };
+}
+
+/** Um lugar por prédio; blocos sem prédio ficam só na lista. */
+export function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
+  const porPredio = new Map<number, Local>();
+  for (const m of marcadores) {
+    if (m.predio === undefined) continue;
+    const existente = porPredio.get(m.predio);
+    if (existente) {
+      existente.pautas.push(...m.pautas);
+      continue;
+    }
+    const predio = PREDIOS.find((p) => p.id === m.predio);
+    if (!predio) continue;
+    const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
+    porPredio.set(m.predio, {
+      chave: m.slug,
+      predio,
+      nome: m.nome,
+      slug: m.slug,
+      pautas: [...m.pautas],
+      centro: { x: x + w / 2, y: y + h / 2, s: Math.max(w, h) },
+      base: { x: x + w / 2, y: y + h },
+    });
+  }
+  return [...porPredio.values()];
+}
+
+/** As pautas do lugar na etapa filtrada (sem filtro, todas). */
+export const ativas = (l: Local, filtro: StatusPauta | null) =>
+  l.pautas.filter((p) => !filtro || p.status === filtro);
+
+/** Prioridade do lugar: a da pauta que mais pede atenção; 9 sem pauta. */
+export const prioDoLocal = (l: Local, filtro: StatusPauta | null) => {
+  const topo = melhor(ativas(l, filtro));
+  return topo ? prio(topo) : 9;
+};
+
+/** O `viewBox` do desenho e quantos metros vale um pixel (`k`). */
+export function quadroDaCamera(cam: Camera, medida: Medida) {
+  const k = cam.w / medida.vw;
+  const h = medida.vh * k;
+  return {
+    k,
+    viewBox: `${String(cam.cx - cam.w / 2)} ${String(cam.cy - h / 2)} ${String(cam.w)} ${String(h)}`,
+  };
+}
+
+/** Passo `e` (0 a 1, já suavizado) do voo de `de` até `para`; a largura cresce em escala. */
+export function interpolar(de: Camera, para: Camera, e: number): Camera {
+  return {
+    cx: de.cx + (para.cx - de.cx) * e,
+    cy: de.cy + (para.cy - de.cy) * e,
+    w: de.w * Math.pow(para.w / de.w, e),
+  };
+}
+
+/** Suaviza o progresso `k` (0 a 1): sai rápido e chega devagar. */
+export const suavizar = (k: number) => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+
+/**
+ * Quanto o centro da câmera desce para o ponto ficar na parte livre acima da gaveta (celular).
+ * No computador, a lista fica ao lado e não há deslocamento.
+ */
+export function deslocar(w: number, gavetaPx: number, medida: Medida, celular: boolean): number {
+  if (!celular) return 0;
+  const k = w / medida.vw;
+  const alvo = (74 + medida.vh - gavetaPx) / 2;
+  return (medida.vh / 2 - alvo) * k;
+}
+
+/** Enquadra todos os lugares (ou só os da etapa filtrada); sem lugar nenhum, `null`. */
+export function enquadrarLugares(
+  locais: readonly Local[],
+  filtro: StatusPauta | null,
+  medida: Medida,
+  celular: boolean,
+): Camera | null {
+  let alvo = locais.filter((l) => ativas(l, filtro).length > 0);
+  if (alvo.length === 0) alvo = [...locais];
+  if (alvo.length === 0) return null;
+  const xs = alvo.map((l) => l.centro.x);
+  const ys = alvo.map((l) => l.centro.y);
+  const x0 = Math.min(...xs);
+  const x1 = Math.max(...xs);
+  const y0 = Math.min(...ys);
+  const y1 = Math.max(...ys);
+  const bw = Math.max(x1 - x0, 80);
+  const bh = Math.max(y1 - y0, 80);
+  const r = medida.vh / medida.vw;
+  const util = celular ? 0.58 : 0.8;
+  const w = Math.max(bw * 1.5, (bh * 1.5) / (r * util));
+  return {
+    cx: (x0 + x1) / 2,
+    cy: (y0 + y1) / 2 + deslocar(w, 188, medida, celular),
+    w: clamp(w, 200, LARGURA_MAXIMA),
+  };
+}
+
+/** Aproxima o prédio escolhido; no celular, deixa-o acima da gaveta. */
+export function enquadrarLocal(
+  l: Local,
+  medida: Medida,
+  celular: boolean,
+  alturaDaTela: number,
+): Camera {
+  const w = Math.max(230, l.centro.s * 4.2);
+  return {
+    cx: l.centro.x,
+    cy: l.centro.y + deslocar(w, Math.min(0.46 * alturaDaTela, 400), medida, celular),
+    w,
+  };
+}
+
+/**
+ * Aproxima (`f` < 1) ou afasta (`f` > 1) mantendo parado o ponto da tela (`px`, `py`, relativo ao
+ * canto do palco) que está sob o dedo ou o ponteiro.
+ */
+export function zoomNoPonto(cam: Camera, medida: Medida, f: number, px: number, py: number) {
+  const k = cam.w / medida.vw;
+  const mx = cam.cx + (px - medida.vw / 2) * k;
+  const my = cam.cy + (py - medida.vh / 2) * k;
+  const w = clamp(cam.w * f, LARGURA_MINIMA, LARGURA_MAXIMA);
+  const nk = w / medida.vw;
+  return { cx: mx - (px - medida.vw / 2) * nk, cy: my - (py - medida.vh / 2) * nk, w };
+}
+
+/** Largura da câmera numa pinça: os dedos se afastando (`distancia` maior) aproximam o mapa. */
+export function larguraDaPinca(larguraInicial: number, inicial: number, distancia: number) {
+  return clamp((larguraInicial * inicial) / distancia, LARGURA_MINIMA, LARGURA_MAXIMA);
+}
+
+/** Arrastar `dx`, `dy` pixels leva a câmera no sentido contrário. */
+export function arrastar(cam: Camera, medida: Medida, dx: number, dy: number): Camera {
+  const k = cam.w / medida.vw;
+  return { ...cam, cx: cam.cx - dx * k, cy: cam.cy - dy * k };
+}
+
+/** Passo das setas do teclado: 60 pixels da tela, em metros. */
+export const passoDoTeclado = (cam: Camera, medida: Medida) => (cam.w / medida.vw) * 60;

@@ -8,7 +8,27 @@ import { comandoApoiar, comandoNovaPautaNoBloco, linkDoBot, nomeDoCanal } from '
 import { formatarNumero } from '../BarraApoios';
 import { aceitaApoio } from '../../dados/pautas-publicas';
 import { STATUS } from '../StatusPill';
-import { CAMINHOS, CONTORNO, PREDIOS, type Predio } from './predios';
+import {
+  arrastar,
+  ativas,
+  clamp,
+  enquadrarLocal,
+  enquadrarLugares,
+  interpolar,
+  larguraDaPinca,
+  LARGURA_DO_CELULAR,
+  LARGURA_DO_PERTO,
+  locaisDe,
+  melhor,
+  passoDoTeclado,
+  porPrioridade,
+  prioDoLocal,
+  quadroDaCamera,
+  suavizar,
+  zoomNoPonto,
+  type Camera,
+} from './camera';
+import { CAMINHOS, CONTORNO, PREDIOS } from './predios';
 import type { MarcadorDoBloco } from './urgencia';
 import estilos from './campus.module.css';
 
@@ -23,17 +43,6 @@ const ETAPAS: readonly StatusPauta[] = [
   'descumprida',
 ];
 
-/** Quem aparece primeiro numa disputa de cor: o que mais pede atenção. */
-const PRIO: Partial<Record<StatusPauta, number>> = {
-  descumprida: 0,
-  cobrando: 1,
-  prometido: 2,
-  meta_batida: 3,
-  entregue_em_parte: 4,
-  juntando_apoios: 5,
-  conquistada: 6,
-};
-
 /** O que a lista de blocos diz do status que manda na cor do bloco. */
 const URG: Partial<Record<StatusPauta, string>> = {
   descumprida: 'Promessa descumprida',
@@ -45,57 +54,8 @@ const URG: Partial<Record<StatusPauta, string>> = {
   conquistada: 'Só conquistas',
 };
 
-const prio = (p: Pauta) => PRIO[p.status] ?? 9;
 const cor = (status: StatusPauta) => STATUS[status].ponto;
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const plural = (n: number, um: string, varios: string) => `${String(n)} ${n === 1 ? um : varios}`;
-
-/** Um lugar do mapa: um prédio e as pautas dos blocos que moram nele. */
-interface Local {
-  chave: string;
-  predio: Predio;
-  nome: string;
-  slug: string;
-  pautas: Pauta[];
-  centro: { x: number; y: number; s: number };
-  /** Onde o nome fica: o meio da borda de baixo do prédio. */
-  base: { x: number; y: number };
-}
-
-function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
-  const porPredio = new Map<number, Local>();
-  for (const m of marcadores) {
-    if (m.predio === undefined) continue;
-    const existente = porPredio.get(m.predio);
-    if (existente) {
-      existente.pautas.push(...m.pautas);
-      continue;
-    }
-    const predio = PREDIOS.find((p) => p.id === m.predio);
-    if (!predio) continue;
-    const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
-    porPredio.set(m.predio, {
-      chave: m.slug,
-      predio,
-      nome: m.nome,
-      slug: m.slug,
-      pautas: [...m.pautas],
-      centro: { x: x + w / 2, y: y + h / 2, s: Math.max(w, h) },
-      base: { x: x + w / 2, y: y + h },
-    });
-  }
-  return [...porPredio.values()];
-}
-
-const ativas = (l: Local, filtro: StatusPauta | null) =>
-  l.pautas.filter((p) => !filtro || p.status === filtro);
-const melhor = (ps: readonly Pauta[]) =>
-  [...ps].sort((a, b) => prio(a) - prio(b) || b.apoios - a.apoios)[0];
-const prioDoLocal = (l: Local, f: StatusPauta | null) => {
-  const topo = melhor(ativas(l, f));
-  return topo ? prio(topo) : 9;
-};
-const porPrioridade = (a: Pauta, b: Pauta) => prio(a) - prio(b) || b.apoios - a.apoios;
 
 /** O botão "Apoiar pelo WhatsApp" da pauta na gaveta; sem bot configurado, não aparece. */
 function Apoiar({ pauta }: { pauta: Pauta }) {
@@ -143,8 +103,6 @@ function Glifo({ status }: { status: StatusPauta }) {
   );
 }
 
-type Camera = { cx: number; cy: number; w: number };
-
 /**
  * Mapa do campus em tela cheia (protótipo). Os blocos com pauta acendem na cor da que mais pede
  * atenção; os chips filtram por etapa; tocar num prédio aproxima o mapa e abre as pautas dele na
@@ -180,21 +138,15 @@ export function MapaDoCampus({
   }, [filtro, locais, porChave]);
 
   const reduzido = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const celular = () => window.innerWidth < 900;
+  const celular = () => window.innerWidth < LARGURA_DO_CELULAR;
 
   /** Põe a câmera no desenho: o `viewBox`, o raio dos pontos e o tamanho dos nomes. */
   const aplicar = useCallback(() => {
     const el = svg.current;
     if (!el) return;
-    const { vw, vh } = medida.current;
-    const { cx, cy, w } = cam.current;
-    const k = w / vw;
-    const h = vh * k;
-    el.setAttribute(
-      'viewBox',
-      `${String(cx - w / 2)} ${String(cy - h / 2)} ${String(w)} ${String(h)}`,
-    );
-    palco.current?.classList.toggle(estilos.perto ?? '', w < 620);
+    const { k, viewBox } = quadroDaCamera(cam.current, medida.current);
+    el.setAttribute('viewBox', viewBox);
+    palco.current?.classList.toggle(estilos.perto ?? '', cam.current.w < LARGURA_DO_PERTO);
     el.querySelectorAll('[data-ponto]').forEach((e) => {
       e.setAttribute('r', String(3.5 * k));
     });
@@ -230,12 +182,7 @@ export function MapaDoCampus({
       const t0 = performance.now();
       const passo = (t: number) => {
         const k = clamp((t - t0) / ms, 0, 1);
-        const e = 1 - Math.pow(1 - k, 3);
-        cam.current = {
-          cx: de.cx + (para.cx - de.cx) * e,
-          cy: de.cy + (para.cy - de.cy) * e,
-          w: de.w * Math.pow(para.w / de.w, e),
-        };
+        cam.current = interpolar(de, para, suavizar(k));
         aplicar();
         if (k < 1) animacao.current = requestAnimationFrame(passo);
       };
@@ -244,34 +191,12 @@ export function MapaDoCampus({
     [aplicar],
   );
 
-  /** Quanto o centro da câmera desce para o ponto ficar na parte livre acima da gaveta (celular). */
-  const deslocar = (w: number, gavetaPx: number) => {
-    if (!celular()) return 0;
-    const { vw, vh } = medida.current;
-    const k = w / vw;
-    const alvo = (74 + vh - gavetaPx) / 2;
-    return (vh / 2 - alvo) * k;
-  };
-
   const enquadrarTudo = useCallback(() => {
     const { filtro: f, locais: ls } = vivo.current;
-    let alvo = ls.filter((l) => ativas(l, f).length > 0);
-    if (alvo.length === 0) alvo = ls;
-    if (alvo.length === 0) return;
-    const xs = alvo.map((l) => l.centro.x);
-    const ys = alvo.map((l) => l.centro.y);
-    const x0 = Math.min(...xs);
-    const x1 = Math.max(...xs);
-    const y0 = Math.min(...ys);
-    const y1 = Math.max(...ys);
-    const { vw, vh } = medida.current;
-    const bw = Math.max(x1 - x0, 80);
-    const bh = Math.max(y1 - y0, 80);
-    const r = vh / vw;
-    const util = celular() ? 0.58 : 0.8;
-    const w = Math.max(bw * 1.5, (bh * 1.5) / (r * util));
+    const alvo = enquadrarLugares(ls, f, medida.current, celular());
+    if (!alvo) return;
     setGaveta('');
-    voar({ cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 + deslocar(w, 188), w: clamp(w, 200, 2300) }, 700);
+    voar(alvo, 700);
   }, [voar]);
 
   const escolher = useCallback(
@@ -280,15 +205,7 @@ export function MapaDoCampus({
       if (!l) return;
       setSel(chave);
       setGaveta('meio');
-      const w = Math.max(230, l.centro.s * 4.2);
-      voar(
-        {
-          cx: l.centro.x,
-          cy: l.centro.y + deslocar(w, Math.min(0.46 * window.innerHeight, 400)),
-          w,
-        },
-        800,
-      );
+      voar(enquadrarLocal(l, medida.current, celular(), window.innerHeight), 800);
     },
     [voar],
   );
@@ -318,18 +235,7 @@ export function MapaDoCampus({
       const el = palco.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const { vw } = medida.current;
-      const c = cam.current;
-      const k = c.w / vw;
-      const mx = c.cx + (px - r.left - vw / 2) * k;
-      const my = c.cy + (py - r.top - medida.current.vh / 2) * k;
-      const nw = clamp(c.w * f, 140, 2300);
-      const nk = nw / vw;
-      cam.current = {
-        cx: mx - (px - r.left - vw / 2) * nk,
-        cy: my - (py - r.top - medida.current.vh / 2) * nk,
-        w: nw,
-      };
+      cam.current = zoomNoPonto(cam.current, medida.current, f, px - r.left, py - r.top);
       aplicar();
     },
     [aplicar],
@@ -369,15 +275,14 @@ export function MapaDoCampus({
       p.x = e.clientX;
       p.y = e.clientY;
       if (ponteiros.size === 1) {
-        const k = cam.current.w / medida.current.vw;
-        cam.current = { ...cam.current, cx: cam.current.cx - dx * k, cy: cam.current.cy - dy * k };
+        cam.current = arrastar(cam.current, medida.current, dx, dy);
         mexeu += Math.abs(dx) + Math.abs(dy);
         if (mexeu > 6) esconderDicaRef.current();
         aplicar();
       } else if (ponteiros.size === 2 && pinca) {
         mexeu = 99;
         esconderDicaRef.current();
-        cam.current = { ...cam.current, w: clamp((pinca.w * pinca.d) / dist(), 140, 2300) };
+        cam.current = { ...cam.current, w: larguraDaPinca(pinca.w, pinca.d, dist()) };
         aplicar();
       }
     };
@@ -400,7 +305,7 @@ export function MapaDoCampus({
       zoomEm(Math.exp(e.deltaY * 0.0016), e.clientX, e.clientY);
     };
     const tecla = (e: KeyboardEvent) => {
-      const k = (cam.current.w / medida.current.vw) * 60;
+      const k = passoDoTeclado(cam.current, medida.current);
       const mover: Record<string, [number, number]> = {
         ArrowLeft: [-k, 0],
         ArrowRight: [k, 0],

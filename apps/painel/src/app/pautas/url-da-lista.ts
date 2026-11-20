@@ -18,3 +18,6 @@ export function urlDaLista({ situacoes, pendencias, q }: ParametrosDaListaDoPain
   if (q.trim() !== '') partes.push(`q=${encodeURIComponent(q.trim())}`);
   return partes.length === 0 ? '/pautas' : `/pautas?${partes.join('&')}`;
 }
+
+/** Duas buscas são a mesma quando só diferem nos espaços das pontas (a URL guarda a busca aparada). */
+export const mesmaBusca = (a: string, b: string): boolean => a.trim() === b.trim();
