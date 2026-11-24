@@ -15,10 +15,27 @@ import { criarDados, zerarBanco, type GuardarArquivo } from '@lumens/db/demo';
 import { randomInt } from 'node:crypto';
 import sharp from 'sharp';
 
-const LOCAL = /^(https?:\/\/|postgres(ql)?:\/\/[^@]*@)(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/;
+const HOSTS_LOCAIS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * Só o host que a conexão realmente usa conta: o `pg` deixa `?host=` e `?hostaddr=` da query
+ * sobrescreverem o da URL, então `postgres://u@localhost/db?host=prod` não é local.
+ */
+function ehLocal(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return (
+      HOSTS_LOCAIS.has(u.hostname) && !u.searchParams.has('host') && !u.searchParams.has('hostaddr')
+    );
+  } catch {
+    return false;
+  }
+}
+
 const { DATABASE_URL_MIGRACAO, S3_ENDPOINT, S3_BUCKET_FOTOS, AWS_REGION } = process.env;
 
-if (!DATABASE_URL_MIGRACAO || !LOCAL.test(DATABASE_URL_MIGRACAO)) {
+if (!DATABASE_URL_MIGRACAO || !ehLocal(DATABASE_URL_MIGRACAO)) {
   console.error('db:demo só roda com DATABASE_URL_MIGRACAO apontando para localhost.');
   process.exit(1);
 }
@@ -87,7 +104,7 @@ try {
     throw new Error('Nenhum curador ativo cadastrado: cadastre um (pnpm curador) antes do demo.');
   }
   let guardarArquivo: GuardarArquivo | undefined;
-  if (S3_ENDPOINT && S3_BUCKET_FOTOS && LOCAL.test(S3_ENDPOINT)) {
+  if (S3_ENDPOINT && S3_BUCKET_FOTOS && ehLocal(S3_ENDPOINT)) {
     const s3 = new S3Client({
       region: AWS_REGION ?? 'us-east-1',
       endpoint: S3_ENDPOINT,
