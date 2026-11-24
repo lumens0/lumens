@@ -1432,6 +1432,8 @@ export async function criarDados(db: Db, opcoes: OpcoesDoDemo = {}): Promise<Res
       'ar-condicionado-em-todas-as-salas',
       0,
       {
+        // Falha antes do envio: o fluxo real registra só `falhouEm`, sem `enviadoEm`.
+        enviadoEm: null,
         falhouEm: atras(19),
         wamidHmac: null,
         falha: 'Fora da janela de 24h e sem modelo aprovado.',
