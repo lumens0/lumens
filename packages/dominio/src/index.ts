@@ -239,6 +239,7 @@ export {
   sugerirCategoria,
 } from './pauta/categoria-sugerida';
 
+export { cursoServeAoBloco } from './pauta/curso-do-bloco';
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 

@@ -33,7 +33,7 @@ import {
 } from '@lumens/dominio';
 import { z } from 'zod';
 import { conviteCoOwner } from './co-owner';
-import { estudanteVerificado } from './estudante';
+import { estudanteVerificado, nomeDoBloco } from './estudante';
 import { removerFotosSoltas } from './fotos-temporarias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { SKIP_WORDS as FIM_DAS_FOTOS, photoMoreText, photoRefusedText } from './nova-pauta';
@@ -46,6 +46,9 @@ export const SUPPORT_NOT_VERIFIED_TEXT =
   'Não consegui registrar o apoio: falta verificar o seu e-mail institucional. Mande *menu* e escolha *Verificar e-mail* para verificar.';
 export const SUPPORT_CLOSED_TEXT =
   'Essa pauta não está recebendo apoios agora. Mande *menu* e escolha *Relatar problema* para relatar outro problema.';
+/** SCRUM-399: a pauta é de um bloco com cursos, e o curso do estudante não é um deles. */
+export const supportOutsideBlockText = (bloco: string): string =>
+  `Essa pauta é do *${bloco}* e só recebe apoio de estudantes dos cursos dele, por isso não consegui registrar o seu. Mande *menu* para ver outras pautas.`;
 export const SUPPORT_NOT_FOUND_TEXT =
   'Não encontrei essa pauta. Mande *menu* e escolha *Relatar problema* para relatar o problema de novo.';
 export const ASK_ATTACH_REPORT_TEXT =
@@ -209,6 +212,14 @@ export async function entrarNoApoio(
       return fim([...antes, SUPPORT_NOT_VERIFIED_TEXT]);
     }
     if (resultado.motivo === 'pauta_inexistente') return fim([...antes, SUPPORT_NOT_FOUND_TEXT]);
+    if (resultado.motivo === 'fora_do_bloco') {
+      const [pauta] = await db
+        .select({ blocoId: pautas.blocoId })
+        .from(pautas)
+        .where(eq(pautas.id, pautaId));
+      const bloco = pauta?.blocoId == null ? 'bloco' : await nomeDoBloco(db, pauta.blocoId);
+      return fim([...antes, supportOutsideBlockText(bloco)]);
+    }
     return fim([...antes, SUPPORT_CLOSED_TEXT]);
   }
 

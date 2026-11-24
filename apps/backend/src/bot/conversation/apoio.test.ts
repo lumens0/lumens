@@ -1,5 +1,6 @@
 import {
   apoios,
+  blocoCursos,
   blocos,
   conversas,
   disparos,
@@ -32,6 +33,7 @@ import {
   cardDaPauta,
   goalReachedText,
   reportTooLongText,
+  supportOutsideBlockText,
   supportedText,
 } from './apoio';
 import { COOWNER_INVITE_TEXT } from './co-owner';
@@ -207,6 +209,33 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     expect(await apoiosDaPauta()).toHaveLength(0);
     expect(await passo()).toBe('MENU');
     expect(await dados()).toEqual({});
+  });
+
+  it('pauta de bloco com cursos: quem é de outro curso não apoia e volta ao menu (SCRUM-399)', async () => {
+    await verificar();
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    const [b18] = await db.select({ id: blocos.id }).from(blocos);
+    await db.insert(blocoCursos).values({ blocoId: b18?.id ?? '', curso: 'História' });
+    await send('1');
+    await send(RELATO);
+
+    expect(await send(`pauta:${pautaId}`)).toEqual([
+      supportOutsideBlockText('Bloco 18'),
+      MENU_PRINCIPAL,
+    ]);
+    expect(await apoiosDaPauta()).toHaveLength(0);
+    expect(await passo()).toBe('MENU');
+  });
+
+  it('o mesmo bloco aceita quem é do curso dele (SCRUM-399)', async () => {
+    await verificar();
+    await db.update(estudantes).set({ curso: 'História' });
+    const [b18] = await db.select({ id: blocos.id }).from(blocos);
+    await db.insert(blocoCursos).values({ blocoId: b18?.id ?? '', curso: 'História' });
+
+    await escolherAPauta();
+
+    expect(await apoiosDaPauta()).toHaveLength(1);
   });
 
   it('quem não é verificado vai para a verificação com o apoio guardado', async () => {

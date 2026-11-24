@@ -232,6 +232,13 @@
       "when": 1795540097075,
       "tag": "0032_blocos_cos_cepetec",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795557818845,
+      "tag": "0033_bloco_curso",
+      "breakpoints": true
     }
   ]
 }

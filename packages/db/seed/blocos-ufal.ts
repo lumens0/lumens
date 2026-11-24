@@ -15,7 +15,7 @@
  * (até 135 estudantes). A meta de cada pauta congela na criação (decisão 3 do SCRUM-80); se surgir
  * número melhor, corrija com UPDATE em `bloco` enquanto não houver pauta no bloco.
  */
-import { blocos, type Db } from '../src/index';
+import { blocoCursos, blocos, CURSOS_DOS_BLOCOS, inArray, type Db } from '../src/index';
 
 export const blocosUfal = [
   { slug: 'ic', nome: 'IC - Instituto de Computação', baseEstudantes: 585 },
@@ -62,12 +62,25 @@ export const blocosUfal = [
   { slug: 'ginasio', nome: 'Ginásio da UFAL', baseEstudantes: 1000 },
 ] as const;
 
-/** Cadastra os blocos que faltam, pelo slug; não mexe em bloco que já existe. */
+/**
+ * Cadastra os blocos que faltam, pelo slug; não mexe em bloco que já existe. Devolve quantos blocos
+ * entraram. Os cursos de cada bloco (SCRUM-399) também entram, uma vez só: rodar de novo não duplica.
+ */
 export async function cadastrarBlocosUfal(db: Db): Promise<number> {
   const novos = await db
     .insert(blocos)
     .values(blocosUfal.map((b) => ({ ...b })))
     .onConflictDoNothing({ target: blocos.slug })
     .returning({ id: blocos.id });
+
+  const slugs = Object.keys(CURSOS_DOS_BLOCOS);
+  const ids = await db
+    .select({ id: blocos.id, slug: blocos.slug })
+    .from(blocos)
+    .where(inArray(blocos.slug, slugs));
+  const vinculos = ids.flatMap(({ id, slug }) =>
+    (CURSOS_DOS_BLOCOS[slug] ?? []).map((curso) => ({ blocoId: id, curso })),
+  );
+  if (vinculos.length > 0) await db.insert(blocoCursos).values(vinculos).onConflictDoNothing();
   return novos.length;
 }

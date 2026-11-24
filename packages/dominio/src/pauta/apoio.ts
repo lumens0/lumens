@@ -5,10 +5,12 @@
  * RN01: só estudante verificado (e que não saiu) apoia. RN02: um apoio por estudante por pauta.
  * RN05: bater a meta não bloqueia nada; grava `meta_batida_em`, emite o evento e avisa quem chamou,
  * mesmo com a pauta já em `cobrando`. RN12: o apoio conta na hora, só em pauta aprovada.
+ * SCRUM-399: pauta de bloco com cursos só recebe apoio de estudante desses cursos.
  */
 import { STATUS_SEM_APOIO } from '@lumens/contratos';
-import { apoios, eq, estudantes, pautas, sql, type StatusPauta, type Tx } from '@lumens/db';
+import { and, apoios, eq, estudantes, pautas, sql, type StatusPauta, type Tx } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { cursoServeAoBloco } from './curso-do-bloco';
 import { transicionarStatus } from './status';
 
 /**
@@ -36,7 +38,12 @@ export type ResultadoApoio =
   | { registrado: false; motivo: 'ja_apoiou'; totalApoios: number }
   | {
       registrado: false;
-      motivo: 'pauta_inexistente' | 'pauta_sem_apoio' | 'estudante_nao_verificado';
+      motivo:
+        | 'pauta_inexistente'
+        | 'pauta_sem_apoio'
+        | 'estudante_nao_verificado'
+        /** O curso do estudante não é dos cursos do bloco da pauta (SCRUM-399). */
+        | 'fora_do_bloco';
     };
 
 /** Registra o apoio na transação de quem chama. Recusas voltam como resultado, sem exceção. */
@@ -47,7 +54,12 @@ export async function registrarApoio(
   // FOR UPDATE na pauta enfileira apoios simultâneos da mesma pauta: cada um conta o total já com
   // o anterior gravado, e só um deles vê `meta_batida_em` nulo ao cruzar a meta.
   const [pauta] = await tx
-    .select({ status: pautas.status, meta: pautas.meta, metaBatidaEm: pautas.metaBatidaEm })
+    .select({
+      status: pautas.status,
+      meta: pautas.meta,
+      metaBatidaEm: pautas.metaBatidaEm,
+      blocoId: pautas.blocoId,
+    })
     .from(pautas)
     .where(eq(pautas.id, pautaId))
     .for('update');
@@ -57,13 +69,26 @@ export async function registrarApoio(
 
   // FOR UPDATE no estudante: serializa com sairDoLumens para impedir apoio de quem está saindo.
   const [estudante] = await tx
-    .select({ verificadoEm: estudantes.verificadoEm, saiuEm: estudantes.saiuEm })
+    .select({
+      verificadoEm: estudantes.verificadoEm,
+      saiuEm: estudantes.saiuEm,
+      curso: estudantes.curso,
+    })
     .from(estudantes)
     .where(eq(estudantes.id, estudanteId))
     .for('update');
 
   if (estudante?.verificadoEm == null || estudante.saiuEm !== null) {
     return { registrado: false, motivo: 'estudante_nao_verificado' };
+  }
+
+  // Quem já apoiou antes da trava (ou antes de trocar de curso) continua apoiando: cai em `ja_apoiou`.
+  if (!(await cursoServeAoBloco(tx, { blocoId: pauta.blocoId, curso: estudante.curso }))) {
+    const [jaApoia] = await tx
+      .select({ pautaId: apoios.pautaId })
+      .from(apoios)
+      .where(and(eq(apoios.pautaId, pautaId), eq(apoios.estudanteId, estudanteId)));
+    if (jaApoia === undefined) return { registrado: false, motivo: 'fora_do_bloco' };
   }
 
   const inseridos = await tx

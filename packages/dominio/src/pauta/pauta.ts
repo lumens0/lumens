@@ -26,6 +26,7 @@ import {
   type Tx,
 } from '@lumens/db';
 import { registrarEvento } from '../compartilhado/eventos';
+import { cursoServeAoBloco } from './curso-do-bloco';
 import { calcularMeta } from './meta';
 
 /** Limite do título (RF-B03): cabe numa linha do site e numa notificação do WhatsApp. */
@@ -68,6 +69,8 @@ export type ResultadoCriacao =
       motivo:
         | 'estudante_nao_verificado'
         | 'bloco_inexistente'
+        /** O curso do estudante não é dos cursos do bloco escolhido (SCRUM-399). */
+        | 'fora_do_bloco'
         | 'titulo_vazio'
         | 'titulo_longo'
         | 'descricao_vazia'
@@ -122,7 +125,11 @@ export async function criarPauta(
   // RN01 vale para criar também: só quem é estudante verificado, e não saiu, abre pauta.
   // FOR UPDATE serializa com sairDoLumens para impedir pauta criada por estudante em processo de saída.
   const [estudante] = await tx
-    .select({ verificadoEm: estudantes.verificadoEm, saiuEm: estudantes.saiuEm })
+    .select({
+      verificadoEm: estudantes.verificadoEm,
+      saiuEm: estudantes.saiuEm,
+      curso: estudantes.curso,
+    })
     .from(estudantes)
     .where(eq(estudantes.id, estudanteId))
     .for('update');
@@ -138,6 +145,10 @@ export async function criarPauta(
       .where(eq(blocos.id, blocoId));
     if (achado === undefined) return { criada: false, motivo: 'bloco_inexistente' };
     bloco = achado;
+    // O owner ganha o primeiro apoio da pauta na aprovação: quem não pode apoiar o bloco não abre pauta nele.
+    if (!(await cursoServeAoBloco(tx, { blocoId, curso: estudante.curso }))) {
+      return { criada: false, motivo: 'fora_do_bloco' };
+    }
   }
 
   // A meta é calculada agora e não muda mais, mesmo se a base do bloco mudar depois (RN04).

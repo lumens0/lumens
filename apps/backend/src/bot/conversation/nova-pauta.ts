@@ -47,7 +47,7 @@ import {
   listaDeCategorias,
   respostaDaSugestao,
 } from './categorias';
-import { estudanteVerificado } from './estudante';
+import { blocoQueRecusa, estudanteVerificado, nomeDoBloco } from './estudante';
 import { removerFotosSoltas } from './fotos-temporarias';
 import type { DataPatch, Segredo, StepContext, StepHandler, StepResult } from './handlers';
 import { listaDeParecidas, type Parecida } from './parecidas';
@@ -78,6 +78,9 @@ export const NOT_VERIFIED_AT_END_TEXT =
   'Não consegui criar a pauta: falta verificar o seu e-mail institucional. Mande *menu* e escolha *Verificar e-mail* para verificar.';
 export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Mande *menu* e escolha *Nova pauta* para começar de novo.';
+/** SCRUM-399: o bloco tem cursos e o do estudante não é um deles. */
+export const createOutsideBlockText = (bloco: string): string =>
+  `O *${bloco}* só recebe pautas de estudantes dos cursos dele. Para o seu curso, escolha outro bloco ou *Todo o campus*.`;
 export const DATA_LOST_TEXT =
   'Não consegui recuperar as respostas da sua pauta. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 
@@ -175,7 +178,8 @@ export async function entrarNaPautaNova(
     slugDoBloco === undefined
       ? undefined
       : (await listarBlocos(db)).find((b) => b.slug === slugDoBloco);
-  if ((await estudanteVerificado(db, phoneHmac)) === undefined) {
+  const estudanteDoTelefone = await estudanteVerificado(db, phoneHmac);
+  if (estudanteDoTelefone === undefined) {
     // Ao fim da verificação (2.4), `verifyAskCourse` vê o `pendingCommand` e volta para cá.
     return {
       next: 'VERIFY_ASK_EMAIL',
@@ -184,6 +188,13 @@ export async function entrarNaPautaNova(
     };
   }
   if (bloco === undefined) return { next: 'NEW_ASK_TITLE', replies: [...antes, NEW_TITLE_TEXT] };
+  const recusa = await blocoQueRecusa(db, estudanteDoTelefone, bloco.id);
+  if (recusa !== undefined) {
+    return {
+      next: 'NEW_ASK_TITLE',
+      replies: [...antes, createOutsideBlockText(recusa), NEW_TITLE_TEXT],
+    };
+  }
   return {
     next: 'NEW_ASK_TITLE',
     data: { blocoId: bloco.id },
@@ -217,11 +228,20 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
   );
 };
 
-export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) => {
+export const newAskPlace: StepHandler = async ({ state, input, db, segredo, phoneHmac }) => {
   const lista = await listarBlocos(db);
   const escolha = blocoEscolhido(input.text, lista);
   if (escolha === undefined) {
     return { next: 'NEW_ASK_PLACE', replies: [BLOCK_NOT_FOUND_TEXT, listaDeBlocos(lista)] };
+  }
+  const estudanteId = await estudanteVerificado(db, phoneHmac);
+  const recusa =
+    estudanteId === undefined ? undefined : await blocoQueRecusa(db, estudanteId, escolha.blocoId);
+  if (recusa !== undefined) {
+    return {
+      next: 'NEW_ASK_PLACE',
+      replies: [createOutsideBlockText(recusa), listaDeBlocos(lista)],
+    };
   }
   // O título faz o papel do relato na busca. Sem ele (dado perdido), segue: o fim avisa.
   const tituloDaPauta = decifrado(segredo, dadosDaPauta(state.data).tituloCifrado);
@@ -429,7 +449,9 @@ async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promi
     }),
   );
 
-  if (!resultado.criada) return await fim(textoDaRecusa(resultado.motivo));
+  if (!resultado.criada) {
+    return await fim(await textoDaRecusa(db, resultado.motivo, blocoId));
+  }
   return {
     next: 'MENU',
     data: LIMPAR,
@@ -440,12 +462,18 @@ async function finalizar(ctx: StepContext, fotoChaves: readonly string[]): Promi
   };
 }
 
-function textoDaRecusa(motivo: Extract<ResultadoCriacao, { criada: false }>['motivo']): string {
+async function textoDaRecusa(
+  db: Db,
+  motivo: Extract<ResultadoCriacao, { criada: false }>['motivo'],
+  blocoId: string | null,
+): Promise<string> {
   switch (motivo) {
     case 'estudante_nao_verificado':
       return NOT_VERIFIED_AT_END_TEXT;
     case 'bloco_inexistente':
       return BLOCK_GONE_TEXT;
+    case 'fora_do_bloco':
+      return createOutsideBlockText(blocoId === null ? 'bloco' : await nomeDoBloco(db, blocoId));
     // Título e descrição já foram conferidos nos passos; se chegarem errados, o dado se perdeu.
     case 'titulo_vazio':
     case 'titulo_longo':

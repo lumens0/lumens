@@ -1,5 +1,6 @@
 import {
   apoios,
+  blocoCursos,
   blocos,
   conversas,
   eq,
@@ -31,6 +32,7 @@ import {
   photoMoreText,
   TITLE_EMPTY_TEXT,
   VERIFY_FIRST_TEXT,
+  createOutsideBlockText,
   descriptionTooLongText,
   photoRefusedText,
   resumo,
@@ -464,6 +466,31 @@ describe('pauta nova pelo menu', () => {
     for (const t of ['Bebedouro', `bloco:${extra.id}`, 'categoria:outra', DESCRICAO]) await send(t);
     await db.delete(blocos).where(eq(blocos.id, extra.id));
     expect(await send('pular')).toEqual([BLOCK_GONE_TEXT, MENU_PRINCIPAL]);
+    expect(await todasAsPautas()).toEqual([]);
+  });
+
+  it('bloco com cursos: quem é de outro curso é avisado na escolha do bloco e segue na lista (SCRUM-399)', async () => {
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    await send('Palco sem iluminação');
+
+    const respostas = await send(`bloco:${artes}`);
+
+    expect(respostas[0]).toBe(createOutsideBlockText('Bloco de Artes'));
+    expect(await passo()).toBe('NEW_ASK_PLACE');
+    expect(await todasAsPautas()).toEqual([]);
+    // Quem é do curso escolhe o mesmo bloco e segue para a categoria.
+    await db.update(estudantes).set({ curso: 'Teatro' });
+    await send(`bloco:${artes}`);
+    expect(await passo()).not.toBe('NEW_ASK_PLACE');
+  });
+
+  it('bloco que ganhou cursos no meio da conversa recusa no fim, sem criar a pauta (SCRUM-399)', async () => {
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    for (const t of ['Palco', `bloco:${artes}`, 'categoria:outra', DESCRICAO]) await send(t);
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
+
+    expect(await send('pular')).toEqual([createOutsideBlockText('Bloco de Artes'), MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
   });
 
