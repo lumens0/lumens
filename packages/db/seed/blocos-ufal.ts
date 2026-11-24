@@ -44,6 +44,11 @@ export const blocosUfal = [
   { slug: 'csau', nome: 'CSAU - Centro de Ciências da Saúde', baseEstudantes: 1500 },
   { slug: 'biblioteca-central', nome: 'Biblioteca Central', baseEstudantes: 7000 },
   { slug: 'ru', nome: 'RU - Restaurante Universitário', baseEstudantes: 6000 },
+  // Prédios que o mapa já desenhava: o CEPETEC fica atrás do IC (extensão dele) e o COS, ao lado.
+  // Bases estimadas pela equipe, sem número oficial (Jornalismo e Relações Públicas, do COS, já
+  // entram na conta do ICHCA).
+  { slug: 'cepetec', nome: 'CEPETEC - Centro de Pesquisa Tecnológica do IC', baseEstudantes: 100 },
+  { slug: 'cos', nome: 'COS - Comunicação Social', baseEstudantes: 400 },
   // Em frente ao RU. Base: a capacidade da residência, de até 135 estudantes (site da UFAL).
   { slug: 'residencia-universitaria', nome: 'Residência Universitária', baseEstudantes: 135 },
   // Lugares que o mapa do site desenha e o OpenStreetMap não tem (EDGE Academy, NEES e CRAD), na

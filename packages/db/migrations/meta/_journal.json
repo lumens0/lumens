@@ -225,6 +225,13 @@
       "when": 1795131137498,
       "tag": "0031_conquista_curadoria",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795540097075,
+      "tag": "0032_blocos_cos_cepetec",
+      "breakpoints": true
     }
   ]
 }
