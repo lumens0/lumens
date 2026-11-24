@@ -13,6 +13,7 @@
     "modelos": "tsx --env-file-if-exists=../../.env scripts/modelos.ts",
     "latencia": "tsx --env-file-if-exists=../../.env scripts/latencia-webhook.ts",
     "apoio-dos-owners": "tsx --env-file-if-exists=../../.env scripts/apoio-dos-owners.ts",
+    "demo": "tsx --env-file-if-exists=../../.env --env-file-if-exists=../../.env.database scripts/demo.ts",
     "curador": "tsx --env-file-if-exists=../../.env scripts/curador.ts",
     "api:leitura": "tsx --env-file-if-exists=../../.env scripts/api-leitura.ts",
     "rotacionar-cifra": "tsx --env-file-if-exists=../../.env scripts/rotacionar-cifra.ts",
