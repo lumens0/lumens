@@ -38,6 +38,7 @@ import {
 } from './camera';
 import { CAMINHOS, CONTORNO, PREDIOS } from './predios';
 import { SLUG_DO_CAMPUS, type MarcadorDoBloco } from './urgencia';
+import { RolagemArrastavel } from '../RolagemArrastavel';
 import estilos from './campus.module.css';
 
 /** Ordem das etapas nos chips do mapa, como no protótipo. */
@@ -499,7 +500,7 @@ export function MapaDoCampus({
       </div>
 
       <div className={estilos.topo}>
-        <div className={estilos.chips} role="group" aria-label="Mostrar no mapa">
+        <RolagemArrastavel className={estilos.chips} role="group" aria-label="Mostrar no mapa">
           <button
             type="button"
             className={estilos.chip}
@@ -526,7 +527,7 @@ export function MapaDoCampus({
               {STATUS[e].rotulo} <b>{contagem.get(e)}</b>
             </button>
           ))}
-        </div>
+        </RolagemArrastavel>
         <p className={[estilos.dica, dica ? '' : estilos.dicaOculta].join(' ').trim()}>
           Arraste para mover. Com dois dedos, aproxime.
         </p>

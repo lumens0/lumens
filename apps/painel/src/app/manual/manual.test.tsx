@@ -41,7 +41,7 @@ describe('manual da curadoria', () => {
   });
 
   it('cita a caixa de conferência que a aprovação exige', () => {
-    expect(JSON.stringify(FLUXOS_DA_CURADORIA)).toContain('A caixa “Conferi…” é obrigatória');
+    expect(JSON.stringify(FLUXOS_DA_CURADORIA)).toContain('A caixa de conferência é obrigatória');
   });
 
   it('as regras do protótipo estão na tela, com os números do sistema em destaque', () => {

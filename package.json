@@ -20,6 +20,7 @@
     "db:generate": "pnpm --filter @lumens/db db:generate",
     "db:migrate": "pnpm --filter @lumens/db db:migrate",
     "db:seed": "pnpm --filter @lumens/db db:seed",
+    "db:demo": "pnpm --filter @lumens/backend demo",
     "db:blocos-ufal": "pnpm --filter @lumens/db db:blocos-ufal",
     "db:fresh": "pnpm db:reset && pnpm db:migrate && pnpm db:seed",
     "dev": "pnpm --filter @lumens/backend dev",

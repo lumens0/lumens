@@ -730,6 +730,21 @@
   display: none;
 }
 
+@media (pointer: fine) {
+  .rolagem {
+    cursor: grab;
+  }
+
+  .rolagem[data-arrastando] {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .rolagem[data-arrastando] * {
+    pointer-events: none;
+  }
+}
+
 .chips li {
   flex: 0 0 auto;
 }
@@ -1195,7 +1210,6 @@
 .decisoes > .detalhes,
 .decisoes > .cartaoDeAviso,
 .decisoes > .erro,
-.decisoes > .recusa[open],
 .campo,
 .marcar {
   grid-column: 1 / -1;
@@ -1224,9 +1238,15 @@
   display: none;
 }
 
-.recusa[open] {
-  grid-column: 1 / -1;
-  margin-top: 14px;
+.decisoes > .recusa[open] {
+  grid-column: 2 / -1;
+}
+
+/* Sem espaço ao lado (celular), o motivo ocupa a linha toda, embaixo do Aprovar. */
+@media (max-width: 559px) {
+  .decisoes > .recusa[open] {
+    grid-column: 1 / -1;
+  }
 }
 
 .recusa[open] .formulario {
@@ -1708,7 +1728,13 @@
 }
 
 .acoesDoRelato > .recusa[open] {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
+}
+
+@media (max-width: 559px) {
+  .acoesDoRelato > .recusa[open] {
+    grid-column: 1 / -1;
+  }
 }
 
 .acoesDoRelato .marcar {

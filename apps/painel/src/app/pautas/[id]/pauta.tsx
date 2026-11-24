@@ -564,7 +564,7 @@ export function Pauta({
                 className={estilos.recusa}
                 open={erro === 'motivo_obrigatorio' || erro === 'motivo_longo'}
               >
-                <summary className={estilos.botaoSecundario}>Recusar…</summary>
+                <summary className={estilos.botaoSecundario}>Recusar</summary>
                 <form action={recusar} className={estilos.formulario}>
                   <input type="hidden" name="pautaId" value={pauta.id} />
                   <MotivoDaRecusa maximo={MOTIVO_RECUSA_MAXIMO} />

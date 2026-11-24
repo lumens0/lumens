@@ -31,6 +31,8 @@ export interface Predio {
 // aqui aparece só na lista (hoje, todo bloco do catálogo tem prédio).
 const BLOCOS_DO_PREDIO: Record<number, readonly string[]> = {
   202492816: ['ic'], // IC - Instituto de Computação
+  493988334: ['cepetec'], // atrás do IC; o OSM o chama de CPTEC
+  493988335: ['cos'], // Comunicação Social - Bloco A, à direita do IC
   405147302: ['residencia-universitaria'], // RUA, em frente ao RU
   157086398: ['im'], // IM (Bloco 12); o OSM o chama de "IC e IM"
   64975419: ['if'], // Instituto de Física
@@ -103,7 +105,7 @@ const SIGLAS: Record<string, string> = {
   'Instituto de Física': 'IF',
   'Centro de Educação': 'CEDU',
   'Polo Maceió EAD': 'EAD',
-  'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)': 'CPTEC',
+  'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)': 'CEPETEC',
   'Posto de Meteorologia': 'Posto meteorológico',
   'Instituto de Química e Biotecnologia': 'IQB',
   'Comunicação Social': 'COS B', // o Bloco A é o prédio ao lado (NOMES_LOCAIS)
@@ -113,6 +115,8 @@ const SIGLAS: Record<string, string> = {
 
 /** Nome mostrado no painel quando o do OSM engana: o prédio dos dois institutos é o IM, Bloco 12. */
 const NOMES_EXIBIDOS: Record<string, string> = {
+  'Centro de Pesquisa de Tecnologia Digitais para Educação (CPTEC)':
+    'CEPETEC - Centro de Pesquisa Tecnológica do Instituto de Computação',
   'Instituto de Computação e Instituto de Matemática': 'Instituto de Matemática (Bloco 12)',
 };
 

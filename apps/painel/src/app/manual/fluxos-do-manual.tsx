@@ -3,6 +3,7 @@
 import type { FluxoEmCards, OndeDoPasso } from '@lumens/marca/fluxo';
 import { useState, type CSSProperties } from 'react';
 import estilos from '../painel.module.css';
+import { RolagemArrastavel } from '../rolagem-arrastavel';
 
 /** Onde o passo acontece: o nome escrito e a cor do ponto (a cor nunca é o único sinal). */
 const ONDE: Record<OndeDoPasso, { rotulo: string; cor: string }> = {
@@ -22,7 +23,7 @@ export function FluxosDoManual({ fluxos }: { fluxos: readonly FluxoEmCards[] }) 
   if (fluxo === undefined) return null;
   return (
     <div>
-      <div
+      <RolagemArrastavel
         className={[estilos.chips, estilos.rolagem].join(' ')}
         role="group"
         aria-label="Escolher fluxo"
@@ -41,7 +42,7 @@ export function FluxosDoManual({ fluxos }: { fluxos: readonly FluxoEmCards[] }) 
             {f.rotulo}
           </button>
         ))}
-      </div>
+      </RolagemArrastavel>
       <p className={estilos.fluxoChamada}>{fluxo.chamada}</p>
       <ol className={estilos.fluxoPassos} key={fluxo.id}>
         {fluxo.passos.map((passo) => {

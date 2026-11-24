@@ -168,14 +168,15 @@ cp .env.database.example .env.database   # ambos só na primeira vez
 pnpm db:up
 ```
 
-| Comando               | O que faz                                                           |
-| --------------------- | ------------------------------------------------------------------- |
-| `pnpm db:up`          | Sobe o PostgreSQL e provisiona o login restrito da aplicação        |
-| `pnpm db:down`        | Derruba o container, preservando os dados                           |
-| `pnpm db:reset`       | Apaga o volume, sobe do zero e reprovisiona o login                 |
-| `pnpm db:seed`        | Insere ou completa os dados fictícios de desenvolvimento            |
-| `pnpm db:fresh`       | Apaga o volume, migra o banco e aplica o seed em um único comando   |
-| `pnpm db:blocos-ufal` | Cadastra o catálogo de blocos da UFAL (não duplica o que já existe) |
+| Comando               | O que faz                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm db:up`          | Sobe o PostgreSQL e provisiona o login restrito da aplicação                                                      |
+| `pnpm db:down`        | Derruba o container, preservando os dados                                                                         |
+| `pnpm db:reset`       | Apaga o volume, sobe do zero e reprovisiona o login                                                               |
+| `pnpm db:seed`        | Insere ou completa os dados fictícios de desenvolvimento                                                          |
+| `pnpm db:fresh`       | Apaga o volume, migra o banco e aplica o seed em um único comando                                                 |
+| `pnpm db:blocos-ufal` | Cadastra o catálogo de blocos da UFAL (não duplica o que já existe)                                               |
+| `pnpm db:demo`        | Zera o banco local (menos os curadores) e o bucket de fotos e cria os dados da apresentação; só roda em localhost |
 
 Conferir que o banco respondeu:
 

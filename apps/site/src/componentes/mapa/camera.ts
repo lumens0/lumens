@@ -1,5 +1,6 @@
 // A câmera do mapa e a lista de lugares, sem React nem DOM: o componente só aplica estes números.
 import type { Pauta, StatusPauta } from '../../dados/tipos';
+import { pontoDentro } from './nomes';
 import { PREDIOS, type Predio } from './predios';
 import type { MarcadorDoBloco } from './urgencia';
 
@@ -70,10 +71,12 @@ export function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
     const local: Local = { chave: m.slug, nome: m.nome, slug: m.slug, pautas: [...m.pautas] };
     if (!predio) return local;
     const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
+    // Em prédio em U ou em L o meio da caixa cai no vão: o marcador fica num ponto dentro dele.
+    const [cx, cy] = pontoDentro(predio.d, predio.caixa);
     return {
       ...local,
       predio,
-      centro: { x: x + w / 2, y: y + h / 2, s: Math.max(w, h) },
+      centro: { x: cx, y: cy, s: Math.max(w, h) },
       base: { x: x + w / 2, y: y + h },
     };
   });

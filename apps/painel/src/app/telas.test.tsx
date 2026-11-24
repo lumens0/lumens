@@ -195,7 +195,7 @@ describe('tela da pauta', () => {
     expect(html).toContain('required="" name="conferido"');
     expect(html).toContain('Conferi o texto, o');
     expect(html).toContain('relato e as fotos');
-    expect(html).toContain('Recusar…');
+    expect(html).toContain('Recusar<');
     // Situação e prazo como selos; recusar é secundária e só abre o motivo quando pedido.
     expect(html).toContain('Esperando decisão');
     expect(html).toContain('vence em 5 h');
