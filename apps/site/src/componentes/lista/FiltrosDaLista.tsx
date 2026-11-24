@@ -23,6 +23,7 @@ import {
   type Ordem,
   type ParametrosDaLista,
 } from '../../dados/lista';
+import { RolagemArrastavel } from '../RolagemArrastavel';
 import { STATUS } from '../StatusPill';
 import estilos from './lista.module.css';
 
@@ -162,7 +163,11 @@ export function FiltrosDaLista({
 
       <div>
         <p className={estilos.rotuloDoGrupo}>Etapa</p>
-        <ul className={[estilos.chips, estilos.rolagem].join(' ')} aria-label="Etapas">
+        <RolagemArrastavel
+          como="ul"
+          className={[estilos.chips, estilos.rolagem].join(' ')}
+          aria-label="Etapas"
+        >
           <li>
             <button
               type="button"
@@ -197,7 +202,7 @@ export function FiltrosDaLista({
               </button>
             </li>
           ))}
-        </ul>
+        </RolagemArrastavel>
       </div>
 
       <div>

@@ -32,6 +32,11 @@ describe('layout do painel (SCRUM-358)', () => {
     expect(regra('.emGrade')).toContain('display: contents');
   });
 
+  it('abrir o motivo da recusa não tira o botão do lugar', () => {
+    expect(css).toMatch(/\.decisoes > \.recusa\[open\] \{\s*grid-column: 2 \/ -1;/);
+    expect(css).toMatch(/\.acoesDoRelato > \.recusa\[open\] \{\s*grid-column: 2 \/ -1;/);
+  });
+
   it('o texto longo de Curadores não estoura a linha', () => {
     expect(regra('.curadorMeta')).toContain('overflow-wrap: anywhere');
   });

@@ -161,6 +161,21 @@
   display: none;
 }
 
+@media (pointer: fine) {
+  .chips {
+    cursor: grab;
+  }
+
+  .chips[data-arrastando] {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .chips[data-arrastando] * {
+    pointer-events: none;
+  }
+}
+
 .chip {
   display: inline-flex;
   flex: 0 0 auto;

@@ -50,7 +50,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         titulo: 'Marque que conferiu e aprove',
         icone: 'visto',
         onde: 'painel',
-        resumo: 'A caixa “Conferi…” é obrigatória: aprovar publica tudo no site agora.',
+        resumo: 'A caixa de conferência é obrigatória: aprovar publica tudo no site agora.',
         detalhe: 'A pauta passa a juntar apoios e o relato de quem a criou é publicado junto.',
       },
       {
@@ -86,7 +86,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         titulo: 'Marque que conferiu e aprove',
         icone: 'visto',
         onde: 'painel',
-        resumo: 'A caixa “Conferi…” vale por relato. Aprovado, ele aparece no site na hora.',
+        resumo: 'A caixa de conferência vale por relato. Aprovado, ele aparece no site na hora.',
       },
       {
         titulo: 'Ou recuse',

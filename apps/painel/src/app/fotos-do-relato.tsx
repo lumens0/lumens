@@ -43,7 +43,7 @@ export function FotosDoRelato({
             <p className={estilos.erro}>Recusada. Motivo: {foto.motivoRecusa}</p>
           ) : (
             <details className={estilos.recusa}>
-              <summary className={estilos.botaoLeve}>Recusar só esta foto…</summary>
+              <summary className={estilos.botaoLeve}>Recusar só esta foto</summary>
               <form action={recusarFoto} className={estilos.formulario}>
                 <input type="hidden" name="fotoId" value={foto.id} />
                 <input type="hidden" name="voltar" value={voltar} />

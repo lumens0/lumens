@@ -151,7 +151,7 @@ export function PedidosDeEdicao({
                 </Enviar>
               </form>
               <details className={estilos.recusa}>
-                <summary className={estilos.botaoSecundario}>Recusar…</summary>
+                <summary className={estilos.botaoSecundario}>Recusar</summary>
                 <form action={recusar} className={estilos.formulario}>
                   <input type="hidden" name="pedidoId" value={pedido.id} />
                   <input type="hidden" name="voltar" value={voltar} />

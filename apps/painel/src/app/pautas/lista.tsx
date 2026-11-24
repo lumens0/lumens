@@ -2,6 +2,7 @@ import { LIMITE_DA_LISTA, type PautaDaCuradoria, type PendenciaDaCuradoria } fro
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { BuscaDaLista } from './busca';
+import { RolagemArrastavel } from '../rolagem-arrastavel';
 import { FiltroLink } from './filtro-link';
 import estilos from '../painel.module.css';
 import { alternar, PENDENCIAS } from './filtros';
@@ -49,7 +50,8 @@ export function ListaDePautas({
       )}
       <div className={estilos.filtros}>
         <BuscaDaLista q={q} situacoes={situacoes} pendencias={pendencias} />
-        <ul
+        <RolagemArrastavel
+          como="ul"
           className={[estilos.chips, estilos.rolagem].join(' ')}
           aria-label="Filtrar por etapa e pendência"
         >
@@ -98,7 +100,7 @@ export function ListaDePautas({
               </FiltroLink>
             </li>
           ))}
-        </ul>
+        </RolagemArrastavel>
       </div>
       {filtrando && (
         <p className={estilos.detalhes}>

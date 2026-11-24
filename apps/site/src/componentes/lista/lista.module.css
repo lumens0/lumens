@@ -127,6 +127,21 @@
   display: none;
 }
 
+@media (pointer: fine) {
+  .rolagem {
+    cursor: grab;
+  }
+
+  .rolagem[data-arrastando] {
+    cursor: grabbing;
+    user-select: none;
+  }
+
+  .rolagem[data-arrastando] * {
+    pointer-events: none;
+  }
+}
+
 .quebra {
   flex-wrap: wrap;
 }
