@@ -1,3 +1,4 @@
+import { CATEGORIAS, categoriaAbertaATodos, ehCategoria, type Categoria } from '@lumens/contratos';
 import { buscarBlocos } from './api';
 
 /**
@@ -10,8 +11,9 @@ export function fraseDosCursosDaPauta(
   cursos: readonly string[] | undefined,
   categoria?: string,
 ): string | null {
-  if (categoria === 'infraestrutura') {
-    return 'Problema de infraestrutura do campus: qualquer estudante verificado pode apoiar.';
+  if (categoriaAbertaATodos(categoria)) {
+    const rotulo = ehCategoria(categoria ?? '') ? CATEGORIAS[categoria as Categoria] : 'campus';
+    return `Pauta de ${rotulo.toLowerCase()} é de todos: qualquer estudante verificado pode apoiar.`;
   }
   if (blocoSlug === null)
     return 'Pauta do campus inteiro: qualquer estudante verificado pode apoiar.';

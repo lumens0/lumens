@@ -257,6 +257,23 @@ export const CATEGORIAS = {
 } as const;
 export type Categoria = keyof typeof CATEGORIAS;
 
+/**
+ * Categorias que são do campus todo (SCRUM-399): o campus é um espaço público, e problema de
+ * infraestrutura, segurança ou acessibilidade afeta e interessa a qualquer estudante, não só aos de um
+ * bloco. Pauta dessas categorias aceita apoio e criação de qualquer estudante verificado, mesmo em
+ * bloco que restringe por curso. Pauta ainda sem categoria (`a_classificar`) não entra.
+ */
+export const CATEGORIAS_ABERTAS_A_TODOS = [
+  'infraestrutura',
+  'seguranca',
+  'acessibilidade',
+] as const;
+
+/** Se a categoria é uma das abertas a todos. */
+export function categoriaAbertaATodos(categoria: string | null | undefined): boolean {
+  return (CATEGORIAS_ABERTAS_A_TODOS as readonly string[]).includes(categoria ?? '');
+}
+
 /** Se o valor é uma das categorias oficiais. Chaves herdadas (`toString`, `__proto__`) não contam. */
 export function ehCategoria(valor: string): valor is Categoria {
   return Object.hasOwn(CATEGORIAS, valor);

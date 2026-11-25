@@ -138,11 +138,15 @@ describe('criarPauta com o curso do bloco (SCRUM-399)', () => {
 });
 
 describe('problema de infraestrutura é de todos (SCRUM-399)', () => {
-  it('o helper libera a categoria infraestrutura em bloco com cursos, e só ela', async () => {
+  it('o helper libera infraestrutura, segurança e acessibilidade em bloco com cursos, e só elas', async () => {
     const ichca = await blocoDosCursos('História');
     const base = { blocoId: ichca.id, curso: 'Engenharia de Computação' };
-    expect(await cursoServeAoBloco(db, { ...base, categoria: 'infraestrutura' })).toBe(true);
-    expect(await cursoServeAoBloco(db, { ...base, categoria: 'ensino' })).toBe(false);
+    for (const categoria of ['infraestrutura', 'seguranca', 'acessibilidade']) {
+      expect(await cursoServeAoBloco(db, { ...base, categoria }), categoria).toBe(true);
+    }
+    for (const categoria of ['ensino', 'permanencia', 'servicos', 'tecnologia']) {
+      expect(await cursoServeAoBloco(db, { ...base, categoria }), categoria).toBe(false);
+    }
     expect(await cursoServeAoBloco(db, { ...base, categoria: 'a_classificar' })).toBe(false);
     expect(await cursoServeAoBloco(db, base)).toBe(false);
   });

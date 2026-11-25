@@ -247,7 +247,7 @@ export {
   sugerirCategoria,
 } from './pauta/categoria-sugerida';
 
-export { CATEGORIA_ABERTA_A_TODOS, cursoServeAoBloco } from './pauta/curso-do-bloco';
+export { cursoServeAoBloco } from './pauta/curso-do-bloco';
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 

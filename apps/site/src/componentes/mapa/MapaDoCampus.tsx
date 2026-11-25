@@ -137,7 +137,7 @@ const PASSO_DO_GIRO = Math.PI / 12;
 export function frasesDosCursos(cursos: readonly string[]): string {
   return cursos.length === 0
     ? 'Aberto a qualquer estudante verificado.'
-    : `Apoia e abre pauta aqui quem é de: ${cursos.join(', ')}. Problemas de infraestrutura são de todos.`;
+    : `Apoia e abre pauta aqui quem é de: ${cursos.join(', ')}. Pautas de infraestrutura, segurança e acessibilidade são de todos.`;
 }
 
 export function MapaDoCampus({

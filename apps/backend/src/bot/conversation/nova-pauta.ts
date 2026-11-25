@@ -80,7 +80,7 @@ export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 /** SCRUM-399: o bloco tem cursos e o do estudante não é um deles. */
 export const createOutsideBlockText = (bloco: string): string =>
-  `O *${bloco}* só recebe pautas de estudantes dos cursos dele, exceto de *Infraestrutura*, que é de todos. Escolha *Infraestrutura* se o problema for do campus, ou mande *menu* para recomeçar com outro bloco ou *Todo o campus*.`;
+  `O *${bloco}* só recebe pautas de estudantes dos cursos dele, exceto de *Infraestrutura*, *Segurança* e *Acessibilidade*, que são de todos. Escolha uma delas se o problema for do campus, ou mande *menu* para recomeçar com outro bloco ou *Todo o campus*.`;
 export const DATA_LOST_TEXT =
   'Não consegui recuperar as respostas da sua pauta. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 

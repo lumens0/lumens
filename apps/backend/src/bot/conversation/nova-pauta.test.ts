@@ -480,8 +480,8 @@ describe('pauta nova pelo menu', () => {
     expect(respostas[0]).toBe(createOutsideBlockText('Bloco de Artes'));
     expect(await passo()).toBe('NEW_ASK_CATEGORY');
     expect(await todasAsPautas()).toEqual([]);
-    // Problema de infraestrutura do campus é de todos: segue para a descrição.
-    await send('categoria:infraestrutura');
+    // Problema do campus é de todos (infraestrutura, segurança, acessibilidade): segue para a descrição.
+    await send('categoria:acessibilidade');
     expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
   });
 

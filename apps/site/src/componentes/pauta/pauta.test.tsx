@@ -38,7 +38,12 @@ describe('página da pauta: seções', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it('cabeçalho diz quem pode apoiar: os cursos do bloco, aberto a todos ou o campus inteiro (SCRUM-399)', () => {
-    const doBloco = { ...fixture, bloco_slug: 'ichca', bloco_nome: 'ICHCA' };
+    const doBloco = {
+      ...fixture,
+      bloco_slug: 'ichca',
+      bloco_nome: 'ICHCA',
+      categoria: 'ensino',
+    };
     const comCursos = renderToStaticMarkup(
       <CabecalhoPauta pauta={doBloco} cursosDoBloco={['História', 'Filosofia']} />,
     );
@@ -48,19 +53,24 @@ describe('página da pauta: seções', () => {
     expect(aberto).toContain('Aberta a qualquer estudante verificado.');
 
     const campus = renderToStaticMarkup(
-      <CabecalhoPauta pauta={{ ...fixture, bloco_slug: null, bloco_nome: null }} />,
+      <CabecalhoPauta
+        pauta={{ ...fixture, bloco_slug: null, bloco_nome: null, categoria: 'ensino' }}
+      />,
     );
     expect(campus).toContain('Pauta do campus inteiro');
 
-    // Problema de infraestrutura é de todos, em qualquer bloco.
-    const infra = renderToStaticMarkup(
-      <CabecalhoPauta
-        pauta={{ ...doBloco, categoria: 'infraestrutura' }}
-        cursosDoBloco={['História']}
-      />,
-    );
-    expect(infra).toContain('Problema de infraestrutura do campus: qualquer estudante verificado');
-    expect(infra).not.toContain('Só apoiam estudantes de');
+    // Infraestrutura, segurança e acessibilidade são de todos, em qualquer bloco.
+    for (const [categoria, rotulo] of [
+      ['infraestrutura', 'infraestrutura'],
+      ['seguranca', 'segurança'],
+      ['acessibilidade', 'acessibilidade'],
+    ] as const) {
+      const aberta = renderToStaticMarkup(
+        <CabecalhoPauta pauta={{ ...doBloco, categoria }} cursosDoBloco={['História']} />,
+      );
+      expect(aberta).toContain(`Pauta de ${rotulo} é de todos: qualquer estudante verificado`);
+      expect(aberta).not.toContain('Só apoiam estudantes de');
+    }
 
     // Sem saber os cursos do bloco, a página não afirma nada.
     const semSaber = renderToStaticMarkup(<CabecalhoPauta pauta={doBloco} />);
@@ -618,7 +628,10 @@ describe('página da pauta: seções', () => {
     const html = renderToStaticMarkup(<ConteudoPauta pauta={comIdentidade} />);
     expect(html).not.toContain('@');
     expect(html).not.toMatch(/\d{4,5}-?\d{4}/);
-    expect(html).not.toContain('estudante');
+    // A frase "qualquer estudante verificado" (SCRUM-399) é texto da página, não identidade: o que não
+    // pode aparecer é o campo e o valor do identificador.
+    expect(html).not.toContain('estudante_id');
+    expect(html).not.toContain('f3b2c1d0');
   });
 });
 
