@@ -439,4 +439,33 @@ describe('giro do mapa', () => {
     expect(interpolar(de, { cx: 100, cy: 100, w: 500 }, 0.5).giro).toBe(1.2);
     expect(interpolar(cam, { cx: 100, cy: 100, w: 500 }, 0.5)).not.toHaveProperty('giro');
   });
+
+  it('no celular, o deslocamento da gaveta acompanha o giro: continua "para baixo na tela"', () => {
+    const celular: Medida = { vw: 400, vh: 800 };
+    const ic = predioComBlocos('ic');
+    const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]);
+    if (!local?.centro) throw new Error('lugar sem centro');
+    const lugar = { ...local, centro: local.centro };
+    const { x, y } = lugar.centro;
+
+    const reto = enquadrarLocal(lugar, celular, true, 800);
+    const girado = enquadrarLocal(lugar, celular, true, 800, Math.PI / 2);
+
+    // Sem giro o centro desce no desenho (y maior); girado 90°, o mesmo deslocamento vira x.
+    expect(reto.cy).toBeGreaterThan(y);
+    expect(reto.cx).toBeCloseTo(x);
+    expect(girado.cy).toBeCloseTo(y);
+    expect(Math.abs(girado.cx - x)).toBeCloseTo(reto.cy - y);
+  });
+
+  it('no computador não há deslocamento, com ou sem giro', () => {
+    const grande: Medida = { vw: 1200, vh: 800 };
+    const ic = predioComBlocos('ic');
+    const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]);
+    if (!local?.centro) throw new Error('lugar sem centro');
+    const lugar = { ...local, centro: local.centro };
+    const girado = enquadrarLocal(lugar, grande, false, 800, 1);
+    expect(girado.cx).toBeCloseTo(lugar.centro.x);
+    expect(girado.cy).toBeCloseTo(lugar.centro.y);
+  });
 });

@@ -213,7 +213,9 @@ export function MapaDoCampus({
     (para: Camera, ms: number) => {
       cancelAnimationFrame(animacao.current);
       if (reduzido()) {
-        cam.current = para;
+        // Sem animação, mas o mapa segue girado como estava.
+        const giro = cam.current.giro;
+        cam.current = giro === undefined ? para : { ...para, giro };
         aplicar();
         return;
       }
@@ -232,7 +234,7 @@ export function MapaDoCampus({
 
   const enquadrarTudo = useCallback(() => {
     const { filtro: f, locais: ls } = vivo.current;
-    const alvo = enquadrarLugares(ls, f, medida.current, celular());
+    const alvo = enquadrarLugares(ls, f, medida.current, celular(), cam.current.giro ?? 0);
     if (!alvo) return;
     setGaveta('');
     voar(alvo, 700);
@@ -247,7 +249,13 @@ export function MapaDoCampus({
       // Bloco sem prédio no desenho (todo o campus, bloco ainda sem prédio): só abre a gaveta.
       if (l.centro) {
         voar(
-          enquadrarLocal({ ...l, centro: l.centro }, medida.current, celular(), window.innerHeight),
+          enquadrarLocal(
+            { ...l, centro: l.centro },
+            medida.current,
+            celular(),
+            window.innerHeight,
+            cam.current.giro ?? 0,
+          ),
           800,
         );
       }

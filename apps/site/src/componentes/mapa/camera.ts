@@ -186,6 +186,7 @@ export function enquadrarLugares(
   filtro: StatusPauta | null,
   medida: Medida,
   celular: boolean,
+  giro = 0,
 ): Camera | null {
   const noMapa = locais.filter((l) => l.centro !== undefined);
   let alvo = noMapa.filter((l) => ativas(l, filtro).length > 0);
@@ -203,9 +204,11 @@ export function enquadrarLugares(
   const r = medida.vh / medida.vw;
   const util = celular ? 0.58 : 0.8;
   const w = Math.max(bw * 1.5, (bh * 1.5) / (r * util));
+  // O deslocamento é "para baixo na tela": com o mapa girado, vira um deslocamento no desenho.
+  const [ox, oy] = paraODesenho(giro, 0, deslocar(w, 188, medida, celular));
   return {
-    cx: (x0 + x1) / 2,
-    cy: (y0 + y1) / 2 + deslocar(w, 188, medida, celular),
+    cx: (x0 + x1) / 2 + ox,
+    cy: (y0 + y1) / 2 + oy,
     w: clamp(w, 200, LARGURA_MAXIMA),
   };
 }
@@ -216,13 +219,15 @@ export function enquadrarLocal(
   medida: Medida,
   celular: boolean,
   alturaDaTela: number,
+  giro = 0,
 ): Camera {
   const w = Math.max(230, l.centro.s * 4.2);
-  return {
-    cx: l.centro.x,
-    cy: l.centro.y + deslocar(w, Math.min(0.46 * alturaDaTela, 400), medida, celular),
-    w,
-  };
+  const [ox, oy] = paraODesenho(
+    giro,
+    0,
+    deslocar(w, Math.min(0.46 * alturaDaTela, 400), medida, celular),
+  );
+  return { cx: l.centro.x + ox, cy: l.centro.y + oy, w };
 }
 
 /**
