@@ -552,7 +552,9 @@ describe('API de leitura pública com o seed', () => {
         .filter((t) => t === 'pauta_aprovada' || t === 'pauta_urgente');
       expect(tipos).toEqual(['pauta_aprovada', 'pauta_urgente']);
       await app.close();
-    });
+      // Monta um banco inteiro (migrações e seed) dentro do teste: no CI, com testes em paralelo, passa
+      // dos 5 s padrão.
+    }, 30_000);
 
     it('junta pauta, relatos, caminhos e linha do tempo', async () => {
       const body = await corpo('/pautas/iluminacao-no-bloco-de-artes');
@@ -632,7 +634,7 @@ describe('API de leitura pública com o seed', () => {
         foto: null,
       });
       conferirContrato(pautaDetalhe, body);
-    });
+    }, 30_000);
 
     it('devolve listas vazias para pauta sem relato nem caminho', async () => {
       const body = await corpo('/pautas/laboratorios-abertos-nas-engenharias');
