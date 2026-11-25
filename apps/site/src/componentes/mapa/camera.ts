@@ -82,6 +82,8 @@ export interface Local {
   nome: string;
   slug: string;
   pautas: Pauta[];
+  /** Cursos que apoiam e abrem pauta no bloco (SCRUM-399); vazio ou ausente: aberto a todos. */
+  cursos?: readonly string[];
   predio?: Predio;
   centro?: { x: number; y: number; s: number };
   /** Onde o nome fica: o meio da borda de baixo do prédio. */
@@ -92,7 +94,13 @@ export interface Local {
 export function locaisDe(marcadores: readonly MarcadorDoBloco[]): Local[] {
   return marcadores.map((m) => {
     const predio = m.predio === undefined ? undefined : PREDIOS.find((p) => p.id === m.predio);
-    const local: Local = { chave: m.slug, nome: m.nome, slug: m.slug, pautas: [...m.pautas] };
+    const local: Local = {
+      chave: m.slug,
+      nome: m.nome,
+      slug: m.slug,
+      pautas: [...m.pautas],
+      ...(m.cursos === undefined ? {} : { cursos: m.cursos }),
+    };
     if (!predio) return local;
     const [x = 0, y = 0, w = 0, h = 0] = predio.caixa;
     // Em prédio em U ou em L o meio da caixa cai no vão: o marcador fica num ponto dentro dele.

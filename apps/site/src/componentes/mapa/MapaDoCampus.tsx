@@ -130,6 +130,16 @@ function Glifo({ status }: { status: StatusPauta }) {
 const RADIANOS_POR_PIXEL = 0.006;
 const PASSO_DO_GIRO = Math.PI / 12;
 
+/**
+ * Quem pode apoiar e abrir pauta no bloco (SCRUM-399): a regra aparece antes de a pessoa tentar,
+ * porque o apoio de quem é de outro curso é recusado.
+ */
+export function frasesDosCursos(cursos: readonly string[]): string {
+  return cursos.length === 0
+    ? 'Aberto a qualquer estudante verificado.'
+    : `Apoia e abre pauta aqui quem é de: ${cursos.join(', ')}.`;
+}
+
 export function MapaDoCampus({
   marcadores,
   blocoInicial,
@@ -642,6 +652,9 @@ export function MapaDoCampus({
               </button>
               <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>
               <h2>{sel.nome}</h2>
+              <p className={estilos.sub} data-cursos-do-bloco>
+                {frasesDosCursos(sel.cursos ?? [])}
+              </p>
               {ativas(sel, filtro).length > 0 ? (
                 <p className={estilos.sub}>
                   {plural(ativas(sel, filtro).length, 'pauta neste bloco.', 'pautas neste bloco.')}

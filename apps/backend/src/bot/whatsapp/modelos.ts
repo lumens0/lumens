@@ -30,7 +30,8 @@ export type NomeModelo =
   | 'lumens_promessa_remarcada'
   | 'lumens_foto_recusada'
   | 'lumens_edicao_aprovada'
-  | 'lumens_edicao_recusada';
+  | 'lumens_edicao_recusada'
+  | 'lumens_pauta_alterada';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -229,6 +230,26 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
       'A curadoria não aprovou a mudança do {{1}} da pauta "{{2}}", que você pediu. Motivo: {{3}}. ' +
       'O texto publicado continua o mesmo.',
     exemplos: ['descrição', 'Bebedouro quebrado no bloco 12', 'muda o sentido do relato'],
+    rodape: RODAPE,
+    botoes: [VER_PAUTA],
+  },
+
+  // SCRUM-401: a curadoria alterou meta, bloco, categoria ou urgência. Um modelo só, porque a Meta
+  // não aceita texto condicional: o que mudou vai pronto em {{2}} e o motivo em {{3}}. Vai aos
+  // responsáveis e, quando a meta muda, a quem apoiou.
+  lumens_pauta_alterada: {
+    nome: 'lumens_pauta_alterada',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'apoiadores',
+    corpo:
+      'A curadoria alterou a pauta "{{1}}", da qual você participa: {{2}}. Motivo: {{3}}. ' +
+      'Tudo isso fica registrado na linha do tempo da pauta.',
+    exemplos: [
+      'Bebedouro quebrado no bloco 12',
+      'a meta passou de 120 para 60 apoios',
+      'a base do bloco foi corrigida',
+    ],
     rodape: RODAPE,
     botoes: [VER_PAUTA],
   },

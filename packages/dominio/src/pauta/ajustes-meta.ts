@@ -1,4 +1,5 @@
 import { and, apoios, blocos, eq, pautas, sql, type Tx } from '@lumens/db';
+import { enfileirarAvisoDeAlteracao } from '../avisos/aviso-alteracao';
 import { registrarEvento } from '../compartilhado/eventos';
 import { calcularMeta, META_MAXIMA, META_MINIMA } from './meta';
 
@@ -43,6 +44,7 @@ export async function corrigirBloco(
     pautaId,
     blocoId,
     motivo,
+    agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
@@ -81,7 +83,7 @@ export async function corrigirBloco(
     return { feito: false, motivo: 'meta_abaixo_dos_apoios' };
 
   await tx.update(pautas).set({ blocoId, meta: metaDepois }).where(eq(pautas.id, pautaId));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'bloco_corrigido',
     origem: 'curadoria',
@@ -93,6 +95,19 @@ export async function corrigirBloco(
       motivo,
     },
   });
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: {
+      tipo: 'bloco',
+      blocoAntes: blocoAntes?.nome ?? null,
+      blocoDepois: blocoDepois?.nome ?? null,
+      metaAntes: pauta.meta,
+      metaDepois,
+    },
+    motivo,
+    agora,
+  });
   return { feito: true };
 }
 
@@ -102,6 +117,7 @@ export async function ajustarMeta(
     pautaId,
     meta,
     motivo,
+    agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
@@ -124,11 +140,18 @@ export async function ajustarMeta(
     .update(pautas)
     .set({ meta })
     .where(and(eq(pautas.id, pautaId), eq(pautas.status, pauta.status)));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'meta_ajustada',
     origem: 'curadoria',
     dados: { metaAntes: pauta.meta, metaDepois: meta, motivo },
+  });
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: { tipo: 'meta', metaAntes: pauta.meta, metaDepois: meta },
+    motivo,
+    agora,
   });
   return { feito: true };
 }

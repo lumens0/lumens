@@ -87,6 +87,8 @@ export const bloco = z.object({
   slug: z.string(),
   nome: z.string(),
   base_estudantes: z.number().int(),
+  /** Cursos que apoiam e abrem pauta no bloco (SCRUM-399); vazio ou ausente: aberto a qualquer estudante. */
+  cursos: z.array(z.string()).optional(),
 });
 export const blocos = z.object({ itens: z.array(bloco) });
 export type Bloco = z.infer<typeof bloco>;

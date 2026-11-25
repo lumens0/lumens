@@ -47,6 +47,7 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'remarcacao',
   'foto_recusada',
   'edicao_decidida',
+  'alteracao',
 ]);
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });

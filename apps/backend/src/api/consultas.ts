@@ -99,7 +99,7 @@ export async function listarApoiosPorSemana(
 export async function listarBlocos(db: Db): Promise<Bloco[]> {
   return linhas<Bloco>(
     db,
-    sql`SELECT slug, nome, base_estudantes::int AS base_estudantes
+    sql`SELECT slug, nome, base_estudantes::int AS base_estudantes, cursos
         FROM v_bloco ORDER BY nome, slug`,
   );
 }

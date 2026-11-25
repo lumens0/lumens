@@ -331,6 +331,7 @@ describe('migração inicial em Postgres real', () => {
         'remarcacao',
         'foto_recusada',
         'edicao_decidida',
+        'alteracao',
       ],
     });
   });

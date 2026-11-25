@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
+import { sql } from 'drizzle-orm';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { unaccent } from '@electric-sql/pglite/contrib/unaccent';
 import { describe, expect, it, vi } from 'vitest';
@@ -133,5 +134,21 @@ describe('migração 0033: cursos dos blocos nos bancos já semeados', () => {
     const c = await bancoAntes(['ic']);
     await aplicar(c, TAG);
     await expect(c.exec(`DELETE FROM bloco WHERE slug = 'ic'`)).rejects.toThrow(/foreign key/);
+  });
+});
+
+describe('v_bloco com os cursos (SCRUM-401)', () => {
+  it('o site lê os cursos de cada bloco pela view: bloco de unidade com a lista, bloco aberto vazio', async () => {
+    const db = await criarBancoEmMemoria();
+    await cadastrarBlocosUfal(db);
+    const { rows } = await db.execute(sql`SELECT slug, cursos FROM v_bloco`);
+    const porSlug = new Map(
+      (rows as { slug: string; cursos: string[] }[]).map((r) => [r.slug, r.cursos]),
+    );
+    expect(porSlug.get('ic')).toEqual(
+      [...(CURSOS_DOS_BLOCOS.ic ?? [])].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    );
+    expect(porSlug.get('biblioteca-central')).toEqual([]);
+    expect(porSlug.get('csau')).toEqual([]);
   });
 });

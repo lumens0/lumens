@@ -239,6 +239,20 @@
       "when": 1795557818845,
       "tag": "0033_bloco_curso",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795559993005,
+      "tag": "0034_aviso_de_alteracao",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795569237115,
+      "tag": "0035_v_bloco_com_cursos",
+      "breakpoints": true
     }
   ]
 }
