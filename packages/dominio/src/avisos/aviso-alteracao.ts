@@ -14,8 +14,17 @@ import { CATEGORIAS } from '@lumens/contratos';
 import { and, apoios, eq, estudantes, isNull, papeisPauta, pautas, type Tx } from '@lumens/db';
 import { enfileirarDisparos } from './fila';
 
-/** Mensagem modelo: título da pauta, o que mudou e o motivo. */
+/** Mensagem modelo: título da pauta, o que mudou, o motivo e, no botão, o slug. */
 export const MODELO_PAUTA_ALTERADA = 'lumens_pauta_alterada';
+
+/**
+ * A mesma mensagem sem o botão "Ver a pauta", para pauta que ainda não está no site (em curadoria):
+ * a página dela devolve 404 até a aprovação, então o link só enganaria.
+ */
+export const MODELO_PAUTA_ALTERADA_SEM_LINK = 'lumens_pauta_alterada_sem_link';
+
+/** Status em que a pauta ainda não tem página pública. */
+const SEM_PAGINA: readonly string[] = ['em_curadoria', 'recusada'];
 
 export type AlteracaoDaPauta =
   | { tipo: 'meta'; metaAntes: number; metaDepois: number }
@@ -75,7 +84,7 @@ export async function enfileirarAvisoDeAlteracao(
   },
 ): Promise<number> {
   const [pauta] = await tx
-    .select({ titulo: pautas.titulo, slug: pautas.slug })
+    .select({ titulo: pautas.titulo, slug: pautas.slug, status: pautas.status })
     .from(pautas)
     .where(eq(pautas.id, pautaId));
   if (pauta === undefined) return 0;
@@ -99,11 +108,12 @@ export async function enfileirarAvisoDeAlteracao(
 
   const destinatarios = new Set([...responsaveis, ...apoiadores].map((d) => d.estudanteId));
   const motivoLimpo = motivo?.trim();
+  const publica = !SEM_PAGINA.includes(pauta.status);
   const parametros = [
     pauta.titulo,
     textoDaAlteracao(alteracao),
     motivoLimpo ? motivoLimpo : MOTIVO_SEM_TEXTO,
-    pauta.slug,
+    ...(publica ? [pauta.slug] : []),
   ];
   return enfileirarDisparos(
     tx,
@@ -111,7 +121,7 @@ export async function enfileirarAvisoDeAlteracao(
       tipo: 'alteracao' as const,
       aviso: eventoId,
       estudanteId,
-      modelo: MODELO_PAUTA_ALTERADA,
+      modelo: publica ? MODELO_PAUTA_ALTERADA : MODELO_PAUTA_ALTERADA_SEM_LINK,
       parametros,
     })),
     agora,

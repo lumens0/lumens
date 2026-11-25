@@ -118,6 +118,7 @@ export { MODELO_PAUTA_APROVADA, enfileirarAvisoDeAprovacao } from './avisos/avis
 export { MODELO_FOTO_RECUSADA, enfileirarAvisoDeFotoRecusada } from './avisos/aviso-foto-recusada';
 export {
   MODELO_PAUTA_ALTERADA,
+  MODELO_PAUTA_ALTERADA_SEM_LINK,
   MOTIVO_SEM_TEXTO,
   enfileirarAvisoDeAlteracao,
   textoDaAlteracao,

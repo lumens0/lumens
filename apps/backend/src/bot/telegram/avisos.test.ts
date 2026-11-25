@@ -23,6 +23,7 @@ const TIPO: Record<NomeModelo, string> = {
   lumens_edicao_aprovada: 'edicao_decidida',
   lumens_edicao_recusada: 'edicao_decidida',
   lumens_pauta_alterada: 'alteracao',
+  lumens_pauta_alterada_sem_link: 'alteracao',
 };
 
 /** O disparo de um modelo com os exemplos do catálogo e, se houver link, o slug de exemplo. */
@@ -40,8 +41,8 @@ function disparoDe(nome: NomeModelo) {
 describe('mensagensDoAviso: os modelos no Telegram', () => {
   const nomes = Object.keys(MODELOS) as NomeModelo[];
 
-  it('cobre os treze modelos do catálogo', () => {
-    expect(nomes).toHaveLength(13);
+  it('cobre os quatorze modelos do catálogo', () => {
+    expect(nomes).toHaveLength(14);
   });
 
   it.each(nomes)('%s: o texto do catálogo preenchido, o rodapé e os botões', (nome) => {

@@ -10,7 +10,12 @@ import {
   criarPauta,
   tornarOwner,
 } from '../teste/fabricas';
-import { MODELO_PAUTA_ALTERADA, MOTIVO_SEM_TEXTO, textoDaAlteracao } from './aviso-alteracao';
+import {
+  MODELO_PAUTA_ALTERADA,
+  MODELO_PAUTA_ALTERADA_SEM_LINK,
+  MOTIVO_SEM_TEXTO,
+  textoDaAlteracao,
+} from './aviso-alteracao';
 
 let db: Db;
 beforeAll(async () => {
@@ -66,6 +71,31 @@ describe('aviso de alteração da curadoria (SCRUM-401)', () => {
         pauta.slug,
       ],
     });
+  });
+
+  it('pauta ainda em curadoria: o aviso vai sem o botão, porque a página dela dá 404 (SCRUM-401)', async () => {
+    const { pauta, owner, apoiador } = await cenario({ status: 'em_curadoria' });
+    const curador = await criarCurador(db);
+
+    await db.transaction((tx) =>
+      ajustarMeta(tx, {
+        pautaId: pauta.id,
+        curadorId: curador.id,
+        meta: 60,
+        motivo: 'a base do bloco era menor',
+      }),
+    );
+
+    const linhas = (await db.select().from(disparos).where(eq(disparos.tipo, 'alteracao'))).filter(
+      (l) =>
+        l.parametros[0] === 'Goteira no auditório' && l.modelo === MODELO_PAUTA_ALTERADA_SEM_LINK,
+    );
+    expect(linhas.map((l) => l.estudanteId).sort()).toEqual([owner.id, apoiador.id].sort());
+    expect(linhas[0]?.parametros).toEqual([
+      'Goteira no auditório',
+      'a meta passou de 120 para 60 apoios',
+      'a base do bloco era menor',
+    ]);
   });
 
   it('quem saiu do Lumens não recebe', async () => {

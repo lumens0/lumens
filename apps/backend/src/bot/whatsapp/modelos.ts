@@ -31,7 +31,8 @@ export type NomeModelo =
   | 'lumens_foto_recusada'
   | 'lumens_edicao_aprovada'
   | 'lumens_edicao_recusada'
-  | 'lumens_pauta_alterada';
+  | 'lumens_pauta_alterada'
+  | 'lumens_pauta_alterada_sem_link';
 
 export type BotaoModelo =
   /** Resposta rápida: o texto do botão volta ao webhook como mensagem do tipo `button`. */
@@ -252,6 +253,25 @@ export const MODELOS: Readonly<Record<NomeModelo, ModeloMensagem>> = Object.free
     ],
     rodape: RODAPE,
     botoes: [VER_PAUTA],
+  },
+
+  // A mesma mensagem, sem o botão, para pauta que ainda está em curadoria: a página dela devolve 404
+  // até a aprovação. {{1}} título, {{2}} o que mudou, {{3}} o motivo.
+  lumens_pauta_alterada_sem_link: {
+    nome: 'lumens_pauta_alterada_sem_link',
+    categoria: 'UTILITY',
+    idioma: 'pt_BR',
+    destinatario: 'responsaveis',
+    corpo:
+      'A curadoria alterou a sua pauta "{{1}}", que ainda aguarda a decisão e por isso não está no site: {{2}}. ' +
+      'Motivo: {{3}}. Quando ela for decidida, você recebe o resultado por aqui.',
+    exemplos: [
+      'Bebedouro quebrado no bloco 12',
+      'a meta passou de 120 para 60 apoios',
+      'a base do bloco foi corrigida',
+    ],
+    rodape: RODAPE,
+    botoes: [],
   },
 
   lumens_promessa_remarcada: {
