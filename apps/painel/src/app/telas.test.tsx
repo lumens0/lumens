@@ -63,12 +63,12 @@ describe('situacaoDoPrazo', () => {
 
 describe('textoDoSelo', () => {
   it.each([
-    [20 * HORA, 'vence em 20 h'],
-    [5 * HORA + 20 * 60_000, 'vence em 6 h'],
-    [40 * 60_000, 'vence em 1 h'],
-    [-3 * HORA, 'atrasada há 3 h'],
-    [-20 * 60_000, 'atrasada há menos de 1 h'],
-    [-280 * 24 * HORA, 'atrasada há 6720 h'],
+    [20 * HORA, 'vence em 20\u00a0h'],
+    [5 * HORA + 20 * 60_000, 'vence em 6\u00a0h'],
+    [40 * 60_000, 'vence em 1\u00a0h'],
+    [-3 * HORA, 'atrasada há 3\u00a0h'],
+    [-20 * 60_000, 'atrasada há menos de 1\u00a0h'],
+    [-280 * 24 * HORA, 'atrasada há 6720\u00a0h'],
   ])('%i ms → %s', (ms, texto) => {
     expect(textoDoSelo(ms)).toBe(texto);
   });
@@ -76,13 +76,13 @@ describe('textoDoSelo', () => {
 
 describe('textoDoPrazo', () => {
   it.each([
-    [5 * HORA + 20 * 60_000, 'faltam 5 h 20 min'],
-    [2 * HORA, 'faltam 2 h'],
-    [40 * 60_000, 'faltam 40 min'],
-    [0, 'faltam 0 min'],
-    [-3 * HORA, 'atrasada há 3 h'],
-    [-90 * 60_000, 'atrasada há 1 h 30 min'],
-    [-47 * HORA, 'atrasada há 47 h'],
+    [5 * HORA + 20 * 60_000, 'faltam 5\u00a0h 20\u00a0min'],
+    [2 * HORA, 'faltam 2\u00a0h'],
+    [40 * 60_000, 'faltam 40\u00a0min'],
+    [0, 'faltam 0\u00a0min'],
+    [-3 * HORA, 'atrasada há 3\u00a0h'],
+    [-90 * 60_000, 'atrasada há 1\u00a0h 30\u00a0min'],
+    [-47 * HORA, 'atrasada há 47\u00a0h'],
     [-280 * 24 * HORA, 'atrasada há 280 dias'],
   ])('%i ms → %s', (ms, texto) => {
     expect(textoDoPrazo(ms)).toBe(texto);
@@ -198,7 +198,7 @@ describe('tela da pauta', () => {
     expect(html).toContain('Recusar<');
     // Situação e prazo como selos; recusar é secundária e só abre o motivo quando pedido.
     expect(html).toContain('Esperando decisão');
-    expect(html).toContain('vence em 5 h');
+    expect(html).toContain('vence em 5\u00a0h');
     expect(html).toContain('<details class=');
     expect(html).not.toContain('open=""><summary');
     // Aprovar, recusar, corrigir o bloco e ajustar a meta (SCRUM-326).
@@ -762,7 +762,7 @@ describe('lista de todas as pautas', () => {
     expect(html).toContain('name="q"');
     expect(html).toContain('value="bebedouro"');
     expect(html).toContain('<b>80</b> apoios');
-    expect(html).toContain('atrasada há 1 h');
+    expect(html).toContain('atrasada há 1\u00a0h');
   });
 
   it('tem um campo de busca só, com rótulo, e a situação escolhida vai escondida na busca', () => {

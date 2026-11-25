@@ -42,8 +42,8 @@ const HORA_MS = 3_600_000;
 export function textoDoTempoMedio(ms: number): string {
   const horas = ms / HORA_MS;
   if (horas >= 48) return `${String(Math.round(horas / 24))} dias`;
-  if (horas >= 1) return `${horas.toFixed(1).replace('.', ',')} h`;
-  return `${String(Math.max(1, Math.round(ms / 60_000)))} min`;
+  if (horas >= 1) return `${horas.toFixed(1).replace('.', ',')}\u00a0h`;
+  return `${String(Math.max(1, Math.round(ms / 60_000)))}\u00a0min`;
 }
 
 const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -120,11 +120,11 @@ export function Inicio({
           unidade="esperando decisão"
           detalhe={
             atrasadas === 0
-              ? 'Nenhuma atrasada no prazo de 24 h'
-              : `${String(atrasadas)} ${plural(atrasadas, 'pauta atrasada', 'pautas atrasadas')} no prazo de 24 h${
+              ? 'Nenhuma atrasada no prazo de 24\u00a0h'
+              : `${String(atrasadas)} ${plural(atrasadas, 'pauta atrasada', 'pautas atrasadas')} no prazo de 24\u00a0h${
                   perto === 0
                     ? ''
-                    : ` · ${String(perto)} ${plural(perto, 'vence', 'vencem')} nas próximas 6 h`
+                    : ` · ${String(perto)} ${plural(perto, 'vence', 'vencem')} nas próximas 6\u00a0h`
                 }`
           }
           alerta={atrasadas > 0}
