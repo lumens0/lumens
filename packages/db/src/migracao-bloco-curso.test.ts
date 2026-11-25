@@ -78,8 +78,6 @@ describe('cursos dos blocos (SCRUM-399): o mapa', () => {
       'bloco-18',
       'ginasio',
       'residencia-universitaria',
-      'edge-academy',
-      'nees',
       'crad',
       'csau',
     ]) {
@@ -172,10 +170,12 @@ describe('cursos com aula em outro bloco (SCRUM-399)', () => {
     expect(CURSOS_DOS_BLOCOS.cepetec).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.cepetec);
   });
 
-  it('o CEPETEC é subbloco do IC: aceita exatamente o que o IC aceita', () => {
-    expect(SUBBLOCOS).toEqual({ cepetec: 'ic' });
-    expect(CURSOS_DOS_BLOCOS.cepetec).toEqual(CURSOS_DOS_BLOCOS.ic);
-    expect(CURSOS_DOS_BLOCOS.cepetec).not.toContain('Matemática');
+  it('CEPETEC, EDGE Academy e NEES são subblocos do IC: aceitam exatamente o que o IC aceita', () => {
+    expect(SUBBLOCOS).toEqual({ cepetec: 'ic', 'edge-academy': 'ic', nees: 'ic' });
+    for (const slug of Object.keys(SUBBLOCOS)) {
+      expect(CURSOS_DOS_BLOCOS[slug], slug).toEqual(CURSOS_DOS_BLOCOS.ic);
+      expect(CURSOS_DOS_BLOCOS[slug], slug).not.toContain('Matemática');
+    }
   });
 
   it('bloco sem aula de outros cursos mantém só os da própria unidade', () => {

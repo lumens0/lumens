@@ -95,15 +95,17 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
   FALE, FSSO, ICS, ICHCA, ICAT, IGDEMA, IP, CEDU, IEFE, CEPETEC e COS): o apoio de quem é de outro
   curso volta como `fora_do_bloco`, e o bot avisa. Quem não tem curso cadastrado também não apoia.
 - **Bloco sem cursos** (Biblioteca Central, RU, Blocos 07, 13 e 18, Ginásio, Residência
-  Universitária, EDGE Academy, NEES, CRAD e **CSAU**, que abriga cursos de várias unidades): qualquer
+  Universitária, CRAD e **CSAU**, que abriga cursos de várias unidades): qualquer
   estudante verificado, como antes. **Todo o campus** também continua aberto.
 - Apoio que já existia antes da trava continua valendo; pauta já criada não muda.
 - O bot avisa cedo, na escolha do bloco da pauta nova. Quem escolheu outro bloco ou _Todo o campus_
   segue normalmente.
 
-- **Subbloco:** o CEPETEC é o subbloco de pesquisa do IC e tem os mesmos alunos dele; em `SUBBLOCOS`
-  (`packages/db/src/cursos-dos-blocos.ts`), aceita tudo o que o IC aceita. A base do CEPETEC (100, estimativa
-  da equipe) não acompanha a do IC; é uma decisão à parte.
+- **Subblocos do IC:** o CEPETEC é o subbloco de pesquisa do IC; o EDGE Academy e o NEES (RIEH) são
+  laboratórios fechados cuja base de alunos são os do IC (Ciência da Computação, Engenharia de
+  Computação e Inteligência Artificial). Em `SUBBLOCOS` (`packages/db/src/cursos-dos-blocos.ts`),
+  aceitam tudo o que o IC aceita. A base de cada um (100, 100 e 100, estimativas da equipe) não
+  acompanha a do IC; é uma decisão à parte.
 - **Cursos com aula em outro bloco:** quem tem aula num bloco de outra unidade pode apoiar nele. A
   regra é direcional e está em `AULAS_EM_OUTROS_BLOCOS` (`packages/db/src/cursos-dos-blocos.ts`):
   hoje, Ciência da Computação, Engenharia de Computação e Inteligência Artificial têm aula no **IM**
