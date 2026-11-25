@@ -8,7 +8,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { blocosUfal, cadastrarBlocosUfal } from '../seed/blocos-ufal';
 import { PAPEL_APLICACAO, PAPEL_SITE } from './app-role';
 import { CURSOS } from './cursos';
-import { CURSOS_DOS_BLOCOS } from './cursos-dos-blocos';
+import {
+  BLOCOS_COLIGADOS,
+  CURSOS_DOS_BLOCOS,
+  CURSOS_PROPRIOS_DOS_BLOCOS,
+} from './cursos-dos-blocos';
 import { blocoCursos, blocos } from './schema';
 import { criarBancoEmMemoria } from './teste';
 
@@ -108,7 +112,7 @@ describe('migração 0033: cursos dos blocos nos bancos já semeados', () => {
     const c = await bancoAntes(blocosUfal.map((b) => b.slug));
     await aplicar(c, TAG);
 
-    const esperado = Object.entries(CURSOS_DOS_BLOCOS)
+    const esperado = Object.entries(CURSOS_PROPRIOS_DOS_BLOCOS)
       .flatMap(([slug, cursos]) => cursos.map((curso) => ({ slug, curso })))
       .sort((a, b) => a.slug.localeCompare(b.slug) || a.curso.localeCompare(b.curso));
     const gravado = await vinculos(c);
@@ -141,14 +145,62 @@ describe('v_bloco com os cursos (SCRUM-401)', () => {
   it('o site lê os cursos de cada bloco pela view: bloco de unidade com a lista, bloco aberto vazio', async () => {
     const db = await criarBancoEmMemoria();
     await cadastrarBlocosUfal(db);
-    const { rows } = await db.execute(sql`SELECT slug, cursos FROM v_bloco`);
-    const porSlug = new Map(
-      (rows as { slug: string; cursos: string[] }[]).map((r) => [r.slug, r.cursos]),
-    );
+    const resultado: unknown = await db.execute(sql`SELECT slug, cursos FROM v_bloco`);
+    const { rows } = resultado as { rows: { slug: string; cursos: string[] }[] };
+    const porSlug = new Map(rows.map((r) => [r.slug, r.cursos]));
     expect(porSlug.get('ic')).toEqual(
       [...(CURSOS_DOS_BLOCOS.ic ?? [])].sort((a, b) => a.localeCompare(b, 'pt-BR')),
     );
     expect(porSlug.get('biblioteca-central')).toEqual([]);
     expect(porSlug.get('csau')).toEqual([]);
+  });
+});
+
+describe('blocos coligados (SCRUM-399)', () => {
+  it('IC, CEPETEC e IM aceitam os cursos uns dos outros, e só eles', () => {
+    const [grupo] = BLOCOS_COLIGADOS;
+    expect(grupo).toEqual(['ic', 'cepetec', 'im']);
+    const esperado = [
+      'Ciência da Computação',
+      'Engenharia de Computação',
+      'Inteligência Artificial',
+      'Matemática',
+    ].sort();
+    for (const slug of grupo ?? []) {
+      expect([...(CURSOS_DOS_BLOCOS[slug] ?? [])].sort(), slug).toEqual(esperado);
+    }
+  });
+
+  it('bloco fora de grupo mantém só os cursos da própria unidade', () => {
+    expect(CURSOS_DOS_BLOCOS.ichca).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.ichca);
+    expect(CURSOS_DOS_BLOCOS.cos).toEqual(['Jornalismo', 'Relações Públicas']);
+  });
+
+  it('cada bloco de um grupo existe no catálogo', () => {
+    const slugs = new Set<string>(blocosUfal.map((b) => b.slug));
+    for (const slug of BLOCOS_COLIGADOS.flat()) expect(slugs.has(slug), slug).toBe(true);
+  });
+
+  it('a migração 0036 leva o banco da 0033 ao mapa com os coligados, sem duplicar', async () => {
+    const c = await bancoAntes(blocosUfal.map((b) => b.slug));
+    await aplicar(c, TAG);
+    await aplicar(c, '0036_blocos_coligados');
+
+    const esperado = Object.entries(CURSOS_DOS_BLOCOS).flatMap(([slug, cursos]) =>
+      cursos.map((curso) => `${slug}|${curso}`),
+    );
+    const gravado = (await vinculos(c)).map((v) => `${v.slug}|${v.curso}`);
+    expect(gravado).toHaveLength(esperado.length);
+    expect(new Set(gravado)).toEqual(new Set(esperado));
+
+    await aplicar(c, '0036_blocos_coligados');
+    expect(await vinculos(c)).toHaveLength(esperado.length);
+  });
+
+  it('banco de desenvolvimento (outros slugs) segue sem vínculo depois da 0036', async () => {
+    const c = await bancoAntes(['engenharias', 'bloco-18']);
+    await aplicar(c, TAG);
+    await aplicar(c, '0036_blocos_coligados');
+    expect(await vinculos(c)).toEqual([]);
   });
 });
