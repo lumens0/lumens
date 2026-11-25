@@ -8,6 +8,7 @@ import { STATUS } from '../StatusPill';
 import { origemDoSite } from '../../origem';
 import { comandoApoiar, linkDoBot, nomeDoCanal } from '../../whatsapp';
 import { CompartilharCard } from './CompartilharCard';
+import { fraseDosCursosDaPauta } from '../../dados/cursos-do-bloco';
 import estilos from './pauta.module.css';
 
 /** O botão "Apoiar" da faixa: abre o bot com o comando pronto. Sem bot configurado, não aparece. */
@@ -50,9 +51,12 @@ function abertaHa(criadaEm: string, agora: Date): string | null {
  */
 export function CabecalhoPauta({
   pauta,
+  cursosDoBloco,
   agora = new Date(),
 }: {
   pauta: PautaDetalhe;
+  /** Cursos que apoiam no bloco da pauta (SCRUM-399); `undefined` quando não se sabe. */
+  cursosDoBloco?: readonly string[] | undefined;
   agora?: Date;
 }) {
   const status = STATUS[pauta.status];
@@ -74,6 +78,11 @@ export function CabecalhoPauta({
         <p className={estilos.onde}>
           {[contextoDaPauta(pauta.categoria, pauta.bloco_nome), aberta].filter(Boolean).join(' · ')}
         </p>
+        {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco) !== null && (
+          <p className={estilos.onde} data-quem-apoia>
+            {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco)}
+          </p>
+        )}
         {pauta.cursos_responsaveis.length > 0 && (
           <ul className={estilos.responsaveis} aria-label="Responsáveis pela pauta">
             {pauta.cursos_responsaveis.map((curso) => (

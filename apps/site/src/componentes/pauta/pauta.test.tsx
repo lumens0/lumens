@@ -37,6 +37,26 @@ const RELATO_COM_FOTO = {
 describe('página da pauta: seções', () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it('cabeçalho diz quem pode apoiar: os cursos do bloco, aberto a todos ou o campus inteiro (SCRUM-399)', () => {
+    const doBloco = { ...fixture, bloco_slug: 'ichca', bloco_nome: 'ICHCA' };
+    const comCursos = renderToStaticMarkup(
+      <CabecalhoPauta pauta={doBloco} cursosDoBloco={['História', 'Filosofia']} />,
+    );
+    expect(comCursos).toContain('Só apoiam estudantes de: História, Filosofia.');
+
+    const aberto = renderToStaticMarkup(<CabecalhoPauta pauta={doBloco} cursosDoBloco={[]} />);
+    expect(aberto).toContain('Aberta a qualquer estudante verificado.');
+
+    const campus = renderToStaticMarkup(
+      <CabecalhoPauta pauta={{ ...fixture, bloco_slug: null, bloco_nome: null }} />,
+    );
+    expect(campus).toContain('Pauta do campus inteiro');
+
+    // Sem saber os cursos do bloco, a página não afirma nada.
+    const semSaber = renderToStaticMarkup(<CabecalhoPauta pauta={doBloco} />);
+    expect(semSaber).not.toContain('data-quem-apoia');
+  });
+
   it('cabeçalho mostra selo urgente junto do status', () => {
     const html = renderToStaticMarkup(<CabecalhoPauta pauta={{ ...fixture, urgente: true }} />);
     expect(html).toContain('Urgente');

@@ -400,7 +400,12 @@ describe('cursos do bloco no mapa (SCRUM-401)', () => {
   it('o marcador leva os cursos do bloco; o campus inteiro não tem cursos', () => {
     const [primeiro] = blocosSeed;
     if (!primeiro) throw new Error('seed sem bloco');
-    const bloco: Bloco = { ...primeiro, cursos: ['Direito'] };
+    const bloco: Bloco = {
+      slug: primeiro.slug,
+      nome: primeiro.nome,
+      base_estudantes: primeiro.baseEstudantes,
+      cursos: ['Direito'],
+    };
     const marcadores = marcadoresDoMapa([bloco], []);
     expect(marcadores[0]?.cursos).toEqual(['Direito']);
   });

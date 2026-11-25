@@ -4,6 +4,7 @@ import { cache } from 'react';
 import { formatarNumero } from '../../../componentes/BarraApoios';
 import { ConteudoPauta } from '../../../componentes/pauta/ConteudoPauta';
 import { buscarPauta } from '../../../dados/api';
+import { cursosDoBloco } from '../../../dados/cursos-do-bloco';
 import { FORA_DO_SITE, aceitaApoio } from '../../../dados/pautas-publicas';
 import { OPEN_GRAPH_BASE } from '../../../metadados';
 import { origemDoSite } from '../../../origem';
@@ -48,5 +49,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PaginaPauta({ params }: Props) {
   const pauta = await pautaOu404((await params).slug);
-  return <ConteudoPauta pauta={pauta} />;
+  return <ConteudoPauta pauta={pauta} cursosDoBloco={await cursosDoBloco(pauta.bloco_slug)} />;
 }
