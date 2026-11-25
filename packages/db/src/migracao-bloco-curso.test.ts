@@ -12,6 +12,7 @@ import {
   AULAS_EM_OUTROS_BLOCOS,
   CURSOS_DOS_BLOCOS,
   CURSOS_PROPRIOS_DOS_BLOCOS,
+  SUBBLOCOS,
 } from './cursos-dos-blocos';
 import { blocoCursos, blocos } from './schema';
 import { criarBancoEmMemoria } from './teste';
@@ -169,6 +170,12 @@ describe('cursos com aula em outro bloco (SCRUM-399)', () => {
     expect(CURSOS_DOS_BLOCOS.ic).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.ic);
     expect(CURSOS_DOS_BLOCOS.ic).not.toContain('Matemática');
     expect(CURSOS_DOS_BLOCOS.cepetec).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.cepetec);
+  });
+
+  it('o CEPETEC é subbloco do IC: aceita exatamente o que o IC aceita', () => {
+    expect(SUBBLOCOS).toEqual({ cepetec: 'ic' });
+    expect(CURSOS_DOS_BLOCOS.cepetec).toEqual(CURSOS_DOS_BLOCOS.ic);
+    expect(CURSOS_DOS_BLOCOS.cepetec).not.toContain('Matemática');
   });
 
   it('bloco sem aula de outros cursos mantém só os da própria unidade', () => {

@@ -101,6 +101,9 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
 - O bot avisa cedo, na escolha do bloco da pauta nova. Quem escolheu outro bloco ou _Todo o campus_
   segue normalmente.
 
+- **Subbloco:** o CEPETEC é o subbloco de pesquisa do IC e tem os mesmos alunos dele; em `SUBBLOCOS`
+  (`packages/db/src/cursos-dos-blocos.ts`), aceita tudo o que o IC aceita. A base do CEPETEC (100, estimativa
+  da equipe) não acompanha a do IC; é uma decisão à parte.
 - **Cursos com aula em outro bloco:** quem tem aula num bloco de outra unidade pode apoiar nele. A
   regra é direcional e está em `AULAS_EM_OUTROS_BLOCOS` (`packages/db/src/cursos-dos-blocos.ts`):
   hoje, Ciência da Computação, Engenharia de Computação e Inteligência Artificial têm aula no **IM**

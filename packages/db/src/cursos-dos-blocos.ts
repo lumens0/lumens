@@ -16,8 +16,14 @@ import type { Curso } from './cursos';
  * Aqui estão só os cursos **da própria unidade**. Cursos que têm aula em outro bloco
  * (`AULAS_EM_OUTROS_BLOCOS`) entram também: o que vale no banco é `CURSOS_DOS_BLOCOS`, mais abaixo.
  */
+const CURSOS_DO_IC: readonly Curso[] = [
+  'Ciência da Computação',
+  'Engenharia de Computação',
+  'Inteligência Artificial',
+];
+
 export const CURSOS_PROPRIOS_DOS_BLOCOS: Readonly<Record<string, readonly Curso[]>> = {
-  ic: ['Ciência da Computação', 'Engenharia de Computação', 'Inteligência Artificial'],
+  ic: CURSOS_DO_IC,
   im: ['Matemática'],
   if: ['Física'],
   iqb: ['Química', 'Química Tecnológica e Industrial'],
@@ -60,8 +66,9 @@ export const CURSOS_PROPRIOS_DOS_BLOCOS: Readonly<Record<string, readonly Curso[
   ip: ['Psicologia'],
   cedu: ['Pedagogia'],
   iefe: ['Educação Física'],
-  // Extensão do IC, atrás dele, e o prédio da Comunicação Social, ao lado.
-  cepetec: ['Ciência da Computação', 'Engenharia de Computação', 'Inteligência Artificial'],
+  // Subbloco de pesquisa do IC, atrás dele: os alunos que o frequentam são os do IC (`SUBBLOCOS`).
+  cepetec: CURSOS_DO_IC,
+  // O prédio da Comunicação Social, ao lado do IC.
   cos: ['Jornalismo', 'Relações Públicas'],
 };
 
@@ -78,6 +85,12 @@ export const AULAS_EM_OUTROS_BLOCOS: Readonly<Record<string, readonly Curso[]>> 
   im: ['Ciência da Computação', 'Engenharia de Computação', 'Inteligência Artificial'],
 };
 
+/**
+ * Subblocos: blocos que são parte de outro e têm os mesmos alunos dele. O CEPETEC é o subbloco de
+ * pesquisa do IC, então aceita tudo o que o IC aceita, inclusive o que passar a valer para o IC.
+ */
+export const SUBBLOCOS: Readonly<Record<string, string>> = { cepetec: 'ic' };
+
 function comAulasEmOutros(
   proprios: Readonly<Record<string, readonly Curso[]>>,
   aulas: Readonly<Record<string, readonly Curso[]>>,
@@ -86,6 +99,7 @@ function comAulasEmOutros(
   for (const [slug, cursos] of Object.entries(aulas)) {
     resultado[slug] = [...new Set([...(proprios[slug] ?? []), ...cursos])];
   }
+  for (const [sub, pai] of Object.entries(SUBBLOCOS)) resultado[sub] = resultado[pai] ?? [];
   return resultado;
 }
 
