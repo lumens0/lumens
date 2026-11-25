@@ -29,8 +29,9 @@ export async function estudanteVerificado(db: Db, phoneHmac: string): Promise<st
 
 /**
  * SCRUM-399: o bloco recusa este estudante pelo curso? Devolve o nome do bloco, para o texto da
- * recusa, ou `undefined` quando ele pode (bloco aberto, campus inteiro ou curso do bloco). É só
- * para avisar cedo: a regra de verdade está no domínio (`criarPauta` e `registrarApoio`).
+ * recusa, ou `undefined` quando ele pode (bloco aberto, campus inteiro, categoria de todos ou curso
+ * do bloco). É só para avisar cedo, ao escolher a categoria e antes de a pessoa escrever a pauta: a
+ * regra de verdade está no domínio (`criarPauta` e `registrarApoio`).
  */
 export async function blocoQueRecusa(
   db: Db,

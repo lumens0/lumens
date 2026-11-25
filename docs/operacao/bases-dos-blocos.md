@@ -86,13 +86,14 @@ curso pela unidade que o coordena. Os 43 cursos de `CURSOS` caem na unidade em q
 ## Quem apoia e abre pauta em cada bloco (SCRUM-399)
 
 A meta é 10% da base do bloco, e a base é a soma dos cursos da unidade. Para essa conta valer, **só
-estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O vínculo está na tabela
+estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**, com as exceções abaixo. O vínculo está na tabela
 `bloco_curso` (mesma divisão da tabela de bases acima), escrita em
 `packages/db/src/cursos-dos-blocos.ts` e levada ao banco pela migração `0033_bloco_curso` e pelo
 `db:blocos-ufal`.
 
 - **Bloco com cursos** (IC, IM, IF, IQB, ICBS, FAMED, FANUT, EENF, FOUFAL, ICF, CTEC, FAU, FDA, FEAC,
-  FALE, FSSO, ICS, ICHCA, ICAT, IGDEMA, IP, CEDU, IEFE, CEPETEC e COS): o apoio de quem é de outro
+  FALE, FSSO, ICS, ICHCA, ICAT, IGDEMA, IP, CEDU, IEFE, COS e os do grupo do IC: CEPETEC, EDGE Academy
+  e NEES): o apoio de quem é de outro
   curso volta como `fora_do_bloco`, e o bot avisa. Quem não tem curso cadastrado também não apoia.
 - **Bloco sem cursos** (Biblioteca Central, RU, Blocos 07, 13 e 18, Ginásio, Residência
   Universitária, CRAD e **CSAU**, que abriga cursos de várias unidades): qualquer
@@ -104,10 +105,7 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
   tecnologia) seguem restritas aos cursos do bloco. Pauta ainda sem categoria não conta como aberta.
   No bot, a recusa por curso vem depois da escolha da categoria, que é quando se sabe se a pauta é
   de todos.
-- Apoio que já existia antes da trava continua valendo; pauta já criada não muda.
-- O bot avisa cedo, na escolha do bloco da pauta nova. Quem escolheu outro bloco ou _Todo o campus_
-  segue normalmente.
-
+- **Apoio que já existia** antes da trava continua valendo, e pauta já criada não muda.
 - **Subblocos do IC:** o CEPETEC é o subbloco de pesquisa do IC; o EDGE Academy e o NEES (RIEH) são
   laboratórios fechados cuja base de alunos são os do IC (Ciência da Computação, Engenharia de
   Computação e Inteligência Artificial). Em `SUBBLOCOS` (`packages/db/src/cursos-dos-blocos.ts`),
@@ -121,8 +119,9 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
   completo). Para acrescentar um caso, escreva o bloco e os cursos e crie uma migração como a
   `0036_blocos_coligados`. A meta de cada bloco segue a base da própria unidade.
 
-Para mudar quem entra em um bloco: edite `CURSOS_DOS_BLOCOS` e crie uma migração que ajuste
-`bloco_curso`, como a 0033. Bloco sem linha nessa tabela fica aberto.
+Para mudar quem entra em um bloco: edite `CURSOS_PROPRIOS_DOS_BLOCOS`, `AULAS_EM_OUTROS_BLOCOS` ou
+`SUBBLOCOS` (o que vale no banco é `CURSOS_DOS_BLOCOS`, que une os três) e crie uma migração que
+ajuste `bloco_curso`, como a 0033 e a 0036. Bloco sem linha nessa tabela fica aberto.
 
 ## Como as bases chegam ao banco
 
