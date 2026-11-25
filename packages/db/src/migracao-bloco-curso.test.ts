@@ -9,7 +9,7 @@ import { blocosUfal, cadastrarBlocosUfal } from '../seed/blocos-ufal';
 import { PAPEL_APLICACAO, PAPEL_SITE } from './app-role';
 import { CURSOS } from './cursos';
 import {
-  BLOCOS_COLIGADOS,
+  AULAS_EM_OUTROS_BLOCOS,
   CURSOS_DOS_BLOCOS,
   CURSOS_PROPRIOS_DOS_BLOCOS,
 } from './cursos-dos-blocos';
@@ -156,32 +156,35 @@ describe('v_bloco com os cursos (SCRUM-401)', () => {
   });
 });
 
-describe('blocos coligados (SCRUM-399)', () => {
-  it('IC, CEPETEC e IM aceitam os cursos uns dos outros, e só eles', () => {
-    const [grupo] = BLOCOS_COLIGADOS;
-    expect(grupo).toEqual(['ic', 'cepetec', 'im']);
-    const esperado = [
-      'Ciência da Computação',
-      'Engenharia de Computação',
-      'Inteligência Artificial',
-      'Matemática',
-    ].sort();
-    for (const slug of grupo ?? []) {
-      expect([...(CURSOS_DOS_BLOCOS[slug] ?? [])].sort(), slug).toEqual(esperado);
-    }
+describe('cursos com aula em outro bloco (SCRUM-399)', () => {
+  it('o IM aceita os cursos do IC, e o IC não aceita Matemática', () => {
+    expect([...(CURSOS_DOS_BLOCOS.im ?? [])].sort()).toEqual(
+      [
+        'Ciência da Computação',
+        'Engenharia de Computação',
+        'Inteligência Artificial',
+        'Matemática',
+      ].sort(),
+    );
+    expect(CURSOS_DOS_BLOCOS.ic).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.ic);
+    expect(CURSOS_DOS_BLOCOS.ic).not.toContain('Matemática');
+    expect(CURSOS_DOS_BLOCOS.cepetec).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.cepetec);
   });
 
-  it('bloco fora de grupo mantém só os cursos da própria unidade', () => {
+  it('bloco sem aula de outros cursos mantém só os da própria unidade', () => {
     expect(CURSOS_DOS_BLOCOS.ichca).toEqual(CURSOS_PROPRIOS_DOS_BLOCOS.ichca);
     expect(CURSOS_DOS_BLOCOS.cos).toEqual(['Jornalismo', 'Relações Públicas']);
   });
 
-  it('cada bloco de um grupo existe no catálogo', () => {
+  it('cada bloco e cada curso da regra existem no catálogo', () => {
     const slugs = new Set<string>(blocosUfal.map((b) => b.slug));
-    for (const slug of BLOCOS_COLIGADOS.flat()) expect(slugs.has(slug), slug).toBe(true);
+    for (const [slug, cursos] of Object.entries(AULAS_EM_OUTROS_BLOCOS)) {
+      expect(slugs.has(slug), slug).toBe(true);
+      for (const curso of cursos) expect(CURSOS).toContain(curso);
+    }
   });
 
-  it('a migração 0036 leva o banco da 0033 ao mapa com os coligados, sem duplicar', async () => {
+  it('a migração 0036 leva o banco da 0033 ao mapa com as aulas em outros blocos, sem duplicar', async () => {
     const c = await bancoAntes(blocosUfal.map((b) => b.slug));
     await aplicar(c, TAG);
     await aplicar(c, '0036_blocos_coligados');

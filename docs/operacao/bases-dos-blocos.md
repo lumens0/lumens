@@ -101,14 +101,13 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
 - O bot avisa cedo, na escolha do bloco da pauta nova. Quem escolheu outro bloco ou _Todo o campus_
   segue normalmente.
 
-- **Blocos coligados:** prédios ligados entre si, por onde os alunos circulam, aceitam os cursos uns
-  dos outros. Hoje há um grupo, **IC + CEPETEC + IM** (o antigo Bloco 12), por informação da equipe;
-  em `BLOCOS_COLIGADOS` (`packages/db/src/cursos-dos-blocos.ts`). Cada bloco do grupo mantém a base
-  da própria unidade para a meta. Para coligar outros, acrescente o grupo e crie uma migração como a
-  `0036_blocos_coligados`. Candidatos por proximidade no mapa (OpenStreetMap), ainda **não
-  confirmados**: ICF + EENF + FANUT + FOUFAL + CSAU + ICBS (3 a 25 m); FEAC + FSSO + Bloco 18 (9 a
-  41 m); CTEC + FAU (14 m); IQB + IF + Bloco 13 (2 a 10 m); ICAT + IGDEMA + Bloco 07 (1 a 2 m); IC +
-  CEPETEC + COS (14 a 28 m). Nenhuma fonte oficial da UFAL sobre adjacência de prédios foi achada.
+- **Cursos com aula em outro bloco:** quem tem aula num bloco de outra unidade pode apoiar nele. A
+  regra é direcional e está em `AULAS_EM_OUTROS_BLOCOS` (`packages/db/src/cursos-dos-blocos.ts`):
+  hoje, Ciência da Computação, Engenharia de Computação e Inteligência Artificial têm aula no **IM**
+  (o antigo Bloco 12, ligado ao IC), então o IM os aceita; o IC não passa a aceitar Matemática. Fonte:
+  um aluno de Ciência da Computação (a lista pública de turmas do SIGAA não foi consultada por
+  completo). Para acrescentar um caso, escreva o bloco e os cursos e crie uma migração como a
+  `0036_blocos_coligados`. A meta de cada bloco segue a base da própria unidade.
 
 Para mudar quem entra em um bloco: edite `CURSOS_DOS_BLOCOS` e crie uma migração que ajuste
 `bloco_curso`, como a 0033. Bloco sem linha nessa tabela fica aberto.

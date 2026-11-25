@@ -3,7 +3,7 @@ export const PACOTE_DB = '@lumens/db' as const;
 export * from './schema';
 export { CURSOS, type Curso } from './cursos';
 export {
-  BLOCOS_COLIGADOS,
+  AULAS_EM_OUTROS_BLOCOS,
   CURSOS_DOS_BLOCOS,
   CURSOS_PROPRIOS_DOS_BLOCOS,
 } from './cursos-dos-blocos';

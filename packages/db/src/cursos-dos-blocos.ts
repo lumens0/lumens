@@ -13,9 +13,8 @@ import type { Curso } from './cursos';
  *
  * Tipado com `Curso`: nome fora da lista de `CURSOS` não compila.
  *
- * Aqui estão só os cursos **da própria unidade**. Blocos ligados entre si, por onde os alunos
- * circulam (`BLOCOS_COLIGADOS`), aceitam também os cursos uns dos outros: o que vale no banco é
- * `CURSOS_DOS_BLOCOS`, mais abaixo.
+ * Aqui estão só os cursos **da própria unidade**. Cursos que têm aula em outro bloco
+ * (`AULAS_EM_OUTROS_BLOCOS`) entram também: o que vale no banco é `CURSOS_DOS_BLOCOS`, mais abaixo.
  */
 export const CURSOS_PROPRIOS_DOS_BLOCOS: Readonly<Record<string, readonly Curso[]>> = {
   ic: ['Ciência da Computação', 'Engenharia de Computação', 'Inteligência Artificial'],
@@ -67,28 +66,31 @@ export const CURSOS_PROPRIOS_DOS_BLOCOS: Readonly<Record<string, readonly Curso[
 };
 
 /**
- * Grupos de blocos ligados entre si: os alunos de um circulam pelos outros, então cada bloco do grupo
- * aceita os cursos de todos. A meta de cada bloco segue a base da própria unidade (`baseEstudantes`).
+ * Cursos de outras unidades que têm aula num bloco (SCRUM-399). A regra é direcional: quem cursa
+ * Ciência da Computação tem aula no IM (o antigo Bloco 12, ligado ao IC), mas quem cursa Matemática
+ * não tem aula no IC; por isso o IM aceita os cursos do IC e o IC não aceita os do IM.
  *
- * - IC, CEPETEC e IM (o antigo Bloco 12): prédios interligados.
- *
- * Para coligar outros blocos, acrescente um grupo aqui e crie uma migração que insira os cursos que
- * faltam em `bloco_curso`, como a 0036.
+ * Informação da equipe (confirmada por um aluno de Ciência da Computação): as aulas de Matemática do
+ * IC são no IM. Para acrescentar outro caso, escreva o bloco em que as aulas acontecem e os cursos
+ * que as têm, e crie uma migração que insira os vínculos que faltam em `bloco_curso`, como a 0036.
  */
-export const BLOCOS_COLIGADOS: readonly (readonly string[])[] = [['ic', 'cepetec', 'im']];
+export const AULAS_EM_OUTROS_BLOCOS: Readonly<Record<string, readonly Curso[]>> = {
+  im: ['Ciência da Computação', 'Engenharia de Computação', 'Inteligência Artificial'],
+};
 
-/** Os cursos de cada bloco: os da própria unidade mais os dos blocos coligados com ele. */
-function comColigados(
+function comAulasEmOutros(
   proprios: Readonly<Record<string, readonly Curso[]>>,
-  grupos: readonly (readonly string[])[],
+  aulas: Readonly<Record<string, readonly Curso[]>>,
 ): Readonly<Record<string, readonly Curso[]>> {
   const resultado: Record<string, readonly Curso[]> = { ...proprios };
-  for (const grupo of grupos) {
-    const uniao = [...new Set(grupo.flatMap((slug) => proprios[slug] ?? []))];
-    for (const slug of grupo) resultado[slug] = uniao;
+  for (const [slug, cursos] of Object.entries(aulas)) {
+    resultado[slug] = [...new Set([...(proprios[slug] ?? []), ...cursos])];
   }
   return resultado;
 }
 
-/** Os cursos que cada bloco aceita, já com os blocos coligados. É o que o banco guarda. */
-export const CURSOS_DOS_BLOCOS = comColigados(CURSOS_PROPRIOS_DOS_BLOCOS, BLOCOS_COLIGADOS);
+/** Os cursos que cada bloco aceita: os da própria unidade mais os que têm aula nele. É o que o banco guarda. */
+export const CURSOS_DOS_BLOCOS = comAulasEmOutros(
+  CURSOS_PROPRIOS_DOS_BLOCOS,
+  AULAS_EM_OUTROS_BLOCOS,
+);
