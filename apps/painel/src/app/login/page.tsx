@@ -14,7 +14,8 @@ export default function Login() {
         </p>
         <h1 id="titulo-login">Entrar no painel</h1>
         <p className={estilos.descricao}>
-          Digite seu e-mail de curadoria. Mandamos um link de acesso, sem senha.
+          Digite seu e-mail de curadoria. Mandamos um link de acesso, sem senha. Só e-mails
+          cadastrados pela curadoria recebem o link.
         </p>
         <form action={entrar} className={estilos.formulario}>
           <label htmlFor="email">E-mail</label>
