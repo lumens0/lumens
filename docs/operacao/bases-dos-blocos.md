@@ -97,6 +97,12 @@ estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**. O v�
 - **Bloco sem cursos** (Biblioteca Central, RU, Blocos 07, 13 e 18, Ginásio, Residência
   Universitária, CRAD e **CSAU**, que abriga cursos de várias unidades): qualquer
   estudante verificado, como antes. **Todo o campus** também continua aberto.
+- **Infraestrutura é de todos:** problema de infraestrutura do campus é um problema geral (o campus é
+  um espaço público e a reitoria precisa resolver), então pauta da categoria `infraestrutura` aceita
+  apoio de qualquer estudante verificado e pode ser aberta por qualquer um, em qualquer bloco
+  (`CATEGORIA_ABERTA_A_TODOS`, em `packages/dominio/src/pauta/curso-do-bloco.ts`). Pauta ainda sem
+  categoria não conta como infraestrutura. No bot, a recusa por curso vem depois da escolha da
+  categoria, que é quando se sabe se a pauta é de todos.
 - Apoio que já existia antes da trava continua valendo; pauta já criada não muda.
 - O bot avisa cedo, na escolha do bloco da pauta nova. Quem escolheu outro bloco ou _Todo o campus_
   segue normalmente.

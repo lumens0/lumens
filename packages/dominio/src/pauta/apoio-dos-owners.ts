@@ -36,7 +36,7 @@ export interface Conferencia {
  */
 export async function conferirApoioDosOwners(db: Db): Promise<Conferencia> {
   const resultado: unknown = await db.execute(sql`
-    SELECT DISTINCT p.id AS pauta_id, p.titulo, p.status, p.bloco_id, pa.estudante_id, e.curso,
+    SELECT DISTINCT p.id AS pauta_id, p.titulo, p.status, p.bloco_id, p.categoria, pa.estudante_id, e.curso,
            (e.verificado_em IS NOT NULL AND e.saiu_em IS NULL) AS verificado
       FROM pauta p
       JOIN papel_pauta pa ON pa.pauta_id = p.id AND pa.papel = 'owner'
@@ -59,6 +59,7 @@ export async function conferirApoioDosOwners(db: Db): Promise<Conferencia> {
       titulo: string;
       status: string;
       bloco_id: string | null;
+      categoria: string;
       estudante_id: string;
       curso: string | null;
       verificado: boolean;
@@ -77,7 +78,13 @@ export async function conferirApoioDosOwners(db: Db): Promise<Conferencia> {
     let motivo: MotivoDeSobra | undefined;
     if (SEM_APOIO.has(r.status as never)) motivo = 'pauta_sem_apoio';
     else if (!r.verificado) motivo = 'estudante_nao_verificado';
-    else if (!(await cursoServeAoBloco(db, { blocoId: r.bloco_id, curso: r.curso }))) {
+    else if (
+      !(await cursoServeAoBloco(db, {
+        blocoId: r.bloco_id,
+        curso: r.curso,
+        categoria: r.categoria,
+      }))
+    ) {
       motivo = 'fora_do_bloco';
     }
     if (motivo === undefined) conferencia.aplicaveis.push(item);

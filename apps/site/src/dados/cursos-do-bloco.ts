@@ -8,7 +8,11 @@ import { buscarBlocos } from './api';
 export function fraseDosCursosDaPauta(
   blocoSlug: string | null,
   cursos: readonly string[] | undefined,
+  categoria?: string,
 ): string | null {
+  if (categoria === 'infraestrutura') {
+    return 'Problema de infraestrutura do campus: qualquer estudante verificado pode apoiar.';
+  }
   if (blocoSlug === null)
     return 'Pauta do campus inteiro: qualquer estudante verificado pode apoiar.';
   if (cursos === undefined) return null;

@@ -36,13 +36,15 @@ export async function blocoQueRecusa(
   db: Db,
   estudanteId: string,
   blocoId: string | null,
+  categoria?: string,
 ): Promise<string | undefined> {
   if (blocoId === null) return undefined;
   const [estudante] = await db
     .select({ curso: estudantes.curso })
     .from(estudantes)
     .where(eq(estudantes.id, estudanteId));
-  if (await cursoServeAoBloco(db, { blocoId, curso: estudante?.curso ?? null })) return undefined;
+  if (await cursoServeAoBloco(db, { blocoId, curso: estudante?.curso ?? null, categoria }))
+    return undefined;
   return await nomeDoBloco(db, blocoId);
 }
 

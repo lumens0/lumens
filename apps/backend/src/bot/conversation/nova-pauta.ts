@@ -80,7 +80,7 @@ export const BLOCK_GONE_TEXT =
   'Não consegui criar a pauta: o bloco escolhido não existe mais. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 /** SCRUM-399: o bloco tem cursos e o do estudante não é um deles. */
 export const createOutsideBlockText = (bloco: string): string =>
-  `O *${bloco}* só recebe pautas de estudantes dos cursos dele. Para o seu curso, escolha outro bloco ou *Todo o campus*.`;
+  `O *${bloco}* só recebe pautas de estudantes dos cursos dele, exceto de *Infraestrutura*, que é de todos. Escolha *Infraestrutura* se o problema for do campus, ou mande *menu* para recomeçar com outro bloco ou *Todo o campus*.`;
 export const DATA_LOST_TEXT =
   'Não consegui recuperar as respostas da sua pauta. Mande *menu* e escolha *Nova pauta* para começar de novo.';
 
@@ -178,8 +178,7 @@ export async function entrarNaPautaNova(
     slugDoBloco === undefined
       ? undefined
       : (await listarBlocos(db)).find((b) => b.slug === slugDoBloco);
-  const estudanteDoTelefone = await estudanteVerificado(db, phoneHmac);
-  if (estudanteDoTelefone === undefined) {
+  if ((await estudanteVerificado(db, phoneHmac)) === undefined) {
     // Ao fim da verificação (2.4), `verifyAskCourse` vê o `pendingCommand` e volta para cá.
     return {
       next: 'VERIFY_ASK_EMAIL',
@@ -188,13 +187,6 @@ export async function entrarNaPautaNova(
     };
   }
   if (bloco === undefined) return { next: 'NEW_ASK_TITLE', replies: [...antes, NEW_TITLE_TEXT] };
-  const recusa = await blocoQueRecusa(db, estudanteDoTelefone, bloco.id);
-  if (recusa !== undefined) {
-    return {
-      next: 'NEW_ASK_TITLE',
-      replies: [...antes, createOutsideBlockText(recusa), NEW_TITLE_TEXT],
-    };
-  }
   return {
     next: 'NEW_ASK_TITLE',
     data: { blocoId: bloco.id },
@@ -228,20 +220,11 @@ export const newAskTitle: StepHandler = async ({ state, input, db, segredo }) =>
   );
 };
 
-export const newAskPlace: StepHandler = async ({ state, input, db, segredo, phoneHmac }) => {
+export const newAskPlace: StepHandler = async ({ state, input, db, segredo }) => {
   const lista = await listarBlocos(db);
   const escolha = blocoEscolhido(input.text, lista);
   if (escolha === undefined) {
     return { next: 'NEW_ASK_PLACE', replies: [BLOCK_NOT_FOUND_TEXT, listaDeBlocos(lista)] };
-  }
-  const estudanteId = await estudanteVerificado(db, phoneHmac);
-  const recusa =
-    estudanteId === undefined ? undefined : await blocoQueRecusa(db, estudanteId, escolha.blocoId);
-  if (recusa !== undefined) {
-    return {
-      next: 'NEW_ASK_PLACE',
-      replies: [createOutsideBlockText(recusa), listaDeBlocos(lista)],
-    };
   }
   // O título faz o papel do relato na busca. Sem ele (dado perdido), segue: o fim avisa.
   const tituloDaPauta = decifrado(segredo, dadosDaPauta(state.data).tituloCifrado);
@@ -313,7 +296,7 @@ export function textoDaPauta(segredo: Segredo, data: unknown): string | undefine
  * A categoria: a linha da lista ou o nome digitado. Resposta que não vale repete a lista, sem
  * perder o que já foi respondido. Vindo da 2.5, o relato serve de descrição, se couber nela.
  */
-export const newAskCategory: StepHandler = ({ state, input, segredo }) => {
+export const newAskCategory: StepHandler = async ({ state, input, segredo, db, phoneHmac }) => {
   const categoria = categoriaEscolhida(input.text);
   if (categoria === undefined) {
     return {
@@ -321,34 +304,62 @@ export const newAskCategory: StepHandler = ({ state, input, segredo }) => {
       replies: [CATEGORY_NOT_FOUND_TEXT, listaDeCategorias()],
     };
   }
-  return depoisDaCategoria(state.data, segredo, categoria);
+  return depoisDaCategoria(state.data, segredo, categoria, { db, phoneHmac });
 };
 
 /**
  * A resposta à sugestão (SCRUM-365). "Confirmar" vale a categoria sugerida; "Escolher outra" abre
  * a lista completa; o nome de uma categoria digitado também vale. O resto repete a pergunta.
  */
-export const newConfirmCategory: StepHandler = ({ state, input, segredo }) => {
+export const newConfirmCategory: StepHandler = async ({ state, input, segredo, db, phoneHmac }) => {
   const { categoriaSugerida } = dadosDaPauta(state.data);
   const sugerida = categoriaEscolhida(categoriaSugerida ?? '');
   if (sugerida === undefined || sugerida === OTHER_CATEGORY) {
     return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
   }
   const resposta = respostaDaSugestao(input.text);
-  if (resposta === 'confirmar') return depoisDaCategoria(state.data, segredo, sugerida);
+  if (resposta === 'confirmar') {
+    return depoisDaCategoria(state.data, segredo, sugerida, { db, phoneHmac });
+  }
   if (resposta === 'escolher') return { next: 'NEW_ASK_CATEGORY', replies: [listaDeCategorias()] };
   // Escolheu na mão, sem tocar nos botões: vale como a lista.
   const digitada = categoriaEscolhida(input.text);
-  if (digitada !== undefined) return depoisDaCategoria(state.data, segredo, digitada);
+  if (digitada !== undefined) {
+    return depoisDaCategoria(state.data, segredo, digitada, { db, phoneHmac });
+  }
   return { next: 'NEW_CONFIRM_CATEGORY', replies: [confirmacaoDaCategoria(sugerida)] };
 };
 
-/** Guarda a categoria e segue: a descrição, ou a foto quando o relato da 2.5 já a cobre. */
-function depoisDaCategoria(
+/**
+ * Guarda a categoria e segue: a descrição, ou a foto quando o relato da 2.5 já a cobre. É aqui que o
+ * bloco recusa quem é de outro curso (SCRUM-399), porque só agora se sabe a categoria: pauta de
+ * infraestrutura é de todos, e as demais só abrem em bloco aberto ou nos cursos do bloco.
+ */
+async function depoisDaCategoria(
   dados: unknown,
   segredo: Segredo,
   categoria: NonNullable<ReturnType<typeof categoriaEscolhida>>,
-): StepResult {
+  { db, phoneHmac }: Pick<StepContext, 'db' | 'phoneHmac'>,
+): Promise<StepResult> {
+  const { blocoId } = dadosDaPauta(dados);
+  if (blocoId !== undefined && blocoId !== null) {
+    const estudanteId = await estudanteVerificado(db, phoneHmac);
+    const recusa =
+      estudanteId === undefined
+        ? undefined
+        : await blocoQueRecusa(
+            db,
+            estudanteId,
+            blocoId,
+            categoria === OTHER_CATEGORY ? undefined : categoria,
+          );
+    if (recusa !== undefined) {
+      return {
+        next: 'NEW_ASK_CATEGORY',
+        replies: [createOutsideBlockText(recusa), listaDeCategorias()],
+      };
+    }
+  }
   const data: DataPatch = { categoria, categoriaSugerida: undefined };
   const relato = decifrado(segredo, dadosDaPauta(dados).relatoCifrado);
   if (relato === undefined || tamanho(relato.trim()) > DESCRICAO_MAXIMA) {

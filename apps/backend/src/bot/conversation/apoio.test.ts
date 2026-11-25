@@ -216,6 +216,7 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
     const [b18] = await db.select({ id: blocos.id }).from(blocos);
     await db.insert(blocoCursos).values({ blocoId: b18?.id ?? '', curso: 'História' });
+    await db.update(pautas).set({ categoria: 'ensino' }).where(eq(pautas.id, pautaId));
     await send('1');
     await send(RELATO);
 
@@ -225,6 +226,18 @@ describe('apoiar pela lista de parecidas (2.7)', () => {
     ]);
     expect(await apoiosDaPauta()).toHaveLength(0);
     expect(await passo()).toBe('MENU');
+  });
+
+  it('pauta de infraestrutura é de todos: qualquer curso apoia em bloco com cursos (SCRUM-399)', async () => {
+    await verificar();
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    const [b18] = await db.select({ id: blocos.id }).from(blocos);
+    await db.insert(blocoCursos).values({ blocoId: b18?.id ?? '', curso: 'História' });
+    // A pauta de teste já é de infraestrutura.
+
+    await escolherAPauta();
+
+    expect(await apoiosDaPauta()).toHaveLength(1);
   });
 
   it('o mesmo bloco aceita quem é do curso dele (SCRUM-399)', async () => {

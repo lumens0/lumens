@@ -52,6 +52,16 @@ describe('página da pauta: seções', () => {
     );
     expect(campus).toContain('Pauta do campus inteiro');
 
+    // Problema de infraestrutura é de todos, em qualquer bloco.
+    const infra = renderToStaticMarkup(
+      <CabecalhoPauta
+        pauta={{ ...doBloco, categoria: 'infraestrutura' }}
+        cursosDoBloco={['História']}
+      />,
+    );
+    expect(infra).toContain('Problema de infraestrutura do campus: qualquer estudante verificado');
+    expect(infra).not.toContain('Só apoiam estudantes de');
+
     // Sem saber os cursos do bloco, a página não afirma nada.
     const semSaber = renderToStaticMarkup(<CabecalhoPauta pauta={doBloco} />);
     expect(semSaber).not.toContain('data-quem-apoia');

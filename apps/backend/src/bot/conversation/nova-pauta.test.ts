@@ -469,20 +469,29 @@ describe('pauta nova pelo menu', () => {
     expect(await todasAsPautas()).toEqual([]);
   });
 
-  it('bloco com cursos: quem é de outro curso é avisado na escolha do bloco e segue na lista (SCRUM-399)', async () => {
+  it('bloco com cursos: quem é de outro curso é recusado ao escolher a categoria, exceto Infraestrutura (SCRUM-399)', async () => {
     await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
     await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
     await send('Palco sem iluminação');
+    await send(`bloco:${artes}`);
 
-    const respostas = await send(`bloco:${artes}`);
+    const respostas = await send('categoria:ensino');
 
     expect(respostas[0]).toBe(createOutsideBlockText('Bloco de Artes'));
-    expect(await passo()).toBe('NEW_ASK_PLACE');
+    expect(await passo()).toBe('NEW_ASK_CATEGORY');
     expect(await todasAsPautas()).toEqual([]);
-    // Quem é do curso escolhe o mesmo bloco e segue para a categoria.
+    // Problema de infraestrutura do campus é de todos: segue para a descrição.
+    await send('categoria:infraestrutura');
+    expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
+  });
+
+  it('quem é do curso do bloco escolhe qualquer categoria (SCRUM-399)', async () => {
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
     await db.update(estudantes).set({ curso: 'Teatro' });
+    await send('Palco sem iluminação');
     await send(`bloco:${artes}`);
-    expect(await passo()).not.toBe('NEW_ASK_PLACE');
+    await send('categoria:ensino');
+    expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
   });
 
   it('bloco que ganhou cursos no meio da conversa recusa no fim, sem criar a pauta (SCRUM-399)', async () => {

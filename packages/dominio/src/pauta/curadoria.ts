@@ -629,11 +629,7 @@ export type ResultadoCategoria =
  */
 export async function definirCategoria(
   tx: Tx,
-  {
-    pautaId,
-    categoria,
-    agora = new Date(),
-  }: { pautaId: string; categoria: string; agora?: Date },
+  { pautaId, categoria, agora = new Date() }: { pautaId: string; categoria: string; agora?: Date },
 ): Promise<ResultadoCategoria> {
   if (!Object.hasOwn(CATEGORIAS, categoria)) return { feito: false, motivo: 'categoria_invalida' };
   const [pauta] = await tx

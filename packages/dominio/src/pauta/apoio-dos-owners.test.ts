@@ -37,7 +37,7 @@ describe('apoio dos owners de pautas aprovadas antes da SCRUM-344', () => {
   it('owner de outro curso que o do bloco fica em ignorados, e o apoio não é aplicado (SCRUM-399)', async () => {
     const bloco = await criarBloco(db);
     await db.insert(blocoCursos).values({ blocoId: bloco.id, curso: 'História' });
-    const pauta = await criarPauta(db, { blocoId: bloco.id });
+    const pauta = await criarPauta(db, { blocoId: bloco.id, categoria: 'ensino' });
     const owner = await criarEstudanteVerificado(db); // Ciência da Computação
     await tornarOwner(db, pauta.id, owner.id);
 

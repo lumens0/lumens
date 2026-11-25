@@ -49,7 +49,7 @@ describe('cursoServeAoBloco (SCRUM-399)', () => {
 describe('registrarApoio com o curso do bloco (SCRUM-399)', () => {
   it('aluno de Engenharia de Computação não apoia pauta do bloco do ICHCA, e nada é gravado', async () => {
     const ichca = await blocoDosCursos('História', 'Filosofia');
-    const pauta = await criarPauta(db, { blocoId: ichca.id, meta: 30 });
+    const pauta = await criarPauta(db, { blocoId: ichca.id, categoria: 'ensino', meta: 30 });
     const deComputacao = await estudanteDe('Engenharia de Computação');
 
     const r = await apoiar(pauta.id, deComputacao.id);
@@ -96,7 +96,7 @@ describe('registrarApoio com o curso do bloco (SCRUM-399)', () => {
 
   it('estudante sem curso não apoia bloco com cursos', async () => {
     const ichca = await blocoDosCursos('História');
-    const pauta = await criarPauta(db, { blocoId: ichca.id });
+    const pauta = await criarPauta(db, { blocoId: ichca.id, categoria: 'ensino' });
     const semCurso = await estudanteDe(null);
 
     expect(await apoiar(pauta.id, semCurso.id)).toEqual({
@@ -134,5 +134,57 @@ describe('criarPauta com o curso do bloco (SCRUM-399)', () => {
 
     expect(await abrir(deHistoria.id, ichca.id)).toMatchObject({ criada: true });
     expect(await abrir(deComputacao.id, null)).toMatchObject({ criada: true });
+  });
+});
+
+describe('problema de infraestrutura é de todos (SCRUM-399)', () => {
+  it('o helper libera a categoria infraestrutura em bloco com cursos, e só ela', async () => {
+    const ichca = await blocoDosCursos('História');
+    const base = { blocoId: ichca.id, curso: 'Engenharia de Computação' };
+    expect(await cursoServeAoBloco(db, { ...base, categoria: 'infraestrutura' })).toBe(true);
+    expect(await cursoServeAoBloco(db, { ...base, categoria: 'ensino' })).toBe(false);
+    expect(await cursoServeAoBloco(db, { ...base, categoria: 'a_classificar' })).toBe(false);
+    expect(await cursoServeAoBloco(db, base)).toBe(false);
+  });
+
+  it('qualquer curso apoia pauta de infraestrutura em bloco com cursos', async () => {
+    const ichca = await blocoDosCursos('História');
+    const pauta = await criarPauta(db, {
+      blocoId: ichca.id,
+      categoria: 'infraestrutura',
+      meta: 30,
+    });
+    const deComputacao = await estudanteDe('Engenharia de Computação');
+
+    expect(await apoiar(pauta.id, deComputacao.id)).toMatchObject({ registrado: true });
+  });
+
+  it('a mesma pessoa não apoia pauta de outra categoria no mesmo bloco', async () => {
+    const ichca = await blocoDosCursos('História');
+    const pauta = await criarPauta(db, { blocoId: ichca.id, categoria: 'ensino', meta: 30 });
+    const deComputacao = await estudanteDe('Engenharia de Computação');
+
+    expect(await apoiar(pauta.id, deComputacao.id)).toEqual({
+      registrado: false,
+      motivo: 'fora_do_bloco',
+    });
+  });
+
+  it('qualquer curso abre pauta de infraestrutura em bloco com cursos; sem categoria, não', async () => {
+    const ichca = await blocoDosCursos('História');
+    const deComputacao = await estudanteDe('Engenharia de Computação');
+    const abrir = (categoria?: 'infraestrutura') =>
+      db.transaction((tx) =>
+        abrirPauta(tx, {
+          estudanteId: deComputacao.id,
+          titulo: 'Goteira na sala de aula',
+          descricao: 'Chove dentro da sala.',
+          blocoId: ichca.id,
+          ...(categoria === undefined ? {} : { categoria }),
+        }),
+      );
+
+    expect(await abrir('infraestrutura')).toMatchObject({ criada: true });
+    expect(await abrir()).toEqual({ criada: false, motivo: 'fora_do_bloco' });
   });
 });

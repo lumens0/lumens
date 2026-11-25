@@ -48,7 +48,7 @@ export const SUPPORT_CLOSED_TEXT =
   'Essa pauta não está recebendo apoios agora. Mande *menu* e escolha *Relatar problema* para relatar outro problema.';
 /** SCRUM-399: a pauta é de um bloco com cursos, e o curso do estudante não é um deles. */
 export const supportOutsideBlockText = (bloco: string): string =>
-  `Essa pauta é do *${bloco}* e só recebe apoio de estudantes dos cursos dele, por isso não consegui registrar o seu. Mande *menu* para ver outras pautas.`;
+  `Essa pauta é do *${bloco}* e só recebe apoio de estudantes dos cursos dele (problemas de infraestrutura do campus são de todos), por isso não consegui registrar o seu. Mande *menu* para ver outras pautas.`;
 export const SUPPORT_NOT_FOUND_TEXT =
   'Não encontrei essa pauta. Mande *menu* e escolha *Relatar problema* para relatar o problema de novo.';
 export const ASK_ATTACH_REPORT_TEXT =

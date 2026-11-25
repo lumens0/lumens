@@ -8,16 +8,27 @@
  * - bloco sem cursos (Biblioteca, RU, blocos de aula...): qualquer estudante verificado;
  * - pauta do campus inteiro (sem bloco): qualquer estudante verificado.
  *
+ * Problema de infraestrutura do campus é de todos: o campus é um espaço público e a reitoria precisa
+ * resolver, então pauta de categoria `infraestrutura` é aberta a qualquer estudante verificado, em
+ * qualquer bloco. Pauta ainda sem categoria (`a_classificar`) não conta como infraestrutura.
+ *
  * Estudante sem curso cadastrado não serve a bloco com cursos. O curso vem de `CURSOS`, escolhido
  * na verificação (2.4), então a comparação é pelo nome exato.
  */
 import { blocoCursos, eq, type Db, type Tx } from '@lumens/db';
 
+/** A categoria que é de todos, em qualquer bloco. */
+export const CATEGORIA_ABERTA_A_TODOS = 'infraestrutura';
+
 export async function cursoServeAoBloco(
   tx: Db | Tx,
-  { blocoId, curso }: { blocoId: string | null; curso: string | null },
+  {
+    blocoId,
+    curso,
+    categoria,
+  }: { blocoId: string | null; curso: string | null; categoria?: string | null | undefined },
 ): Promise<boolean> {
-  if (blocoId === null) return true;
+  if (blocoId === null || categoria === CATEGORIA_ABERTA_A_TODOS) return true;
   const cursosDoBloco = await tx
     .select({ curso: blocoCursos.curso })
     .from(blocoCursos)

@@ -392,7 +392,7 @@ describe('resumo do mapa na home (SCRUM-284)', () => {
 describe('cursos do bloco no mapa (SCRUM-401)', () => {
   it('a frase diz quem apoia: os cursos do bloco, ou qualquer estudante quando não há cursos', () => {
     expect(frasesDosCursos(['História', 'Filosofia'])).toBe(
-      'Apoia e abre pauta aqui quem é de: História, Filosofia.',
+      'Apoia e abre pauta aqui quem é de: História, Filosofia. Problemas de infraestrutura são de todos.',
     );
     expect(frasesDosCursos([])).toBe('Aberto a qualquer estudante verificado.');
   });

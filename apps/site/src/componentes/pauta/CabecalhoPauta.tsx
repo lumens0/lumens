@@ -78,9 +78,9 @@ export function CabecalhoPauta({
         <p className={estilos.onde}>
           {[contextoDaPauta(pauta.categoria, pauta.bloco_nome), aberta].filter(Boolean).join(' · ')}
         </p>
-        {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco) !== null && (
+        {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco, pauta.categoria) !== null && (
           <p className={estilos.onde} data-quem-apoia>
-            {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco)}
+            {fraseDosCursosDaPauta(pauta.bloco_slug, cursosDoBloco, pauta.categoria)}
           </p>
         )}
         {pauta.cursos_responsaveis.length > 0 && (

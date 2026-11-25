@@ -146,7 +146,7 @@ export async function criarPauta(
     if (achado === undefined) return { criada: false, motivo: 'bloco_inexistente' };
     bloco = achado;
     // O owner ganha o primeiro apoio da pauta na aprovação: quem não pode apoiar o bloco não abre pauta nele.
-    if (!(await cursoServeAoBloco(tx, { blocoId, curso: estudante.curso }))) {
+    if (!(await cursoServeAoBloco(tx, { blocoId, curso: estudante.curso, categoria }))) {
       return { criada: false, motivo: 'fora_do_bloco' };
     }
   }

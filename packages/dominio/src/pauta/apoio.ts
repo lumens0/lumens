@@ -59,6 +59,7 @@ export async function registrarApoio(
       meta: pautas.meta,
       metaBatidaEm: pautas.metaBatidaEm,
       blocoId: pautas.blocoId,
+      categoria: pautas.categoria,
     })
     .from(pautas)
     .where(eq(pautas.id, pautaId))
@@ -83,7 +84,13 @@ export async function registrarApoio(
   }
 
   // Quem já apoiou antes da trava (ou antes de trocar de curso) continua apoiando: cai em `ja_apoiou`.
-  if (!(await cursoServeAoBloco(tx, { blocoId: pauta.blocoId, curso: estudante.curso }))) {
+  if (
+    !(await cursoServeAoBloco(tx, {
+      blocoId: pauta.blocoId,
+      curso: estudante.curso,
+      categoria: pauta.categoria,
+    }))
+  ) {
     const [jaApoia] = await tx
       .select({ pautaId: apoios.pautaId })
       .from(apoios)
