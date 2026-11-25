@@ -63,18 +63,25 @@ A soma dos cursos acima é de **15.588** estudantes de graduação presencial no
 
 ## Dúvidas de enquadramento
 
-A divisão dos cursos entre unidades segue o que a equipe conhece do campus, e alguns casos merecem
-conferência de quem é da unidade:
+**Conferido em 24/11/2026** na lista oficial "Consulta de Cursos — Graduação" do SIGAA da UFAL
+(<https://sigaa.sig.ufal.br/sigaa/public/curso/lista.jsf?nivel=G&aba=p-graduacao>), que agrupa cada
+curso pela unidade que o coordena. Os 43 cursos de `CURSOS` caem na unidade em que aparecem aqui e em
+`packages/db/src/cursos-dos-blocos.ts`, sem divergência:
 
-- **Artes (Dança, Teatro e Música)** foram para o `ichca` (Instituto de Ciências Humanas,
-  Comunicação e Artes). Se algum deles for de outra unidade, o `ichca` cai (até 362 estudantes) e a
-  outra sobe.
-- **Design** foi para a `fau`; **Biblioteconomia** para o `ichca`.
-- **Ficaram de fora**, por serem do CECA (Rio Largo) ou terem unidade incerta: Agronomia,
-  Agroecologia, Zootecnia, Medicina Veterinária, Engenharia Florestal, Engenharia de Energia e
-  Engenharia de Agrimensura. Se Energia ou Agrimensura forem do CTEC, some 207 e 117 ao `ctec`.
-- **Inteligência Artificial** (curso novo, depois de 2020) não está no relatório; entra no `ic`
-  quando houver número.
+- **Artes (Dança, Teatro e Música)**, **Biblioteconomia**, **Jornalismo** e **Relações Públicas**
+  são do `ichca`; **Design** é da `fau`; **Engenharia Química** é do `ctec`; **Inteligência
+  Artificial** é do `ic`; **Letras - Libras** é da `fale`.
+- **Ficaram de fora**, por serem de outro campus: Agronomia, Agroecologia, Zootecnia, Medicina
+  Veterinária, Engenharia Florestal, Engenharia Elétrica, **Engenharia de Energia** e **Engenharia
+  de Agrimensura** são do CECA (Rio Largo), não do CTEC. A hipótese antiga de somar Energia e
+  Agrimensura ao `ctec` não procede.
+- **O que o SIGAA não diz**, e continua decisão da equipe: o `cepetec` (extensão do IC), o `cos` (o
+  prédio da Comunicação Social, cujos cursos são do ICHCA), o `csau` (aberto) e os espaços
+  compartilhados. O SIGAA agrupa por unidade acadêmica, não pelo prédio onde as aulas acontecem.
+- A lista também traz cursos de Arapiraca, Sertão e Rio Largo com o mesmo nome de cursos de Maceió
+  (por exemplo, Ciência da Computação em Arapiraca). A verificação não pergunta o campus, então
+  quem é de outro campus e escolhe o mesmo curso conta como do bloco de Maceió.
+- Em **Inteligência Artificial** (curso novo) falta o número de alunos para a base do `ic`.
 
 ## Quem apoia e abre pauta em cada bloco (SCRUM-399)
 
