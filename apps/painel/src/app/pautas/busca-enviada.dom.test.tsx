@@ -94,7 +94,7 @@ describe('buscar → tocar numa etapa antes de o servidor responder (no navegado
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(replace).toHaveBeenCalledWith('/pautas?status=todas&q=sala', { scroll: false });
+    expect(replace).toHaveBeenCalledWith('/pautas?q=sala', { scroll: false });
     fireEvent.click(screen.getByRole('link', { name: 'Cobrando' }));
     expect(push).toHaveBeenCalledWith('/pautas?status=cobrando&q=sala');
   });
