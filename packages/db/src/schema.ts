@@ -47,6 +47,7 @@ export const tipoDisparo = pgEnum('tipo_disparo', [
   'remarcacao',
   'foto_recusada',
   'edicao_decidida',
+  'alteracao',
 ]);
 
 const instante = (nome: string) => timestamp(nome, { withTimezone: true });
@@ -112,6 +113,22 @@ export const blocos = pgTable(
     baseEstudantes: integer('base_estudantes').notNull(),
   },
   (t) => [check('bloco_base_estudantes_nao_negativa', sql`${t.baseEstudantes} >= 0`)],
+);
+
+/**
+ * SCRUM-399: os cursos de cada bloco. Bloco com pelo menos uma linha aqui só recebe apoio (e só
+ * aceita pauta nova) de estudante de um desses cursos; bloco sem linha, como a Biblioteca, o RU e os
+ * blocos de aula, fica aberto a qualquer estudante verificado. `curso` é um nome de `CURSOS`.
+ */
+export const blocoCursos = pgTable(
+  'bloco_curso',
+  {
+    blocoId: uuid('bloco_id')
+      .notNull()
+      .references(() => blocos.id, { onDelete: 'restrict' }),
+    curso: text('curso').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.blocoId, t.curso] })],
 );
 
 export const pautas = pgTable(

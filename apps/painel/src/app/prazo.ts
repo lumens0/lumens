@@ -6,8 +6,10 @@ function duracao(ms: number): string {
   // Dois dias ou mais: a hora exata já não ajuda ninguém a decidir.
   if (horas >= 48) return `${String(Math.floor(horas / 24))} dias`;
   const minutos = Math.floor((ms % HORA) / MINUTO);
-  if (horas === 0) return `${String(minutos)} min`;
-  return minutos === 0 ? `${String(horas)} h` : `${String(horas)} h ${String(minutos)} min`;
+  if (horas === 0) return `${String(minutos)}\u00a0min`;
+  return minutos === 0
+    ? `${String(horas)}\u00a0h`
+    : `${String(horas)}\u00a0h ${String(minutos)}\u00a0min`;
 }
 
 /** Quanto falta do prazo de 24 h da curadoria, ou há quanto tempo ele venceu. */

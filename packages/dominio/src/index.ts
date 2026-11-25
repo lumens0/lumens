@@ -116,6 +116,14 @@ export {
 } from './avisos/aviso-meta-batida';
 export { MODELO_PAUTA_APROVADA, enfileirarAvisoDeAprovacao } from './avisos/aviso-aprovacao';
 export { MODELO_FOTO_RECUSADA, enfileirarAvisoDeFotoRecusada } from './avisos/aviso-foto-recusada';
+export {
+  MODELO_PAUTA_ALTERADA,
+  MODELO_PAUTA_ALTERADA_SEM_LINK,
+  MOTIVO_SEM_TEXTO,
+  enfileirarAvisoDeAlteracao,
+  textoDaAlteracao,
+  type AlteracaoDaPauta,
+} from './avisos/aviso-alteracao';
 export { MODELO_VITORIA, enfileirarAvisoDeVitoria } from './avisos/aviso-vitoria';
 export type { CanalDoBot, DisparoReservado, NovoAviso, ParametrosDeLote } from './avisos/fila';
 
@@ -239,6 +247,7 @@ export {
   sugerirCategoria,
 } from './pauta/categoria-sugerida';
 
+export { cursoServeAoBloco } from './pauta/curso-do-bloco';
 export { SEM_APOIO, registrarApoio } from './pauta/apoio';
 export type { NovoApoio, ResultadoApoio } from './pauta/apoio';
 

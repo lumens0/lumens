@@ -27,6 +27,7 @@ import {
 import { registrarEvento } from '../compartilhado/eventos';
 import { enfileirarAvisoDeAprovacao } from '../avisos/aviso-aprovacao';
 import { enfileirarDisparos } from '../avisos/fila';
+import { enfileirarAvisoDeAlteracao } from '../avisos/aviso-alteracao';
 import { registrarApoio } from './apoio';
 import { versaoDoTexto } from './edicao';
 import { aprovarRelato, fotosPendentesDe, mesmasFotos, recusarRelato } from './moderacao';
@@ -602,11 +603,18 @@ export async function marcarUrgencia(
       urgenteMotivo: novoMotivo,
     })
     .where(eq(pautas.id, pautaId));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'pauta_urgente',
     dados: { urgente },
     origem: 'curadoria',
+  });
+  // O motivo da urgência fica só no painel (pode citar pessoas): o aviso diz que não há texto.
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: { tipo: 'urgencia', urgente },
+    agora,
   });
   return { atualizada: true };
 }
@@ -621,7 +629,7 @@ export type ResultadoCategoria =
  */
 export async function definirCategoria(
   tx: Tx,
-  { pautaId, categoria }: { pautaId: string; categoria: string },
+  { pautaId, categoria, agora = new Date() }: { pautaId: string; categoria: string; agora?: Date },
 ): Promise<ResultadoCategoria> {
   if (!Object.hasOwn(CATEGORIAS, categoria)) return { feito: false, motivo: 'categoria_invalida' };
   const [pauta] = await tx
@@ -635,11 +643,17 @@ export async function definirCategoria(
   }
   if (pauta.categoria === categoria) return { feito: true };
   await tx.update(pautas).set({ categoria }).where(eq(pautas.id, pautaId));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'categoria_alterada',
     dados: { de: pauta.categoria, para: categoria },
     origem: 'curadoria',
+  });
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: { tipo: 'categoria', de: pauta.categoria, para: categoria },
+    agora,
   });
   return { feito: true };
 }

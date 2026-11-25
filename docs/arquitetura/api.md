@@ -53,24 +53,36 @@ Os 4 apoios da pauta recusada não entram na soma.
 
 Todos os blocos, em ordem de `nome`. Sem paginação.
 
-| Campo                     | Tipo   | Conteúdo                                 |
-| ------------------------- | ------ | ---------------------------------------- |
-| `itens[].slug`            | string | identificador público do bloco           |
-| `itens[].nome`            | string |                                          |
-| `itens[].base_estudantes` | int    | estudantes do bloco, base da meta (RN04) |
+| Campo                     | Tipo     | Conteúdo                                                                                                                                                                                            |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `itens[].slug`            | string   | identificador público do bloco                                                                                                                                                                      |
+| `itens[].nome`            | string   |                                                                                                                                                                                                     |
+| `itens[].base_estudantes` | int      | estudantes do bloco, base da meta (RN04)                                                                                                                                                            |
+| `itens[].cursos`          | string[] | cursos que apoiam e abrem pauta no bloco (SCRUM-399); lista vazia: bloco aberto a qualquer estudante verificado. Pauta de infraestrutura, segurança ou acessibilidade é de todos, em qualquer bloco |
 
 ```json
 {
   "itens": [
-    { "slug": "biblioteca-central", "nome": "Biblioteca Central", "base_estudantes": 120 },
-    { "slug": "bloco-18", "nome": "Bloco 18 (fictício)", "base_estudantes": 1200 },
-    { "slug": "saude", "nome": "Bloco da Saúde (fictício)", "base_estudantes": 650 },
-    { "slug": "engenharias", "nome": "Bloco das Engenharias (fictício)", "base_estudantes": 5000 },
-    { "slug": "artes", "nome": "Bloco de Artes (fictício)", "base_estudantes": 800 },
+    {
+      "slug": "biblioteca-central",
+      "nome": "Biblioteca Central",
+      "base_estudantes": 120,
+      "cursos": []
+    },
+    { "slug": "bloco-18", "nome": "Bloco 18 (fictício)", "base_estudantes": 1200, "cursos": [] },
+    { "slug": "saude", "nome": "Bloco da Saúde (fictício)", "base_estudantes": 650, "cursos": [] },
+    {
+      "slug": "engenharias",
+      "nome": "Bloco das Engenharias (fictício)",
+      "base_estudantes": 5000,
+      "cursos": []
+    },
+    { "slug": "artes", "nome": "Bloco de Artes (fictício)", "base_estudantes": 800, "cursos": [] },
     {
       "slug": "residencia-universitaria",
       "nome": "Residência Universitária",
-      "base_estudantes": 3000
+      "base_estudantes": 3000,
+      "cursos": []
     }
   ]
 }

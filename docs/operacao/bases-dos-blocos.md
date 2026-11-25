@@ -63,18 +63,65 @@ A soma dos cursos acima é de **15.588** estudantes de graduação presencial no
 
 ## Dúvidas de enquadramento
 
-A divisão dos cursos entre unidades segue o que a equipe conhece do campus, e alguns casos merecem
-conferência de quem é da unidade:
+**Conferido em 24/11/2026** na lista oficial "Consulta de Cursos — Graduação" do SIGAA da UFAL
+(<https://sigaa.sig.ufal.br/sigaa/public/curso/lista.jsf?nivel=G&aba=p-graduacao>), que agrupa cada
+curso pela unidade que o coordena. Os 43 cursos de `CURSOS` caem na unidade em que aparecem aqui e em
+`packages/db/src/cursos-dos-blocos.ts`, sem divergência:
 
-- **Artes (Dança, Teatro e Música)** foram para o `ichca` (Instituto de Ciências Humanas,
-  Comunicação e Artes). Se algum deles for de outra unidade, o `ichca` cai (até 362 estudantes) e a
-  outra sobe.
-- **Design** foi para a `fau`; **Biblioteconomia** para o `ichca`.
-- **Ficaram de fora**, por serem do CECA (Rio Largo) ou terem unidade incerta: Agronomia,
-  Agroecologia, Zootecnia, Medicina Veterinária, Engenharia Florestal, Engenharia de Energia e
-  Engenharia de Agrimensura. Se Energia ou Agrimensura forem do CTEC, some 207 e 117 ao `ctec`.
-- **Inteligência Artificial** (curso novo, depois de 2020) não está no relatório; entra no `ic`
-  quando houver número.
+- **Artes (Dança, Teatro e Música)**, **Biblioteconomia**, **Jornalismo** e **Relações Públicas**
+  são do `ichca`; **Design** é da `fau`; **Engenharia Química** é do `ctec`; **Inteligência
+  Artificial** é do `ic`; **Letras - Libras** é da `fale`.
+- **Ficaram de fora**, por serem de outro campus: Agronomia, Agroecologia, Zootecnia, Medicina
+  Veterinária, Engenharia Florestal, Engenharia Elétrica, **Engenharia de Energia** e **Engenharia
+  de Agrimensura** são do CECA (Rio Largo), não do CTEC. A hipótese antiga de somar Energia e
+  Agrimensura ao `ctec` não procede.
+- **O que o SIGAA não diz**, e continua decisão da equipe: o `cepetec` (extensão do IC), o `cos` (o
+  prédio da Comunicação Social, cujos cursos são do ICHCA), o `csau` (aberto) e os espaços
+  compartilhados. O SIGAA agrupa por unidade acadêmica, não pelo prédio onde as aulas acontecem.
+- A lista também traz cursos de Arapiraca, Sertão e Rio Largo com o mesmo nome de cursos de Maceió
+  (por exemplo, Ciência da Computação em Arapiraca). A verificação não pergunta o campus, então
+  quem é de outro campus e escolhe o mesmo curso conta como do bloco de Maceió.
+- Em **Inteligência Artificial** (curso novo) falta o número de alunos para a base do `ic`.
+
+## Quem apoia e abre pauta em cada bloco (SCRUM-399)
+
+A meta é 10% da base do bloco, e a base é a soma dos cursos da unidade. Para essa conta valer, **só
+estudante de um dos cursos do bloco apoia a pauta dele e abre pauta nele**, com as exceções abaixo. O vínculo está na tabela
+`bloco_curso` (mesma divisão da tabela de bases acima), escrita em
+`packages/db/src/cursos-dos-blocos.ts` e levada ao banco pela migração `0033_bloco_curso` e pelo
+`db:blocos-ufal`.
+
+- **Bloco com cursos** (IC, IM, IF, IQB, ICBS, FAMED, FANUT, EENF, FOUFAL, ICF, CTEC, FAU, FDA, FEAC,
+  FALE, FSSO, ICS, ICHCA, ICAT, IGDEMA, IP, CEDU, IEFE, COS e os do grupo do IC: CEPETEC, EDGE Academy
+  e NEES): o apoio de quem é de outro
+  curso volta como `fora_do_bloco`, e o bot avisa. Quem não tem curso cadastrado também não apoia.
+- **Bloco sem cursos** (Biblioteca Central, RU, Blocos 07, 13 e 18, Ginásio, Residência
+  Universitária, CRAD e **CSAU**, que abriga cursos de várias unidades): qualquer
+  estudante verificado, como antes. **Todo o campus** também continua aberto.
+- **Problema do campus é de todos:** o campus é um espaço público e a reitoria precisa resolver, então
+  pauta de **infraestrutura, segurança e acessibilidade** aceita apoio de qualquer estudante
+  verificado e pode ser aberta por qualquer um, em qualquer bloco (`CATEGORIAS_ABERTAS_A_TODOS`, em
+  `packages/contratos/src/index.ts`). As demais categorias (ensino, permanência, serviços e
+  tecnologia) seguem restritas aos cursos do bloco. Pauta ainda sem categoria não conta como aberta.
+  No bot, a recusa por curso vem depois da escolha da categoria, que é quando se sabe se a pauta é
+  de todos.
+- **Apoio que já existia** antes da trava continua valendo, e pauta já criada não muda.
+- **Subblocos do IC:** o CEPETEC é o subbloco de pesquisa do IC; o EDGE Academy e o NEES (RIEH) são
+  laboratórios fechados cuja base de alunos são os do IC (Ciência da Computação, Engenharia de
+  Computação e Inteligência Artificial). Em `SUBBLOCOS` (`packages/db/src/cursos-dos-blocos.ts`),
+  aceitam tudo o que o IC aceita. A base de cada um (100, 100 e 100, estimativas da equipe) não
+  acompanha a do IC; é uma decisão à parte.
+- **Cursos com aula em outro bloco:** quem tem aula num bloco de outra unidade pode apoiar nele. A
+  regra é direcional e está em `AULAS_EM_OUTROS_BLOCOS` (`packages/db/src/cursos-dos-blocos.ts`):
+  hoje, Ciência da Computação, Engenharia de Computação e Inteligência Artificial têm aula no **IM**
+  (o antigo Bloco 12, ligado ao IC), então o IM os aceita; o IC não passa a aceitar Matemática. Fonte:
+  um aluno de Ciência da Computação (a lista pública de turmas do SIGAA não foi consultada por
+  completo). Para acrescentar um caso, escreva o bloco e os cursos e crie uma migração como a
+  `0036_blocos_coligados`. A meta de cada bloco segue a base da própria unidade.
+
+Para mudar quem entra em um bloco: edite `CURSOS_PROPRIOS_DOS_BLOCOS`, `AULAS_EM_OUTROS_BLOCOS` ou
+`SUBBLOCOS` (o que vale no banco é `CURSOS_DOS_BLOCOS`, que une os três) e crie uma migração que
+ajuste `bloco_curso`, como a 0033 e a 0036. Bloco sem linha nessa tabela fica aberto.
 
 ## Como as bases chegam ao banco
 

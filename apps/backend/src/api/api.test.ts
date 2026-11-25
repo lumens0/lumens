@@ -243,15 +243,26 @@ describe('API de leitura pública com o seed', () => {
 
       expect(body).toEqual({
         itens: [
-          { slug: 'biblioteca-central', nome: 'Biblioteca Central', base_estudantes: 120 },
-          { slug: 'bloco-18', nome: 'Bloco 18 (fictício)', base_estudantes: 1200 },
-          { slug: 'saude', nome: 'Bloco da Saúde (fictício)', base_estudantes: 650 },
-          { slug: 'engenharias', nome: 'Bloco das Engenharias (fictício)', base_estudantes: 5000 },
-          { slug: 'artes', nome: 'Bloco de Artes (fictício)', base_estudantes: 800 },
+          {
+            slug: 'biblioteca-central',
+            nome: 'Biblioteca Central',
+            base_estudantes: 120,
+            cursos: [],
+          },
+          { slug: 'bloco-18', nome: 'Bloco 18 (fictício)', base_estudantes: 1200, cursos: [] },
+          { slug: 'saude', nome: 'Bloco da Saúde (fictício)', base_estudantes: 650, cursos: [] },
+          {
+            slug: 'engenharias',
+            nome: 'Bloco das Engenharias (fictício)',
+            base_estudantes: 5000,
+            cursos: [],
+          },
+          { slug: 'artes', nome: 'Bloco de Artes (fictício)', base_estudantes: 800, cursos: [] },
           {
             slug: 'residencia-universitaria',
             nome: 'Residência Universitária',
             base_estudantes: 3000,
+            cursos: [],
           },
         ],
       });
@@ -541,7 +552,9 @@ describe('API de leitura pública com o seed', () => {
         .filter((t) => t === 'pauta_aprovada' || t === 'pauta_urgente');
       expect(tipos).toEqual(['pauta_aprovada', 'pauta_urgente']);
       await app.close();
-    });
+      // Monta um banco inteiro (migrações e seed) dentro do teste: no CI, com testes em paralelo, passa
+      // dos 5 s padrão.
+    }, 30_000);
 
     it('junta pauta, relatos, caminhos e linha do tempo', async () => {
       const body = await corpo('/pautas/iluminacao-no-bloco-de-artes');
@@ -621,7 +634,7 @@ describe('API de leitura pública com o seed', () => {
         foto: null,
       });
       conferirContrato(pautaDetalhe, body);
-    });
+    }, 30_000);
 
     it('devolve listas vazias para pauta sem relato nem caminho', async () => {
       const body = await corpo('/pautas/laboratorios-abertos-nas-engenharias');

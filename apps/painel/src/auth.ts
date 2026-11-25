@@ -1,7 +1,8 @@
 /**
  * Login do painel por link no e-mail (5.1, SCRUM-164). Sessão em JWT, 7 dias; link de 15 minutos
- * que vale uma vez. Só curador ativo recebe e-mail, mas a tela de "confira seu e-mail" é a mesma
- * para qualquer endereço: quem tenta não descobre quem é da curadoria.
+ * que vale uma vez. Só curador ativo recebe o link; quem não é curador recebe um aviso dizendo isso
+ * (SCRUM-400), e a tela de "confira seu e-mail" é a mesma para qualquer endereço: quem tenta não
+ * descobre quem é da curadoria.
  */
 import { criarDb, criarPool, type Db } from '@lumens/db';
 import type { ChavesDeCurador } from '@lumens/dominio';
@@ -11,6 +12,7 @@ import Nodemailer from 'next-auth/providers/nodemailer';
 import { after } from 'next/server';
 import { createTransport } from 'nodemailer';
 import { VALIDADE_DO_LINK_S, adaptador, curadorAtivo, curadorAtivoPorId } from './acesso';
+import { avisarNaoCurador } from './aviso-nao-curador';
 import { configBase } from './auth.config';
 import { criarEnvioDoLink } from './envio';
 import { opcoesSmtp } from './smtp';
@@ -114,6 +116,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
       async signIn({ user, email }) {
         const curador = user.email ? await curadorAtivo(db, user.email, chave) : undefined;
         if (curador) return true;
+        // SCRUM-400: quem não é curador também recebe um e-mail, dizendo isso, depois da resposta e
+        // com limite por endereço e geral. A tela é a mesma, então a lista de curadores não vaza.
+        if (email?.verificationRequest && user.email) {
+          const para = user.email;
+          after(() =>
+            avisarNaoCurador(db, chave, para, (destinatario, assunto, texto) =>
+              createTransport(smtp)
+                .sendMail({
+                  to: destinatario,
+                  from: exigir('EMAIL_REMETENTE'),
+                  subject: assunto,
+                  text: texto,
+                })
+                .then(() => undefined),
+            ),
+          );
+        }
         return email?.verificationRequest ? VERIFIQUE : false;
       },
     },

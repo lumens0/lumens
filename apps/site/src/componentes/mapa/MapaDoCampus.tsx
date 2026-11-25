@@ -32,6 +32,9 @@ import {
   porPrioridade,
   prioDoLocal,
   quadroDaCamera,
+  giroDoDesenho,
+  girar,
+  paraODesenho,
   suavizar,
   zoomNoPonto,
   type Camera,
@@ -123,6 +126,20 @@ function Glifo({ status }: { status: StatusPauta }) {
  * gaveta (celular) ou no painel da direita (computador). Arrastar move, a roda e a pinça aproximam;
  * as setas e +/− fazem o mesmo pelo teclado.
  */
+/** Quanto o mapa gira por pixel arrastado com o mouse, e por toque nas teclas `,` e `.`. */
+const RADIANOS_POR_PIXEL = 0.006;
+const PASSO_DO_GIRO = Math.PI / 12;
+
+/**
+ * Quem pode apoiar e abrir pauta no bloco (SCRUM-399): a regra aparece antes de a pessoa tentar,
+ * porque o apoio de quem é de outro curso é recusado.
+ */
+export function frasesDosCursos(cursos: readonly string[]): string {
+  return cursos.length === 0
+    ? 'Aberto a qualquer estudante verificado.'
+    : `Apoia e abre pauta aqui quem é de: ${cursos.join(', ')}. Pautas de infraestrutura, segurança e acessibilidade são de todos.`;
+}
+
 export function MapaDoCampus({
   marcadores,
   blocoInicial,
@@ -160,6 +177,7 @@ export function MapaDoCampus({
     if (!el) return;
     const { k, viewBox } = quadroDaCamera(cam.current, medida.current);
     el.setAttribute('viewBox', viewBox);
+    el.querySelector('[data-mundo]')?.setAttribute('transform', giroDoDesenho(cam.current));
     palco.current?.classList.toggle(estilos.perto ?? '', cam.current.w < LARGURA_DO_PERTO);
     el.querySelectorAll('[data-ponto]').forEach((e) => {
       e.setAttribute('r', String(3.5 * k));
@@ -173,7 +191,14 @@ export function MapaDoCampus({
     el.querySelectorAll<SVGTextElement>('[data-nome]').forEach((t) => {
       t.setAttribute('font-size', String(12 * k));
       t.setAttribute('stroke-width', String(3.2 * k));
-      t.setAttribute('y', String(Number(t.dataset.y) + 14 * k));
+      const y = Number(t.dataset.y) + 14 * k;
+      t.setAttribute('y', String(y));
+      // O nome não gira com o mapa: fica em pé, em torno do próprio ponto.
+      const graus = (-(cam.current.giro ?? 0) * 180) / Math.PI;
+      t.setAttribute(
+        'transform',
+        `rotate(${String(graus)} ${t.getAttribute('x') ?? '0'} ${String(y)})`,
+      );
     });
   }, []);
 
@@ -188,7 +213,9 @@ export function MapaDoCampus({
     (para: Camera, ms: number) => {
       cancelAnimationFrame(animacao.current);
       if (reduzido()) {
-        cam.current = para;
+        // Sem animação, mas o mapa segue girado como estava.
+        const giro = cam.current.giro;
+        cam.current = giro === undefined ? para : { ...para, giro };
         aplicar();
         return;
       }
@@ -207,7 +234,7 @@ export function MapaDoCampus({
 
   const enquadrarTudo = useCallback(() => {
     const { filtro: f, locais: ls } = vivo.current;
-    const alvo = enquadrarLugares(ls, f, medida.current, celular());
+    const alvo = enquadrarLugares(ls, f, medida.current, celular(), cam.current.giro ?? 0);
     if (!alvo) return;
     setGaveta('');
     voar(alvo, 700);
@@ -222,7 +249,13 @@ export function MapaDoCampus({
       // Bloco sem prédio no desenho (todo o campus, bloco ainda sem prédio): só abre a gaveta.
       if (l.centro) {
         voar(
-          enquadrarLocal({ ...l, centro: l.centro }, medida.current, celular(), window.innerHeight),
+          enquadrarLocal(
+            { ...l, centro: l.centro },
+            medida.current,
+            celular(),
+            window.innerHeight,
+            cam.current.giro ?? 0,
+          ),
           800,
         );
       }
@@ -274,17 +307,27 @@ export function MapaDoCampus({
     aplicar();
     const ponteiros = new Map<number, { x: number; y: number }>();
     let mexeu = 0;
-    let pinca: { d: number; w: number } | null = null;
+    // Mouse: o botão esquerdo gira o mapa; o direito, ou Shift + esquerdo, move. Toque: um dedo
+    // move e dois dedos aproximam e giram.
+    let modo: 'girar' | 'mover' = 'mover';
+    let pinca: { d: number; w: number; ang: number; giro: number } | null = null;
     const dist = () => {
       const [a, b] = [...ponteiros.values()];
       return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 1;
+    };
+    const angulo = () => {
+      const [a, b] = [...ponteiros.values()];
+      return a && b ? Math.atan2(b.y - a.y, b.x - a.x) : 0;
     };
     const baixou = (e: PointerEvent) => {
       cancelAnimationFrame(animacao.current);
       el.setPointerCapture(e.pointerId);
       ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY });
       mexeu = 0;
-      if (ponteiros.size === 2) pinca = { d: dist(), w: cam.current.w };
+      modo = e.pointerType === 'mouse' && e.button === 0 && !e.shiftKey ? 'girar' : 'mover';
+      if (ponteiros.size === 2) {
+        pinca = { d: dist(), w: cam.current.w, ang: angulo(), giro: cam.current.giro ?? 0 };
+      }
       el.classList.add(estilos.arrastando ?? '');
     };
     const moveu = (e: PointerEvent) => {
@@ -295,14 +338,21 @@ export function MapaDoCampus({
       p.x = e.clientX;
       p.y = e.clientY;
       if (ponteiros.size === 1) {
-        cam.current = arrastar(cam.current, medida.current, dx, dy);
+        cam.current =
+          modo === 'girar'
+            ? girar(cam.current, dx * RADIANOS_POR_PIXEL)
+            : arrastar(cam.current, medida.current, dx, dy);
         mexeu += Math.abs(dx) + Math.abs(dy);
         if (mexeu > 6) esconderDicaRef.current();
         aplicar();
       } else if (ponteiros.size === 2 && pinca) {
         mexeu = 99;
         esconderDicaRef.current();
-        cam.current = { ...cam.current, w: larguraDaPinca(pinca.w, pinca.d, dist()) };
+        cam.current = {
+          ...cam.current,
+          w: larguraDaPinca(pinca.w, pinca.d, dist()),
+          giro: pinca.giro + (angulo() - pinca.ang),
+        };
         aplicar();
       }
     };
@@ -336,7 +386,15 @@ export function MapaDoCampus({
       if (e.key === 'Escape') acoes.current.soltar();
       else if (m) {
         e.preventDefault();
-        cam.current = { ...cam.current, cx: cam.current.cx + m[0], cy: cam.current.cy + m[1] };
+        // As setas movem na tela: com o mapa girado, o deslocamento é levado para o desenho.
+        const [mx, my] = paraODesenho(cam.current.giro ?? 0, m[0], m[1]);
+        cam.current = { ...cam.current, cx: cam.current.cx + mx, cy: cam.current.cy + my };
+        aplicar();
+      } else if (e.key === ',' || e.key === '.') {
+        cam.current = girar(cam.current, (e.key === ',' ? -1 : 1) * PASSO_DO_GIRO);
+        aplicar();
+      } else if (e.key === 'n' || e.key === 'N') {
+        cam.current = { ...cam.current, giro: 0 };
         aplicar();
       } else if (e.key === '+' || e.key === '=') zoomNoCentro(0.8);
       else if (e.key === '-') zoomNoCentro(1.25);
@@ -424,78 +482,80 @@ export function MapaDoCampus({
         className={estilos.palco}
         tabIndex={0}
         role="application"
-        aria-label="Mapa do campus. Setas movem, mais e menos aproximam."
+        aria-label="Mapa do campus. Setas movem, mais e menos aproximam, vírgula e ponto giram, N volta ao norte."
       >
         <svg ref={svg} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d={CONTORNO} className={estilos.solo} />
-          {CAMINHOS.map((d) => (
-            <path key={d} d={d} className={estilos.via} />
-          ))}
-          {PREDIOS.map((p) => {
-            const locs = porPredioId.get(p.id) ?? [];
-            const ps = locs.flatMap((l) => ativas(l, filtro));
-            const acesa = ps.length > 0;
-            const topo = acesa ? melhor(ps) : undefined;
-            const alvo = blocoDoToque(locs, filtro);
-            return (
-              <path
-                key={p.id}
-                d={p.d}
-                className={[
-                  estilos.predio,
-                  acesa ? estilos.aceso : '',
-                  locs.some((l) => l.chave === selChave) ? estilos.escolhido : '',
-                ]
-                  .join(' ')
-                  .trim()}
-                data-k={alvo?.chave}
-                style={topo ? ({ '--c': cor(topo.status) } as CSSProperties) : undefined}
-              />
-            );
-          })}
-          {[...porPredioId.values()].map((locs) => {
-            const [primeiro] = locs;
-            if (!primeiro?.predio || !primeiro.base) return null;
-            const acesa = locs.some((l) => ativas(l, filtro).length > 0);
-            return (
-              <text
-                key={`n${String(primeiro.predio.id)}`}
-                className={[estilos.rotulo, acesa ? estilos.rotuloAceso : ''].join(' ').trim()}
-                x={primeiro.base.x}
-                y={primeiro.base.y}
-                data-nome
-                data-y={primeiro.base.y}
-              >
-                {primeiro.predio.sigla || primeiro.nome}
-              </text>
-            );
-          })}
-          {[...porPredioId.values()].map((locs) => {
-            const centro = locs[0]?.centro;
-            const topo = melhor(locs.flatMap((l) => ativas(l, filtro)));
-            const alvo = blocoDoToque(locs, filtro);
-            if (!centro || !topo || !alvo) return null;
-            const estiloDaCor = { '--c': cor(topo.status) } as CSSProperties;
-            return (
-              <g key={`p${alvo.chave}`}>
-                <circle
-                  cx={centro.x}
-                  cy={centro.y}
-                  className={estilos.onda}
-                  style={estiloDaCor}
-                  data-onda
+          <g data-mundo>
+            <path d={CONTORNO} className={estilos.solo} />
+            {CAMINHOS.map((d) => (
+              <path key={d} d={d} className={estilos.via} />
+            ))}
+            {PREDIOS.map((p) => {
+              const locs = porPredioId.get(p.id) ?? [];
+              const ps = locs.flatMap((l) => ativas(l, filtro));
+              const acesa = ps.length > 0;
+              const topo = acesa ? melhor(ps) : undefined;
+              const alvo = blocoDoToque(locs, filtro);
+              return (
+                <path
+                  key={p.id}
+                  d={p.d}
+                  className={[
+                    estilos.predio,
+                    acesa ? estilos.aceso : '',
+                    locs.some((l) => l.chave === selChave) ? estilos.escolhido : '',
+                  ]
+                    .join(' ')
+                    .trim()}
+                  data-k={alvo?.chave}
+                  style={topo ? ({ '--c': cor(topo.status) } as CSSProperties) : undefined}
                 />
-                <circle cx={centro.x} cy={centro.y} className={estilos.ponto} data-ponto />
-                <circle
-                  cx={centro.x}
-                  cy={centro.y}
-                  className={estilos.toque}
-                  data-toque
-                  data-k={alvo.chave}
-                />
-              </g>
-            );
-          })}
+              );
+            })}
+            {[...porPredioId.values()].map((locs) => {
+              const [primeiro] = locs;
+              if (!primeiro?.predio || !primeiro.base) return null;
+              const acesa = locs.some((l) => ativas(l, filtro).length > 0);
+              return (
+                <text
+                  key={`n${String(primeiro.predio.id)}`}
+                  className={[estilos.rotulo, acesa ? estilos.rotuloAceso : ''].join(' ').trim()}
+                  x={primeiro.base.x}
+                  y={primeiro.base.y}
+                  data-nome
+                  data-y={primeiro.base.y}
+                >
+                  {primeiro.predio.sigla || primeiro.nome}
+                </text>
+              );
+            })}
+            {[...porPredioId.values()].map((locs) => {
+              const centro = locs[0]?.centro;
+              const topo = melhor(locs.flatMap((l) => ativas(l, filtro)));
+              const alvo = blocoDoToque(locs, filtro);
+              if (!centro || !topo || !alvo) return null;
+              const estiloDaCor = { '--c': cor(topo.status) } as CSSProperties;
+              return (
+                <g key={`p${alvo.chave}`}>
+                  <circle
+                    cx={centro.x}
+                    cy={centro.y}
+                    className={estilos.onda}
+                    style={estiloDaCor}
+                    data-onda
+                  />
+                  <circle cx={centro.x} cy={centro.y} className={estilos.ponto} data-ponto />
+                  <circle
+                    cx={centro.x}
+                    cy={centro.y}
+                    className={estilos.toque}
+                    data-toque
+                    data-k={alvo.chave}
+                  />
+                </g>
+              );
+            })}
+          </g>
         </svg>
       </div>
 
@@ -529,7 +589,7 @@ export function MapaDoCampus({
           ))}
         </RolagemArrastavel>
         <p className={[estilos.dica, dica ? '' : estilos.dicaOculta].join(' ').trim()}>
-          Arraste para mover. Com dois dedos, aproxime.
+          Arraste para girar; Shift ou botão direito move. Com dois dedos, aproxime e gire.
         </p>
       </div>
 
@@ -600,6 +660,12 @@ export function MapaDoCampus({
               </button>
               <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>
               <h2>{sel.nome}</h2>
+              {/* Sem o campo `cursos` (API antiga), não se sabe quem pode apoiar: não afirma nada. */}
+              {sel.cursos !== undefined && (
+                <p className={estilos.sub} data-cursos-do-bloco>
+                  {frasesDosCursos(sel.cursos)}
+                </p>
+              )}
               {ativas(sel, filtro).length > 0 ? (
                 <p className={estilos.sub}>
                   {plural(ativas(sel, filtro).length, 'pauta neste bloco.', 'pautas neste bloco.')}

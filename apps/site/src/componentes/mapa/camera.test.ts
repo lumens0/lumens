@@ -8,12 +8,15 @@ import {
   deslocar,
   enquadrarLocal,
   enquadrarLugares,
+  girar,
+  giroDoDesenho,
   interpolar,
   larguraDaPinca,
   LARGURA_MAXIMA,
   LARGURA_MINIMA,
   locaisDe,
   melhor,
+  paraODesenho,
   passoDoTeclado,
   porPredio,
   porPrioridade,
@@ -378,5 +381,91 @@ describe('arrastar e teclado', () => {
     expect(clamp(5, 0, 3)).toBe(3);
     expect(clamp(-1, 0, 3)).toBe(0);
     expect(clamp(2, 0, 3)).toBe(2);
+  });
+});
+
+describe('giro do mapa', () => {
+  const medida: Medida = { vw: 1000, vh: 600 };
+  const cam: Camera = { cx: 1000, cy: 800, w: 1000 };
+
+  it('sem giro, a tela e o desenho andam juntos', () => {
+    expect(paraODesenho(0, 30, -10)).toEqual([30, -10]);
+  });
+
+  it('com o mapa girado um quarto de volta, "para a direita da tela" é "para cima no desenho"', () => {
+    const [x, y] = paraODesenho(Math.PI / 2, 10, 0);
+    expect(x).toBeCloseTo(0);
+    expect(y).toBeCloseTo(-10);
+  });
+
+  it('girar soma ao giro e não mexe no resto', () => {
+    const a = girar(cam, 0.5);
+    const b = girar(a, 0.25);
+    expect(a).toEqual({ ...cam, giro: 0.5 });
+    expect(b.giro).toBeCloseTo(0.75);
+    expect(b).toMatchObject({ cx: 1000, cy: 800, w: 1000 });
+  });
+
+  it('o transform gira em torno do ponto que a câmera olha', () => {
+    expect(giroDoDesenho(cam)).toBe('rotate(0 1000 800)');
+    expect(giroDoDesenho({ ...cam, giro: Math.PI / 2 })).toBe('rotate(90 1000 800)');
+  });
+
+  it('arrastar com o mapa girado leva a câmera pelo desenho, não pela tela', () => {
+    // Girado 90°, arrastar 100 px para a direita da tela leva a câmera para baixo no desenho.
+    const depois = arrastar({ ...cam, giro: Math.PI / 2 }, medida, 100, 0);
+    expect(depois.cx).toBeCloseTo(1000);
+    expect(depois.cy).toBeCloseTo(800 + 100);
+    expect(depois.giro).toBe(Math.PI / 2);
+  });
+
+  it('o zoom no ponteiro mantém parado o ponto sob ele, também girado', () => {
+    const girada: Camera = { ...cam, giro: 0.7 };
+    const [px, py] = [800, 150];
+    const mundo = (c: Camera) => {
+      const k = c.w / medida.vw;
+      const [ox, oy] = paraODesenho(c.giro ?? 0, px - medida.vw / 2, py - medida.vh / 2);
+      return [c.cx + ox * k, c.cy + oy * k];
+    };
+    const antes = mundo(girada);
+    const depois = zoomNoPonto(girada, medida, 0.5, px, py);
+    expect(depois.giro).toBe(0.7);
+    expect(mundo(depois)[0]).toBeCloseTo(antes[0] ?? 0);
+    expect(mundo(depois)[1]).toBeCloseTo(antes[1] ?? 0);
+  });
+
+  it('o voo da câmera mantém o giro de quem sai', () => {
+    const de: Camera = { cx: 0, cy: 0, w: 1000, giro: 1.2 };
+    expect(interpolar(de, { cx: 100, cy: 100, w: 500 }, 0.5).giro).toBe(1.2);
+    expect(interpolar(cam, { cx: 100, cy: 100, w: 500 }, 0.5)).not.toHaveProperty('giro');
+  });
+
+  it('no celular, o deslocamento da gaveta acompanha o giro: continua "para baixo na tela"', () => {
+    const celular: Medida = { vw: 400, vh: 800 };
+    const ic = predioComBlocos('ic');
+    const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]);
+    if (!local?.centro) throw new Error('lugar sem centro');
+    const lugar = { ...local, centro: local.centro };
+    const { x, y } = lugar.centro;
+
+    const reto = enquadrarLocal(lugar, celular, true, 800);
+    const girado = enquadrarLocal(lugar, celular, true, 800, Math.PI / 2);
+
+    // Sem giro o centro desce no desenho (y maior); girado 90°, o mesmo deslocamento vira x.
+    expect(reto.cy).toBeGreaterThan(y);
+    expect(reto.cx).toBeCloseTo(x);
+    expect(girado.cy).toBeCloseTo(y);
+    expect(Math.abs(girado.cx - x)).toBeCloseTo(reto.cy - y);
+  });
+
+  it('no computador não há deslocamento, com ou sem giro', () => {
+    const grande: Medida = { vw: 1200, vh: 800 };
+    const ic = predioComBlocos('ic');
+    const [local] = locaisDe([marcador('ic', ic.id, [pauta('cobrando')])]);
+    if (!local?.centro) throw new Error('lugar sem centro');
+    const lugar = { ...local, centro: local.centro };
+    const girado = enquadrarLocal(lugar, grande, false, 800, 1);
+    expect(girado.cx).toBeCloseTo(lugar.centro.x);
+    expect(girado.cy).toBeCloseTo(lugar.centro.y);
   });
 });

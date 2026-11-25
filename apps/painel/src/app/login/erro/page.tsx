@@ -14,7 +14,7 @@ export default function Erro() {
         <h1 id="titulo-erro">Não foi possível entrar</h1>
         <p className={estilos.descricao}>
           O link expirou, já foi usado ou o e-mail não está na lista da curadoria. Peça um link
-          novo.
+          novo; se o e-mail não estiver na lista, peça a quem coordena a curadoria para cadastrá-lo.
         </p>
         <Link className={estilos.botao} href="/login">
           Pedir um link novo

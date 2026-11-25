@@ -7,13 +7,12 @@ export interface ParametrosDaListaDoPainel {
 }
 
 /**
- * Endereço de `/pautas` com os filtros. Sem situação, `status=todas` (sem o parâmetro a lista
- * voltaria a abrir em "esperando decisão"); a situação padrão sozinha não precisa de parâmetro.
+ * Endereço de `/pautas` com os filtros. Sem situação ("Todas") é o padrão e não precisa de
+ * parâmetro; com situação, `status=a,b`. `status=todas` continua valendo para links antigos.
  */
 export function urlDaLista({ situacoes, pendencias, q }: ParametrosDaListaDoPainel): string {
   const partes: string[] = [];
-  const padrao = situacoes.length === 1 && situacoes[0] === 'em_curadoria';
-  if (!padrao) partes.push(`status=${situacoes.length === 0 ? 'todas' : situacoes.join(',')}`);
+  if (situacoes.length > 0) partes.push(`status=${situacoes.join(',')}`);
   if (pendencias.length > 0) partes.push(`pendencia=${pendencias.join(',')}`);
   if (q.trim() !== '') partes.push(`q=${encodeURIComponent(q.trim())}`);
   return partes.length === 0 ? '/pautas' : `/pautas?${partes.join('&')}`;

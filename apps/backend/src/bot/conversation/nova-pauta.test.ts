@@ -1,5 +1,6 @@
 import {
   apoios,
+  blocoCursos,
   blocos,
   conversas,
   eq,
@@ -31,6 +32,7 @@ import {
   photoMoreText,
   TITLE_EMPTY_TEXT,
   VERIFY_FIRST_TEXT,
+  createOutsideBlockText,
   descriptionTooLongText,
   photoRefusedText,
   resumo,
@@ -464,6 +466,40 @@ describe('pauta nova pelo menu', () => {
     for (const t of ['Bebedouro', `bloco:${extra.id}`, 'categoria:outra', DESCRICAO]) await send(t);
     await db.delete(blocos).where(eq(blocos.id, extra.id));
     expect(await send('pular')).toEqual([BLOCK_GONE_TEXT, MENU_PRINCIPAL]);
+    expect(await todasAsPautas()).toEqual([]);
+  });
+
+  it('bloco com cursos: quem é de outro curso é recusado ao escolher a categoria, exceto Infraestrutura (SCRUM-399)', async () => {
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    await send('Palco sem iluminação');
+    await send(`bloco:${artes}`);
+
+    const respostas = await send('categoria:ensino');
+
+    expect(respostas[0]).toBe(createOutsideBlockText('Bloco de Artes'));
+    expect(await passo()).toBe('NEW_ASK_CATEGORY');
+    expect(await todasAsPautas()).toEqual([]);
+    // Problema do campus é de todos (infraestrutura, segurança, acessibilidade): segue para a descrição.
+    await send('categoria:acessibilidade');
+    expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
+  });
+
+  it('quem é do curso do bloco escolhe qualquer categoria (SCRUM-399)', async () => {
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
+    await db.update(estudantes).set({ curso: 'Teatro' });
+    await send('Palco sem iluminação');
+    await send(`bloco:${artes}`);
+    await send('categoria:ensino');
+    expect(await passo()).toBe('NEW_ASK_DESCRIPTION');
+  });
+
+  it('bloco que ganhou cursos no meio da conversa recusa no fim, sem criar a pauta (SCRUM-399)', async () => {
+    await db.update(estudantes).set({ curso: 'Engenharia de Computação' });
+    for (const t of ['Palco', `bloco:${artes}`, 'categoria:outra', DESCRICAO]) await send(t);
+    await db.insert(blocoCursos).values({ blocoId: artes, curso: 'Teatro' });
+
+    expect(await send('pular')).toEqual([createOutsideBlockText('Bloco de Artes'), MENU_PRINCIPAL]);
     expect(await todasAsPautas()).toEqual([]);
   });
 

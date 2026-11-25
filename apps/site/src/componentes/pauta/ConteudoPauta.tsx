@@ -19,9 +19,12 @@ import estilos from './pauta.module.css';
  */
 export function ConteudoPauta({
   pauta,
+  cursosDoBloco,
   agora = new Date(),
 }: {
   pauta: PautaDetalhe;
+  /** Cursos que apoiam no bloco da pauta (SCRUM-399); `undefined` quando não se sabe. */
+  cursosDoBloco?: readonly string[] | undefined;
   /** O "hoje" dos prazos vencidos; nos testes, uma data fixa. */
   agora?: Date;
 }) {
@@ -42,7 +45,7 @@ export function ConteudoPauta({
       >
         <div className={estilos.caixa}>
           <Voltar />
-          <CabecalhoPauta pauta={pauta} agora={agora} />
+          <CabecalhoPauta pauta={pauta} cursosDoBloco={cursosDoBloco} agora={agora} />
           <FioDeEtapas status={pauta.status} />
           {conquistada && <FatosDaConquista pauta={pauta} />}
         </div>

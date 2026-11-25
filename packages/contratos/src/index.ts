@@ -87,6 +87,8 @@ export const bloco = z.object({
   slug: z.string(),
   nome: z.string(),
   base_estudantes: z.number().int(),
+  /** Cursos que apoiam e abrem pauta no bloco (SCRUM-399); vazio ou ausente: aberto a qualquer estudante. */
+  cursos: z.array(z.string()).optional(),
 });
 export const blocos = z.object({ itens: z.array(bloco) });
 export type Bloco = z.infer<typeof bloco>;
@@ -254,6 +256,23 @@ export const CATEGORIAS = {
   tecnologia: 'Tecnologia',
 } as const;
 export type Categoria = keyof typeof CATEGORIAS;
+
+/**
+ * Categorias que são do campus todo (SCRUM-399): o campus é um espaço público, e problema de
+ * infraestrutura, segurança ou acessibilidade afeta e interessa a qualquer estudante, não só aos de um
+ * bloco. Pauta dessas categorias aceita apoio e criação de qualquer estudante verificado, mesmo em
+ * bloco que restringe por curso. Pauta ainda sem categoria (`a_classificar`) não entra.
+ */
+export const CATEGORIAS_ABERTAS_A_TODOS = [
+  'infraestrutura',
+  'seguranca',
+  'acessibilidade',
+] as const;
+
+/** Se a categoria é uma das abertas a todos. */
+export function categoriaAbertaATodos(categoria: string | null | undefined): boolean {
+  return (CATEGORIAS_ABERTAS_A_TODOS as readonly string[]).includes(categoria ?? '');
+}
 
 /** Se o valor é uma das categorias oficiais. Chaves herdadas (`toString`, `__proto__`) não contam. */
 export function ehCategoria(valor: string): valor is Categoria {

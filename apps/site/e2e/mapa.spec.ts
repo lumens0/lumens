@@ -107,7 +107,26 @@ test.describe('interação com o mapa', () => {
     expect((await largura(page)) < (antes[2] ?? 0)).toBe(true);
   });
 
-  test('arrastar o mapa leva a câmera no sentido contrário', async ({ page }) => {
+  test('arrastar com o botão esquerdo gira o mapa e N volta ao norte', async ({ page }) => {
+    await page.goto('/mapa');
+    await page.waitForTimeout(900);
+    const palco = page.getByRole('application', { name: /Mapa do campus/ });
+    const caixa = await palco.boundingBox();
+    if (!caixa) throw new Error('mapa sem caixa');
+    const x = caixa.x + 100;
+    const y = caixa.y + caixa.height - 60;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 120, y, { steps: 6 });
+    await page.mouse.up();
+    const transform = () => page.locator('svg [data-mundo]').first().getAttribute('transform');
+    expect(await transform()).not.toMatch(/^rotate\(0 /);
+    await palco.focus();
+    await page.keyboard.press('n');
+    expect(await transform()).toMatch(/^rotate\(0 /);
+  });
+
+  test('Shift + arrastar leva a câmera no sentido contrário', async ({ page }) => {
     await page.goto('/mapa');
     await page.waitForTimeout(900);
     const palco = page.getByRole('application', { name: /Mapa do campus/ });
@@ -116,10 +135,12 @@ test.describe('interação com o mapa', () => {
     const antes = Number((await viewBox(page))?.split(' ')[0]);
     const x = caixa.x + 100;
     const y = caixa.y + caixa.height - 60;
+    await page.keyboard.down('Shift');
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.move(x + 120, y, { steps: 6 });
     await page.mouse.up();
+    await page.keyboard.up('Shift');
     const depois = Number((await viewBox(page))?.split(' ')[0]);
     expect(depois).toBeLessThan(antes);
   });

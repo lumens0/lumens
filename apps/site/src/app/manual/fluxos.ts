@@ -127,6 +127,8 @@ export const FLUXOS: readonly FluxoEmCards[] = [
         exemplo: [{ de: 'bot', texto: 'Apoio registrado! 85 de 100 apoios.' }],
         onde: 'bot',
         resumo: 'O bot confirma e mostra o placar de apoios.',
+        detalhe:
+          'Pauta de bloco que tem cursos só recebe apoio de estudantes deles. Infraestrutura, segurança e acessibilidade são de todos.',
       },
       {
         titulo: 'Conte a sua experiência',
@@ -147,7 +149,8 @@ export const FLUXOS: readonly FluxoEmCards[] = [
         ],
         onde: 'bot',
         resumo: 'O bot manda uma imagem da pauta, com QR Code, para você divulgar.',
-        detalhe: 'Quem apontar a câmera para o QR Code cai direto na pauta e pode apoiar também.',
+        detalhe:
+          'Quem apontar a câmera para o QR Code cai direto na pauta e pode apoiar também, se a pauta aceitar o curso da pessoa.',
       },
     ],
   },

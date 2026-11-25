@@ -1,4 +1,5 @@
 import { and, apoios, blocos, eq, pautas, sql, type Tx } from '@lumens/db';
+import { enfileirarAvisoDeAlteracao } from '../avisos/aviso-alteracao';
 import { registrarEvento } from '../compartilhado/eventos';
 import { calcularMeta, META_MAXIMA, META_MINIMA } from './meta';
 
@@ -43,6 +44,7 @@ export async function corrigirBloco(
     pautaId,
     blocoId,
     motivo,
+    agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
@@ -79,9 +81,12 @@ export async function corrigirBloco(
   const metaDepois = calcularMeta(blocoDepois ?? null);
   if (metaDepois <= (await contarApoios(tx, pautaId)))
     return { feito: false, motivo: 'meta_abaixo_dos_apoios' };
+  // Mesmo bloco e mesma meta: nada mudou, então não há o que registrar nem a quem avisar (um aviso
+  // "120 para 120" iria a todos os apoiadores e gastaria a cota de mensagens).
+  if (pauta.blocoId === blocoId && pauta.meta === metaDepois) return { feito: true };
 
   await tx.update(pautas).set({ blocoId, meta: metaDepois }).where(eq(pautas.id, pautaId));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'bloco_corrigido',
     origem: 'curadoria',
@@ -93,6 +98,19 @@ export async function corrigirBloco(
       motivo,
     },
   });
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: {
+      tipo: 'bloco',
+      blocoAntes: blocoAntes?.nome ?? null,
+      blocoDepois: blocoDepois?.nome ?? null,
+      metaAntes: pauta.meta,
+      metaDepois,
+    },
+    motivo,
+    agora,
+  });
   return { feito: true };
 }
 
@@ -102,6 +120,7 @@ export async function ajustarMeta(
     pautaId,
     meta,
     motivo,
+    agora = new Date(),
   }: {
     pautaId: string;
     curadorId: string;
@@ -120,15 +139,24 @@ export async function ajustarMeta(
   if (!motivoValido(motivo)) return { feito: false, motivo: 'motivo_obrigatorio' };
   if (meta <= (await contarApoios(tx, pautaId)))
     return { feito: false, motivo: 'meta_abaixo_dos_apoios' };
+  // O formulário já vem com a meta atual: enviá-lo sem mudar o número não é uma alteração.
+  if (meta === pauta.meta) return { feito: true };
   await tx
     .update(pautas)
     .set({ meta })
     .where(and(eq(pautas.id, pautaId), eq(pautas.status, pauta.status)));
-  await registrarEvento(tx, {
+  const evento = await registrarEvento(tx, {
     pautaId,
     tipo: 'meta_ajustada',
     origem: 'curadoria',
     dados: { metaAntes: pauta.meta, metaDepois: meta, motivo },
+  });
+  await enfileirarAvisoDeAlteracao(tx, {
+    pautaId,
+    eventoId: evento.id,
+    alteracao: { tipo: 'meta', metaAntes: pauta.meta, metaDepois: meta },
+    motivo,
+    agora,
   });
   return { feito: true };
 }

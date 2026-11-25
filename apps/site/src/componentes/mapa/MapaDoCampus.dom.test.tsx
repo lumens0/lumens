@@ -266,7 +266,7 @@ describe('câmera do MapaDoCampus (no navegador)', () => {
 
   it('arrastar leva a câmera no sentido contrário e esconde a dica', () => {
     render(<MapaDoCampus marcadores={marcadores()} />);
-    const dica = screen.getByText(/Arraste para mover/);
+    const dica = screen.getByText(/Arraste para girar/);
     expect(dica.className).not.toContain('dicaOculta');
     const antes = caixaDoSvg();
     fireEvent.pointerDown(palco(), { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
@@ -275,7 +275,7 @@ describe('câmera do MapaDoCampus (no navegador)', () => {
     const depois = caixaDoSvg();
     expect(depois.x).toBeLessThan(antes.x);
     expect(depois.y).toBeLessThan(antes.y);
-    expect(screen.getByText(/Arraste para mover/).className).toContain('dicaOculta');
+    expect(screen.getByText(/Arraste para girar/).className).toContain('dicaOculta');
   });
 
   it('a pinça com dois dedos se afastando aproxima o mapa', () => {

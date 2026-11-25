@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Bloco, Pauta, StatusPauta } from '../../dados/tipos';
-import { MapaDoCampus } from './MapaDoCampus';
+import { MapaDoCampus, frasesDosCursos } from './MapaDoCampus';
 import { MapaResumo } from './MapaResumo';
 import { AREAS, CAMINHOS, ID_DO_ESTADIO, LADO_DO_LUGAR, PREDIOS, siglaDe } from './predios';
 import { STATUS } from '../StatusPill';
@@ -123,7 +123,9 @@ describe('mapa do campus', () => {
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Tudo aceso');
     expect(html).toContain('aria-label="Mostrar no mapa"');
-    expect(html).toContain('Arraste para mover. Com dois dedos, aproxime.');
+    expect(html).toContain(
+      'Arraste para girar; Shift ou botão direito move. Com dois dedos, aproxime e gire.',
+    );
     expect(html).toContain('aria-label="Aproximar"');
     expect(html).toContain('aria-label="Afastar"');
     expect(html).toContain('Toque num prédio apagado para relatar um problema nele.');
@@ -384,5 +386,30 @@ describe('resumo do mapa na home (SCRUM-284)', () => {
     expect(pista).toBeDefined();
     expect(html).toContain(`d="${pista?.d ?? ''}"`);
     expect(html.match(/class="[^"]*area[^"]*"/g)?.length).toBe(AREAS.length);
+  });
+});
+
+describe('cursos do bloco no mapa (SCRUM-401)', () => {
+  it('a frase diz quem apoia: os cursos do bloco, ou qualquer estudante quando não há cursos', () => {
+    expect(frasesDosCursos(['História', 'Filosofia'])).toBe(
+      'Apoia e abre pauta aqui quem é de: História, Filosofia. Pautas de infraestrutura, segurança e acessibilidade são de todos.',
+    );
+    expect(frasesDosCursos([])).toBe('Aberto a qualquer estudante verificado.');
+  });
+
+  it('o marcador leva os cursos do bloco; o campus inteiro não tem cursos', () => {
+    const [primeiro] = blocosSeed;
+    if (!primeiro) throw new Error('seed sem bloco');
+    const bloco: Bloco = {
+      slug: primeiro.slug,
+      nome: primeiro.nome,
+      base_estudantes: primeiro.baseEstudantes,
+      cursos: ['Direito'],
+    };
+    const marcadores = marcadoresDoMapa([bloco], []);
+    expect(marcadores[0]?.cursos).toEqual(['Direito']);
+    // API antiga, sem o campo: o marcador não afirma nada sobre quem pode apoiar.
+    const { cursos: _, ...semCampo } = bloco;
+    expect(marcadoresDoMapa([semCampo], [])[0]).not.toHaveProperty('cursos');
   });
 });

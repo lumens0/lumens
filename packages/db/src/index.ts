@@ -2,6 +2,12 @@ export const PACOTE_DB = '@lumens/db' as const;
 
 export * from './schema';
 export { CURSOS, type Curso } from './cursos';
+export {
+  AULAS_EM_OUTROS_BLOCOS,
+  CURSOS_DOS_BLOCOS,
+  CURSOS_PROPRIOS_DOS_BLOCOS,
+  SUBBLOCOS,
+} from './cursos-dos-blocos';
 export { criarCliente, criarDb, criarPool, type Db, type Tx } from './client';
 export type * from './types';
 

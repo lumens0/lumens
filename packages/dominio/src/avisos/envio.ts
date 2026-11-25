@@ -29,7 +29,8 @@ export type TipoDisparo =
   | 'foto_recusada'
   | 'edicao_decidida'
   | 'lembrete'
-  | 'remarcacao';
+  | 'remarcacao'
+  | 'alteracao';
 
 /**
  * Ordem de atendimento quando o limite das 24h não cobre todo mundo.
@@ -53,6 +54,9 @@ export const PRIORIDADE: Readonly<Record<TipoDisparo, number>> = Object.freeze({
   edicao_decidida: 8,
   lembrete: 9,
   remarcacao: 10,
+  // SCRUM-401: aviso de alteração da curadoria. Vai a poucos (responsáveis) ou a quem apoiou, e o que
+  // mudou já está na linha do tempo do site, então pode esperar atrás dos demais.
+  alteracao: 11,
 });
 
 /** Limite da Meta para um portfólio novo, em pessoas distintas por 24h móveis (RNF06). */

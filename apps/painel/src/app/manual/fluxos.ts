@@ -44,7 +44,7 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         resumo:
           'Ela vem de quem relatou: troque só se estiver errada. Marque “urgente” só se for o caso.',
         detalhe:
-          'O motivo da urgência fica só no painel; o site mostra apenas que a pauta é urgente.',
+          'O motivo da urgência fica só no painel; o site mostra apenas que a pauta é urgente. A categoria define quem pode apoiar: infraestrutura, segurança e acessibilidade são de todos.',
       },
       {
         titulo: 'Marque que conferiu e aprove',
@@ -114,13 +114,15 @@ export const FLUXOS_DA_CURADORIA: readonly FluxoEmCards[] = [
         onde: 'painel',
         resumo: 'Corrija o bloco (a meta é recalculada) ou ajuste a meta, de 30 a 300.',
         detalhe:
-          'Só enquanto a pauta está em curadoria ou juntando apoios. O motivo é obrigatório e fica na linha do tempo.',
+          'Só enquanto a pauta está em curadoria ou juntando apoios. O motivo é obrigatório, fica na linha do tempo e vai pelo bot a quem cuida da pauta e a quem já apoiou.',
       },
       {
         titulo: 'Urgência e categoria',
         icone: 'etiqueta',
         onde: 'painel',
         resumo: 'Troque quando a situação mudar. O motivo da urgência é opcional.',
+        detalhe:
+          'Quem cuida da pauta é avisado pelo bot. A categoria também define quem pode apoiar: infraestrutura, segurança e acessibilidade são de todos; as outras só dos cursos do bloco.',
       },
       {
         titulo: 'Texto errado? Quem criou pede a mudança',
