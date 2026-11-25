@@ -4,8 +4,32 @@ import { pontoDentro } from './nomes';
 import { PREDIOS, type Predio } from './predios';
 import type { MarcadorDoBloco } from './urgencia';
 
-/** Onde a câmera olha (`cx`, `cy`, em metros do desenho) e quantos metros cabem na largura. */
-export type Camera = { cx: number; cy: number; w: number };
+/**
+ * Onde a câmera olha (`cx`, `cy`, em metros do desenho) e quantos metros cabem na largura. `giro`
+ * (radianos, sentido horário na tela; sem ele, 0) gira o desenho em torno do centro da câmera.
+ */
+export type Camera = { cx: number; cy: number; w: number; giro?: number };
+
+/**
+ * Um deslocamento da tela (`dx`, `dy`) levado para o desenho: com o mapa girado em `giro`,
+ * "para a direita da tela" já não é "para o leste do desenho".
+ */
+export function paraODesenho(giro: number, dx: number, dy: number): [number, number] {
+  const c = Math.cos(giro);
+  const s = Math.sin(giro);
+  return [c * dx + s * dy, -s * dx + c * dy];
+}
+
+/** Gira a câmera `delta` radianos, em torno do centro dela. */
+export function girar(cam: Camera, delta: number): Camera {
+  return { ...cam, giro: (cam.giro ?? 0) + delta };
+}
+
+/** O `transform` do desenho girado: em torno do ponto que a câmera olha, que fica parado na tela. */
+export function giroDoDesenho(cam: Camera): string {
+  const graus = ((cam.giro ?? 0) * 180) / Math.PI;
+  return `rotate(${String(graus)} ${String(cam.cx)} ${String(cam.cy)})`;
+}
 
 /** O tamanho do palco em pixels. */
 export type Medida = { vw: number; vh: number };
@@ -127,6 +151,7 @@ export function quadroDaCamera(cam: Camera, medida: Medida) {
 /** Passo `e` (0 a 1, já suavizado) do voo de `de` até `para`; a largura cresce em escala. */
 export function interpolar(de: Camera, para: Camera, e: number): Camera {
   return {
+    ...(de.giro === undefined ? {} : { giro: de.giro }),
     cx: de.cx + (para.cx - de.cx) * e,
     cy: de.cy + (para.cy - de.cy) * e,
     w: de.w * Math.pow(para.w / de.w, e),
@@ -198,11 +223,18 @@ export function enquadrarLocal(
  */
 export function zoomNoPonto(cam: Camera, medida: Medida, f: number, px: number, py: number) {
   const k = cam.w / medida.vw;
-  const mx = cam.cx + (px - medida.vw / 2) * k;
-  const my = cam.cy + (py - medida.vh / 2) * k;
+  const giro = cam.giro ?? 0;
+  const [ox, oy] = paraODesenho(giro, px - medida.vw / 2, py - medida.vh / 2);
+  const mx = cam.cx + ox * k;
+  const my = cam.cy + oy * k;
   const w = clamp(cam.w * f, LARGURA_MINIMA, LARGURA_MAXIMA);
   const nk = w / medida.vw;
-  return { cx: mx - (px - medida.vw / 2) * nk, cy: my - (py - medida.vh / 2) * nk, w };
+  return {
+    ...(cam.giro === undefined ? {} : { giro }),
+    cx: mx - ox * nk,
+    cy: my - oy * nk,
+    w,
+  };
 }
 
 /** Largura da câmera numa pinça: os dedos se afastando (`distancia` maior) aproximam o mapa. */
@@ -213,7 +245,8 @@ export function larguraDaPinca(larguraInicial: number, inicial: number, distanci
 /** Arrastar `dx`, `dy` pixels leva a câmera no sentido contrário. */
 export function arrastar(cam: Camera, medida: Medida, dx: number, dy: number): Camera {
   const k = cam.w / medida.vw;
-  return { ...cam, cx: cam.cx - dx * k, cy: cam.cy - dy * k };
+  const [mx, my] = paraODesenho(cam.giro ?? 0, dx, dy);
+  return { ...cam, cx: cam.cx - mx * k, cy: cam.cy - my * k };
 }
 
 /** Passo das setas do teclado: 60 pixels da tela, em metros. */

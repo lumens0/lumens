@@ -123,7 +123,9 @@ describe('mapa do campus', () => {
     expect(html).toContain('Promessa descumprida');
     expect(html).toContain('Tudo aceso');
     expect(html).toContain('aria-label="Mostrar no mapa"');
-    expect(html).toContain('Arraste para mover. Com dois dedos, aproxime.');
+    expect(html).toContain(
+      'Arraste para girar; Shift ou botão direito move. Com dois dedos, aproxime e gire.',
+    );
     expect(html).toContain('aria-label="Aproximar"');
     expect(html).toContain('aria-label="Afastar"');
     expect(html).toContain('Toque num prédio apagado para relatar um problema nele.');
