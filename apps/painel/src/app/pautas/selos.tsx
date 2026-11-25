@@ -15,10 +15,10 @@ export function situacaoDoPrazo(restanteMs: number) {
 export function textoDoSelo(restanteMs: number): string {
   if (restanteMs > 0) {
     const horas = Math.ceil(restanteMs / HORA_MS);
-    return `vence em ${String(horas)} h`;
+    return `vence em ${String(horas)} h`;
   }
   const horas = Math.floor(-restanteMs / HORA_MS);
-  return horas === 0 ? 'atrasada há menos de 1 h' : `atrasada há ${String(horas)} h`;
+  return horas === 0 ? 'atrasada há menos de 1 h' : `atrasada há ${String(horas)} h`;
 }
 
 const CLASSE = {

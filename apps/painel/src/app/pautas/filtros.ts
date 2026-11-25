@@ -17,7 +17,8 @@ const itensDaUrl = (param: string | undefined): string[] =>
  * como sempre; `todas` (ou valores que não existem) é a lista sem filtro de situação.
  */
 export function situacoesDaUrl(param: string | undefined): Situacao[] {
-  if (param === undefined) return ['em_curadoria'];
+  // Sem parâmetro a lista abre em "Todas": quem entra pela primeira vez vê tudo, não uma etapa só.
+  if (param === undefined) return [];
   return itensDaUrl(param).filter((item): item is Situacao => Object.hasOwn(STATUS, item));
 }
 

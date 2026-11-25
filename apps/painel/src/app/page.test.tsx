@@ -38,7 +38,7 @@ describe('início do painel de curadoria', () => {
     expect(html).toContain('Painel de curadoria');
     // Um número por indicador (SCRUM-358): o número em destaque e a unidade logo abaixo.
     expect(html).toMatch(/indicadorNumero[^>]*>3<\/b><span[^>]*>esperando decisão/);
-    expect(html).toContain('1 pauta atrasada no prazo de 24 h');
+    expect(html).toContain('1 pauta atrasada no prazo de 24 h');
     expect(html).toMatch(/indicadorNumero[^>]*>2<\/b><span[^>]*>em pautas publicadas/);
     expect(html).toMatch(/indicadorNumero[^>]*>4<\/b><span[^>]*>pautas</);
     expect(html).toMatch(/indicadorNumero[^>]*>5<\/b><span[^>]*>conferências</);
@@ -61,12 +61,12 @@ describe('início do painel de curadoria', () => {
       <Inicio resumo={{ ...resumo, pautasAtrasadas: 0, relatosAModerar: 1 }} visao={visao} />,
     );
     expect(html).toMatch(/indicadorNumero[^>]*>1<\/b><span[^>]*>em pautas publicadas/);
-    expect(html).toContain('Nenhuma atrasada no prazo de 24 h');
+    expect(html).toContain('Nenhuma atrasada no prazo de 24 h');
   });
 
   it('mostra prazos, pautas por status com atalhos, apoios por semana e tempo médio', () => {
     const html = renderToStaticMarkup(<Inicio resumo={resumo} visao={visao} />);
-    expect(html).toContain('2 vencem nas próximas 6 h');
+    expect(html).toContain('2 vencem nas próximas 6 h');
     expect(html).toContain('Pautas por status');
     // A linha inteira é o link da etapa; só entram as etapas que têm pauta (a recusada, com 0, não).
     expect(html).toContain('href="/pautas?status=juntando_apoios"');
@@ -81,7 +81,7 @@ describe('início do painel de curadoria', () => {
     expect(html).toContain('apoios, semana de</span></b>');
     expect(html).toContain('<i aria-hidden="true"></i>');
     expect(html).toContain('<small>07 jan</small>');
-    expect(html).toContain('Tempo médio até a decisão: <b>8,0 h</b>');
+    expect(html).toContain('Tempo médio até a decisão: <b>8,0 h</b>');
   });
 
   it('não repete o aviso de prazo próximo quando não há e explica a falta de decisões', () => {
@@ -96,13 +96,13 @@ describe('início do painel de curadoria', () => {
         }}
       />,
     );
-    expect(html).not.toContain('nas próximas 6 h');
+    expect(html).not.toContain('nas próximas 6 h');
     expect(html).toContain('Nenhuma decisão nos últimos 30 dias.');
   });
 
   it('formata o tempo médio e o rótulo da semana', () => {
-    expect(textoDoTempoMedio(20 * 60_000)).toBe('20 min');
-    expect(textoDoTempoMedio(90 * 60_000)).toBe('1,5 h');
+    expect(textoDoTempoMedio(20 * 60_000)).toBe('20 min');
+    expect(textoDoTempoMedio(90 * 60_000)).toBe('1,5 h');
     expect(textoDoTempoMedio(72 * 3_600_000)).toBe('3 dias');
     expect(rotuloDaSemana('2030-01-07')).toBe('07 jan');
   });

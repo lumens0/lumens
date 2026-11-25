@@ -1,7 +1,7 @@
-import { apoios, eq, estudantes, pautas, type Db } from '@lumens/db';
+import { apoios, blocoCursos, eq, estudantes, pautas, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
+import { criarBloco, criarEstudanteVerificado, criarPauta, tornarOwner } from '../teste/fabricas';
 import { aplicarApoioDosOwners, conferirApoioDosOwners } from './apoio-dos-owners';
 
 let db: Db;
@@ -32,6 +32,23 @@ describe('apoio dos owners de pautas aprovadas antes da SCRUM-344', () => {
     const segunda = await aplicarApoioDosOwners(db);
     expect(segunda.registrados).toBe(0);
     expect(await apoiosDa(pauta.id)).toBe(1);
+  });
+
+  it('owner de outro curso que o do bloco fica em ignorados, e o apoio não é aplicado (SCRUM-399)', async () => {
+    const bloco = await criarBloco(db);
+    await db.insert(blocoCursos).values({ blocoId: bloco.id, curso: 'História' });
+    const pauta = await criarPauta(db, { blocoId: bloco.id });
+    const owner = await criarEstudanteVerificado(db); // Ciência da Computação
+    await tornarOwner(db, pauta.id, owner.id);
+
+    const conferencia = await conferirApoioDosOwners(db);
+    expect(conferencia.aplicaveis.map((o) => o.pautaId)).not.toContain(pauta.id);
+    expect(conferencia.ignorados).toContainEqual(
+      expect.objectContaining({ pautaId: pauta.id, ignoradoPor: 'fora_do_bloco' }),
+    );
+
+    await aplicarApoioDosOwners(db);
+    expect(await apoiosDa(pauta.id)).toBe(0);
   });
 
   it('pula quem saiu do Lumens e pauta que não recebe apoio, e não mexe em pauta na curadoria', async () => {

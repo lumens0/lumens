@@ -946,6 +946,12 @@
   cursor: progress;
 }
 
+.dialogoAviso:empty {
+  min-height: 0;
+  padding: 0;
+  background: none;
+}
+
 .dialogoAviso {
   min-height: 42px;
   margin: 0;

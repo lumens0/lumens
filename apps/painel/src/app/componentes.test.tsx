@@ -20,18 +20,18 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('urlDaLista', () => {
-  it('sem filtro nenhum, volta a lista aberta em "todas"', () => {
-    expect(urlDaLista({ situacoes: [], pendencias: [], q: '' })).toBe('/pautas?status=todas');
+  it('sem filtro nenhum, "todas" é o padrão e a lista é só /pautas', () => {
+    expect(urlDaLista({ situacoes: [], pendencias: [], q: '' })).toBe('/pautas');
   });
 
-  it('a situação padrão sozinha, sem busca, é só /pautas', () => {
-    expect(urlDaLista({ situacoes: ['em_curadoria'], pendencias: [], q: '' })).toBe('/pautas');
-  });
-
-  it('a situação padrão com busca mantém só a busca', () => {
-    expect(urlDaLista({ situacoes: ['em_curadoria'], pendencias: [], q: 'sala' })).toBe(
-      '/pautas?q=sala',
+  it('uma etapa sozinha leva o parâmetro, porque o padrão agora é "todas"', () => {
+    expect(urlDaLista({ situacoes: ['em_curadoria'], pendencias: [], q: '' })).toBe(
+      '/pautas?status=em_curadoria',
     );
+  });
+
+  it('"todas" com busca mantém só a busca', () => {
+    expect(urlDaLista({ situacoes: [], pendencias: [], q: 'sala' })).toBe('/pautas?q=sala');
   });
 
   it('várias situações e pendências vão separadas por vírgula', () => {
