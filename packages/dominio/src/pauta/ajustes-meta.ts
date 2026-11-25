@@ -81,6 +81,9 @@ export async function corrigirBloco(
   const metaDepois = calcularMeta(blocoDepois ?? null);
   if (metaDepois <= (await contarApoios(tx, pautaId)))
     return { feito: false, motivo: 'meta_abaixo_dos_apoios' };
+  // Mesmo bloco e mesma meta: nada mudou, então não há o que registrar nem a quem avisar (um aviso
+  // "120 para 120" iria a todos os apoiadores e gastaria a cota de mensagens).
+  if (pauta.blocoId === blocoId && pauta.meta === metaDepois) return { feito: true };
 
   await tx.update(pautas).set({ blocoId, meta: metaDepois }).where(eq(pautas.id, pautaId));
   const evento = await registrarEvento(tx, {
@@ -136,6 +139,8 @@ export async function ajustarMeta(
   if (!motivoValido(motivo)) return { feito: false, motivo: 'motivo_obrigatorio' };
   if (meta <= (await contarApoios(tx, pautaId)))
     return { feito: false, motivo: 'meta_abaixo_dos_apoios' };
+  // O formulário já vem com a meta atual: enviá-lo sem mudar o número não é uma alteração.
+  if (meta === pauta.meta) return { feito: true };
   await tx
     .update(pautas)
     .set({ meta })

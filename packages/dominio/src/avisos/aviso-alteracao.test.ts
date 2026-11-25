@@ -1,4 +1,4 @@
-import { apoios, disparos, eq, estudantes, type Db } from '@lumens/db';
+import { apoios, disparos, eq, estudantes, eventos, type Db } from '@lumens/db';
 import { criarBancoEmMemoria } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ajustarMeta, corrigirBloco } from '../pauta/ajustes-meta';
@@ -96,6 +96,34 @@ describe('aviso de alteração da curadoria (SCRUM-401)', () => {
       'a meta passou de 120 para 60 apoios',
       'a base do bloco era menor',
     ]);
+  });
+
+  it('meta enviada igual à atual e bloco igual com a mesma meta: nada é registrado nem avisado', async () => {
+    const bloco = await criarBloco(db, 1200); // meta 120
+    const { pauta } = await cenario({ blocoId: bloco.id });
+    const curador = await criarCurador(db);
+    const antes = (await db.select().from(disparos)).length;
+    const eventosAntes = (await db.select().from(eventos).where(eq(eventos.pautaId, pauta.id)))
+      .length;
+
+    const mesmaMeta = await db.transaction((tx) =>
+      ajustarMeta(tx, { pautaId: pauta.id, curadorId: curador.id, meta: 120, motivo: 'igual' }),
+    );
+    const mesmoBloco = await db.transaction((tx) =>
+      corrigirBloco(tx, {
+        pautaId: pauta.id,
+        curadorId: curador.id,
+        blocoId: bloco.id,
+        motivo: 'igual',
+      }),
+    );
+
+    expect(mesmaMeta).toEqual({ feito: true });
+    expect(mesmoBloco).toEqual({ feito: true });
+    expect((await db.select().from(disparos)).length).toBe(antes);
+    expect((await db.select().from(eventos).where(eq(eventos.pautaId, pauta.id))).length).toBe(
+      eventosAntes,
+    );
   });
 
   it('quem saiu do Lumens não recebe', async () => {
