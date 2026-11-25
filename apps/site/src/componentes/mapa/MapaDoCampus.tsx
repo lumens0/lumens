@@ -660,9 +660,12 @@ export function MapaDoCampus({
               </button>
               <h1 className={estilos.somenteLeitor}>Mapa do campus</h1>
               <h2>{sel.nome}</h2>
-              <p className={estilos.sub} data-cursos-do-bloco>
-                {frasesDosCursos(sel.cursos ?? [])}
-              </p>
+              {/* Sem o campo `cursos` (API antiga), não se sabe quem pode apoiar: não afirma nada. */}
+              {sel.cursos !== undefined && (
+                <p className={estilos.sub} data-cursos-do-bloco>
+                  {frasesDosCursos(sel.cursos)}
+                </p>
+              )}
               {ativas(sel, filtro).length > 0 ? (
                 <p className={estilos.sub}>
                   {plural(ativas(sel, filtro).length, 'pauta neste bloco.', 'pautas neste bloco.')}

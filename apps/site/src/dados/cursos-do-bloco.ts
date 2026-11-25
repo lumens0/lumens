@@ -22,14 +22,18 @@ export function fraseDosCursosDaPauta(
   return `Só apoiam estudantes de: ${cursos.join(', ')}.`;
 }
 
-/** Os cursos do bloco, ou `undefined` se a API de blocos não respondeu: a página não cai por isso. */
+/**
+ * Os cursos do bloco, ou `undefined` quando não se sabe: a API de blocos não respondeu, o bloco não
+ * veio, ou a API ainda é a antiga, sem o campo `cursos` (site publicado antes do backend). Nesses
+ * casos a página não escreve nada, em vez de afirmar que o bloco é aberto.
+ */
 export async function cursosDoBloco(
   blocoSlug: string | null,
 ): Promise<readonly string[] | undefined> {
   if (blocoSlug === null) return undefined;
   try {
     const bloco = (await buscarBlocos()).find((b) => b.slug === blocoSlug);
-    return bloco === undefined ? undefined : (bloco.cursos ?? []);
+    return bloco?.cursos;
   } catch {
     return undefined;
   }

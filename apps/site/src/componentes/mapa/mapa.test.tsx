@@ -408,5 +408,8 @@ describe('cursos do bloco no mapa (SCRUM-401)', () => {
     };
     const marcadores = marcadoresDoMapa([bloco], []);
     expect(marcadores[0]?.cursos).toEqual(['Direito']);
+    // API antiga, sem o campo: o marcador não afirma nada sobre quem pode apoiar.
+    const { cursos: _, ...semCampo } = bloco;
+    expect(marcadoresDoMapa([semCampo], [])[0]).not.toHaveProperty('cursos');
   });
 });

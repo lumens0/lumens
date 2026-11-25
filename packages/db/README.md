@@ -239,11 +239,12 @@ ordene na consulta; o SQL não promete a ordem de uma view.
 
 Todos os blocos, inclusive os que não têm pauta pública: o filtro de bloco do site lista todos.
 
-| Coluna            | Tipo | Conteúdo                                 |
-| ----------------- | ---- | ---------------------------------------- |
-| `slug`            | text | identificador público do bloco           |
-| `nome`            | text |                                          |
-| `base_estudantes` | int  | estudantes do bloco, base da meta (RN04) |
+| Coluna            | Tipo   | Conteúdo                                                                                                                                                                    |
+| ----------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `slug`            | text   | identificador público do bloco                                                                                                                                              |
+| `nome`            | text   |                                                                                                                                                                             |
+| `base_estudantes` | int    | estudantes do bloco, base da meta (RN04)                                                                                                                                    |
+| `cursos`          | text[] | cursos que apoiam e abrem pauta no bloco (SCRUM-399), em ordem alfabética; vazio: aberto a qualquer estudante verificado (vem de `bloco_curso`, que o `lumens_site` não lê) |
 
 ### Migrações que mexem no que as views usam
 

@@ -75,7 +75,7 @@ export interface MarcadorDoBloco {
   linha: string;
   /** Pautas do bloco para o painel ao lado do mapa: abertas primeiro, a mais urgente no topo. */
   pautas: Pauta[];
-  /** Cursos que apoiam e abrem pauta aqui (SCRUM-399); vazio: aberto a qualquer estudante verificado. */
+  /** Cursos que apoiam e abrem pauta aqui (SCRUM-399); vazio: aberto a qualquer estudante verificado; ausente: não se sabe. */
   cursos?: readonly string[];
 }
 
@@ -92,7 +92,7 @@ export function marcadoresDoMapa(
       bloco.nome,
       pautas,
       PREDIOS.find((p) => p.blocos.includes(bloco.slug))?.id,
-      bloco.cursos ?? [],
+      bloco.cursos,
     ),
   );
   // Pauta sem bloco é do campus inteiro e não tem prédio: sem esta linha ela sumia do mapa.
@@ -110,7 +110,7 @@ function marcador(
   nome: string,
   pautas: readonly Pauta[],
   predio: number | undefined,
-  cursos: readonly string[],
+  cursos: readonly string[] | undefined,
 ): MarcadorDoBloco {
   const doBloco = pautas.filter((p) =>
     slug === SLUG_DO_CAMPUS ? p.bloco_slug === null : p.bloco_slug === slug,
@@ -138,6 +138,6 @@ function marcador(
     urgente: abertas.some((p) => p.urgente),
     linha: partes.join(' · '),
     pautas: [...abertas, ...conquistadas],
-    cursos,
+    ...(cursos === undefined ? {} : { cursos }),
   };
 }
