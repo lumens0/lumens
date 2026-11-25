@@ -1,5 +1,5 @@
-import { type Db } from '@lumens/db';
-import { criarBancoEmMemoria } from '@lumens/db/teste';
+import { criarDb, criarPool, type Db } from '@lumens/db';
+import { criarBancoEmMemoria, criarBancoTemporario } from '@lumens/db/teste';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   ASSUNTO_DO_AVISO,
@@ -14,6 +14,8 @@ import { reservarEnvio } from './acesso';
 const CHAVE = Buffer.alloc(32, 7);
 const T0 = new Date('2026-11-24T12:00:00Z');
 const depois = (segundos: number) => new Date(T0.getTime() + segundos * 1000);
+
+const URL_TESTE = process.env.DATABASE_URL_TESTE;
 
 let db: Db;
 beforeAll(async () => {
@@ -116,4 +118,27 @@ describe('aviso a quem pediu o link e não é curador (SCRUM-400)', () => {
     // O mesmo endereço ainda pode reservar o envio do link: as chaves são separadas.
     expect(await reservarEnvio(db, email, CHAVE, T0)).toBe(true);
   });
+});
+
+describe.skipIf(!URL_TESTE)('aviso ao não curador com Postgres de verdade (SCRUM-400)', () => {
+  it('uma rajada de pedidos de endereços diferentes não passa do teto por hora', async () => {
+    const temporario = await criarBancoTemporario(URL_TESTE ?? '');
+    const pool = criarPool(
+      temporario.url,
+      { conexaoMs: 5000, consultaMs: 15_000 },
+      () => undefined,
+    );
+    const real = criarDb(pool);
+    try {
+      const resultados = await Promise.all(
+        Array.from({ length: LIMITE_GERAL_POR_HORA * 2 }, (_, i) =>
+          reservarAvisoDeNaoCurador(real, `rajada${String(i)}@ufal.br`, CHAVE, T0),
+        ),
+      );
+      expect(resultados.filter(Boolean)).toHaveLength(LIMITE_GERAL_POR_HORA);
+    } finally {
+      await pool.end();
+      await temporario.apagar();
+    }
+  }, 30_000);
 });

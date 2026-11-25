@@ -8,9 +8,8 @@
  * tabela do limite de um link por minuto (`pedido_link_login`, chave com prefixo próprio):
  *
  * - um aviso por endereço por hora;
- * - no máximo `LIMITE_GERAL_POR_HORA` avisos por hora no painel todo. A contagem e a reserva são
- *   dois comandos, então sob concorrência o teto pode passar por poucos avisos; o limite por
- *   endereço, esse sim, é decidido em um INSERT só.
+ * - no máximo `LIMITE_GERAL_POR_HORA` avisos por hora no painel todo. A contagem e a reserva rodam
+ *   numa transação com lock consultivo, então uma rajada de pedidos não passa do teto.
  */
 import { and, gt, lt, lte, pedidosLinkLogin, sql, type Db } from '@lumens/db';
 import { hmacDoEmail } from './acesso';
@@ -18,6 +17,8 @@ import { hmacDoEmail } from './acesso';
 export const ESPERA_ENTRE_AVISOS_S = 60 * 60;
 export const LIMITE_GERAL_POR_HORA = 30;
 const PREFIXO = 'nao-curador:';
+/** Chave do lock consultivo que serializa as reservas do teto geral (SCRUM-400). */
+const LOCK_DOS_AVISOS = 400;
 
 export const ASSUNTO_DO_AVISO = 'Seu e-mail não está na lista da curadoria do Lumens';
 
@@ -40,34 +41,39 @@ export async function reservarAvisoDeNaoCurador(
   agora: Date = new Date(),
 ): Promise<boolean> {
   const umaHora = new Date(agora.getTime() - ESPERA_ENTRE_AVISOS_S * 1000);
-  await db
-    .delete(pedidosLinkLogin)
-    .where(
-      and(
-        sql`${pedidosLinkLogin.identificador} like ${`${PREFIXO}%`}`,
-        lt(pedidosLinkLogin.ultimoEnvioEm, new Date(agora.getTime() - 24 * 3600 * 1000)),
-      ),
-    );
-  const [recentes] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(pedidosLinkLogin)
-    .where(
-      and(
-        sql`${pedidosLinkLogin.identificador} like ${`${PREFIXO}%`}`,
-        gt(pedidosLinkLogin.ultimoEnvioEm, umaHora),
-      ),
-    );
-  if ((recentes?.total ?? 0) >= LIMITE_GERAL_POR_HORA) return false;
-  const reservados = await db
-    .insert(pedidosLinkLogin)
-    .values({ identificador: PREFIXO + hmacDoEmail(email, chave), ultimoEnvioEm: agora })
-    .onConflictDoUpdate({
-      target: pedidosLinkLogin.identificador,
-      set: { ultimoEnvioEm: agora },
-      setWhere: lte(pedidosLinkLogin.ultimoEnvioEm, umaHora),
-    })
-    .returning({ identificador: pedidosLinkLogin.identificador });
-  return reservados.length > 0;
+  // O lock consultivo vale até o fim da transação e serializa quem reserva: sem ele, uma rajada de
+  // pedidos para endereços diferentes leria a mesma contagem abaixo do teto e todos passariam.
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${LOCK_DOS_AVISOS})`);
+    await tx
+      .delete(pedidosLinkLogin)
+      .where(
+        and(
+          sql`${pedidosLinkLogin.identificador} like ${`${PREFIXO}%`}`,
+          lt(pedidosLinkLogin.ultimoEnvioEm, new Date(agora.getTime() - 24 * 3600 * 1000)),
+        ),
+      );
+    const [recentes] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(pedidosLinkLogin)
+      .where(
+        and(
+          sql`${pedidosLinkLogin.identificador} like ${`${PREFIXO}%`}`,
+          gt(pedidosLinkLogin.ultimoEnvioEm, umaHora),
+        ),
+      );
+    if ((recentes?.total ?? 0) >= LIMITE_GERAL_POR_HORA) return false;
+    const reservados = await tx
+      .insert(pedidosLinkLogin)
+      .values({ identificador: PREFIXO + hmacDoEmail(email, chave), ultimoEnvioEm: agora })
+      .onConflictDoUpdate({
+        target: pedidosLinkLogin.identificador,
+        set: { ultimoEnvioEm: agora },
+        setWhere: lte(pedidosLinkLogin.ultimoEnvioEm, umaHora),
+      })
+      .returning({ identificador: pedidosLinkLogin.identificador });
+    return reservados.length > 0;
+  });
 }
 
 export type ResultadoDoAviso = 'enviado' | 'barrado' | 'falhou';
