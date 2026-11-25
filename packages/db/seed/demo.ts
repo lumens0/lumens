@@ -70,6 +70,7 @@ const CURSOS = [
 const TABELAS_ZERADAS = [
   'apoio',
   'bloco',
+  'bloco_curso',
   'caminho',
   'codigo_verificacao',
   'conquista_curadoria',
